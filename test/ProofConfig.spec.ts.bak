@@ -1,0 +1,28 @@
+import { expect } from "chai";
+import { ethers } from "hardhat";
+
+describe("Proof gating (basic)", function () {
+  it("enforces required proof when set", async function () {
+    const net = (process.env.HARDHAT_NETWORK || "lightchain");
+    // Read deployments added by your deploy script
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const dep = require(`../deployments/${net}.json`);
+    const cp = await ethers.getContractAt("ChallengePay", dep.ChallengePay);
+
+    // Deploy a MockVerifier that always returns false
+    const MV = await ethers.getContractFactory("MockVerifier");
+    const mv = await MV.deploy(false);
+    await mv.waitForDeployment();
+    const mvAddr = await mv.getAddress();
+
+    // Choose a challenge id; 1 is the one you used in admin scripts
+    const chId = 1n;
+
+    // Set required=true, verifier=mock (which will fail)
+    const tx = await cp.setProofConfig(chId, true, mvAddr);
+    await tx.wait();
+
+    // Submit a dummy proof → should revert/return false in your flow
+    await expect(cp.submitProof(chId, "0x")).to.be.reverted;
+  });
+});

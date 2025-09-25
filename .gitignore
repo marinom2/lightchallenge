@@ -1,0 +1,27 @@
+# Node / Hardhat
+node_modules/
+artifacts/
+cache/
+typechain-types/
+
+# Editor
+.DS_Store
+**/._*
+._*
+.vscode/
+.idea/
+
+# Env / Secrets
+.env
+.env.local
+
+# Build outputs / exports
+exports/
+snapshots/
+writes/
+lightchain-run.log
+
+# Archives
+*.zip
+*.tgzcoverage
+zk/circomlib

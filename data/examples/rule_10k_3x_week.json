@@ -1,0 +1,27 @@
+{
+  "challengeType": "run",
+  "period": {
+    "start": "2025-08-18T00:00:00Z",
+    "end":   "2025-09-15T23:59:59Z",
+    "timezone": "Europe/Sofia"
+  },
+  "weeklyTarget": {
+    "minOccurrences": 3,
+    "perWeeks": 4
+  },
+  "conditions": [
+    { "metric": "distance_km", "op": ">=", "value": 10 },
+    { "metric": "avg_pace_min_per_km", "op": "<=", "value": 8.0 },
+    { "metric": "gps_continuity_score", "op": ">=", "value": 0.9 },
+    { "metric": "hr_activity_consistency", "op": ">=", "value": 0.8 }
+  ],
+  "antiCheat": {
+    "minGpsContinuity": 0.85,
+    "minHrConsistency": 0.7,
+    "maxTeleportJumps": 2
+  },
+  "model": {
+    "modelId": "model://challengepay.run.v1",
+    "modelVersion": 1
+  }
+}

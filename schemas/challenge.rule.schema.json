@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ChallengeRule",
+  "type": "object",
+  "required": ["challengeType", "period"],
+  "properties": {
+    "challengeType": { "type": "string", "enum": ["run", "walk", "cycle", "swim", "steps"] },
+    "period": {
+      "type": "object",
+      "required": ["start", "end", "timezone"],
+      "properties": {
+        "start": { "type": "string", "format": "date-time" },
+        "end": { "type": "string", "format": "date-time" },
+        "timezone": { "type": "string" }
+      }
+    },
+    "weeklyTarget": {
+      "type": "object",
+      "description": "Run/walk/cycle/swim occurrences per week (e.g., 3 runs/week for 4 weeks)",
+      "properties": { "minOccurrences": { "type": "integer", "minimum": 1 }, "perWeeks": { "type": "integer", "minimum": 1 } }
+    },
+    "dailyTarget": {
+      "type": "object",
+      "description": "Daily streak target (e.g., steps>=10000 for 7 consecutive days)",
+      "properties": {
+        "consecutiveDays": { "type": "integer", "minimum": 1 },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["metric", "op", "value"],
+            "properties": {
+              "metric": { "type": "string", "enum": ["steps_count", "distance_km", "duration_min"] },
+              "op": { "type": "string", "enum": [">=", ">", "<=", "<", "=="] },
+              "value": { "type": "number" }
+            }
+          }
+        }
+      }
+    },
+    "conditions": {
+      "type": "array",
+      "description": "Per-activity conditions (for non-steps sports)",
+      "items": {
+        "type": "object",
+        "required": ["metric", "op", "value"],
+        "properties": {
+          "metric": {
+            "type": "string",
+            "enum": [
+              "distance_km", "duration_min", "avg_pace_min_per_km",
+              "avg_speed_kmh", "elev_gain_m", "avg_hr_bpm", "max_hr_bpm",
+              "gps_continuity_score", "hr_activity_consistency",
+              "steps_count", "swim_distance_km"
+            ]
+          },
+          "op": { "type": "string", "enum": [">=", ">", "<=", "<", "=="] },
+          "value": { "type": "number" }
+        }
+      }
+    },
+    "antiCheat": {
+      "type": "object",
+      "description": "Optional anti-cheat thresholds (soft failures produce reasons).",
+      "properties": {
+        "minGpsContinuity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "minHrConsistency": { "type": "number", "minimum": 0, "maximum": 1 },
+        "maxTeleportJumps": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "model": {
+      "type": "object",
+      "description": "Optional off-chain model metadata bound in the signed proof",
+      "properties": { "modelId": { "type": "string" }, "modelVersion": { "type": "integer" } }
+    }
+  }
+}

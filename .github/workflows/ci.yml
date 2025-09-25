@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      NODE_ENV: test
+      # Provide defaults so scripts never reach out to a real chain in CI.
+      LIGHTCHAIN_RPC: https://testnet-rpc.lightchain.ai
+      LIGHTCHAIN_CHAIN_ID: 504
+      # Dummy private key for Hardhat's local network (OK for CI only).
+      PRIVATE_KEY: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
+
+      # Coverage thresholds (tune here as your suite evolves)
+      COVERAGE_STMTS: "72"
+      COVERAGE_BRANCH: "45"
+      COVERAGE_FUNCS: "62"
+      COVERAGE_LINES: "76"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Gas report (smoke)
+        run: npm run gas
+
+      - name: Coverage
+        run: npm run coverage
+
+      - name: Enforce coverage thresholds
+        run: npm run coverage:check
+
+      - name: Upload coverage artifact (lcov)
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: coverage/lcov.info
+
+      - name: Upload coverage HTML
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: coverage

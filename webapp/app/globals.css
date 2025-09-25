@@ -1,0 +1,66 @@
+/* Tailwind v4 – single import */
+@import "tailwindcss";
+
+/* Optional: define your design tokens with v4 @theme */
+@theme {
+  --color-primary: #5B4BFF;
+  --color-secondary: #EE11FB;
+  --color-dark: #0d0f1a;
+  --color-card: rgba(255,255,255,0.05);
+  --color-line: rgba(255,255,255,0.10);
+  --color-textLight: #CCCEEF;
+
+  --shadow-card: 0 10px 25px rgba(0,0,0,0.35);
+  --radius-2xl: 1rem;
+}
+
+/* App base */
+:root{
+  --lc-bg:#0d0f1a;
+  --lc-card:rgba(255,255,255,.04);
+  --lc-border:rgba(255,255,255,.08);
+  --lc-grad-1:#5B4BFF;
+  --lc-grad-2:#EE11FB;
+}
+
+html, body {
+  background: var(--lc-bg);
+  color: white;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  min-height: 100%;
+}
+
+.container-narrow { max-width: 1100px; margin: 0 auto; }
+
+/* Cards & Sections (plain CSS so they work even if utilities purge) */
+.section {
+  background: var(--lc-card);
+  border: 1px solid var(--lc-border);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+/* Helpers (use @apply which v4 supports) */
+.h1 { @apply text-2xl font-semibold; }
+.h2 { @apply text-xl font-semibold; }
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-xl px-4 py-2 font-medium transition;
+}
+.btn-primary { background: linear-gradient(90deg, var(--lc-grad-1), var(--lc-grad-2)); }
+.btn-primary:hover { filter: brightness(1.05); }
+
+.input {
+  @apply w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 outline-none;
+}
+.input:focus { @apply border-[--color-primary]; }
+
+.badge {
+  @apply border border-white/20 rounded-full px-2.5 py-0.5 text-sm;
+}
+
+.hdr { @apply sticky top-0 z-40 bg-black/30 backdrop-blur border-b border-white/10; }
+.ftr { @apply mt-10 text-center text-white/60 text-sm pb-8; }
+
+.card { @apply rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg; }
+.card h3 { @apply text-lg font-semibold mb-2; }

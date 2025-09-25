@@ -1,0 +1,7 @@
+{
+    "$id": "zkPublicSignals@1",
+    "type": "array",
+    "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{1,64}$" },
+    "minItems": 2,
+    "description": "pubSignals[0] = keccak(challengeId,subject); pubSignals[1] = commitment_e; others = summary"
+  }

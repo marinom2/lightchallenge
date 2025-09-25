@@ -1,0 +1,15 @@
+{
+    "$id": "steps@1.0.0",
+    "type": "object",
+    "properties": {
+      "days": {
+        "type": "array",
+        "items": { "type": "integer", "minimum": 0 },
+        "minItems": 7,
+        "maxItems": 7
+      },
+      "utcStart": { "type": "string", "format": "date-time" },
+      "utcEnd":   { "type": "string", "format": "date-time" }
+    },
+    "required": ["days", "utcStart", "utcEnd"]
+  }

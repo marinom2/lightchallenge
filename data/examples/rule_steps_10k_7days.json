@@ -1,0 +1,9 @@
+{
+  "challengeType": "steps",
+  "period": { "start": "2025-09-01T00:00:00Z", "end": "2025-09-30T23:59:59Z", "timezone": "Europe/Sofia" },
+  "dailyTarget": {
+    "consecutiveDays": 7,
+    "conditions": [ { "metric": "steps_count", "op": ">=", "value": 10000 } ]
+  },
+  "model": { "modelId": "model://challengepay.steps.v1", "modelVersion": 1 }
+}
