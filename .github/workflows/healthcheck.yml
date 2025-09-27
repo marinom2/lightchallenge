@@ -1,0 +1,20 @@
+name: LightChain Healthcheck
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # every 30 minutes
+  workflow_dispatch: {}
+
+jobs:
+  healthcheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RPC_URL: ${{ vars.RPC_URL }}
+      CHAIN_ID: ${{ vars.CHAIN_ID }}
+      CHALLENGEPAY_ADDR: ${{ vars.CHALLENGEPAY_ADDR }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run healthcheck
+        run: node ./scripts/ci/healthcheck.mjs
