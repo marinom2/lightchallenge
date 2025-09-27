@@ -29,3 +29,9 @@ zk/circomlib
 .attic/
 
 .attic/
+
+# large archives (ignore)
+*.tgz
+*.tar.gz
+*.zip
+.snapshots/
