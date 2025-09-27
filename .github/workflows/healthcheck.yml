@@ -2,7 +2,7 @@ name: LightChain Healthcheck
 
 on:
   schedule:
-    - cron: "*/30 * * * *"   # every 30 minutes
+    - cron: "*/30 * * * *"
   workflow_dispatch: {}
 
 jobs:
@@ -14,7 +14,11 @@ jobs:
       CHAIN_ID: ${{ vars.CHAIN_ID }}
       CHALLENGEPAY_ADDR: ${{ vars.CHALLENGEPAY_ADDR }}
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
       - name: Run healthcheck
         run: node ./scripts/ci/healthcheck.mjs
