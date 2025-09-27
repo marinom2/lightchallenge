@@ -32,8 +32,8 @@ function pickDaoAddress(dep: Deps): string | undefined {
   // Normalize env naming differences:
   // Prefer explicit envs, then fall back to previous deployment cache
   const candidates = [
-    process.env.DAO_ADDRESS,
-    process.env.DAO_TREASURY,
+    process.env.ADDRESS,
+    process.env.TREASURY,
     process.env.ADMIN_ADDRESS, // legacy/canonical admin
     dep.daoTreasury,
   ].filter(Boolean) as string[];
@@ -52,11 +52,11 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   console.log(`Deployer: ${await deployer.getAddress()} on ${net}`);
 
-  // ── DAO / Treasury (supports DAO_TREASURY, DAO_ADDRESS, ADMIN_ADDRESS)
+  // ── DAO / Treasury (supports TREASURY, ADDRESS, ADMIN_ADDRESS)
   const DAO = pickDaoAddress(dep);
   if (!DAO) {
     throw new Error(
-      "Set a DAO address in .env (DAO_TREASURY preferred; also accept DAO_ADDRESS or ADMIN_ADDRESS)"
+      "Set a DAO address in .env (TREASURY preferred; also accept ADDRESS or ADMIN_ADDRESS)"
     );
   }
   dep.daoTreasury = DAO;

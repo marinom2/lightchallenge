@@ -5,11 +5,23 @@ import { lightchain } from "../../lib/lightchain"
 export default function NetGuard() {
   const chainId = useChainId()
   const { switchChain } = useSwitchChain()
+
   if (chainId && chainId !== lightchain.id) {
     return (
-      <div className="mx-4 my-3 rounded-xl border border-white/10 bg-yellow-500/10 text-yellow-200 p-3 flex items-center justify-between">
-        <div>Wrong network. Please switch to <b>Lightchain Testnet</b>.</div>
-        <button className="btn btn-primary" onClick={() => switchChain({ chainId: lightchain.id })}>Switch</button>
+      <div className="container-narrow mx-auto px-4">
+        <div className="panel mt-4">
+          <div className="panel-body flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+            <div className="text-yellow-200/90">
+              Wrong network. Please switch to <b>Lightchain Testnet</b>.
+            </div>
+            <button
+              className="btn btn-primary"
+              onClick={() => switchChain({ chainId: lightchain.id })}
+            >
+              Switch
+            </button>
+          </div>
+        </div>
       </div>
     )
   }

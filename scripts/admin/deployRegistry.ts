@@ -16,10 +16,10 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   const deployerAddr = await deployer.getAddress();
 
-  // Resolve owner (explicit > DAO_TREASURY > deployer)
+  // Resolve owner (explicit > TREASURY > deployer)
   const owner =
     (process.env.REGISTRY_OWNER && isAddr(process.env.REGISTRY_OWNER) && process.env.REGISTRY_OWNER) ||
-    (process.env.DAO_TREASURY && isAddr(process.env.DAO_TREASURY) && process.env.DAO_TREASURY) ||
+    (process.env.TREASURY && isAddr(process.env.TREASURY) && process.env.TREASURY) ||
     deployerAddr;
 
   info("Network", network.name);

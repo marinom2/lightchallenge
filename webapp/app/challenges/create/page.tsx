@@ -1,291 +1,240 @@
-// webapp/app/challenges/create/page.tsx
-"use client"
+// webapp/components/ProofPanel.tsx
+"use client";
 
-import { useEffect, useMemo, useState } from "react"
-import {
-  useAccount,
-  useConnect,
-  useReadContract,
-  useWriteContract,
-  useWaitForTransactionReceipt,
-} from "wagmi"
-import { parseEther } from "viem"
-import { ABI, ADDR } from "../../../lib/contracts"
+import { useMemo, useState } from "react";
+import { useAccount, useWriteContract } from "wagmi";
+import { type Hex } from "viem";
+import { ABI, ADDR } from "@/lib/contracts";
+import { packZkProof } from "@/lib/zkPack";
 
-type Draft = {
-  title: string
-  steps: string
-  days: string
-  stake: string
-  maxParticipants: string
-}
+type KindKey = "steps" | "running" | "dota";
 
-function useDraft(key = "lc_create_draft_v2") {
-  const [draft, setDraft] = useState<Draft>({
-    title: "",
-    steps: "5000",
-    days: "5",
-    stake: "0.02",
-    maxParticipants: "100",
-  })
-  useEffect(() => {
+/**
+ * Handles ZK (PLONK) and AIVM attestation flows.
+ * - ZK: user pastes modelHash / proofData / publicSignals; we ABI-pack and submit.
+ * - AIVM: user pastes evidence JSON; we POST to /api/proof/aivm/sign which
+ *         signs + packs for AivmProofVerifier, then we call submitProof.
+ */
+export default function ProofPanel({
+  id,
+  verifier,
+  requireZk = false,
+  requireAivm = false,
+  // For AIVM: pass the same kind/form you used when creating the challenge
+  kindKey,
+  form,
+}: {
+  id: bigint;
+  verifier: `0x${string}`;
+  requireZk?: boolean;
+  requireAivm?: boolean;
+  kindKey?: KindKey;
+  form?: Record<string, any>;
+}) {
+  const { address } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+
+  // Normalized (lowercase) address helpers
+  const vLower = verifier?.toLowerCase?.() ?? "";
+  const zkLower = (ADDR.ZkProofVerifier as string | undefined)?.toLowerCase?.() ?? "";
+  const aivmLower = (ADDR.AivmProofVerifier as string | undefined)?.toLowerCase?.() ?? "";
+  const multisigLower = ((ADDR as any).MultiSigProofVerifier as string | undefined)?.toLowerCase?.() ?? "";
+
+  const isZkVerifier = useMemo(() => !!zkLower && vLower === zkLower, [vLower, zkLower]);
+  const isAivmVerifier = useMemo(() => !!aivmLower && vLower === aivmLower, [vLower, aivmLower]);
+  const isMultiSigVerifier = useMemo(() => !!multisigLower && vLower === multisigLower, [vLower, multisigLower]);
+
+  // Niceties: disable sections if verifier mismatch
+  const zkSectionDisabled = requireZk && !isZkVerifier;
+  const aivmSectionDisabled = requireAivm && !isAivmVerifier;
+
+  // AIVM nicety: hint when config is missing (only when required)
+  const aivmConfigMissing = requireAivm && (!kindKey || !form);
+
+  // ZK state
+  const [modelHash, setModelHash] = useState<Hex>("0x");
+  const [proofData, setProofData] = useState<Hex>("0x");
+  const [publicSignals, setPublicSignals] = useState<string>("");
+
+  // AIVM state
+  const [evidenceText, setEvidenceText] = useState<string>("");
+
+  const [busy, setBusy] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  async function submitZk() {
     try {
-      const raw = localStorage.getItem(key)
-      if (raw) setDraft(JSON.parse(raw))
-    } catch {}
-  }, [key])
-  useEffect(() => {
-    const t = setTimeout(() => {
-      try {
-        localStorage.setItem(key, JSON.stringify(draft))
-      } catch {}
-    }, 200)
-    return () => clearTimeout(t)
-  }, [draft, key])
-  return { draft, setDraft }
-}
+      setBusy("zk");
+      if (zkSectionDisabled) throw new Error("This challenge is not using the ZK verifier.");
+      if (!/^0x[0-9a-fA-F]{64}$/.test(modelHash)) throw new Error("modelHash must be 32 bytes hex (0x…64)");
+      if (!/^0x[0-9a-fA-F]*$/.test(proofData)) throw new Error("proofData must be hex (0x…)");
 
-function fmtValue(v: bigint) {
-  return Number(v) / 1e18
-}
+      const pub = parseUint256Array(publicSignals);
+      const packed = packZkProof(modelHash, proofData, pub);
 
-export default function CreatePage() {
-  const { isConnected } = useAccount()
-  const { connect, connectors } = useConnect()
-  const { writeContractAsync, data: hash, error, isPending } = useWriteContract()
-  const { isSuccess: mined } = useWaitForTransactionReceipt({ hash })
-  const { draft, setDraft } = useDraft()
-  const [showSummary, setShowSummary] = useState(false)
-
-  // Read approvalLeadTime from chain (authoritative)
-  const { data: leadBn } = useReadContract({
-    address: ADDR.ChallengePay,
-    abi: ABI.ChallengePay,
-    functionName: "approvalLeadTime",
-  })
-  const approvalLeadTime = Number(leadBn ?? 0n) // seconds
-
-  // Parse stake
-  const value = useMemo(() => {
-    try { return parseEther(draft.stake || "0") } catch { return 0n }
-  }, [draft.stake])
-
-  // Compute timestamps (client-side)
-  const now = Math.floor(Date.now() / 1000)
-  const days = Math.max(1, Math.min(30, Number(draft.days || "0")))
-  const startTs = now + days * 24 * 3600
-  const approvalDeadline = now + Math.min(24 * 3600, Math.max(300, Math.floor(days * 24 * 3600 * 0.25))) // ~25% of window, capped 24h
-
-  // Validation
-  const stakeOk = value > 0n
-  const leadOk  = startTs >= now + approvalLeadTime
-  const deadlineOk = approvalDeadline < startTs
-  const stepsOk = Number(draft.steps) > 0
-  const mp = Number.isFinite(Number(draft.maxParticipants)) ? Number(draft.maxParticipants) : NaN
-  const maxPartOk = !Number.isNaN(mp) && mp >= 0 && mp <= 1000000
-
-  const canSubmit = stakeOk && leadOk && deadlineOk && stepsOk && maxPartOk
-
-  // Precomputed tx input for the summary / submit
-  const txInput = useMemo(() => {
-    const challenge = {
-      kind: 1,
-      currency: 0,
-      token: "0x0000000000000000000000000000000000000000" as `0x${string}`,
-      stakeAmount: value,
-      proposalBond: 0n,
-      approvalDeadline: BigInt(approvalDeadline),
-      startTs: BigInt(startTs),
-      maxParticipants: BigInt(Number(draft.maxParticipants || "0")),
-      peers: [] as `0x${string}`[],
-      peerApprovalsNeeded: 0,
-      charityBps: 0,
-      charity: "0x0000000000000000000000000000000000000000" as `0x${string}`,
-      proofRequired: true,
-      verifier: ADDR.ZkProofVerifier,
-    }
-    return { challenge, value }
-  }, [value, approvalDeadline, startTs, draft.maxParticipants])
-
-  async function ensureConnectedThen(cb: () => Promise<void>) {
-    if (isConnected) return cb()
-    const injected = connectors.find((c) => c.type === "injected")
-    if (injected) {
-      await connect({ connector: injected })
-      return cb()
-    }
-    const wc = connectors.find((c) => c.type === "walletConnect")
-    if (wc) {
-      await connect({ connector: wc })
-      return cb()
-    }
-    throw new Error("No wallet connectors available.")
-  }
-
-  function helperText() {
-    if (!stakeOk) return "Enter a positive stake."
-    if (!leadOk) return `Start must be ≥ now + approval lead time (${Math.ceil(approvalLeadTime/3600)}h).`
-    if (!deadlineOk) return "Approval deadline must be before start."
-    if (!stepsOk) return "Daily steps must be > 0."
-    if (!maxPartOk) return "Max participants must be 0 (unlimited) or a positive integer."
-    return ""
-  }
-
-  async function onOpenSummary() {
-    if (!canSubmit) return
-    setShowSummary(true)
-  }
-
-  async function onConfirmSubmit() {
-    setShowSummary(false)
-    await ensureConnectedThen(async () => {
       await writeContractAsync({
         address: ADDR.ChallengePay,
         abi: ABI.ChallengePay,
-        functionName: "createChallenge",
-        args: [txInput.challenge],
-        value: txInput.value,
-      })
-    })
+        functionName: "submitProof",
+        args: [id, packed],
+      });
+
+      setToast("ZK proof submitted");
+    } catch (e: any) {
+      setToast(e?.shortMessage || e?.message || "Failed");
+    } finally {
+      setBusy(null);
+    }
   }
 
-  const exUrl = hash ? `https://testnet.lightscan.app/tx/${hash}` : undefined
+  async function submitAivm() {
+    try {
+      setBusy("aivm");
+      if (aivmSectionDisabled) throw new Error("This challenge is not using the AIVM verifier.");
+      if (!address) throw new Error("Connect wallet");
+      if (aivmConfigMissing) throw new Error("Missing challenge kind/form for AIVM");
+
+      let evidence: any = {};
+      if (evidenceText.trim()) {
+        try { evidence = JSON.parse(evidenceText); }
+        catch { throw new Error("Evidence must be valid JSON"); }
+      }
+
+      const res = await fetch("/api/proof/aivm/sign", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          challengeId: Number(id),
+          subject: address,
+          kindKey,
+          form,
+          evidence,
+        }),
+      });
+      const out = await res.json().catch(()=> ({}));
+      if (!res.ok) throw new Error(out?.error || `Sign failed (${res.status})`);
+
+      const { packed } = out as { packed: Hex };
+
+      await writeContractAsync({
+        address: ADDR.ChallengePay,
+        abi: ABI.ChallengePay,
+        functionName: "submitProof",
+        args: [id, packed],
+      });
+
+      setToast("AIVM proof submitted");
+    } catch (e: any) {
+      setToast(e?.shortMessage || e?.message || "Failed");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="section max-w-2xl mx-auto space-y-4">
-        <h1 className="h1">Create Challenge</h1>
+    <div className="rounded-2xl p-4 border border-white/10 space-y-4 bg-white/5">
+      <div className="text-sm font-semibold">Proofs</div>
 
-        <label className="label">Title</label>
-        <input
-          className="input"
-          placeholder="Title"
-          value={draft.title}
-          onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-        />
-
-        <label className="label">Daily Steps Target</label>
-        <input
-          className="input"
-          placeholder="Daily Steps Target"
-          value={draft.steps}
-          onChange={(e) => setDraft({ ...draft, steps: e.target.value })}
-          inputMode="numeric"
-        />
-
-        <label className="label">Days (1–30)</label>
-        <input
-          className="input"
-          placeholder="Days"
-          value={draft.days}
-          onChange={(e) => setDraft({ ...draft, days: e.target.value })}
-          inputMode="numeric"
-        />
-
-        <label className="label">Max participants (0 = unlimited)</label>
-        <input
-          className="input"
-          placeholder="100"
-          value={draft.maxParticipants}
-          onChange={(e) => setDraft({ ...draft, maxParticipants: e.target.value })}
-          inputMode="numeric"
-        />
-
-        <label className="label">Stake (LCAI)</label>
-        <input
-          className="input"
-          placeholder="0.02"
-          value={draft.stake}
-          onChange={(e) => setDraft({ ...draft, stake: e.target.value })}
-          inputMode="decimal"
-        />
-
-        {/* Inline helper/validation */}
-        {!canSubmit && (
-          <div className="text-amber-300/90 text-sm">{helperText()}</div>
-        )}
-
-        <button
-          className="btn btn-primary w-full disabled:opacity-50"
-          disabled={!canSubmit || isPending}
-          onClick={onOpenSummary}
-        >
-          {isPending ? "Sending…" : "Review & Create"}
-        </button>
-
-        {hash && (
-          <div className="text-white/70 text-sm">
-            Sent:{" "}
-            <a className="underline" href={exUrl} target="_blank" rel="noreferrer">
-              {hash}
-            </a>
-            {mined && " — confirmed ✅"}
-          </div>
-        )}
-        {error && (
-          <div className="text-red-300 text-sm">
-            {String((error as any)?.shortMessage || (error as any)?.message || error)}
-          </div>
-        )}
-        {!isConnected && (
-          <div className="text-white/60 text-sm">
-            You’ll be prompted to connect a wallet before submitting.
-          </div>
-        )}
-
-        {/* Chain guard display (read-only) */}
-        <div className="text-white/50 text-xs">
-          Approval lead time (chain): {Math.ceil(approvalLeadTime/3600)}h
-        </div>
-      </div>
-
-      {/* Summary Modal */}
-      {showSummary && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0f1117] p-5">
-            <h3 className="text-lg font-semibold mb-3">Confirm Transaction</h3>
-            <div className="space-y-2 text-sm text-white/85">
-              <div>
-                <div className="text-white/60">Contract</div>
-                <div className="break-all">{ADDR.ChallengePay}</div>
-              </div>
-              <div>
-                <div className="text-white/60">Function</div>
-                <div>createChallenge(CreateParams)</div>
-              </div>
-              <div>
-                <div className="text-white/60">Value (LCAI)</div>
-                <div>{fmtValue(txInput.value)}</div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <div className="text-white/60">Approval deadline</div>
-                  <div>{new Date(approvalDeadline*1000).toLocaleString()}</div>
-                </div>
-                <div>
-                  <div className="text-white/60">Start</div>
-                  <div>{new Date(startTs*1000).toLocaleString()}</div>
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                className="rounded-xl bg-white/10 hover:bg-white/15 px-3 py-2"
-                onClick={() => setShowSummary(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn-primary disabled:opacity-50"
-                disabled={!canSubmit}
-                onClick={onConfirmSubmit}
-              >
-                Confirm & Send
-              </button>
-            </div>
-          </div>
+      {/* Optional FYI for Multi-Sig verifiers */}
+      {isMultiSigVerifier && (
+        <div className="text-xs text-white/70">
+          This challenge uses a Multi-Sig verifier. No user submission is required here.
         </div>
       )}
+
+      {/* ZK (PLONK) section */}
+      {requireZk && (
+        <fieldset
+          className={`space-y-2 ${zkSectionDisabled ? "opacity-50 pointer-events-none" : ""}`}
+          disabled={zkSectionDisabled}
+        >
+          <div className="text-xs text-white/70">
+            ZK (PLONK)
+            {zkSectionDisabled && (
+              <span className="ml-2 text-amber-300">
+                • Disabled: challenge is not using the configured ZK verifier.
+              </span>
+            )}
+          </div>
+          <input
+            className="w-full bg-white/5 rounded-xl px-3 py-2"
+            placeholder="modelHash 0x…32"
+            value={modelHash}
+            onChange={(e) => setModelHash(e.target.value as Hex)}
+          />
+          <input
+            className="w-full bg-white/5 rounded-xl px-3 py-2"
+            placeholder="proofData 0x…"
+            value={proofData}
+            onChange={(e) => setProofData(e.target.value as Hex)}
+          />
+          <input
+            className="w-full bg-white/5 rounded-xl px-3 py-2"
+            placeholder="publicSignals e.g. 123,456,0xabc…"
+            value={publicSignals}
+            onChange={(e) => setPublicSignals(e.target.value)}
+          />
+          <button
+            disabled={busy === "zk" || zkSectionDisabled}
+            onClick={submitZk}
+            className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-40"
+          >
+            {busy === "zk" ? "Submitting…" : "Submit ZK Proof"}
+          </button>
+        </fieldset>
+      )}
+
+      {/* AIVM section */}
+      {requireAivm && (
+        <fieldset
+          className={`space-y-2 ${aivmSectionDisabled ? "opacity-50 pointer-events-none" : ""}`}
+          disabled={aivmSectionDisabled}
+        >
+          <div className="text-xs text-white/70">
+            AIVM attestation (paste your health/game JSON below)
+            {aivmSectionDisabled && (
+              <span className="ml-2 text-amber-300">
+                • Disabled: challenge is not using the configured AIVM verifier.
+              </span>
+            )}
+          </div>
+          {aivmConfigMissing && (
+            <div className="text-xs text-amber-300">
+              Missing <code>kindKey</code> / <code>form</code> for AIVM flow. This usually comes from how the
+              challenge was created. Without it, we can’t request the AIVM signature.
+            </div>
+          )}
+          <textarea
+            className="w-full bg-white/5 rounded-xl px-3 py-2 min-h-[120px]"
+            placeholder='{"stepsByDay":[{"date":"2025-09-26","steps":7421}]}'
+            value={evidenceText}
+            onChange={(e) => setEvidenceText(e.target.value)}
+          />
+          <button
+            disabled={busy === "aivm" || aivmSectionDisabled || aivmConfigMissing}
+            onClick={submitAivm}
+            className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-40"
+          >
+            {busy === "aivm" ? "Submitting…" : "Get AIVM signature & Submit"}
+          </button>
+        </fieldset>
+      )}
+
+      <div className="text-xs text-white/60 break-words">
+        Verifier: <code>{verifier}</code>
+      </div>
+
+      {toast && <div className="text-xs text-white/80">{toast}</div>}
     </div>
-  )
+  );
+}
+
+// utils
+function parseUint256Array(input: string): bigint[] {
+  const parts = input.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
+  return parts.map((p) => {
+    if (p.startsWith("0x") || p.startsWith("0X")) return BigInt(p);
+    if (!/^\d+$/.test(p)) throw new Error(`Bad public signal: ${p}`);
+    return BigInt(p);
+  });
 }

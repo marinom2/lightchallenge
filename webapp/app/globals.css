@@ -1,66 +1,420 @@
 /* Tailwind v4 – single import */
 @import "tailwindcss";
 
-/* Optional: define your design tokens with v4 @theme */
+/* ───────────────────────────────────────────────────────────────────────────
+   Inter variable font (TTF from Inter.zip)
+   Put files in /public/fonts/Inter/ with the same names.
+   ─────────────────────────────────────────────────────────────────────────── */
+   @font-face {
+    font-family: "Inter var";
+    src: url("/fonts/Inter/Inter-VariableFont_opsz,wght.ttf") format("truetype");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+  }
+  
+  @font-face {
+    font-family: "Inter var";
+    src: url("/fonts/Inter/Inter-Italic-VariableFont_opsz,wght.ttf") format("truetype");
+    font-weight: 100 900;
+    font-style: italic;
+    font-display: swap;
+  }
+  
+  /* Use the family everywhere */
+  html, body {
+    font-family: "Inter var", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    font-optical-sizing: auto;           /* enables opsz axis automatically */
+    /* If you ever want to pin it:
+       font-variation-settings: "opsz" 14;
+    */
+  }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Tokens (VS Code may warn about @theme; ignore)
+   ─────────────────────────────────────────────────────────────────────────── */
 @theme {
   --color-primary: #5B4BFF;
   --color-secondary: #EE11FB;
-  --color-dark: #0d0f1a;
-  --color-card: rgba(255,255,255,0.05);
-  --color-line: rgba(255,255,255,0.10);
+  --color-surface: #0d0f1a;
+  --color-card: color-mix(in oklab, white 6%, rgba(0,0,0,0%) 94%);
+  --color-border: color-mix(in oklab, white 12%, rgba(0,0,0,0%) 88%);
   --color-textLight: #CCCEEF;
-
-  --shadow-card: 0 10px 25px rgba(0,0,0,0.35);
   --radius-2xl: 1rem;
 }
 
-/* App base */
 :root{
-  --lc-bg:#0d0f1a;
-  --lc-card:rgba(255,255,255,.04);
-  --lc-border:rgba(255,255,255,.08);
-  --lc-grad-1:#5B4BFF;
-  --lc-grad-2:#EE11FB;
+  --lc-bg: #0d0f1a;
+  --lc-card: rgba(255,255,255,.04);
+  --lc-border: rgba(255,255,255,.10);
+  --lc-border-strong: rgba(255,255,255,.18);
+  --lc-grad-1:#5B4BFF;  /* violet */
+  --lc-grad-2:#EE11FB;  /* magenta */
+  --lc-grad-3:#09d1ff;  /* cyan */
 }
 
+/* ───────────────────────────────────────────────────────────────────────────
+   Base
+   ─────────────────────────────────────────────────────────────────────────── */
 html, body {
-  background: var(--lc-bg);
-  color: white;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   min-height: 100%;
+  color: white;
+  background:
+    radial-gradient(1200px 800px at 20% -10%, #1a1342 0%, transparent 60%),
+    radial-gradient(1200px 800px at 120% 20%, #25093f 0%, transparent 55%),
+    var(--lc-bg);
+  background-attachment: fixed;
+  font-family: "Inter var", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+}
+body::before{
+  content:"";
+  position:fixed; inset:0; pointer-events:none;
+  background:
+    radial-gradient(75% 60% at 50% -20%, rgba(255,255,255,.05), transparent 60%),
+    repeating-linear-gradient( 0deg, transparent 0 14px, rgba(255,255,255,.03) 14px 15px),
+    repeating-linear-gradient(90deg, transparent 0 14px, rgba(255,255,255,.03) 14px 15px);
+  mix-blend-mode: overlay; opacity:.22;
 }
 
-.container-narrow { max-width: 1100px; margin: 0 auto; }
-
-/* Cards & Sections (plain CSS so they work even if utilities purge) */
-.section {
-  background: var(--lc-card);
-  border: 1px solid var(--lc-border);
-  border-radius: 16px;
-  padding: 16px;
+/* ── Container width: compact on small, wide on desktop ───────────────────── */
+.container-narrow {
+  max-width: 100%;
+  margin: 0 auto;
+  padding-left: 1.25rem;  /* 20px gutters */
+  padding-right: 1.25rem;
+}
+@media (min-width: 1280px) {
+  .container-narrow { max-width: 1400px; } /* nice cap for desktops */
 }
 
-/* Helpers (use @apply which v4 supports) */
-.h1 { @apply text-2xl font-semibold; }
-.h2 { @apply text-xl font-semibold; }
-
-.btn {
-  @apply inline-flex items-center justify-center rounded-xl px-4 py-2 font-medium transition;
+/* Buttons / Inputs */
+.btn { @apply inline-flex items-center justify-center rounded-xl px-4 py-2 font-medium transition; }
+.btn-primary {
+  background: linear-gradient(90deg, var(--lc-grad-1), var(--lc-grad-2));
+  box-shadow: 0 6px 24px color-mix(in oklab, var(--lc-grad-1) 25%, transparent);
 }
-.btn-primary { background: linear-gradient(90deg, var(--lc-grad-1), var(--lc-grad-2)); }
 .btn-primary:hover { filter: brightness(1.05); }
 
-.input {
-  @apply w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 outline-none;
-}
+.input { @apply w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2 outline-none; }
 .input:focus { @apply border-[--color-primary]; }
 
-.badge {
-  @apply border border-white/20 rounded-full px-2.5 py-0.5 text-sm;
-}
-
+/* Header / Footer helpers */
 .hdr { @apply sticky top-0 z-40 bg-black/30 backdrop-blur border-b border-white/10; }
 .ftr { @apply mt-10 text-center text-white/60 text-sm pb-8; }
 
-.card { @apply rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg; }
-.card h3 { @apply text-lg font-semibold mb-2; }
+/* ───────────────────────────────────────────────────────────────────────────
+   Card / Panel chrome — used by Latest Blocks, Latest Tx, Challenges table
+   ─────────────────────────────────────────────────────────────────────────── */
+.card,
+.panel{
+  position: relative;
+  border-radius: 18px;
+  background: color(display-p3 0.20 0.22 0.35 / 0.18);
+  border: 1px solid var(--lc-border);
+  box-shadow: 0 10px 25px rgba(0,0,0,.35);
+  overflow: hidden;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.card::before,
+.panel::before{
+  content:"";
+  position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+}
+.card::after,
+.panel::after{
+  content:"";
+  position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  background: linear-gradient(90deg, var(--lc-grad-1), var(--lc-grad-2));
+  opacity:.10;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  padding:1px;
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+}
+.card:hover,
+.panel:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 18px 45px rgba(0,0,0,.45);
+  border-color: rgba(125, 92, 255, .35);
+}
+
+.card h3 { @apply text-lg font-semibold; }
+.panel-header{
+  display:flex; gap:.75rem; align-items:center; justify-content:space-between;
+  padding: 16px 18px 12px 18px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.panel-body{ padding: 12px 18px 16px 18px; }
+
+/* Rows inside Latest Blocks / Latest Tx (optional if your content emits its own) */
+.list-row{
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 10px 0;
+  border-top: 1px solid rgba(255,255,255,.06);
+  transition: background .15s ease, border-color .15s ease;
+}
+.list-row:first-child{ border-top: 0; }
+.list-row:hover{
+  background: rgba(255,255,255,.035);
+  border-color: rgba(255,255,255,.10);
+}
+
+/* Divider line */
+.divider{
+  height:1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
+}
+
+/* Soft links */
+.link-soft{
+  text-decoration: underline; text-underline-offset: 3px;
+  color: rgba(255,255,255,.8);
+}
+.link-soft:hover{ color: #fff; }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   KPI tiles (Lightchain-like style)
+   ─────────────────────────────────────────────────────────────────────────── */
+.metric{
+  position: relative;
+  border-radius: 22px;
+  padding: 20px;
+  min-height: 112px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  background:
+    radial-gradient(120% 140% at 10% 10%, rgba(137,101,255,.12) 0%, transparent 35%),
+    radial-gradient(120% 140% at 90% 90%, rgba(238,17,251,.10) 0%, transparent 40%),
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+  border: 1px solid var(--lc-border);
+  transition: transform .18s ease, box-shadow .18s ease;
+  overflow: hidden;
+  will-change: transform;
+}
+.metric::before{
+  content:"";
+  position:absolute; inset:0; pointer-events:none; border-radius:inherit;
+  background: linear-gradient(90deg, var(--lc-grad-1), var(--lc-grad-2));
+  opacity: .35;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  padding:1px;
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+}
+.metric::after{
+  content:"";
+  position:absolute; right:-22%; top:-42%; width:70%; height:160%;
+  background: radial-gradient(closest-side, color(display-p3 0.38 0.33 1 / .24), transparent 70%);
+  transform: rotate(16deg);
+  filter: blur(22px);
+  opacity:.65;
+}
+.metric:hover{ transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,.35); }
+
+/* KPI content */
+.metric__content{
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+}
+.metric__icon{
+  position:absolute; left:16px; top:14px;
+  width:28px; height:28px; border-radius:999px;
+  display:grid; place-items:center;
+  background: rgba(255,255,255,.06);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.10), 0 6px 18px rgba(0,0,0,.25);
+  color:#c8baff;
+}
+.metric__label{ font-weight: 600; color: rgba(255,255,255,.92); letter-spacing:.2px; }
+.metric__value{ font-size: 1.9rem; font-weight: 800; line-height: 1.0; letter-spacing: .2px; }
+
+/* Gradient text helper (hero “Dashboard”) */
+.h-gradient{
+  background: linear-gradient(90deg, var(--lc-grad-1), var(--lc-grad-2));
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Responsive polish (mobile centering + spacing)
+   ─────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 767.98px) {
+  .panel-header { padding: 14px 14px 10px 14px; }
+  .panel-body   { padding: 10px 14px 14px 14px; }
+
+  .metric { text-align: center; padding: 16px 16px 18px 16px; }
+  .metric__icon { position: static; margin: 0 auto 8px; }
+  .metric__label, .metric__value { padding-left: 0 !important; }
+}
+
+@media (min-width: 768px) {
+  .metric__label, .metric__value { padding-left: 40px; } /* room for the corner icon */
+}
+
+@media (min-width: 1024px) {
+  .metric__value { font-size: 1.75rem; } /* tasteful bump */
+}
+
+@media (hover:hover) {
+  .metric:hover { transform: translateY(-2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .metric, .panel { transition: none !important; }
+}
+
+/* Small badges / chips */
+.badge { @apply border border-white/20 rounded-full px-2.5 py-0.5 text-sm; }
+
+/* Optional: nicer scrollbars */
+@media (hover:hover){
+  *::-webkit-scrollbar{ height: 10px; width: 10px; }
+  *::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.18); border-radius: 999px; }
+  *::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.28); }
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   NAVBAR + CONNECT
+   ─────────────────────────────────────────────────────────────────────────── */
+   .navbar { height: 64px; }
+
+   /* Brand text only (no icon) */
+   .navbar-brand{
+     font-size: clamp(20px, 2.1vw, 28px);
+     font-weight: 900;
+     letter-spacing: -0.3px;
+     line-height: 1;
+   }
+   
+   /* Nav group (hidden on mobile) */
+   .nav-group { display: none; }
+   @media (min-width: 640px){ .nav-group { display: flex; } }
+   
+   /* Less-rounded nav buttons (chips) */
+   .nav-pill{
+     position: relative;
+     display: inline-flex;
+     align-items: center;
+     gap: .45rem;
+     padding: .56rem .95rem;
+     border-radius: 14px;                     /* <= less round than pills */
+     background: rgba(255,255,255,.05);
+     border: 1px solid rgba(255,255,255,.10);
+     color: rgba(255,255,255,.82);
+     font-size: .95rem;
+     line-height: 1;
+     transition:
+       background .18s ease,
+       color .18s ease,
+       border-color .18s ease,
+       transform .18s ease;
+   }
+   .nav-pill:hover{
+     background: rgba(255,255,255,.08);
+     color: #fff;
+     transform: translateY(-1px);
+   }
+   
+   /* Subtle gradient outline when active */
+   .nav-pill::before{
+     content:"";
+     position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+     background: linear-gradient(90deg, var(--lc-grad-1), var(--lc-grad-2));
+     opacity: 0;
+     transition: opacity .18s ease;
+     mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+     padding: 1px;
+     -webkit-mask-composite: xor; mask-composite: exclude;
+   }
+   .nav-pill.is-active{
+     background: rgba(255,255,255,.10);
+     color:#fff;
+     border-color: rgba(125,92,255,.35);
+   }
+   .nav-pill.is-active::before{ opacity:.45; }
+   
+   /* Keyboard focus */
+   .nav-pill:focus-visible,
+   .nav-ghost:focus-visible{
+     outline:none;
+     box-shadow: 0 0 0 3px rgba(138,99,255,.35);
+   }
+   
+   /* Right-side “Explorer” ghost link */
+   .nav-ghost{
+     padding:.56rem .9rem;
+     border-radius: 12px;
+     color: rgba(255,255,255,.75);
+     border: 1px solid rgba(255,255,255,.10);
+     background: rgba(255,255,255,.05);
+     transition: background .18s ease, color .18s ease, border-color .18s ease;
+   }
+   .nav-ghost:hover{
+     color:#fff;
+     background: rgba(255,255,255,.08);
+     border-color: rgba(255,255,255,.2);
+   }
+   
+   /* Header bottom divider glow */
+   .hdr::after{
+     content:"";
+     position:absolute; left:0; right:0; bottom:-1px; height:1px;
+     background: linear-gradient(90deg, transparent, rgba(139,92,246,.45), transparent);
+     opacity:.45;
+   }
+   
+   /* ── Connect button: bigger, gradient, on-brand ───────────────────────────── */
+   .btn-connect{
+     display:inline-flex; align-items:center; justify-content:center;
+     padding: .62rem 1.05rem;
+     border-radius: 14px;
+     font-weight: 700;
+     letter-spacing: .2px;
+     background: linear-gradient(90deg, var(--lc-grad-1), var(--lc-grad-2));
+     color:#fff;
+     box-shadow: 0 10px 28px color-mix(in oklab, var(--lc-grad-1) 32%, transparent);
+     transition: transform .15s ease, filter .15s ease, box-shadow .15s ease;
+   }
+   .btn-connect:hover{ filter: brightness(1.06); transform: translateY(-1px); }
+   .btn-connect:active{ transform: translateY(0); }
+   .btn-connect.btn-connect--warn{
+     background: linear-gradient(90deg, #f59e0b, #ef4444);
+     box-shadow: 0 10px 28px color-mix(in oklab, #ef4444 30%, transparent);
+   }
+
+   /* LatestTransactionsPro */
+.tx-row{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:.75rem; padding:.6rem .4rem;
+  border-top:1px solid rgba(255,255,255,.07);
+}
+.tx-row:first-child{ border-top:0; }
+
+.tx-left{ display:flex; align-items:center; gap:.5rem; min-width: 260px; }
+.status{
+  font-size:.75rem; padding:.1rem .5rem; border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.05);
+}
+.status.ok{ border-color:rgba(16,185,129,.35); background:rgba(16,185,129,.14); color:#b6f3d9; }
+.status.bad{ border-color:rgba(244,63,94,.35); background:rgba(244,63,94,.14); color:#ffd1da; }
+.status.pend{ border-color:rgba(234,179,8,.35); background:rgba(234,179,8,.12); color:#ffe8b3; }
+
+.method{
+  font-size:.75rem; padding:.1rem .45rem; border-radius:8px;
+  border:1px solid rgba(255,255,255,.12); color:#d9d4ff;
+  background: rgba(99,102,241,.12);
+}
+.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+.tx-right{
+  display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; justify-content:flex-end;
+}
+.tx-right .sep{ opacity:.5; }
+.tx-right .fee{
+  font-size:.8rem; opacity:.85; padding:.1rem .45rem; border-radius:8px;
+  border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06);
+}

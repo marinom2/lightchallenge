@@ -1,24 +1,42 @@
-// webapp/app/providers.tsx
 "use client"
 
-import { ReactNode, useEffect, useState } from "react"
-import { WagmiProvider, Hydrate } from "wagmi"
+import { PropsWithChildren, useMemo } from "react"
+import { WagmiProvider, createConfig, http, createStorage } from "wagmi"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { wagmiConfig } from "../lib/wagmi"
+import { lightchain } from "@/lib/lightchain"
+import { connectors } from "@/lib/wallets"
 
-export default function Providers({ children }: { children: ReactNode }) {
-  const [client] = useState(() => new QueryClient())
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
+function getWagmiStorage() {
+  if (typeof window === "undefined") return undefined
+  try {
+    return createStorage({ storage: window.localStorage })
+  } catch {
+    return undefined
+  }
+}
+
+const queryClient = new QueryClient()
+
+export default function Providers({ children }: PropsWithChildren) {
+  const wagmiStorage = useMemo(getWagmiStorage, [])
+  const config = useMemo(
+    () =>
+      createConfig({
+        chains: [lightchain],
+        transports: {
+          [lightchain.id]: http(lightchain.rpcUrls.default.http[0]!),
+        },
+        connectors,
+        autoConnect: false, // 🔒 prevent surprise popups
+        ssr: true,
+        storage: wagmiStorage,
+      }),
+    [wagmiStorage],
+  )
 
   return (
-    <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={client}>
-        {/* Important: pass config into Hydrate */}
-        <Hydrate config={wagmiConfig}>
-          {mounted ? children : null}
-        </Hydrate>
-      </QueryClientProvider>
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </WagmiProvider>
   )
 }

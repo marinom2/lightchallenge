@@ -7,12 +7,12 @@ async function main() {
 
   // prefer env, else use current dep value
   const targetRaw =
-    process.env.DAO_TREASURY ||
+    process.env.TREASURY ||
     process.env.ADMIN_ADDRESS ||
     dep.daoTreasury;
 
   if (!isAddr(targetRaw)) {
-    throw new Error("Set DAO_TREASURY (or ADMIN_ADDRESS) to a valid 0x address in .env or ensure it exists in deployments");
+    throw new Error("Set TREASURY (or ADMIN_ADDRESS) to a valid 0x address in .env or ensure it exists in deployments");
   }
 
   const target = targetRaw as `0x${string}`;

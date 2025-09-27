@@ -1,75 +1,65 @@
-process.env.TS_NODE_PROJECT = "tsconfig.hardhat.json";
+import { config as dotenv } from "dotenv"
+dotenv()
 
-import * as dotenv from "dotenv";
-dotenv.config();
+import "@nomicfoundation/hardhat-toolbox"
 
-import "@nomicfoundation/hardhat-toolbox";
-import "hardhat-gas-reporter";
-import { HardhatUserConfig } from "hardhat/types"; // use 'hardhat/types' for VS Code
+// keep hardhat-deploy optional (you installed it, but this is harmless)
+let hasDeploy = false
+try { require("hardhat-deploy"); hasDeploy = true } catch {}
 
-const HEX64 = /^0x[0-9a-fA-F]{64}$/;
+import type { HardhatUserConfig } from "hardhat/config"
+try { require("./scripts/verify/verify-all") } catch {}
 
-function collectAccounts(): string[] {
-  const out: string[] = [];
-  const keys: string[] = [];
+const LIGHTCHAIN_RPC =
+  process.env.LIGHTCHAIN_RPC ||
+  process.env.NEXT_PUBLIC_RPC_URL ||
+  "https://light-testnet-rpc.lightchain.ai"
 
-  if (process.env.PRIVATE_KEY) keys.push(process.env.PRIVATE_KEY.trim());
-  for (const [k, v] of Object.entries(process.env)) {
-    if (/^PK\d+$/.test(k) && typeof v === "string" && v.trim()) keys.push(v.trim());
-  }
+const PRIVATE_KEY =
+  process.env.PRIVATE_KEY ||
+  "0x0000000000000000000000000000000000000000000000000000000000000001"
 
-  for (const k of keys) {
-    if (!HEX64.test(k)) {
-      console.error(
-        `\n✖ Invalid PRIVATE KEY format detected (${k.slice(0, 12)}…)\n` +
-          `  Expected 0x + 64 hex chars. Offending key skipped.\n`
-      );
-      continue;
-    }
-    out.push(k);
-  }
-  return out;
-}
+const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 504)
 
-const LIGHTCHAIN_RPC = (process.env.LIGHTCHAIN_RPC || "https://light-testnet-rpc.lightchain.ai").trim();
-const CHAIN_ID = Number(process.env.LIGHTCHAIN_CHAIN_ID || 504);
-const LOCAL_RPC = (process.env.LOCALHOST_RPC || "http://127.0.0.1:8545").trim();
-
-const accounts = collectAccounts();
-if (!accounts.length) {
-  console.warn("\n⚠ No private keys found. Set PRIVATE_KEY=0x... (and optionally PK1, PK2, ...) in .env\n");
-}
-
-const config: HardhatUserConfig = {
+const config: HardhatUserConfig & { namedAccounts?: Record<string, any> } = {
   solidity: {
-    version: "0.8.26",
-    settings: { optimizer: { enabled: true, runs: 200 }, viaIR: true },
+    version: "0.8.24",
+    settings: {
+      optimizer: { enabled: true, runs: 200 },
+      viaIR: true, // ← enable IR globally to fix “stack too deep”
+    },
   },
   networks: {
-    lightchain: { url: LIGHTCHAIN_RPC, chainId: CHAIN_ID, accounts },
-    localhost: { url: LOCAL_RPC, accounts },
+    hardhat: {},
+    lightchain: {
+      url: LIGHTCHAIN_RPC,
+      accounts: [PRIVATE_KEY],
+      chainId: CHAIN_ID,
+    },
+  },
+  etherscan: {
+    // IMPORTANT: use the literal 'empty', not an empty string.
+    apiKey: { lightchain: 'empty' },
+    customChains: [
+      {
+        // MUST match your Hardhat network name ('lightchain')
+        network: 'lightchain',
+        chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 504),
+        urls: {
+          // per Lightscan’s docs/screenshot
+          apiURL: 'https://testnet.lightscan.app/api',
+          browserURL: process.env.NEXT_PUBLIC_EXPLORER_URL || 'https://testnet.lightscan.app',
+        },
+      },
+    ],
   },
   gasReporter: {
     enabled: !!process.env.GAS_REPORT,
     currency: "USD",
     coinmarketcap: process.env.CMC_API_KEY || undefined,
   },
-  etherscan: {
-    apiKey: { lightchain: "empty" },
-    customChains: [
-      {
-        network: "lightchain",
-        chainId: CHAIN_ID,
-        urls: {
-          apiURL: "https://testnet.lightscan.app/api",
-          browserURL: "https://testnet.lightscan.app",
-        },
-      },
-    ],
-  },
-  sourcify: { enabled: false },
-  typechain: { outDir: "typechain-types", target: "ethers-v6" },
-  mocha: { timeout: 180000 },
-};
+}
 
-export default config;
+if (hasDeploy) config.namedAccounts = { deployer: { default: 0 } }
+
+export default config

@@ -1,10 +1,8 @@
 "use client"
-import Connect from "./Connect"
 export default function Header(){
   return (
-    <div className="w-full px-4 py-3 flex items-center justify-between border-b">
+    <div className="container-narrow mx-auto px-4 py-4">
       <div className="text-xl font-semibold">LightChallenge</div>
-      <Connect/>
     </div>
   )
 }

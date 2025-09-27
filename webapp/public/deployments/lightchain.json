@@ -1,6 +1,11 @@
 {
-  "ChallengePay": "0x451b8A5C01b33501b3E1CEc11C8a5b97Be60DF7E",
-  "DaoTreasury":  "0x95A4CE3c93dBcDb9b3CdFb4CCAE6EFBDb4cCA217",
-  "ZkProofVerifier": "0xa4d924C0576AB3342f0786b7dA0EB9d4fEA43255",
-  "PlonkVerifier":   "0x67782909A8497C8DCc966386A6aFA38C2982b2C7"
+  "chainId": 504,
+  "rpcUrl": "https://light-testnet-rpc.lightchain.ai",
+  "contracts": {
+    "ChallengePay": "0x451b8A5C01b33501b3E1CEc11C8a5b97Be60DF7E",
+    "ZkProofVerifier": "0xa4d924C0576AB3342f0786b7dA0EB9d4fEA43255",
+    "PlonkVerifier": "0x67782909A8497C8DCc966386A6aFA38C2982b2C7",
+    "AivmProofVerifier": "0x1f3A6Ed0f51C71DD4fC84eBf94Ca54e0E808F3F9",
+    "Treasury": "0xa504f47e26C18122Cd4CBE710f378606Dc9b02ec"
+  }
 }

@@ -20,7 +20,7 @@ async function main() {
 
   const [deployer] = await ethers.getSigners();
   const deployerAddr = await deployer.getAddress();
-  const daoTreasury = process.env.DAO_TREASURY ?? deployerAddr;
+  const daoTreasury = process.env.TREASURY ?? deployerAddr;
 
   info("Network", network.name);
   info("Deployer", deployerAddr);

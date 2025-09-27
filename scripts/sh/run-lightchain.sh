@@ -153,7 +153,7 @@ THRESHOLD_BPS="${THRESHOLD_BPS:-5000}"
 QUORUM_BPS="${QUORUM_BPS:-300}"
 UNSTAKE_COOLDOWN="${UNSTAKE_COOLDOWN:-259200}"
 LOSERS_FEE_BPS="${LOSERS_FEE_BPS:-600}"
-DAO_BPS="${DAO_BPS:-200}"
+BPS="${BPS:-200}"
 CREATOR_BPS="${CREATOR_BPS:-200}"
 VALIDATORS_BPS="${VALIDATORS_BPS:-200}"
 LOSER_CASHBACK_BPS="${LOSER_CASHBACK_BPS:-100}"
@@ -186,7 +186,7 @@ MIN_STAKE="$MIN_STAKE" THRESHOLD_BPS="$THRESHOLD_BPS" QUORUM_BPS="$QUORUM_BPS" U
 npx hardhat run scripts/ops/setValidatorParams.ts --network "$NET"
 
 sep "Set fee config (losers=${LOSERS_FEE_BPS} bps, cashback=${LOSER_CASHBACK_BPS} bps)"
-LOSERS_FEE_BPS="$LOSERS_FEE_BPS" DAO_BPS="$DAO_BPS" CREATOR_BPS="$CREATOR_BPS" VALIDATORS_BPS="$VALIDATORS_BPS" LOSER_CASHBACK_BPS="$LOSER_CASHBACK_BPS" \
+LOSERS_FEE_BPS="$LOSERS_FEE_BPS" BPS="$BPS" CREATOR_BPS="$CREATOR_BPS" VALIDATORS_BPS="$VALIDATORS_BPS" LOSER_CASHBACK_BPS="$LOSER_CASHBACK_BPS" \
 npx hardhat run scripts/admin/setFeeConfig.ts --network "$NET"
 
 # 2) Validators stake (deployer, W0, W1)
@@ -270,14 +270,14 @@ fi
 
 # 6) Scenario D — Charity
 if [[ "$RUN_SCENARIO_D_CHARITY" == "1" ]]; then
-  sep "Scenario D: Charity path — make fresh charity wallet & fund from DAO_TREASURY"
+  sep "Scenario D: Charity path — make fresh charity wallet & fund from TREASURY"
   read PKC ADDRC <<<"$(new_wallet)"; export PKC ADDRC
   echo "🎗 Charity wallet: $ADDRC"
-  : "${DAO_TREASURY_PK:=${PRIVATE_KEY:-}}"
-  if [[ -z "${DAO_TREASURY_PK}" ]]; then
-    echo "❌ Set DAO_TREASURY_PK or PRIVATE_KEY to fund charity"; exit 1
+  : "${TREASURY_PK:=${PRIVATE_KEY:-}}"
+  if [[ -z "${TREASURY_PK}" ]]; then
+    echo "❌ Set TREASURY_PK or PRIVATE_KEY to fund charity"; exit 1
   fi
-  try "Fund charity from treasury" fund_from_pk "$DAO_TREASURY_PK" "$ADDRC" "$CHARITY_FUND_AMT"
+  try "Fund charity from treasury" fund_from_pk "$TREASURY_PK" "$ADDRC" "$CHARITY_FUND_AMT"
 
   sep "Create challenge with charity"
   PEERS="$W0,$W1" PEER_M=2 CURRENCY=native \

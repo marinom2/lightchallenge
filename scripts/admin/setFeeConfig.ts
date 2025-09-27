@@ -13,12 +13,12 @@ async function main() {
 
   // Desired values (can be overridden by env)
   const losersFeeBps        = n(process.env.LOSERS_FEE_BPS,        600); // 6%
-  const daoBps              = n(process.env.DAO_BPS,               200);
+  const daoBps              = n(process.env.BPS,               200);
   const creatorBps          = n(process.env.CREATOR_BPS,           200);
   const validatorsBps       = n(process.env.VALIDATORS_BPS,        200);
 
   const rejectFeeBps        = n(process.env.REJECT_FEE_BPS,        200);
-  const rejectDaoBps        = n(process.env.REJECT_DAO_BPS,        200);
+  const rejectDaoBps        = n(process.env.REJECT_BPS,        200);
   const rejectValidatorsBps = n(process.env.REJECT_VALIDATORS_BPS,   0);
 
   const loserCashbackBps    = n(process.env.LOSER_CASHBACK_BPS,    100); // 1%

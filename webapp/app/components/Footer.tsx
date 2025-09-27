@@ -1,8 +1,8 @@
 export default function Footer() {
   return (
-    <footer className="ftr">
+    <footer className="ftr border-t border-white/10/">
       <div className="container-narrow">
-        <div>© {new Date().getFullYear()} LightChallenge — Testnet 504</div>
+        © {new Date().getFullYear()} LightChallenge — Testnet 504
       </div>
     </footer>
   )
