@@ -25,3 +25,5 @@ lightchain-run.log
 *.zip
 *.tgzcoverage
 zk/circomlib
+
+.attic/
