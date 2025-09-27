@@ -1,9 +1,15 @@
 // webapp/app/components/ConnectButton.tsx
 "use client"
 
-import { ConnectButton as RKConnectButton } from "@rainbow-me/rainbowkit"
+import { useAccount, useDisconnect, useChainId } from "wagmi"
+import { useWeb3Modal } from "@web3modal/wagmi/react"
 
 const LIGHTCHAIN_ID = 504
+
+const themedButton =
+  "px-4 py-2 rounded-lg font-semibold transition " +
+  "bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 " +
+  "text-white shadow-md hover:opacity-90 focus:outline-none"
 
 function short(addr?: string) {
   if (!addr) return ""
@@ -11,69 +17,44 @@ function short(addr?: string) {
 }
 
 export default function ConnectButton() {
+  const { open } = useWeb3Modal()
+  const { address, isConnected } = useAccount()
+  const { disconnect } = useDisconnect()
+  const chainId = useChainId()
+  const onLightchain = chainId === LIGHTCHAIN_ID
+
+  if (!isConnected) {
+    return (
+      <button onClick={() => open({ view: "Connect" })} className={themedButton}>
+        Connect Wallet
+      </button>
+    )
+  }
+
   return (
-    <RKConnectButton.Custom>
-      {({
-        account,
-        chain,
-        openAccountModal,
-        openChainModal,
-        openConnectModal,
-        mounted,
-      }) => {
-        const ready = mounted
-        const connected = ready && account && chain
-        const onLightchain = chain?.id === LIGHTCHAIN_ID
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => open({ view: "Account" })}
+        className={themedButton}
+        title={address}
+      >
+        {short(address)}
+      </button>
 
-        // Disconnected → big gradient CTA
-        if (!connected) {
-          return (
-            <button
-              onClick={openConnectModal}
-              className="btn-connect"
-            >
-              Connect
-            </button>
-          )
-        }
+      {!onLightchain && (
+        <button
+          onClick={() => open({ view: "Networks" })}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 text-sm text-white/80"
+          title="Switch network"
+        >
+          Network
+        </button>
+      )}
 
-        // Connected → keep the same bold gradient footprint
-        // Clicking opens the RainbowKit account modal.
-        return (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={openAccountModal}
-              className="btn-connect"
-              title={account?.address}
-            >
-              {account?.displayName || short(account?.address)}
-            </button>
-
-            {/* Only show chain chip if NOT Lightchain 504 or if unsupported */}
-            {!onLightchain && (
-              <button
-                onClick={openChainModal}
-                className="nav-ghost flex items-center gap-1.5 px-3 py-1.5 text-sm"
-                title={chain?.name}
-              >
-                {chain?.iconUrl ? (
-                  <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      alt={chain?.name ?? "chain"}
-                      src={chain.iconUrl}
-                      className="h-4 w-4 rounded-full"
-                    />
-                    <span className="text-white/80">{chain?.name}</span>
-                  </>
-                ) : (
-                  <span className="text-white/80">{chain?.name ?? "Network"}</span>
-                )}
-              </button>
-            )}
-          </div>
-        )
-      }}
-    </RKConnectButton.Custom>
+      {/* Optional quick disconnect:
+      <button onClick={() => disconnect()} className="px-3 py-1.5 rounded-lg border border-neutral-700 text-neutral-300 hover:bg-neutral-800 text-sm">
+        Disconnect
+      </button> */}
+    </div>
   )
 }

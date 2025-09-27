@@ -16,7 +16,9 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     },
     "types": [
       "node"

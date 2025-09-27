@@ -1,4 +1,3 @@
-// webapp/app/components/Navbar.tsx
 "use client"
 
 import Link from "next/link"
@@ -6,7 +5,7 @@ import { usePathname } from "next/navigation"
 import dynamic from "next/dynamic"
 import { useEffect, useMemo, useState } from "react"
 
-// RainbowKit – client only
+// Client-only ConnectButton
 const ConnectButton = dynamic(() => import("./ConnectButton"), { ssr: false })
 
 type NavItem = { label: string; href: string }
@@ -23,6 +22,7 @@ export default function Navbar() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
 
+  // Lock body scroll while mobile sheet is open
   useEffect(() => {
     const html = document.documentElement
     const body = document.body
@@ -60,7 +60,7 @@ export default function Navbar() {
   return (
     <div className="hdr relative">
       <div className="container-narrow mx-auto flex items-center gap-4 px-4 navbar">
-        {/* Brand: text only (no purple square) */}
+        {/* Brand */}
         <Link href="/" className="flex items-center">
           <span className="navbar-brand h-gradient">LightChallenge</span>
         </Link>
@@ -68,23 +68,15 @@ export default function Navbar() {
         {/* Desktop nav */}
         <div className="ml-4 flex-1">{desktopNav}</div>
 
-        {/* Right side (desktop) */}
+        {/* Right side (desktop) – ONLY the wallet */}
         <div className="hidden sm:flex items-center gap-2">
-          <Link
-            href="https://testnet.lightscan.app"
-            target="_blank"
-            rel="noreferrer"
-            className="nav-ghost inline-flex"
-          >
-            Explorer ↗
-          </Link>
           <ConnectButton />
         </div>
 
         {/* Hamburger (mobile only) */}
         <button
           type="button"
-          className="inline-flex items-center justify-center sm:hidden ml-auto nav-ghost"
+          className="inline-flex items-center justify-center ml-auto nav-ghost md:hidden hide-desktop"
           aria-label="Open menu"
           aria-expanded={open}
           onClick={() => setOpen(v => !v)}
@@ -103,12 +95,8 @@ export default function Navbar() {
 
       {/* Mobile sheet */}
       {open && (
-        <div className="sm:hidden fixed inset-x-0 top-[64px] z-40">
-          <div
-            className="mx-3 rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md shadow-xl overflow-hidden"
-            role="dialog"
-            aria-modal="true"
-          >
+        <div className="md:hidden fixed inset-x-0 top-[64px] z-40">
+          <div className="mobile-sheet mx-3 rounded-2xl shadow-xl overflow-hidden" role="dialog" aria-modal="true">
             <div className="p-2 flex flex-col gap-2">
               {NAV.map((item) => (
                 <Link
@@ -120,19 +108,8 @@ export default function Navbar() {
                   {item.label}
                 </Link>
               ))}
-              <div className="mt-2 flex items-center justify-between gap-2">
-                <Link
-                  href="https://testnet.lightscan.app"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="nav-ghost flex-1 text-center inline-flex justify-center"
-                  onClick={() => setOpen(false)}
-                >
-                  Explorer ↗
-                </Link>
-                <div className="flex-1 flex justify-end">
-                  <ConnectButton />
-                </div>
+              <div className="mt-2 flex items-center justify-end">
+                <ConnectButton />
               </div>
             </div>
           </div>

@@ -1,6 +1,7 @@
+// webapp/lib/events.ts
 import { publicClient } from "@/lib/viem"
-import { ADDR, ABI } from "@/lib/contracts"
-import { createPublicClient, http, Hex, GetLogsReturnType } from "viem"
+import { ADDR } from "@/lib/contracts"
+import { createPublicClient, http, Hex, GetLogsReturnType, Address } from "viem"
 import { lightchain } from "@/lib/lightchain"
 
 type ChallengeCreatedLog = {
@@ -34,7 +35,6 @@ export async function getChallengeCreatedLogs(from: bigint, to: bigint) {
   while (start <= to) {
     const end = start + MAX_SPAN - 1n > to ? to : start + MAX_SPAN - 1n
     let attempt = 0
-    // retry with exponential backoff
     for (;;) {
       try {
         const chunk = (await client.getLogs({
@@ -63,11 +63,51 @@ export async function getChallengeCreatedLogs(from: bigint, to: bigint) {
         break
       } catch (err) {
         if (attempt++ >= MAX_RETRIES) throw err
-        await sleep(300 * attempt) // backoff
+        await sleep(300 * attempt)
       }
     }
     start = end + 1n
   }
 
   return logs.sort((a, b) => (a.blockNumber < b.blockNumber ? -1 : 1))
+}
+
+// === Dashboard helpers ===
+export type ChallengeCreatedEvt = {
+  id: bigint
+  creator: Address
+  stake: bigint
+  blockNumber: bigint
+  txHash: Hex
+}
+
+export async function fetchCreatedWindow(fromBlock: bigint, toBlock: bigint) {
+  const logs = await getChallengeCreatedLogs(fromBlock, toBlock)
+  const items: ChallengeCreatedEvt[] = logs.map((l) => ({
+    id: l.args.id,
+    creator: l.args.creator,
+    stake: l.args.stake,
+    blockNumber: l.blockNumber,
+    txHash: l.transactionHash,
+  }))
+
+  const span = toBlock - fromBlock
+  const next = {
+    fromBlock: fromBlock > span ? fromBlock - span : 0n,
+    toBlock: fromBlock > 0n ? fromBlock - 1n : 0n,
+  }
+
+  // top-level fromBlock/toBlock so page.tsx compiles
+  return { items, next, fromBlock, toBlock }
+}
+
+export async function fetchMoreCreated(
+  arg1: { fromBlock: bigint; toBlock: bigint } | bigint,
+  arg2?: bigint,
+  _address?: Address
+) {
+  if (typeof arg1 === "bigint") {
+    return fetchCreatedWindow(arg1, arg2 as bigint)
+  }
+  return fetchCreatedWindow(arg1.fromBlock, arg1.toBlock)
 }

@@ -1,5 +1,7 @@
 {
   "files": [],
-  "references": [{ "path": "./tsconfig.hardhat.json" }],
-  "exclude": ["webapp", "node_modules", "dist"]
+  "references": [
+    { "path": "./webapp/tsconfig.json" },
+    { "path": "./tsconfig.hardhat.json" }
+  ]
 }

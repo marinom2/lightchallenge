@@ -70,6 +70,26 @@ async function main() {
     notes.push("logs skipped (no CHALLENGEPAY_ADDR or no head).");
   }
 
+  // 4) Contract read: challengeCount() or nextId()
+  if (CHALLENGEPAY_ADDR) {
+    try {
+      // selector for challengeCount() = 0x13af4035
+      // selector for nextId() = 0x2baeceb7
+      const selector = "0x13af4035"; 
+      const callRes = await rpc("eth_call", [{
+        to: CHALLENGEPAY_ADDR,
+        data: selector
+      }, "latest"]);
+      const count = parseInt(callRes, 16);
+      notes.push(`challengeCount=${count}`);
+      if (Number.isNaN(count)) {
+        ok = false; notes.push("contract read FAIL (NaN)");
+      }
+    } catch (e) {
+      ok = false; notes.push(`contract read FAIL: ${e.message}`);
+    }
+  }
+
   const summary = [
     `LightChain Healthcheck @ ${nowIso}`,
     `RPC: ${RPC_URL}`,
@@ -95,4 +115,7 @@ async function main() {
   if (!ok) process.exit(1);
 }
 
-main().catch((e) => { console.error("Healthcheck crashed:", e); process.exit(1); });
+main().catch((e) => { 
+  console.error("Healthcheck crashed:", e); 
+  process.exit(1); 
+});

@@ -35,3 +35,4 @@ zk/circomlib
 *.tar.gz
 *.zip
 .snapshots/
+.env

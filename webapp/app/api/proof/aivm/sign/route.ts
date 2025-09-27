@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { privateKeyToAccount } from "viem/accounts"
 import { createWalletClient, http, Hex, encodeAbiParameters, keccak256 } from "viem"
 import { lightchain } from "@/lib/lightchain"
-import { ratelimit } from "@/lib/server/ratelimit"
+import ratelimit from "@/lib/server/ratelimit"
 
 export const runtime = "nodejs"
 
