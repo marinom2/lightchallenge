@@ -1,0 +1,19 @@
+[
+  {
+    "wallet": "0xa969a5c0434b427a5ae3e673607060eb5c87b886",
+    "platform": "steam",
+    "platformId": "76561198104201341",
+    "handle": "EL PATRON",
+    "signedBy": "0x53743DeE54E13d32F311558Fea040f826f99d27B",
+    "signature": "0x5d55a483c1a600d59ecd9f442600924f6fa076dddcc00dd8dfd4ed164cd75f104172d1b73669c4f0b2cecfaf76b79c3eb9a8640cc74c6d534cf82735a11e12ec1b",
+    "ts": 1760014271625
+  },
+  {
+    "wallet": "0x8176735de44c6a6e64c9153f2448b15f2f53cb31",
+    "platform": "steam",
+    "platformId": "76561198104201341",
+    "signedBy": "0x53743DeE54E13d32F311558Fea040f826f99d27B",
+    "signature": "0x7180b535f467c8c91d819900c50b1408b07a0c8345f11b1f32e08ecaab0cbb2d15216f7983875560848700fa1bad9cbf156268da76e29bc494adcd89a8df3f761b",
+    "ts": 1761487912336
+  }
+]

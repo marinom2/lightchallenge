@@ -4,8 +4,8 @@
 // Usage:
 //   CH_ID=20 npm run inspect:myPayout
 
-import hardhat from "hardhat";
-const { ethers, network } = hardhat;
+import hre from "hardhat";
+const { ethers, network } = hre;
 import * as fs from "fs";
 import * as path from "path";
 

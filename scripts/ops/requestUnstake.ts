@@ -5,8 +5,8 @@
 // Usage:
 //   ADDR=<ChallengePay> AMOUNT=<eth> \
 //   npx hardhat run scripts/ops/requestUnstake.ts --network <net>
-import hardhat from "hardhat";
-const { ethers, network } = hardhat;
+import hre from "hardhat";
+const { ethers, network } = hre;
 import { context, header, info, fail, toWei, NATIVE_SYMBOL } from "../dev/utils";
 
 async function main() {

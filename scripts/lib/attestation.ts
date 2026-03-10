@@ -1,3 +1,5 @@
+/* scripts/lib/attestation.ts */
+
 import { keccak256, AbiCoder, getBytes, ethers } from "ethers";
 
 export type Attestation = {

@@ -1,4 +1,5 @@
-import { ethers } from "hardhat";
+import * as hre from "hardhat";
+const { ethers, network } = hre;
 import crypto from "node:crypto";
 
 async function main() {

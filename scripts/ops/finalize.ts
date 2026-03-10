@@ -6,8 +6,8 @@
 // Usage:
 //   ADDR=<ChallengePay> CH_ID=<number> \
 //   npx hardhat run scripts/ops/finalize.ts --network <net>
-import hardhat from "hardhat";
-const { ethers, network } = hardhat;
+import hre from "hardhat";
+const { ethers, network } = hre;
 import { context, header, info, fail } from "../dev/utils";
 
 function fmt(n: bigint | number) {

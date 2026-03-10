@@ -6,9 +6,9 @@
 //   ADDR=<ChallengePay> CH_ID=<number> [WHO=<addr>] \
 //   npx hardhat run scripts/inspect/myPayout.ts --network <yourNet>
 //
-import hardhat from "hardhat";
+import hre from "hardhat";
 import "@nomicfoundation/hardhat-ethers";
-const { ethers, network } = hardhat;
+const { ethers, network } = hre;
 
 function fmt(n: bigint | number) { return (typeof n === "bigint" ? n : BigInt(n)).toString(); }
 

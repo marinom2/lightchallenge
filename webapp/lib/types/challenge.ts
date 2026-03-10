@@ -6,4 +6,7 @@ export type ChallengeMeta = {
     category: string      // category key, e.g. "fitness", "gaming", "custom"
     verifier: string      // verifier contract address
     txHash?: string       // optional: on-chain tx that created the challenge
+    tags?: string[]           // e.g. ["dota","kills","beginner","<30m"]
+    game?: string | null      // optional denormalized "Dota 2"
+    mode?: string | null
   }

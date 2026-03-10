@@ -1,6 +1,6 @@
 // scripts/ops/claimWinner.ts
-import hardhat from "hardhat";
-const { ethers } = hardhat;
+import hre from "hardhat";
+const { ethers } = hre;
 import { context, header, info, fail } from "../dev/utils";
 
 async function main() {

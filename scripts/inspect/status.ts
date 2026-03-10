@@ -5,8 +5,8 @@
 //   MODE=table|json [NATIVE_SYMBOL=ETH] [CONTRACT_ADDR=0x...] \
 //   npx hardhat run scripts/inspect/status.ts --network <net>
 //
-import hardhat from "hardhat";
-const { ethers, network } = hardhat;
+import hre from "hardhat";
+const { ethers, network } = hre;
 import * as fs from "fs";
 import * as path from "path";
 

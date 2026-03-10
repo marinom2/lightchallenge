@@ -1,6 +1,6 @@
 import "@nomicfoundation/hardhat-ethers";
-import hardhat from "hardhat";
-const { ethers } = hardhat;
+import * as hre from "hardhat";
+const { ethers } = hre;
 
 async function main() {
   const net = (process.env.HARDHAT_NETWORK || "lightchain");

@@ -1,0 +1,301 @@
+{
+  "models": [
+    {
+      "id": "strava.distance_in_window@1",
+      "label": "Strava — Distance in Window (ZK)",
+      "kind": "zk",
+      "modelHash": "0xd3a933d7c65286991ffe453223bf2a153111795364835762b04dc6703e84211e",
+      "verifier": "0xB503369b4d419062296931f304911F406cf8E3cc",
+      "plonkVerifier": "0x24346b67dE55d36E72068CA096Aa7f14819ACa3b",
+      "binding": true,
+      "signals": [
+        "bind",
+        "success",
+        "distance_m_total"
+      ],
+      "params": [
+        {
+          "key": "start_ts",
+          "label": "Start (UTC)",
+          "type": "datetime"
+        },
+        {
+          "key": "end_ts",
+          "label": "End (UTC)",
+          "type": "datetime"
+        },
+        {
+          "key": "min_distance_m",
+          "label": "Minimum distance (m)",
+          "type": "int",
+          "default": 5000
+        }
+      ],
+      "sources": [
+        "strava:file-upload",
+        "apple_health:zip"
+      ],
+      "fileAccept": [
+        ".gpx",
+        ".json",
+        ".zip"
+      ],
+      "notes": "publicSignals[0] = keccak256(abi.encode(challengeId, subject))"
+    },
+    {
+      "id": "apple_health.steps@1",
+      "label": "Apple Health — Daily Steps (AIVM)",
+      "kind": "aivm",
+      "modelHash": "0x2e3f88a0496e6650c192355be471a62cae0bda1aece751eb2b30affd0f010c9e",
+      "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+      "binding": true,
+      "signals": [
+        "bind",
+        "success",
+        "totalSteps",
+        "days",
+        "avgSteps"
+      ],
+      "params": [
+        {
+          "key": "days",
+          "label": "Number of days",
+          "type": "int",
+          "default": 7
+        },
+        {
+          "key": "minSteps",
+          "label": "Min steps/day",
+          "type": "int",
+          "default": 8000
+        }
+      ],
+      "sources": [
+        "apple_health:zip (export.xml + workouts/steps)"
+      ],
+      "fileAccept": [
+        ".zip"
+      ]
+    },
+    {
+      "id": "garmin.steps@1",
+      "label": "Garmin — Daily Steps (AIVM)",
+      "kind": "aivm",
+      "modelHash": "0x7abfc322e4b015bd06ff99afe644c44868506d0ef39ae80a17b21813a389a1f2",
+      "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+      "binding": true,
+      "signals": [
+        "bind",
+        "success",
+        "totalSteps",
+        "days",
+        "avgSteps"
+      ],
+      "params": [
+        {
+          "key": "days",
+          "label": "Number of days",
+          "type": "int",
+          "default": 7
+        },
+        {
+          "key": "minSteps",
+          "label": "Min steps/day",
+          "type": "int",
+          "default": 8000
+        }
+      ],
+      "sources": [
+        "garmin:export JSON (daily steps)"
+      ],
+      "fileAccept": [
+        ".json"
+      ]
+    },
+    {
+      "id": "dota.winrate_next_n@1",
+      "label": "Dota 2 — Win Rate (Next N Matches, AIVM)",
+      "kind": "aivm",
+      "modelHash": "0x39abeb3664e21ae78cd0ae1b2393ac5e3d3fa3fa5a2f290474c323cce59d93c6",
+      "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+      "binding": true,
+      "signals": [
+        "bind",
+        "wins",
+        "games",
+        "winRatePct"
+      ],
+      "params": [
+        {
+          "key": "matches",
+          "label": "Next N matches",
+          "type": "int",
+          "default": 50
+        },
+        {
+          "key": "rankedOnly",
+          "label": "Ranked only? (true/false)",
+          "type": "text",
+          "default": "true"
+        }
+      ],
+      "sources": [
+        "Steam ↔ wallet binding",
+        "OpenDota API"
+      ],
+      "notes": "Filters your next N matches; if rankedOnly=true restrict to ranked queues"
+    },
+    {
+      "id": "lol.winrate_next_n@1",
+      "label": "League of Legends — Win Rate (Next N Matches, AIVM)",
+      "kind": "aivm",
+      "modelHash": "0x6a68a575fa50ebbc7c0404ebe2078f7a79cfa95b4c2efd9c869b0744137456c3",
+      "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+      "binding": true,
+      "signals": [
+        "bind",
+        "wins",
+        "games",
+        "winRatePct"
+      ],
+      "params": [
+        {
+          "key": "matches",
+          "label": "Next N matches",
+          "type": "int",
+          "default": 20
+        },
+        {
+          "key": "queue",
+          "label": "Queue (ranked/flex/aram)",
+          "type": "text",
+          "default": "ranked"
+        }
+      ],
+      "sources": [
+        "Riot API (PUUID binding)"
+      ]
+    },
+    {
+      "id": "dota.hero_kills_window@1",
+      "label": "Dota 2 — Hero Kills in Time Window (AIVM)",
+      "kind": "aivm",
+      "modelHash": "0x0de4617204f86e47e89b88696ce2d323fa053589dce9152a523741429a83ddb1",
+      "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+      "binding": true,
+      "signals": [
+        "bind",
+        "kills",
+        "matches",
+        "success"
+      ],
+      "params": [
+        {
+          "key": "start_ts",
+          "label": "Start (UTC)",
+          "type": "datetime"
+        },
+        {
+          "key": "end_ts",
+          "label": "End (UTC)",
+          "type": "datetime"
+        },
+        {
+          "key": "hero",
+          "label": "Hero (string id)",
+          "type": "text",
+          "default": "antimage"
+        },
+        {
+          "key": "minKills",
+          "label": "Total kills required",
+          "type": "int",
+          "default": 100
+        },
+        {
+          "key": "rankedOnly",
+          "label": "Ranked only? (true/false)",
+          "type": "text",
+          "default": "true"
+        }
+      ],
+      "sources": [
+        "Steam ↔ wallet binding",
+        "OpenDota API"
+      ]
+    },
+    {
+      "id": "dota.private_match_1v1@1",
+      "label": "Dota 2 — Private Match 1v1 (AIVM)",
+      "kind": "aivm",
+      "modelHash": "0xe8fe0f3dccfa30d73e362ae12070b18b4ce623d836a7bca392429212ecb14def",
+      "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+      "binding": true,
+      "signals": [
+        "bind",
+        "success",
+        "matchCount"
+      ],
+      "params": [
+        {
+          "key": "start_ts",
+          "label": "Start (UTC)",
+          "type": "datetime"
+        },
+        {
+          "key": "end_ts",
+          "label": "End (UTC)",
+          "type": "datetime"
+        },
+        {
+          "key": "minMatches",
+          "label": "Min matches to count",
+          "type": "int",
+          "default": 1
+        }
+      ],
+      "sources": [
+        "Steam ↔ wallet binding",
+        "OpenDota API (lobby_type/custom identifiers)"
+      ],
+      "notes": "Verifies at least N valid 1v1 private matches for subject in window"
+    },
+    {
+      "id": "dota.private_match_5v5@1",
+      "label": "Dota 2 — Private Match 5v5 (AIVM)",
+      "kind": "aivm",
+      "modelHash": "0xa36667f7fba0e008bfca236bcec118fef4f7177046cbc57f093b557b41ca95e6",
+      "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+      "binding": true,
+      "signals": [
+        "bind",
+        "success",
+        "matchCount"
+      ],
+      "params": [
+        {
+          "key": "start_ts",
+          "label": "Start (UTC)",
+          "type": "datetime"
+        },
+        {
+          "key": "end_ts",
+          "label": "End (UTC)",
+          "type": "datetime"
+        },
+        {
+          "key": "minMatches",
+          "label": "Min matches to count",
+          "type": "int",
+          "default": 1
+        }
+      ],
+      "sources": [
+        "Steam ↔ wallet binding",
+        "OpenDota API (lobby_type/custom identifiers)"
+      ],
+      "notes": "Verifies at least N valid 5v5 private matches for subject in window"
+    }
+    
+  ]
+}

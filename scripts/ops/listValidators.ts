@@ -1,8 +1,8 @@
 import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-ethers";
 // scripts/listValidators.ts
-import hardhat from "hardhat";
-const { ethers } = hardhat;
+import hre from "hardhat";
+const { ethers } = hre;
 import { context, header, info, fmtWei, fail } from "../dev/utils";
 
 function pad(s: string, n: number) { return (s + " ".repeat(n)).slice(0, n); }
@@ -15,7 +15,7 @@ async function main() {
   info("Contract", addr);
 
   let addrs: string[] = [];
-  const csv = process.env.ADDRESSES || process.env.ADDRS || "";
+  const csv = process.env.TREASURY_ADDRES || process.env.ADDRS || "";
   if (csv) {
     addrs = csv.split(",").map(s => s.trim()).filter(Boolean);
   } else {

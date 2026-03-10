@@ -1,3 +1,5 @@
+/* scripts/inspect/CheckDeployments.ts */
+
 import { ethers, artifacts, network } from "hardhat"
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"

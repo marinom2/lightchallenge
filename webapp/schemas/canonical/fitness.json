@@ -1,0 +1,19 @@
+{
+    "title": "FitnessCanonicalRecord",
+    "type": "object",
+    "properties": {
+      "provider": { "type": "string" },
+      "user_id": { "type": "string" },
+      "activity_id": { "type": "string" },
+      "type": { "type": "string", "enum": ["run","walk","ride","steps","distance"] },
+      "start_ts": { "type": "number" },
+      "end_ts": { "type": "number" },
+      "duration_s": { "type": "number" },
+      "distance_m": { "type": ["number","null"] },
+      "steps": { "type": ["number","null"] },
+      "avg_hr_bpm": { "type": ["number","null"] },
+      "source_device": { "type": ["string","null"] },
+      "checksum": { "type": "string" }
+    },
+    "required": ["provider","user_id","activity_id","type","start_ts","checksum"]
+  }

@@ -1,0 +1,21 @@
+
+  
+  <PATH>...   A file or directory to search.
+  <PATTERN>   A regular expression used for searching.
+  rg [OPTIONS] PATTERN [PATH ...]
+Andrew Gallant <jamslam@gmail.com>
+FILTER OPTIONS:
+INPUT OPTIONS:
+LOGGING OPTIONS:
+OTHER BEHAVIORS:
+OUTPUT MODES:
+OUTPUT OPTIONS:
+POSITIONAL ARGUMENTS:
+Project home page: https://github.com/BurntSushi/ripgrep
+SEARCH OPTIONS:
+USAGE:
+Use 
+a regex pattern. By default, ripgrep will respect gitignore rules and
+automatically skip hidden files/directories and binary files.
+ripgrep (rg) recursively searches the current directory for lines matching
+ripgrep 15.1.0

@@ -1,240 +1,548 @@
-// webapp/components/ProofPanel.tsx
 "use client";
 
-import { useMemo, useState } from "react";
-import { useAccount, useWriteContract } from "wagmi";
-import { type Hex } from "viem";
-import { ABI, ADDR } from "@/lib/contracts";
-import { packZkProof } from "@/lib/zkPack";
+import * as React from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useAccount, useBalance } from "wagmi";
+import { useRouter } from "next/navigation";
 
-type KindKey = "steps" | "running" | "dota";
+import ClientOnly from "@/app/components/ClientOnly";
+import { Toasts, useToasts } from "@/lib/ui/toast";
 
-/**
- * Handles ZK (PLONK) and AIVM attestation flows.
- * - ZK: user pastes modelHash / proofData / publicSignals; we ABI-pack and submit.
- * - AIVM: user pastes evidence JSON; we POST to /api/proof/aivm/sign which
- *         signs + packs for AivmProofVerifier, then we call submitProof.
- */
-export default function ProofPanel({
-  id,
-  verifier,
-  requireZk = false,
-  requireAivm = false,
-  // For AIVM: pass the same kind/form you used when creating the challenge
-  kindKey,
-  form,
-}: {
-  id: bigint;
-  verifier: `0x${string}`;
-  requireZk?: boolean;
-  requireAivm?: boolean;
-  kindKey?: KindKey;
-  form?: Record<string, any>;
-}) {
-  const { address } = useAccount();
-  const { writeContractAsync } = useWriteContract();
+import { Stepper } from "./components/Stepper";
+import { InviteSheet } from "./components/InviteSheet";
+import SuccessSheet from "./components/SuccessSheet";
 
-  // Normalized (lowercase) address helpers
-  const vLower = verifier?.toLowerCase?.() ?? "";
-  const zkLower = (ADDR.ZkProofVerifier as string | undefined)?.toLowerCase?.() ?? "";
-  const aivmLower = (ADDR.AivmProofVerifier as string | undefined)?.toLowerCase?.() ?? "";
-  const multisigLower = ((ADDR as any).MultiSigProofVerifier as string | undefined)?.toLowerCase?.() ?? "";
+import Step1_Intent from "./components/steps/Step1_Intent";
+import Step2_Essentials from "./components/steps/Step2_Essentials";
+import Step3_Options from "./components/steps/Step3_Options";
+import Step4_Review from "./components/steps/Step4_Review";
 
-  const isZkVerifier = useMemo(() => !!zkLower && vLower === zkLower, [vLower, zkLower]);
-  const isAivmVerifier = useMemo(() => !!aivmLower && vLower === aivmLower, [vLower, aivmLower]);
-  const isMultiSigVerifier = useMemo(() => !!multisigLower && vLower === multisigLower, [vLower, multisigLower]);
+import { useCreateChallenge } from "./hooks/useCreateChallenge";
+import { useChainPolicyHints } from "./hooks/useChainPolicyHints";
 
-  // Niceties: disable sections if verifier mismatch
-  const zkSectionDisabled = requireZk && !isZkVerifier;
-  const aivmSectionDisabled = requireAivm && !isAivmVerifier;
+const STEPS = [
+  { id: 1 as const, name: "Intent" },
+  { id: 2 as const, name: "Essentials" },
+  { id: 3 as const, name: "Options" },
+  { id: 4 as const, name: "Review" },
+];
 
-  // AIVM nicety: hint when config is missing (only when required)
-  const aivmConfigMissing = requireAivm && (!kindKey || !form);
+type Method = "email" | "wallet" | "steam";
 
-  // ZK state
-  const [modelHash, setModelHash] = useState<Hex>("0x");
-  const [proofData, setProofData] = useState<Hex>("0x");
-  const [publicSignals, setPublicSignals] = useState<string>("");
-
-  // AIVM state
-  const [evidenceText, setEvidenceText] = useState<string>("");
-
-  const [busy, setBusy] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-
-  async function submitZk() {
-    try {
-      setBusy("zk");
-      if (zkSectionDisabled) throw new Error("This challenge is not using the ZK verifier.");
-      if (!/^0x[0-9a-fA-F]{64}$/.test(modelHash)) throw new Error("modelHash must be 32 bytes hex (0x…64)");
-      if (!/^0x[0-9a-fA-F]*$/.test(proofData)) throw new Error("proofData must be hex (0x…)");
-
-      const pub = parseUint256Array(publicSignals);
-      const packed = packZkProof(modelHash, proofData, pub);
-
-      await writeContractAsync({
-        address: ADDR.ChallengePay,
-        abi: ABI.ChallengePay,
-        functionName: "submitProof",
-        args: [id, packed],
-      });
-
-      setToast("ZK proof submitted");
-    } catch (e: any) {
-      setToast(e?.shortMessage || e?.message || "Failed");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function submitAivm() {
-    try {
-      setBusy("aivm");
-      if (aivmSectionDisabled) throw new Error("This challenge is not using the AIVM verifier.");
-      if (!address) throw new Error("Connect wallet");
-      if (aivmConfigMissing) throw new Error("Missing challenge kind/form for AIVM");
-
-      let evidence: any = {};
-      if (evidenceText.trim()) {
-        try { evidence = JSON.parse(evidenceText); }
-        catch { throw new Error("Evidence must be valid JSON"); }
-      }
-
-      const res = await fetch("/api/proof/aivm/sign", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          challengeId: Number(id),
-          subject: address,
-          kindKey,
-          form,
-          evidence,
-        }),
-      });
-      const out = await res.json().catch(()=> ({}));
-      if (!res.ok) throw new Error(out?.error || `Sign failed (${res.status})`);
-
-      const { packed } = out as { packed: Hex };
-
-      await writeContractAsync({
-        address: ADDR.ChallengePay,
-        abi: ABI.ChallengePay,
-        functionName: "submitProof",
-        args: [id, packed],
-      });
-
-      setToast("AIVM proof submitted");
-    } catch (e: any) {
-      setToast(e?.shortMessage || e?.message || "Failed");
-    } finally {
-      setBusy(null);
-    }
-  }
-
+export default function CreateChallengePage() {
   return (
-    <div className="rounded-2xl p-4 border border-white/10 space-y-4 bg-white/5">
-      <div className="text-sm font-semibold">Proofs</div>
-
-      {/* Optional FYI for Multi-Sig verifiers */}
-      {isMultiSigVerifier && (
-        <div className="text-xs text-white/70">
-          This challenge uses a Multi-Sig verifier. No user submission is required here.
-        </div>
-      )}
-
-      {/* ZK (PLONK) section */}
-      {requireZk && (
-        <fieldset
-          className={`space-y-2 ${zkSectionDisabled ? "opacity-50 pointer-events-none" : ""}`}
-          disabled={zkSectionDisabled}
-        >
-          <div className="text-xs text-white/70">
-            ZK (PLONK)
-            {zkSectionDisabled && (
-              <span className="ml-2 text-amber-300">
-                • Disabled: challenge is not using the configured ZK verifier.
-              </span>
-            )}
-          </div>
-          <input
-            className="w-full bg-white/5 rounded-xl px-3 py-2"
-            placeholder="modelHash 0x…32"
-            value={modelHash}
-            onChange={(e) => setModelHash(e.target.value as Hex)}
-          />
-          <input
-            className="w-full bg-white/5 rounded-xl px-3 py-2"
-            placeholder="proofData 0x…"
-            value={proofData}
-            onChange={(e) => setProofData(e.target.value as Hex)}
-          />
-          <input
-            className="w-full bg-white/5 rounded-xl px-3 py-2"
-            placeholder="publicSignals e.g. 123,456,0xabc…"
-            value={publicSignals}
-            onChange={(e) => setPublicSignals(e.target.value)}
-          />
-          <button
-            disabled={busy === "zk" || zkSectionDisabled}
-            onClick={submitZk}
-            className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-40"
-          >
-            {busy === "zk" ? "Submitting…" : "Submit ZK Proof"}
-          </button>
-        </fieldset>
-      )}
-
-      {/* AIVM section */}
-      {requireAivm && (
-        <fieldset
-          className={`space-y-2 ${aivmSectionDisabled ? "opacity-50 pointer-events-none" : ""}`}
-          disabled={aivmSectionDisabled}
-        >
-          <div className="text-xs text-white/70">
-            AIVM attestation (paste your health/game JSON below)
-            {aivmSectionDisabled && (
-              <span className="ml-2 text-amber-300">
-                • Disabled: challenge is not using the configured AIVM verifier.
-              </span>
-            )}
-          </div>
-          {aivmConfigMissing && (
-            <div className="text-xs text-amber-300">
-              Missing <code>kindKey</code> / <code>form</code> for AIVM flow. This usually comes from how the
-              challenge was created. Without it, we can’t request the AIVM signature.
-            </div>
-          )}
-          <textarea
-            className="w-full bg-white/5 rounded-xl px-3 py-2 min-h-[120px]"
-            placeholder='{"stepsByDay":[{"date":"2025-09-26","steps":7421}]}'
-            value={evidenceText}
-            onChange={(e) => setEvidenceText(e.target.value)}
-          />
-          <button
-            disabled={busy === "aivm" || aivmSectionDisabled || aivmConfigMissing}
-            onClick={submitAivm}
-            className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-40"
-          >
-            {busy === "aivm" ? "Submitting…" : "Get AIVM signature & Submit"}
-          </button>
-        </fieldset>
-      )}
-
-      <div className="text-xs text-white/60 break-words">
-        Verifier: <code>{verifier}</code>
-      </div>
-
-      {toast && <div className="text-xs text-white/80">{toast}</div>}
-    </div>
+    <ClientOnly fallback={<div className="py-8" />}>
+      <CreatePageInner />
+      <Toasts />
+    </ClientOnly>
   );
 }
 
-// utils
-function parseUint256Array(input: string): bigint[] {
-  const parts = input.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
-  return parts.map((p) => {
-    if (p.startsWith("0x") || p.startsWith("0X")) return BigInt(p);
-    if (!/^\d+$/.test(p)) throw new Error(`Bad public signal: ${p}`);
-    return BigInt(p);
+function CreatePageInner() {
+  const router = useRouter();
+  const { address } = useAccount();
+  const { push } = useToasts();
+
+  const {
+    state,
+    dispatch,
+    ui,
+    derived,
+    next,
+    back,
+    goTo,
+    submit,
+    allowSubmit,
+    reset,
+  } = useCreateChallenge();
+
+  const { data: nativeBal } = useBalance({
+    address,
+    query: { enabled: !!address, refetchInterval: 15_000 },
   });
+
+  const [inviteOpen, setInviteOpen] = React.useState(false);
+  const [successOpen, setSuccessOpen] = React.useState(false);
+  const prevSuccessRef = React.useRef(false);
+
+  const tokenAddr =
+    state.money.currency.type === "ERC20"
+      ? state.money.currency.address ?? null
+      : null;
+
+  const policy = useChainPolicyHints({
+    currencyType: state.money.currency.type === "ERC20" ? "ERC20" : "NATIVE",
+    token: tokenAddr,
+  });
+
+  React.useEffect(() => {
+    if (!prevSuccessRef.current && ui.success && ui.txHash) {
+      setSuccessOpen(true);
+    }
+    prevSuccessRef.current = ui.success;
+  }, [ui.success, ui.txHash]);
+
+  const step1Ok =
+    !derived.errors["intent.type"] &&
+    (state.intent.type !== "GAMING" || !derived.errors["intent.gameId"]);
+
+  const step2Ok =
+    step1Ok &&
+    !derived.errors["essentials.title"] &&
+    !derived.errors["money.total"] &&
+    !derived.errors["money.currency.address"] &&
+    !derived.errors["timeline.joinCloses"] &&
+    !derived.errors["timeline.starts"] &&
+    !derived.errors["timeline.ends"] &&
+    !derived.errors["timeline.order"] &&
+    !derived.errors["timeline.order2"] &&
+    !derived.errors["timeline.proofDeadline"] &&
+    !derived.errors["timeline.proofDeadline2"];
+
+  const step3Ok =
+    step2Ok &&
+    !derived.errors["verification.verifier"] &&
+    !derived.errors["options.peerDeadline"];
+
+  const canNavigateTo = React.useCallback(
+    (stepId: number) => {
+      if (policy.paused) {
+        return {
+          ok: false as const,
+          reason: "Challenge creation is paused on-chain.",
+        };
+      }
+
+      if (stepId <= 1) return { ok: true as const };
+      if (!step1Ok) return { ok: false as const, reason: "Complete Intent first." };
+      if (stepId === 2) return { ok: true as const };
+
+      if (!step2Ok) {
+        return { ok: false as const, reason: "Complete Essentials first." };
+      }
+      if (stepId === 3) return { ok: true as const };
+
+      if (!step3Ok) {
+        return { ok: false as const, reason: "Complete Options first." };
+      }
+      return { ok: true as const };
+    },
+    [policy.paused, step1Ok, step2Ok, step3Ok]
+  );
+
+  const getBadge = React.useCallback(
+    (stepId: number) => {
+      if (stepId === 1) {
+        return step1Ok
+          ? { text: "Ready", tone: "ok" as const }
+          : { text: "Required", tone: "warn" as const };
+      }
+
+      if (stepId === 2) {
+        if (!step1Ok) return { text: "Locked", tone: "muted" as const };
+        return step2Ok
+          ? { text: "Ready", tone: "ok" as const }
+          : { text: "In progress", tone: "pending" as const };
+      }
+
+      if (stepId === 3) {
+        if (!step2Ok) return { text: "Locked", tone: "muted" as const };
+        return step3Ok
+          ? { text: "Ready", tone: "ok" as const }
+          : { text: "Required", tone: "warn" as const };
+      }
+
+      if (stepId === 4) {
+        if (!step3Ok) return { text: "Locked", tone: "muted" as const };
+        return allowSubmit
+          ? { text: "Ready", tone: "ok" as const }
+          : { text: "Check", tone: "pending" as const };
+      }
+
+      return null;
+    },
+    [step1Ok, step2Ok, step3Ok, allowSubmit]
+  );
+
+  const isFinal = ui.step === 4;
+  const hasCreatedChallenge = ui.challengeId != null;
+
+  const handleInvite = React.useCallback(
+    async (method: Method, value: string) => {
+      if (!ui.challengeId) {
+        push("Challenge ID is missing. Create the challenge first.");
+        return;
+      }
+
+      const res = await fetch("/api/invites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          challengeId: ui.challengeId,
+          method,
+          value,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.ok) {
+        push(data?.error || "Failed to create invite.");
+        return;
+      }
+
+      push(`Invite queued: ${method} · ${value}`);
+      setInviteOpen(false);
+    },
+    [ui.challengeId, push]
+  );
+
+  const cta = React.useMemo(() => {
+    if (!address) {
+      return {
+        text: "Connect Wallet",
+        disabled: false,
+        loading: false,
+        title: "Connect your wallet to create a challenge.",
+        onClick: () => push("Connect your wallet to continue."),
+      };
+    }
+
+    if (!isFinal) {
+      return {
+        text: "Continue",
+        disabled: ui.isSubmitting,
+        loading: false,
+        title: undefined as string | undefined,
+        onClick: () => {
+          const want = ui.step + 1;
+          const g = canNavigateTo(want);
+          if (!g.ok) return push(g.reason || "Complete the required fields first.");
+          next();
+        },
+      };
+    }
+
+    const disabled =
+      ui.isSubmitting || !allowSubmit || policy.loading || policy.paused;
+
+    const title = policy.paused
+      ? "Challenge creation is paused on-chain."
+      : !allowSubmit
+      ? "Fix the remaining issues before creating."
+      : policy.loading
+      ? "Syncing chain policy…"
+      : undefined;
+
+    return {
+      text: "Create Challenge",
+      disabled,
+      loading: ui.isSubmitting,
+      title,
+      onClick: async () => {
+        if (policy.paused) return push("Challenge creation is paused on-chain.");
+        if (!allowSubmit) return push("Fix the highlighted issues before creating.");
+        await submit();
+      },
+    };
+  }, [
+    address,
+    isFinal,
+    ui.isSubmitting,
+    ui.step,
+    allowSubmit,
+    policy.loading,
+    policy.paused,
+    push,
+    canNavigateTo,
+    next,
+    submit,
+  ]);
+
+  return (
+    <>
+      {policy.error ? (
+        <div role="alert" className="section mt-4">
+          <div className="panel p-3" style={{ borderColor: "var(--border-strong)" }}>
+            <div className="text-sm" style={{ color: "var(--text)" }}>
+              Chain policy: {policy.error}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {policy.paused ? (
+        <div role="alert" className="section mt-4">
+          <div className="panel p-3" style={{ borderColor: "var(--border-strong)" }}>
+            <div className="text-sm" style={{ color: "var(--text)" }}>
+              Chain policy: challenge creation is currently paused on-chain.
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {ui.error ? (
+        <div role="alert" className="section mt-4">
+          <div
+            className="panel p-3"
+            style={{
+              borderColor:
+                "color-mix(in oklab, var(--error) 45%, var(--border-strong))",
+            }}
+          >
+            <div className="text-sm" style={{ color: "var(--text)" }}>
+              {ui.error}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="sticky top-[calc(var(--navbar-top)+env(safe-area-inset-top,0px))] z-20 create-stepper">
+        <div className="section">
+          <div className="create-stepper__inner">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-xs uppercase tracking-widest text-(--text-muted)">
+                  Step {ui.step} / 4
+                  {policy.loading ? (
+                    <span className="ml-2 opacity-70">· syncing policy…</span>
+                  ) : null}
+                </div>
+
+                <div className="font-semibold truncate flex items-center gap-2">
+                  <span>{STEPS.find((s) => s.id === ui.step)?.name}</span>
+                  {getBadge(ui.step)?.text ? (
+                    <span
+                      className="text-[11px] font-semibold px-2 py-0.5 rounded-full border"
+                      style={{
+                        borderColor:
+                          getBadge(ui.step)?.tone === "ok"
+                            ? "color-mix(in oklab, var(--accent) 55%, var(--border))"
+                            : getBadge(ui.step)?.tone === "warn"
+                            ? "color-mix(in oklab, var(--warn) 55%, var(--border))"
+                            : getBadge(ui.step)?.tone === "pending"
+                            ? "color-mix(in oklab, var(--text) 20%, var(--border))"
+                            : "var(--border)",
+                        background:
+                          getBadge(ui.step)?.tone === "ok"
+                            ? "color-mix(in oklab, var(--accent) 12%, transparent)"
+                            : getBadge(ui.step)?.tone === "warn"
+                            ? "color-mix(in oklab, var(--warn) 12%, transparent)"
+                            : "color-mix(in oklab, var(--surface-2) 70%, transparent)",
+                        color: "var(--text)",
+                      }}
+                    >
+                      {getBadge(ui.step)?.text}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {hasCreatedChallenge ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost hidden sm:inline-flex"
+                    onClick={() => setInviteOpen(true)}
+                    disabled={ui.isSubmitting}
+                  >
+                    Invite
+                  </button>
+                ) : null}
+
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={cta.disabled}
+                  onClick={cta.onClick}
+                  title={cta.title}
+                >
+                  {cta.loading ? "Processing…" : cta.text}
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <Stepper
+                steps={STEPS}
+                currentStep={ui.step}
+                getBadge={getBadge}
+                canNavigateTo={canNavigateTo}
+                onStepClick={(id) => {
+                  if (ui.isSubmitting) return;
+                  const g = canNavigateTo(id);
+                  if (!g.ok) {
+                    return push(g.reason || "Complete the previous section to continue.");
+                  }
+                  goTo(id as any);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 create-page">
+        <div className="section">
+          <div className="pt-2">
+            <AnimatePresence mode="wait">
+              {ui.step === 1 && (
+                <motion.div
+                  key="step1"
+                  initial={{ x: 20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: -20, opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 28 }}
+                >
+                  <Step1_Intent state={state} dispatch={dispatch} />
+                </motion.div>
+              )}
+
+              {ui.step === 2 && (
+                <motion.div
+                  key="step2"
+                  initial={{ x: 20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: -20, opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 28 }}
+                >
+                  <Step2_Essentials
+                    state={state}
+                    dispatch={dispatch}
+                    nativeBalanceFormatted={nativeBal?.formatted}
+                  />
+                </motion.div>
+              )}
+
+              {ui.step === 3 && (
+                <motion.div
+                  key="step3"
+                  initial={{ x: 20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: -20, opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 28 }}
+                >
+                  <Step3_Options state={state} dispatch={dispatch} />
+                </motion.div>
+              )}
+
+              {ui.step === 4 && (
+                <motion.div
+                  key="step4"
+                  initial={{ x: 20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: -20, opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 28 }}
+                >
+                  <Step4_Review
+                    state={state}
+                    derived={derived}
+                    policyHints={policy.hints}
+                    nativeBalanceFormatted={nativeBal?.formatted}
+                    creating={ui.isSubmitting}
+                    txHash={ui.txHash}
+                    canCreate={!!address && allowSubmit && !policy.paused}
+                    onCreate={submit}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="mt-6 hidden sm:flex items-center justify-between">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={back}
+                disabled={ui.isSubmitting || ui.step === 1}
+              >
+                Back
+              </button>
+
+              <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+                {policy.hints?.chainNow ? `Chain time: ${policy.hints.chainNow}` : null}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 p-3">
+        <div className="section">
+          <div className="create-stepper__inner">
+            <div className="flex items-center justify-between gap-2">
+              {hasCreatedChallenge ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setInviteOpen(true)}
+                  disabled={ui.isSubmitting}
+                >
+                  Invite
+                </button>
+              ) : <div />}
+
+              <button
+                type="button"
+                className="btn btn-primary min-w-40"
+                disabled={cta.disabled}
+                onClick={cta.onClick}
+                title={cta.title}
+              >
+                {cta.loading ? "Processing…" : cta.text}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {successOpen && ui.txHash ? (
+          <SuccessSheet
+          open={successOpen}
+          txHash={ui.txHash}
+          challengeId={ui.challengeId}
+          summary={{
+            title: state.essentials.title || "Untitled challenge",
+            type:
+              state.intent.type === "FITNESS"
+                ? `FITNESS · ${state.intent.fitnessKind ?? ""}`.trim()
+                : `GAMING · ${state.intent.gameId ?? ""} ${state.intent.gameMode ?? ""}`.trim(),
+            visibility: state.intent.visibility,
+            verification:
+              state.verification.mode === "AIVM"
+                ? "Lightchain AIVM + PoI"
+                : (state.verification.mode ?? "Lightchain AIVM + PoI"),
+            totalDeposit: `${derived.totalDepositFormatted} ${state.money.currency.symbol ?? "LCAI"}`,
+            schedule: {
+              joinCloses: state.timeline.joinCloses?.toLocaleString() ?? "—",
+              starts: state.timeline.starts?.toLocaleString() ?? "—",
+              ends: state.timeline.ends?.toLocaleString() ?? "—",
+              proofDeadline: state.timeline.proofDeadline?.toLocaleString() ?? "—",
+            },
+          }}
+          onClose={() => {
+            setSuccessOpen(false);
+            reset();
+            goTo(1);
+          }}
+          onInvite={ui.challengeId ? () => setInviteOpen(true) : undefined}
+          onViewChallenge={
+            ui.challengeId ? () => router.push(`/challenge/${ui.challengeId}`) : undefined
+          }
+        />
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {inviteOpen ? (
+          <InviteSheet
+            onClose={() => setInviteOpen(false)}
+            onSendInvite={handleInvite}
+          />
+        ) : null}
+      </AnimatePresence>
+
+      <div className="lg:hidden h-24" />
+    </>
+  );
 }

@@ -3,9 +3,9 @@
 //   ADDR=<ChallengePay> CH_ID=<number> [WHO=<addr>] \
 //   npx hardhat run scripts/inspect/creatorView.ts --network <net>
 //
-import hardhat from "hardhat";
+import hre from "hardhat";
 import "@nomicfoundation/hardhat-ethers";
-const { ethers, network } = hardhat;
+const { ethers, network } = hre;
 
 function fmt(n: bigint | number): string {
   const b = typeof n === "bigint" ? n : BigInt(n);

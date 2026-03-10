@@ -6,8 +6,8 @@
 // Usage:
 //   ADDR=<ChallengePay> CH_ID=<number> AMOUNT=<eth> \
 //   npx hardhat run scripts/ops/join.ts --network <net>
-import hardhat from "hardhat";
-const { ethers, network } = hardhat;
+import hre from "hardhat";
+const { ethers, network } = hre;
 import { context, header, info, fail, toWei, NATIVE_SYMBOL } from "../dev/utils";
 
 async function main() {

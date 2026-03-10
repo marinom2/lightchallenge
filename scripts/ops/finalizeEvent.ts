@@ -1,4 +1,5 @@
-import { ethers } from "hardhat";
+import hre from "hardhat";
+const { ethers } = hre;;
 
 async function main() {
   const { ROUTER, EVENT_ID, WINNER_INDEX, PROOF_HEX } = process.env;

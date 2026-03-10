@@ -1,9 +1,9 @@
 // scripts/admin/registrySet.ts
 import "@nomicfoundation/hardhat-ethers";
-import hardhat from "hardhat";
-const { ethers, network } = hardhat;
+import * as hre from "hardhat";
+const { ethers, network } = hre;
 
-import { readDeployments } from "../dev/deployments";
+import { readDeployments } from "../dev/deploy_all";
 import { header, info, fail } from "../dev/utils";
 
 function needAddr(name: string, v?: string) {

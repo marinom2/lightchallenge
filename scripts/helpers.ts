@@ -1,5 +1,6 @@
 // scripts/helpers.ts
-import { ethers } from "hardhat"
+import hre from "hardhat";
+const { ethers } = hre;
 import type { ChallengePay } from "../typechain-types"
 
 export async function getSigner() {

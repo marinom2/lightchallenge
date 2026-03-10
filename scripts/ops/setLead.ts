@@ -1,8 +1,8 @@
 import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-ethers";
 // scripts/setLead.ts
-import hardhat from "hardhat";
-const { ethers, network } = hardhat;
+import hre from "hardhat";
+const { ethers, network } = hre;
 import { header, info, warn, fail, context, confirmDangerousAction } from "../dev/utils";
 
 function parseLead(): number | null {

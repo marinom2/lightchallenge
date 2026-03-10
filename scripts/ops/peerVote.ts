@@ -5,8 +5,8 @@
 // Usage:
 //   ADDR=<ChallengePay> CH_ID=<number> PASS=true|false \
 //   npx hardhat run scripts/ops/peerVote.ts --network <net>
-import hardhat from "hardhat";
-const { ethers, network } = hardhat;
+import hre from "hardhat";
+const { ethers, network } = hre;
 import { context, header, info, fail } from "../dev/utils";
 
 function toBool(v: any): boolean {

@@ -1,4 +1,5 @@
-import { ethers } from "hardhat";
+import hre from "hardhat";
+const { ethers } = hre;;
 import fs from "node:fs";
 import { run as runEngine } from "../../offchain/inference/engine";
 

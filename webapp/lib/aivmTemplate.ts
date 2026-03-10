@@ -1,37 +1,33 @@
 // webapp/lib/aivmTemplate.ts
-export const domain = (chainId: number) =>
-    ({
-      name: "ChallengePay-AIVM",
-      version: "1",
-      chainId,
-    } as const);
-  
-  export const types = {
-    Inference: [
-      { name: "challengeId", type: "uint256" },
-      { name: "subject", type: "address" },
-      { name: "chainId", type: "uint256" },
-      { name: "challengeContract", type: "address" }, // <— matches solidity
-      { name: "paramsHash", type: "bytes32" },
-      { name: "evidenceHash", type: "bytes32" },
-      { name: "modelId", type: "bytes32" },
-      { name: "modelVersion", type: "uint256" },
-      { name: "deadline", type: "uint256" },
-      { name: "nonce", type: "uint256" },
-    ],
-  } as const;
-  
-  export function message(input: {
-    challengeId: bigint;
-    subject: `0x${string}`;
-    chainId: bigint;
-    challengeContract: `0x${string}`;
-    paramsHash: `0x${string}`;
-    evidenceHash: `0x${string}`;
-    modelId: `0x${string}`;
-    modelVersion: bigint;
-    deadline: bigint;
-    nonce: bigint;
-  }) {
-    return input;
-  }
+import type { Address, Hex } from "viem";
+
+/** Must mirror AivmProofVerifier’s EIP-712 domain */
+export const domain = (chainId: number, verifyingContract: Address) =>
+  ({
+    name: "AivmProofVerifier",
+    version: "1",
+    chainId,
+    verifyingContract,
+  } as const);
+
+/** Must mirror the Solidity typehash exactly */
+export const types = {
+  Inference: [
+    { name: "user",         type: "address" },
+    { name: "challengeId",  type: "uint256" },
+    { name: "modelId",      type: "bytes32" },
+    { name: "modelVersion", type: "uint256" },
+    { name: "payload",      type: "bytes"   },
+  ],
+} as const;
+
+/** The message you sign (exact fields, exact order) */
+export function message(input: {
+  user: Address;
+  challengeId: bigint;
+  modelId: Hex;          // 0x…32
+  modelVersion: bigint;
+  payload: Hex;          
+}) {
+  return input;
+}

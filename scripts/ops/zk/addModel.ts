@@ -1,4 +1,5 @@
-import { ethers } from "hardhat";
+import hre from "hardhat";
+const { ethers } = hre;;
 import fs from "node:fs";
 
 function hashStr(s: string): string {
@@ -13,7 +14,7 @@ async function main() {
 
   const modelLabel = process.env.MODEL || "steps-circuit@1.0.0";
   const modelHash = process.env.MODEL_HASH || hashStr(modelLabel);
-  const verifier = process.env.POLONK_VERIFIER || process.env.PlonkVerifier || process.env.VERIFIER;
+  const verifier = process.env.PLONK_VERIFIER || process.env.PlonkVerifier || process.env.VERIFIER;
   if (!verifier) throw new Error("Provide PLONK verifier address via VERIFIER env var");
 
   const enforce = (process.env.BINDING || "true") === "true";

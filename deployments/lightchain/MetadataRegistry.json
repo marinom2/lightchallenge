@@ -1,0 +1,478 @@
+{
+  "address": "0xe9bAA8c04cd77d06A736fc987cC13348DfF0bfAb",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "initialOwner",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "AlreadySet",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "EmptyUri",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "LenMismatch",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NotChallenger",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NotOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ZeroAddress",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "challengeContract",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "challengeId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "setter",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "newUri",
+          "type": "string"
+        }
+      ],
+      "name": "MetadataSet",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "previousOwner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnershipTransferStarted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "previousOwner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnershipTransferred",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "acceptOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "challengeContract",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "challengeId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "newUri",
+          "type": "string"
+        }
+      ],
+      "name": "challengerSet",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "challengeContract",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "challengeId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "newUri",
+          "type": "string"
+        }
+      ],
+      "name": "contractSet",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address[]",
+          "name": "challengeContracts",
+          "type": "address[]"
+        },
+        {
+          "internalType": "uint256[]",
+          "name": "challengeIds",
+          "type": "uint256[]"
+        }
+      ],
+      "name": "getMany",
+      "outputs": [
+        {
+          "internalType": "string[]",
+          "name": "out",
+          "type": "string[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "challengeContract",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "challengeId",
+          "type": "uint256"
+        }
+      ],
+      "name": "hasUri",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "challengeContract",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "challengeId",
+          "type": "uint256"
+        }
+      ],
+      "name": "ownerClear",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "challengeContract",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "challengeId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "newUri",
+          "type": "string"
+        }
+      ],
+      "name": "ownerSet",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address[]",
+          "name": "challengeContracts",
+          "type": "address[]"
+        },
+        {
+          "internalType": "uint256[]",
+          "name": "challengeIds",
+          "type": "uint256[]"
+        },
+        {
+          "internalType": "string[]",
+          "name": "uris",
+          "type": "string[]"
+        }
+      ],
+      "name": "ownerSetBatch",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "pendingOwner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4",
+          "name": "interfaceId",
+          "type": "bytes4"
+        }
+      ],
+      "name": "supportsInterface",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "transferOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "challengeContract",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "challengeId",
+          "type": "uint256"
+        }
+      ],
+      "name": "uri",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0xfde382fb07b6d0bc04c84dfb8c9052671eb7a13657e320c6d38f30ed85bc6ee8",
+  "receipt": {
+    "to": null,
+    "from": "0x95A4CE3c93dBcDb9b3CdFb4CCAE6EFBDb4cCA217",
+    "contractAddress": "0xe9bAA8c04cd77d06A736fc987cC13348DfF0bfAb",
+    "transactionIndex": 0,
+    "gasUsed": "1032548",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000800000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000001800000000000000000000000000000000000020000000000000000000800000004000000000000000000000000400000000000000000000000000000000800000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000008000000000000",
+    "blockHash": "0x0feba196554bd0b8bdbf8f775b8c0b0518c1484d04a4e3ff6775ffe96509a3f4",
+    "transactionHash": "0xfde382fb07b6d0bc04c84dfb8c9052671eb7a13657e320c6d38f30ed85bc6ee8",
+    "logs": [
+      {
+        "transactionIndex": 0,
+        "blockNumber": 1280390,
+        "transactionHash": "0xfde382fb07b6d0bc04c84dfb8c9052671eb7a13657e320c6d38f30ed85bc6ee8",
+        "address": "0xe9bAA8c04cd77d06A736fc987cC13348DfF0bfAb",
+        "topics": [
+          "0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0",
+          "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "0x00000000000000000000000095a4ce3c93dbcdb9b3cdfb4ccae6efbdb4cca217"
+        ],
+        "data": "0x",
+        "logIndex": 0,
+        "blockHash": "0x0feba196554bd0b8bdbf8f775b8c0b0518c1484d04a4e3ff6775ffe96509a3f4"
+      }
+    ],
+    "blockNumber": 1280390,
+    "cumulativeGasUsed": "1032548",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [
+    "0x95A4CE3c93dBcDb9b3CdFb4CCAE6EFBDb4cCA217"
+  ],
+  "numDeployments": 1,
+  "solcInputHash": "e2df1da9d10690299fbbf088748853f5",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"initialOwner\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"AlreadySet\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"EmptyUri\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"LenMismatch\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NotChallenger\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NotOwner\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ZeroAddress\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"challengeContract\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"challengeId\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"setter\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"newUri\",\"type\":\"string\"}],\"name\":\"MetadataSet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferStarted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"acceptOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"challengeContract\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"challengeId\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"newUri\",\"type\":\"string\"}],\"name\":\"challengerSet\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"challengeContract\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"challengeId\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"newUri\",\"type\":\"string\"}],\"name\":\"contractSet\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"challengeContracts\",\"type\":\"address[]\"},{\"internalType\":\"uint256[]\",\"name\":\"challengeIds\",\"type\":\"uint256[]\"}],\"name\":\"getMany\",\"outputs\":[{\"internalType\":\"string[]\",\"name\":\"out\",\"type\":\"string[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"challengeContract\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"challengeId\",\"type\":\"uint256\"}],\"name\":\"hasUri\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"challengeContract\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"challengeId\",\"type\":\"uint256\"}],\"name\":\"ownerClear\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"challengeContract\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"challengeId\",\"type\":\"uint256\"},{\"internalType\":\"string\",\"name\":\"newUri\",\"type\":\"string\"}],\"name\":\"ownerSet\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"challengeContracts\",\"type\":\"address[]\"},{\"internalType\":\"uint256[]\",\"name\":\"challengeIds\",\"type\":\"uint256[]\"},{\"internalType\":\"string[]\",\"name\":\"uris\",\"type\":\"string[]\"}],\"name\":\"ownerSetBatch\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"pendingOwner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"challengeContract\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"challengeId\",\"type\":\"uint256\"}],\"name\":\"uri\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"supportsInterface(bytes4)\":{\"details\":\"Returns true if this contract implements the interface defined by `interfaceId`. See the corresponding https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[ERC section] to learn more about how these ids are created. This function call must use less than 30 000 gas.\"}},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"getMany(address[],uint256[])\":{\"notice\":\"Batch get multiple URIs in one call\"}},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/MetadataRegistry.sol\":\"MetadataRegistry\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"none\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":1},\"remappings\":[]},\"sources\":{\"@openzeppelin/contracts/utils/introspection/IERC165.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v5.4.0) (utils/introspection/IERC165.sol)\\n\\npragma solidity >=0.4.16;\\n\\n/**\\n * @dev Interface of the ERC-165 standard, as defined in the\\n * https://eips.ethereum.org/EIPS/eip-165[ERC].\\n *\\n * Implementers can declare support of contract interfaces, which can then be\\n * queried by others ({ERC165Checker}).\\n *\\n * For an implementation, see {ERC165}.\\n */\\ninterface IERC165 {\\n    /**\\n     * @dev Returns true if this contract implements the interface defined by\\n     * `interfaceId`. See the corresponding\\n     * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[ERC section]\\n     * to learn more about how these ids are created.\\n     *\\n     * This function call must use less than 30 000 gas.\\n     */\\n    function supportsInterface(bytes4 interfaceId) external view returns (bool);\\n}\\n\",\"keccak256\":\"0x8891738ffe910f0cf2da09566928589bf5d63f4524dd734fd9cedbac3274dd5c\",\"license\":\"MIT\"},\"contracts/MetadataRegistry.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.24;\\n\\nimport {IERC165} from \\\"@openzeppelin/contracts/utils/introspection/IERC165.sol\\\";\\n\\n/**\\n * @title MetadataRegistry\\n * @notice Sidecar registry mapping (challengeContract, challengeId) -> metadata URI.\\n *\\n * Roles:\\n *  - owner: can set/overwrite/clear any URI (and batch set).\\n *  - challenger: as reported by the challenge contract, can set once (if empty).\\n *  - challenge contract itself: may set once on behalf of challenger (if empty).\\n *\\n * Integration notes:\\n *  - The registry is decoupled from any single ChallengePay version.\\n *  - It tries `getChallenge(id)` first, and falls back to `challengerOf(id)` if available.\\n *  - If neither is present or the call fails, challenger is treated as address(0).\\n */\\ninterface IChallengeCore {\\n    struct ChallengeView {\\n        uint8 status;\\n        uint8 outcome;\\n        address challenger;\\n        uint8 currency;\\n        address token;\\n        uint256 stakeAmount;\\n        uint256 proposalBond;\\n        uint256 approvalDeadline;\\n        uint256 startTs;\\n        uint8 peerApprovalsNeeded;\\n        uint16 charityBps;\\n        address charity;\\n        uint256 poolSuccess;\\n        uint256 poolFail;\\n    }\\n    function getChallenge(uint256 id) external view returns (ChallengeView memory);\\n}\\n\\ninterface IChallengeCoreAlt {\\n    function challengerOf(uint256 id) external view returns (address);\\n}\\n\\n// \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n// Errors\\n// \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n\\nerror NotOwner();\\nerror ZeroAddress();\\nerror NotChallenger();\\nerror AlreadySet();\\nerror LenMismatch();\\nerror EmptyUri();\\n\\n/// @notice Public interface for ERC-165 discovery\\ninterface IMetadataRegistry is IERC165 {\\n    function uri(address challengeContract, uint256 challengeId) external view returns (string memory);\\n    function hasUri(address challengeContract, uint256 challengeId) external view returns (bool);\\n\\n    /// @notice Batch get multiple URIs in one call\\n    function getMany(\\n        address[] calldata challengeContracts,\\n        uint256[] calldata challengeIds\\n    ) external view returns (string[] memory out);\\n\\n    // Ownership\\n    function owner() external view returns (address);\\n    function pendingOwner() external view returns (address);\\n    function transferOwnership(address newOwner) external;\\n    function acceptOwnership() external;\\n\\n    // Owner writes\\n    function ownerSet(address challengeContract, uint256 challengeId, string calldata newUri) external;\\n    function ownerSetBatch(address[] calldata challengeContracts, uint256[] calldata challengeIds, string[] calldata uris) external;\\n    function ownerClear(address challengeContract, uint256 challengeId) external;\\n\\n    // Challenger/Contract writes\\n    function challengerSet(address challengeContract, uint256 challengeId, string calldata newUri) external;\\n    function contractSet(address challengeContract, uint256 challengeId, string calldata newUri) external;\\n}\\n\\ncontract MetadataRegistry is IMetadataRegistry {\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n    // Events\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n\\n    event MetadataSet(\\n        address indexed challengeContract,\\n        uint256 indexed challengeId,\\n        address indexed setter,\\n        string newUri\\n    );\\n    event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);\\n    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);\\n\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n    // Storage\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n\\n    address public override owner;\\n    address public override pendingOwner;\\n\\n    // challengeContract => challengeId => uri\\n    mapping(address => mapping(uint256 => string)) private _uri;\\n\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n    // Modifiers\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n\\n    modifier onlyOwner() {\\n        if (msg.sender != owner) revert NotOwner();\\n        _;\\n    }\\n\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n    // Constructor\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n\\n    constructor(address initialOwner) {\\n        if (initialOwner == address(0)) revert ZeroAddress();\\n        owner = initialOwner;\\n        emit OwnershipTransferred(address(0), initialOwner);\\n    }\\n\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n    // Ownership (two-step)\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n\\n    function transferOwnership(address newOwner) external override onlyOwner {\\n        if (newOwner == address(0)) revert ZeroAddress();\\n        pendingOwner = newOwner;\\n        emit OwnershipTransferStarted(owner, newOwner);\\n    }\\n\\n    function acceptOwnership() external override {\\n        if (msg.sender != pendingOwner) revert NotOwner();\\n        emit OwnershipTransferred(owner, pendingOwner);\\n        owner = pendingOwner;\\n        pendingOwner = address(0);\\n    }\\n\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n    // Owner writes\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n\\n    function ownerSet(\\n        address challengeContract,\\n        uint256 challengeId,\\n        string calldata newUri\\n    ) external override onlyOwner {\\n        _set(challengeContract, challengeId, newUri);\\n    }\\n\\n    function ownerSetBatch(\\n        address[] calldata challengeContracts,\\n        uint256[] calldata challengeIds,\\n        string[] calldata uris\\n    ) external override onlyOwner {\\n        uint256 n = challengeContracts.length;\\n        if (n != challengeIds.length || n != uris.length) revert LenMismatch();\\n        for (uint256 i = 0; i < n; i++) {\\n            _set(challengeContracts[i], challengeIds[i], uris[i]);\\n        }\\n    }\\n\\n    function ownerClear(address challengeContract, uint256 challengeId) external override onlyOwner {\\n        _set(challengeContract, challengeId, \\\"\\\");\\n    }\\n\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n    // Challenger / Contract writes (single-shot)\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n\\n    function challengerSet(\\n        address challengeContract,\\n        uint256 challengeId,\\n        string calldata newUri\\n        ) external override {\\n        address ch = _readChallenger(challengeContract, challengeId);\\n        if (ch == address(0)) revert NotChallenger();\\n        if (msg.sender != ch) revert NotChallenger();\\n        if (bytes(_uri[challengeContract][challengeId]).length != 0) revert AlreadySet();\\n        if (bytes(newUri).length == 0) revert EmptyUri(); // <\\u2500\\u2500 added\\n        _set(challengeContract, challengeId, newUri);\\n    }\\n\\n    function contractSet(\\n        address challengeContract,\\n        uint256 challengeId,\\n        string calldata newUri\\n    ) external override {\\n        if (msg.sender != challengeContract) revert NotChallenger();\\n        if (bytes(_uri[challengeContract][challengeId]).length != 0) revert AlreadySet();\\n        if (bytes(newUri).length == 0) revert EmptyUri(); // <\\u2500\\u2500 added\\n        _set(challengeContract, challengeId, newUri);\\n    }\\n\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n    // Views\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n\\n    function uri(address challengeContract, uint256 challengeId) external view override returns (string memory) {\\n        return _uri[challengeContract][challengeId];\\n    }\\n\\n    function hasUri(address challengeContract, uint256 challengeId) external view override returns (bool) {\\n        return bytes(_uri[challengeContract][challengeId]).length != 0;\\n    }\\n\\n    function getMany(\\n        address[] calldata challengeContracts,\\n        uint256[] calldata challengeIds\\n    ) external view override returns (string[] memory out) {\\n        uint256 n = challengeContracts.length;\\n        if (n != challengeIds.length) revert LenMismatch();\\n        out = new string[](n);\\n        for (uint256 i = 0; i < n; i++) {\\n            out[i] = _uri[challengeContracts[i]][challengeIds[i]];\\n        }\\n    }\\n\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n    // Internals\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n\\n    function _readChallenger(address core, uint256 id) internal view returns (address) {\\n        if (core == address(0)) return address(0);\\n        try IChallengeCore(core).getChallenge(id) returns (IChallengeCore.ChallengeView memory cv) {\\n            return cv.challenger;\\n        } catch {\\n            try IChallengeCoreAlt(core).challengerOf(id) returns (address c) {\\n                return c;\\n            } catch {\\n                return address(0);\\n            }\\n        }\\n    }\\n\\n    function _set(address challengeContract, uint256 challengeId, string memory newUri) internal {\\n        _uri[challengeContract][challengeId] = newUri;\\n        emit MetadataSet(challengeContract, challengeId, msg.sender, newUri);\\n    }\\n\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n    // ERC-165\\n    // \\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\u2500\\n\\n    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {\\n        return\\n            interfaceId == type(IERC165).interfaceId ||\\n            interfaceId == type(IMetadataRegistry).interfaceId;\\n    }\\n}\",\"keccak256\":\"0xe6c8f2c03afec4b2b6a03f8859eaf1c614e0eec8a581dab35f13a980876d01dc\",\"license\":\"MIT\"}},\"version\":1}",
+  "bytecode": "0x608060405234801561001057600080fd5b5060405161121b38038061121b83398101604081905261002f916100a4565b6001600160a01b0381166100565760405163d92e233d60e01b815260040160405180910390fd5b600080546001600160a01b0319166001600160a01b03831690811782556040519091907f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0908290a3506100d4565b6000602082840312156100b657600080fd5b81516001600160a01b03811681146100cd57600080fd5b9392505050565b611138806100e36000396000f3fe608060405234801561001057600080fd5b50600436106100af5760003560e01c806301ffc9a7146100b457806305e42715146100dc578063141d1a31146100f157806328205a93146101045780632d646ee8146101245780635390448a146101375780635db8fcef1461015757806379ba50971461016a57806382ffce99146101725780638b3b7548146101855780638da5cb5b14610198578063e30c3978146101c3578063f2fde38b146101d6575b600080fd5b6100c76100c2366004610ae7565b6101e9565b60405190151581526020015b60405180910390f35b6100ef6100ea366004610b30565b610220565b005b6100ef6100ff366004610ba7565b610269565b610117610112366004610b30565b610380565b6040516100d39190610c86565b6100ef610132366004610c99565b610438565b61014a610145366004610d21565b610518565b6040516100d39190610d8c565b6100c7610165366004610b30565b6106c0565b6100ef6106f8565b6100ef610180366004610c99565b610787565b6100ef610193366004610c99565b61089d565b6000546101ab906001600160a01b031681565b6040516001600160a01b0390911681526020016100d3565b6001546101ab906001600160a01b031681565b6100ef6101e4366004610df0565b6108c8565b60006001600160e01b031982166301ffc9a760e01b148061021a57506001600160e01b03198216633dafd2f560e21b145b92915050565b6000546001600160a01b0316331461024b576040516330cd747160e01b815260040160405180910390fd5b61026582826040518060200160405280600081525061096b565b5050565b6000546001600160a01b03163314610294576040516330cd747160e01b815260040160405180910390fd5b8483811415806102a45750808214155b156102c257604051638b140a8160e01b815260040160405180910390fd5b60005b818110156103765761036e8888838181106102e2576102e2610e0d565b90506020020160208101906102f79190610df0565b87878481811061030957610309610e0d565b9050602002013586868581811061032257610322610e0d565b90506020028101906103349190610e23565b8080601f01602080910402602001604051908101604052809392919081815260200183838082843760009201919091525061096b92505050565b6001016102c5565b5050505050505050565b6001600160a01b038216600090815260026020908152604080832084845290915290208054606091906103b290610e69565b80601f01602080910402602001604051908101604052809291908181526020018280546103de90610e69565b801561042b5780601f106104005761010080835404028352916020019161042b565b820191906000526020600020905b81548152906001019060200180831161040e57829003601f168201915b5050505050905092915050565b336001600160a01b0385161461046157604051636a25f23760e11b815260040160405180910390fd5b6001600160a01b03841660009081526002602090815260408083208684529091529020805461048f90610e69565b1590506104af5760405163a741a04560e01b815260040160405180910390fd5b60008190036104d15760405163d64becfd60e01b815260040160405180910390fd5b610512848484848080601f01602080910402602001604051908101604052809392919081815260200183838082843760009201919091525061096b92505050565b50505050565b60608382811461053b57604051638b140a8160e01b815260040160405180910390fd5b806001600160401b0381111561055357610553610ea3565b60405190808252806020026020018201604052801561058657816020015b60608152602001906001900390816105715790505b50915060005b818110156106b657600260008888848181106105aa576105aa610e0d565b90506020020160208101906105bf9190610df0565b6001600160a01b03166001600160a01b0316815260200190815260200160002060008686848181106105f3576105f3610e0d565b905060200201358152602001908152602001600020805461061390610e69565b80601f016020809104026020016040519081016040528092919081815260200182805461063f90610e69565b801561068c5780601f106106615761010080835404028352916020019161068c565b820191906000526020600020905b81548152906001019060200180831161066f57829003601f168201915b50505050508382815181106106a3576106a3610e0d565b602090810291909101015260010161058c565b5050949350505050565b6001600160a01b0382166000908152600260209081526040808320848452909152812080546106ee90610e69565b1515949350505050565b6001546001600160a01b03163314610723576040516330cd747160e01b815260040160405180910390fd5b600154600080546040516001600160a01b0393841693909116917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e091a360018054600080546001600160a01b03199081166001600160a01b03841617909155169055565b600061079385856109ea565b90506001600160a01b0381166107bc57604051636a25f23760e11b815260040160405180910390fd5b336001600160a01b038216146107e557604051636a25f23760e11b815260040160405180910390fd5b6001600160a01b03851660009081526002602090815260408083208784529091529020805461081390610e69565b1590506108335760405163a741a04560e01b815260040160405180910390fd5b60008290036108555760405163d64becfd60e01b815260040160405180910390fd5b610896858585858080601f01602080910402602001604051908101604052809392919081815260200183838082843760009201919091525061096b92505050565b5050505050565b6000546001600160a01b031633146104d1576040516330cd747160e01b815260040160405180910390fd5b6000546001600160a01b031633146108f3576040516330cd747160e01b815260040160405180910390fd5b6001600160a01b03811661091a5760405163d92e233d60e01b815260040160405180910390fd5b600180546001600160a01b0319166001600160a01b0383811691821790925560008054604051929316917f38d16b8cac22d99fc7c124b9cd0de2d3fa1faef420bfe791d8c362d765e227009190a350565b6001600160a01b038316600090815260026020908152604080832085845290915290206109988282610f0a565b50336001600160a01b031682846001600160a01b03167fd1663021751fdb7c499464d870768366e28f9a2c1fbb36919445f6b01a1f65d4846040516109dd9190610c86565b60405180910390a4505050565b60006001600160a01b038316610a025750600061021a565b6040516306f752dd60e21b8152600481018390526001600160a01b03841690631bdd4b74906024016101c060405180830381865afa925050508015610a64575060408051601f3d908101601f19168201909252610a6191810190611025565b60015b610adc5760405163e4358a0760e01b8152600481018390526001600160a01b0384169063e4358a0790602401602060405180830381865afa925050508015610ac9575060408051601f3d908101601f19168201909252610ac69181019061110e565b60015b610ad55750600061021a565b905061021a565b60400151905061021a565b600060208284031215610af957600080fd5b81356001600160e01b031981168114610b1157600080fd5b9392505050565b6001600160a01b0381168114610b2d57600080fd5b50565b60008060408385031215610b4357600080fd5b8235610b4e81610b18565b946020939093013593505050565b60008083601f840112610b6e57600080fd5b5081356001600160401b03811115610b8557600080fd5b6020830191508360208260051b8501011115610ba057600080fd5b9250929050565b60008060008060008060608789031215610bc057600080fd5b86356001600160401b0380821115610bd757600080fd5b610be38a838b01610b5c565b90985096506020890135915080821115610bfc57600080fd5b610c088a838b01610b5c565b90965094506040890135915080821115610c2157600080fd5b50610c2e89828a01610b5c565b979a9699509497509295939492505050565b6000815180845260005b81811015610c6657602081850181015186830182015201610c4a565b506000602082860101526020601f19601f83011685010191505092915050565b602081526000610b116020830184610c40565b60008060008060608587031215610caf57600080fd5b8435610cba81610b18565b93506020850135925060408501356001600160401b0380821115610cdd57600080fd5b818701915087601f830112610cf157600080fd5b813581811115610d0057600080fd5b886020828501011115610d1257600080fd5b95989497505060200194505050565b60008060008060408587031215610d3757600080fd5b84356001600160401b0380821115610d4e57600080fd5b610d5a88838901610b5c565b90965094506020870135915080821115610d7357600080fd5b50610d8087828801610b5c565b95989497509550505050565b600060208083016020845280855180835260408601915060408160051b87010192506020870160005b82811015610de357603f19888603018452610dd1858351610c40565b94509285019290850190600101610db5565b5092979650505050505050565b600060208284031215610e0257600080fd5b8135610b1181610b18565b634e487b7160e01b600052603260045260246000fd5b6000808335601e19843603018112610e3a57600080fd5b8301803591506001600160401b03821115610e5457600080fd5b602001915036819003821315610ba057600080fd5b600181811c90821680610e7d57607f821691505b602082108103610e9d57634e487b7160e01b600052602260045260246000fd5b50919050565b634e487b7160e01b600052604160045260246000fd5b601f821115610f05576000816000526020600020601f850160051c81016020861015610ee25750805b601f850160051c820191505b81811015610f0157828155600101610eee565b5050505b505050565b81516001600160401b03811115610f2357610f23610ea3565b610f3781610f318454610e69565b84610eb9565b602080601f831160018114610f6c5760008415610f545750858301515b600019600386901b1c1916600185901b178555610f01565b600085815260208120601f198616915b82811015610f9b57888601518255948401946001909101908401610f7c565b5085821015610fb95787850151600019600388901b60f8161c191681555b5050505050600190811b01905550565b6040516101c081016001600160401b0381118282101715610fec57610fec610ea3565b60405290565b805160ff8116811461100357600080fd5b919050565b805161100381610b18565b805161ffff8116811461100357600080fd5b60006101c0828403121561103857600080fd5b611040610fc9565b61104983610ff2565b815261105760208401610ff2565b602082015261106860408401611008565b604082015261107960608401610ff2565b606082015261108a60808401611008565b608082015260a083015160a082015260c083015160c082015260e083015160e08201526101008084015181830152506101206110c7818501610ff2565b908201526101406110d9848201611013565b908201526101606110eb848201611008565b9082015261018083810151908201526101a0928301519281019290925250919050565b60006020828403121561112057600080fd5b8151610b1181610b1856fea164736f6c6343000818000a",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b50600436106100af5760003560e01c806301ffc9a7146100b457806305e42715146100dc578063141d1a31146100f157806328205a93146101045780632d646ee8146101245780635390448a146101375780635db8fcef1461015757806379ba50971461016a57806382ffce99146101725780638b3b7548146101855780638da5cb5b14610198578063e30c3978146101c3578063f2fde38b146101d6575b600080fd5b6100c76100c2366004610ae7565b6101e9565b60405190151581526020015b60405180910390f35b6100ef6100ea366004610b30565b610220565b005b6100ef6100ff366004610ba7565b610269565b610117610112366004610b30565b610380565b6040516100d39190610c86565b6100ef610132366004610c99565b610438565b61014a610145366004610d21565b610518565b6040516100d39190610d8c565b6100c7610165366004610b30565b6106c0565b6100ef6106f8565b6100ef610180366004610c99565b610787565b6100ef610193366004610c99565b61089d565b6000546101ab906001600160a01b031681565b6040516001600160a01b0390911681526020016100d3565b6001546101ab906001600160a01b031681565b6100ef6101e4366004610df0565b6108c8565b60006001600160e01b031982166301ffc9a760e01b148061021a57506001600160e01b03198216633dafd2f560e21b145b92915050565b6000546001600160a01b0316331461024b576040516330cd747160e01b815260040160405180910390fd5b61026582826040518060200160405280600081525061096b565b5050565b6000546001600160a01b03163314610294576040516330cd747160e01b815260040160405180910390fd5b8483811415806102a45750808214155b156102c257604051638b140a8160e01b815260040160405180910390fd5b60005b818110156103765761036e8888838181106102e2576102e2610e0d565b90506020020160208101906102f79190610df0565b87878481811061030957610309610e0d565b9050602002013586868581811061032257610322610e0d565b90506020028101906103349190610e23565b8080601f01602080910402602001604051908101604052809392919081815260200183838082843760009201919091525061096b92505050565b6001016102c5565b5050505050505050565b6001600160a01b038216600090815260026020908152604080832084845290915290208054606091906103b290610e69565b80601f01602080910402602001604051908101604052809291908181526020018280546103de90610e69565b801561042b5780601f106104005761010080835404028352916020019161042b565b820191906000526020600020905b81548152906001019060200180831161040e57829003601f168201915b5050505050905092915050565b336001600160a01b0385161461046157604051636a25f23760e11b815260040160405180910390fd5b6001600160a01b03841660009081526002602090815260408083208684529091529020805461048f90610e69565b1590506104af5760405163a741a04560e01b815260040160405180910390fd5b60008190036104d15760405163d64becfd60e01b815260040160405180910390fd5b610512848484848080601f01602080910402602001604051908101604052809392919081815260200183838082843760009201919091525061096b92505050565b50505050565b60608382811461053b57604051638b140a8160e01b815260040160405180910390fd5b806001600160401b0381111561055357610553610ea3565b60405190808252806020026020018201604052801561058657816020015b60608152602001906001900390816105715790505b50915060005b818110156106b657600260008888848181106105aa576105aa610e0d565b90506020020160208101906105bf9190610df0565b6001600160a01b03166001600160a01b0316815260200190815260200160002060008686848181106105f3576105f3610e0d565b905060200201358152602001908152602001600020805461061390610e69565b80601f016020809104026020016040519081016040528092919081815260200182805461063f90610e69565b801561068c5780601f106106615761010080835404028352916020019161068c565b820191906000526020600020905b81548152906001019060200180831161066f57829003601f168201915b50505050508382815181106106a3576106a3610e0d565b602090810291909101015260010161058c565b5050949350505050565b6001600160a01b0382166000908152600260209081526040808320848452909152812080546106ee90610e69565b1515949350505050565b6001546001600160a01b03163314610723576040516330cd747160e01b815260040160405180910390fd5b600154600080546040516001600160a01b0393841693909116917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e091a360018054600080546001600160a01b03199081166001600160a01b03841617909155169055565b600061079385856109ea565b90506001600160a01b0381166107bc57604051636a25f23760e11b815260040160405180910390fd5b336001600160a01b038216146107e557604051636a25f23760e11b815260040160405180910390fd5b6001600160a01b03851660009081526002602090815260408083208784529091529020805461081390610e69565b1590506108335760405163a741a04560e01b815260040160405180910390fd5b60008290036108555760405163d64becfd60e01b815260040160405180910390fd5b610896858585858080601f01602080910402602001604051908101604052809392919081815260200183838082843760009201919091525061096b92505050565b5050505050565b6000546001600160a01b031633146104d1576040516330cd747160e01b815260040160405180910390fd5b6000546001600160a01b031633146108f3576040516330cd747160e01b815260040160405180910390fd5b6001600160a01b03811661091a5760405163d92e233d60e01b815260040160405180910390fd5b600180546001600160a01b0319166001600160a01b0383811691821790925560008054604051929316917f38d16b8cac22d99fc7c124b9cd0de2d3fa1faef420bfe791d8c362d765e227009190a350565b6001600160a01b038316600090815260026020908152604080832085845290915290206109988282610f0a565b50336001600160a01b031682846001600160a01b03167fd1663021751fdb7c499464d870768366e28f9a2c1fbb36919445f6b01a1f65d4846040516109dd9190610c86565b60405180910390a4505050565b60006001600160a01b038316610a025750600061021a565b6040516306f752dd60e21b8152600481018390526001600160a01b03841690631bdd4b74906024016101c060405180830381865afa925050508015610a64575060408051601f3d908101601f19168201909252610a6191810190611025565b60015b610adc5760405163e4358a0760e01b8152600481018390526001600160a01b0384169063e4358a0790602401602060405180830381865afa925050508015610ac9575060408051601f3d908101601f19168201909252610ac69181019061110e565b60015b610ad55750600061021a565b905061021a565b60400151905061021a565b600060208284031215610af957600080fd5b81356001600160e01b031981168114610b1157600080fd5b9392505050565b6001600160a01b0381168114610b2d57600080fd5b50565b60008060408385031215610b4357600080fd5b8235610b4e81610b18565b946020939093013593505050565b60008083601f840112610b6e57600080fd5b5081356001600160401b03811115610b8557600080fd5b6020830191508360208260051b8501011115610ba057600080fd5b9250929050565b60008060008060008060608789031215610bc057600080fd5b86356001600160401b0380821115610bd757600080fd5b610be38a838b01610b5c565b90985096506020890135915080821115610bfc57600080fd5b610c088a838b01610b5c565b90965094506040890135915080821115610c2157600080fd5b50610c2e89828a01610b5c565b979a9699509497509295939492505050565b6000815180845260005b81811015610c6657602081850181015186830182015201610c4a565b506000602082860101526020601f19601f83011685010191505092915050565b602081526000610b116020830184610c40565b60008060008060608587031215610caf57600080fd5b8435610cba81610b18565b93506020850135925060408501356001600160401b0380821115610cdd57600080fd5b818701915087601f830112610cf157600080fd5b813581811115610d0057600080fd5b886020828501011115610d1257600080fd5b95989497505060200194505050565b60008060008060408587031215610d3757600080fd5b84356001600160401b0380821115610d4e57600080fd5b610d5a88838901610b5c565b90965094506020870135915080821115610d7357600080fd5b50610d8087828801610b5c565b95989497509550505050565b600060208083016020845280855180835260408601915060408160051b87010192506020870160005b82811015610de357603f19888603018452610dd1858351610c40565b94509285019290850190600101610db5565b5092979650505050505050565b600060208284031215610e0257600080fd5b8135610b1181610b18565b634e487b7160e01b600052603260045260246000fd5b6000808335601e19843603018112610e3a57600080fd5b8301803591506001600160401b03821115610e5457600080fd5b602001915036819003821315610ba057600080fd5b600181811c90821680610e7d57607f821691505b602082108103610e9d57634e487b7160e01b600052602260045260246000fd5b50919050565b634e487b7160e01b600052604160045260246000fd5b601f821115610f05576000816000526020600020601f850160051c81016020861015610ee25750805b601f850160051c820191505b81811015610f0157828155600101610eee565b5050505b505050565b81516001600160401b03811115610f2357610f23610ea3565b610f3781610f318454610e69565b84610eb9565b602080601f831160018114610f6c5760008415610f545750858301515b600019600386901b1c1916600185901b178555610f01565b600085815260208120601f198616915b82811015610f9b57888601518255948401946001909101908401610f7c565b5085821015610fb95787850151600019600388901b60f8161c191681555b5050505050600190811b01905550565b6040516101c081016001600160401b0381118282101715610fec57610fec610ea3565b60405290565b805160ff8116811461100357600080fd5b919050565b805161100381610b18565b805161ffff8116811461100357600080fd5b60006101c0828403121561103857600080fd5b611040610fc9565b61104983610ff2565b815261105760208401610ff2565b602082015261106860408401611008565b604082015261107960608401610ff2565b606082015261108a60808401611008565b608082015260a083015160a082015260c083015160c082015260e083015160e08201526101008084015181830152506101206110c7818501610ff2565b908201526101406110d9848201611013565b908201526101606110eb848201611008565b9082015261018083810151908201526101a0928301519281019290925250919050565b60006020828403121561112057600080fd5b8151610b1181610b1856fea164736f6c6343000818000a",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {
+      "supportsInterface(bytes4)": {
+        "details": "Returns true if this contract implements the interface defined by `interfaceId`. See the corresponding https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[ERC section] to learn more about how these ids are created. This function call must use less than 30 000 gas."
+      }
+    },
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {
+      "getMany(address[],uint256[])": {
+        "notice": "Batch get multiple URIs in one call"
+      }
+    },
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [
+      {
+        "astId": 7616,
+        "contract": "contracts/MetadataRegistry.sol:MetadataRegistry",
+        "label": "owner",
+        "offset": 0,
+        "slot": "0",
+        "type": "t_address"
+      },
+      {
+        "astId": 7619,
+        "contract": "contracts/MetadataRegistry.sol:MetadataRegistry",
+        "label": "pendingOwner",
+        "offset": 0,
+        "slot": "1",
+        "type": "t_address"
+      },
+      {
+        "astId": 7625,
+        "contract": "contracts/MetadataRegistry.sol:MetadataRegistry",
+        "label": "_uri",
+        "offset": 0,
+        "slot": "2",
+        "type": "t_mapping(t_address,t_mapping(t_uint256,t_string_storage))"
+      }
+    ],
+    "types": {
+      "t_address": {
+        "encoding": "inplace",
+        "label": "address",
+        "numberOfBytes": "20"
+      },
+      "t_mapping(t_address,t_mapping(t_uint256,t_string_storage))": {
+        "encoding": "mapping",
+        "key": "t_address",
+        "label": "mapping(address => mapping(uint256 => string))",
+        "numberOfBytes": "32",
+        "value": "t_mapping(t_uint256,t_string_storage)"
+      },
+      "t_mapping(t_uint256,t_string_storage)": {
+        "encoding": "mapping",
+        "key": "t_uint256",
+        "label": "mapping(uint256 => string)",
+        "numberOfBytes": "32",
+        "value": "t_string_storage"
+      },
+      "t_string_storage": {
+        "encoding": "bytes",
+        "label": "string",
+        "numberOfBytes": "32"
+      },
+      "t_uint256": {
+        "encoding": "inplace",
+        "label": "uint256",
+        "numberOfBytes": "32"
+      }
+    }
+  }
+}

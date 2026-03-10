@@ -1,8 +1,8 @@
 import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-ethers";
 // scripts/checkBalance.ts
-import hardhat from "hardhat";
-const { ethers, network } = hardhat;
+import hre from "hardhat";
+const { ethers, network } = hre;
 import fs from "fs";
 import path from "path";
 import { header, info, fail, NATIVE_SYMBOL } from "../dev/utils";

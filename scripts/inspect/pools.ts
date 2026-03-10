@@ -5,8 +5,8 @@
 // Usage:
 //   ADDR=<ChallengePay> CH_ID=<number> \
 //   npx hardhat run scripts/inspect/pools.ts --network <net>
-import hardhat from "hardhat";
-const { ethers, network } = hardhat;
+import hre from "hardhat";
+const { ethers, network } = hre;
 
 function fmt(n: bigint | number) {
   const b = typeof n === "bigint" ? n : BigInt(n);

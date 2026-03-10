@@ -1,4 +1,5 @@
 "use client";
+
 import * as React from "react";
 import { ChevronRight } from "lucide-react";
 
@@ -18,9 +19,16 @@ export function Row({
   right?: React.ReactNode;
 }) {
   const pill =
-    status === "ok" ? "pill-status" : status === "warn" ? "pill-status pill-warn" : "pill-status pill-bad";
+    status === "ok"
+      ? "pill-status"
+      : status === "warn"
+        ? "pill-status pill-warn"
+        : status === "bad"
+          ? "pill-status pill-bad"
+          : "";
 
   const El: any = onClick ? "button" : "div";
+
   return (
     <El type={onClick ? "button" : undefined} className="ess-row" onClick={onClick}>
       <div className="ess-row__left">

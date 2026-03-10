@@ -1,1 +1,1128 @@
-[]
+[
+  {
+    "id": "23",
+    "title": "Test",
+    "description": "CDota",
+    "params": {
+      "game": "dota",
+      "hero": "",
+      "kills": 10
+    },
+    "category": "custom",
+    "txHash": "0x83ce206823dc0435c0ff4ededb3a2a0c450138bd7ce08e1711ed0024f9beaba7",
+    "subject": "0x95A4CE3c93dBcDb9b3CdFb4CCAE6EFBDb4cCA217",
+    "status": "Pending",
+    "tags": [],
+    "game": null,
+    "mode": null,
+    "createdAt": 1761205548
+  },
+  {
+    "id": "24",
+    "title": "DOTA - ZEN",
+    "description": "Make 8 wins in 10 games.",
+    "params": {
+      "game": "dota",
+      "hero": "",
+      "kills": 10
+    },
+    "category": "custom",
+    "txHash": "0x1aab02f24695543e3daf9270531f26f9bd2895ba9fc47ec3122394488b762811",
+    "subject": "0x95A4CE3c93dBcDb9b3CdFb4CCAE6EFBDb4cCA217",
+    "status": "Pending",
+    "tags": [],
+    "game": null,
+    "mode": null,
+    "createdAt": 1761206068
+  },
+  {
+    "id": "25",
+    "title": "Dota Z - Testing for AM , 50 kills",
+    "description": "Kill 50 heroes with AM",
+    "params": {
+      "type": "dota"
+    },
+    "category": "gaming",
+    "txHash": "0x7a124f14ed55da88a2886551a0eb46632c1ba285f4226e0102dda5b49ab6e4cd",
+    "subject": "0x95A4CE3c93dBcDb9b3CdFb4CCAE6EFBDb4cCA217",
+    "status": "Pending",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5"
+    ],
+    "game": "Dota 2",
+    "mode": "5v5",
+    "createdAt": 1761211851
+  },
+  {
+    "id": "26",
+    "title": "AM TESTING",
+    "description": "Kill 20 heroes with AM",
+    "params": {
+      "type": "dota"
+    },
+    "category": "gaming",
+    "txHash": "0x30fdd20cba1330663de3ceea4013b14456c284e06e3e01aa24b34da0d8552770",
+    "subject": "0x8176735dE44c6a6e64C9153F2448B15F2F53cB31",
+    "status": "Pending",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5"
+    ],
+    "game": "Dota 2",
+    "mode": "5v5",
+    "createdAt": 1761231761
+  },
+  {
+    "id": "27",
+    "title": "Challenge #27",
+    "game": null,
+    "mode": null,
+    "status": "Pending",
+    "tags": [],
+    "createdAt": 1761322792
+  },
+  {
+    "id": "28",
+    "title": "Challenge #28",
+    "game": null,
+    "mode": null,
+    "status": "Pending",
+    "tags": [],
+    "createdAt": 1761332095,
+    "modelId": null,
+    "modelKind": null,
+    "proof": null
+  },
+  {
+    "id": "29",
+    "title": "Challenge #29",
+    "game": null,
+    "mode": null,
+    "status": "Pending",
+    "tags": [],
+    "createdAt": 1761334139,
+    "modelId": null,
+    "modelKind": null,
+    "proof": null
+  },
+  {
+    "id": "30",
+    "title": "Challenge #30",
+    "game": null,
+    "mode": null,
+    "status": "Pending",
+    "tags": [],
+    "createdAt": 1761335860,
+    "modelId": null,
+    "modelKind": null,
+    "proof": null
+  },
+  {
+    "id": "31",
+    "title": "Pudgy Party",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Pending",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5"
+    ],
+    "createdAt": 1761336727,
+    "modelId": "dota.hero_kills_window@1",
+    "modelKind": null,
+    "proof": {
+      "kind": null,
+      "modelId": "dota.hero_kills_window@1",
+      "params": {
+        "start_ts": 1761351300,
+        "end_ts": 1761437700,
+        "hero": "pudge",
+        "minKills": 50,
+        "rankedOnly": "true"
+      },
+      "paramsHash": "0xc14fd3b0cc6b7bee1f7a4cfa54ea1d8c60cc6a22d91ba4da94583cbd49610e4b"
+    },
+    "description": "50 kills",
+    "params": {
+      "start_ts": 1761351300,
+      "end_ts": 1761437700,
+      "hero": "pudge",
+      "minKills": 50,
+      "rankedOnly": "true"
+    },
+    "category": "gaming",
+    "txHash": "0xf332c6ccf845990a489cf9e7f74ac043d9627b9ee4cc0b5521a0430cb10c20de",
+    "subject": "0x8176735dE44c6a6e64C9153F2448B15F2F53cB31"
+  },
+  {
+    "id": "32",
+    "title": "Pudgy - Demolishion",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Pending",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5"
+    ],
+    "createdAt": 1761337637,
+    "modelId": "dota.hero_kills_window@1",
+    "modelKind": null,
+    "proof": {
+      "kind": null,
+      "modelId": "dota.hero_kills_window@1",
+      "params": {
+        "start_ts": 1761423949,
+        "end_ts": 1761510349,
+        "hero": "pudge",
+        "minKills": 95,
+        "rankedOnly": "true"
+      },
+      "paramsHash": "0x8e892a42b4f918e7f7c0532c6433d510e71598abe5b0564ebea7a4561dfaf777"
+    },
+    "description": "Make 100 kills with Pudge",
+    "params": {
+      "start_ts": 1761423949,
+      "end_ts": 1761510349,
+      "hero": "pudge",
+      "minKills": 95,
+      "rankedOnly": "true"
+    },
+    "category": "gaming",
+    "txHash": "0x5afdd3ac454a440573f4004b8136bc25e7863c89485c9fc8eb16414f3b31cc87",
+    "subject": "0x8176735dE44c6a6e64C9153F2448B15F2F53cB31"
+  },
+  {
+    "id": "33",
+    "title": "Shadow Fiend Party",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_t002fzyog0",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5",
+      "aivm"
+    ],
+    "createdAt": 1761341503,
+    "modelId": "dota.hero_kills_window@1",
+    "modelKind": "aivm",
+    "proof": {
+      "kind": "aivm",
+      "modelId": "dota.hero_kills_window@1",
+      "params": {
+        "start_ts": 1761426059,
+        "end_ts": 1761512459,
+        "hero": "nevermore",
+        "minKills": 50,
+        "rankedOnly": true
+      },
+      "paramsHash": "0x189a78f5f5c425d298ec32e2f79f5c4a35bdece3512ee0960ae24f6fafda401b"
+    },
+    "description": "50 kills with SF",
+    "params": {
+      "start_ts": 1761426059,
+      "end_ts": 1761512459,
+      "hero": "nevermore",
+      "minKills": 50,
+      "rankedOnly": true
+    },
+    "category": "gaming",
+    "txHash": "0xc338d1f130dcd2483bf992a72991010a579f32922e13e8d5fa96aa78b949659e",
+    "subject": "0x8176735dE44c6a6e64C9153F2448B15F2F53cB31"
+  },
+  {
+    "id": "34",
+    "title": "Mirana Demolish",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_ezhhbcdhmf",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5",
+      "aivm"
+    ],
+    "modelId": "dota.hero_kills_window@1",
+    "modelKind": "aivm",
+    "modelHash": "0x0de4617204f86e47e89b88696ce2d323fa053589dce9152a523741429a83ddb1",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "dota.hero_kills_window@1",
+      "params": {
+        "start_ts": 1761510923,
+        "end_ts": 1761770123,
+        "hero": "mirana",
+        "minKills": 50,
+        "rankedOnly": true
+      },
+      "paramsHash": "0x198985ed673c6203371db94278f69be4ecfc1e70083f81a401f9484fe3975770"
+    },
+    "description": "Achieve 50 kills with Mirana",
+    "params": {
+      "start_ts": 1761510923,
+      "end_ts": 1761770123,
+      "hero": "mirana",
+      "minKills": 50,
+      "rankedOnly": true
+    },
+    "category": "gaming",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "txHash": "0x165928311ab2c7188b4a92940d0f64534b56deeb317dba2746f5e07038fa80e2",
+    "subject": "0x8176735dE44c6a6e64C9153F2448B15F2F53cB31",
+    "createdAt": 1761421013
+  },
+  {
+    "id": "35",
+    "title": "Friendly marathon",
+    "game": null,
+    "mode": null,
+    "status": "Approved",
+    "externalId": "lc_nx8f695b75",
+    "tags": [
+      "fitness",
+      "zk"
+    ],
+    "modelId": "strava.distance_in_window@1",
+    "modelKind": "zk",
+    "modelHash": "0xd3a933d7c65286991ffe453223bf2a153111795364835762b04dc6703e84211e",
+    "verifierUsed": "0xB503369b4d419062296931f304911F406cf8E3cc",
+    "plonkVerifier": "0x24346b67dE55d36E72068CA096Aa7f14819ACa3b",
+    "proof": {
+      "kind": "zk",
+      "modelId": "strava.distance_in_window@1",
+      "params": {
+        "start_ts": 1761430200,
+        "end_ts": 1761516600,
+        "min_distance_m": 20000
+      },
+      "paramsHash": "0x4e83b6ef76ed55266fd303ca2c010adb28fdf0c0a08a73ad20bdd87b7cfc5388"
+    },
+    "description": "Beginners entry",
+    "params": {
+      "start_ts": 1761430200,
+      "end_ts": 1761516600,
+      "min_distance_m": 20000
+    },
+    "category": "fitness",
+    "verifier": "0xB503369b4d419062296931f304911F406cf8E3cc",
+    "txHash": "0x2fbc473d83188dd4cd26560682c92e8158aaf5913dcf9dea04f56ba304feff7f",
+    "subject": "0x8176735dE44c6a6e64C9153F2448B15F2F53cB31",
+    "createdAt": 1761422946
+  },
+  {
+    "id": "36",
+    "title": "LOL Challenge - Demo",
+    "game": "lol",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_yu3yfdfcee",
+    "tags": [
+      "gaming",
+      "lol",
+      "5v5",
+      "aivm"
+    ],
+    "modelId": "lol.winrate_next_n@1",
+    "modelKind": "aivm",
+    "modelHash": "0x6a68a575fa50ebbc7c0404ebe2078f7a79cfa95b4c2efd9c869b0744137456c3",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "lol.winrate_next_n@1",
+      "params": {
+        "matches": 20,
+        "queue": "ranked"
+      },
+      "paramsHash": "0xeab09889cef4baaf5896e5ac36590be38bfc7f2e1f8eaea058f9e49f3e3a8c89"
+    },
+    "description": "I am trying a test with LOl ,  70% win rate over next 20 matches.",
+    "params": {
+      "matches": 20,
+      "queue": "ranked"
+    },
+    "category": "gaming",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "txHash": "0x5b527384b18b74f633c2b1d0bb38e6ebcb2ae120af430aa4e64104013a2b302d",
+    "subject": "0x8176735dE44c6a6e64C9153F2448B15F2F53cB31",
+    "createdAt": 1761426340
+  },
+  {
+    "id": "37",
+    "title": "Anti mage dsadas",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_qaggf3lqsa",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5",
+      "aivm"
+    ],
+    "modelId": "dota.hero_kills_window@1",
+    "modelKind": "aivm",
+    "modelHash": "0x0de4617204f86e47e89b88696ce2d323fa053589dce9152a523741429a83ddb1",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "dota.hero_kills_window@1",
+      "params": {
+        "start_ts": 1761573300,
+        "end_ts": 1761832500,
+        "hero": "axe",
+        "minKills": 50,
+        "rankedOnly": true
+      },
+      "paramsHash": "0x1de6ecd6bba23982b3fa8be7ed9271db8d4f0a1beaeff6062ebe883c7bb15bcd"
+    },
+    "description": "zdfasjfajjfga",
+    "params": {
+      "start_ts": 1761573300,
+      "end_ts": 1761832500,
+      "hero": "axe",
+      "minKills": 50,
+      "rankedOnly": true
+    },
+    "category": "gaming",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "txHash": "0xdf9ab841665e9b9e06cbb97efbd3cc10302234f1d90e1c7e8a68b20250c6d167",
+    "subject": "0x8176735dE44c6a6e64C9153F2448B15F2F53cB31",
+    "createdAt": 1761487748
+  },
+  {
+    "id": "38",
+    "title": "Pudge Party - Demolishion",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_w9siao9uzz",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5",
+      "aivm"
+    ],
+    "modelId": "dota.hero_kills_window@1",
+    "modelKind": "aivm",
+    "modelHash": "0x0de4617204f86e47e89b88696ce2d323fa053589dce9152a523741429a83ddb1",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "dota.hero_kills_window@1",
+      "params": {
+        "start_ts": 1761650299,
+        "end_ts": 1761909499,
+        "hero": "pudge",
+        "minKills": 97,
+        "rankedOnly": true
+      },
+      "paramsHash": "0xd953a9150590498b73113878a46889e51ce32f97d7461d5c859b12d9daf26d20"
+    },
+    "description": "Ensure 100 kills for 3 days in order to achieve legend status. let's have fun together ,  make some hooks , assists, kills , and enjoy your game.",
+    "params": {
+      "start_ts": 1761650299,
+      "end_ts": 1761909499,
+      "hero": "pudge",
+      "minKills": 97,
+      "rankedOnly": true
+    },
+    "category": "gaming",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "txHash": "0x55f1f4f75ac60b3d893b5a3b11eea7c351d08025fe2f0e97c6c4226bca00c99a",
+    "subject": "0x95A4CE3c93dBcDb9b3CdFb4CCAE6EFBDb4cCA217",
+    "createdAt": 1761564053
+  },
+  {
+    "id": "39",
+    "title": "LOL Challenge",
+    "game": "lol",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_j4a1bkjbei",
+    "tags": [
+      "gaming",
+      "lol",
+      "5v5",
+      "aivm"
+    ],
+    "modelId": "lol.winrate_next_n@1",
+    "modelKind": "aivm",
+    "modelHash": "0x6a68a575fa50ebbc7c0404ebe2078f7a79cfa95b4c2efd9c869b0744137456c3",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "lol.winrate_next_n@1",
+      "params": {
+        "matches": 10,
+        "queue": "ranked"
+      },
+      "paramsHash": "0xf1ca39da7f38def611f766039755abd774ed373e06d851fd39515ef104f7ebd9"
+    },
+    "description": "Make 10 wins in a row",
+    "params": {
+      "matches": 10,
+      "queue": "ranked"
+    },
+    "category": "gaming",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "txHash": "0x51b372ca0969426aa20c0be274ee31dd78798c830c38edd9040fbf2fa0eebadf",
+    "subject": "0xa969a5c0434B427a5ae3e673607060eb5c87B886",
+    "createdAt": 1761656322
+  },
+  {
+    "id": "40",
+    "title": "Test CS",
+    "game": "cs",
+    "mode": "1v1",
+    "status": "Approved",
+    "externalId": "lc_r2temtaku4",
+    "tags": [
+      "gaming",
+      "cs",
+      "1v1"
+    ],
+    "modelId": "cs.kills_in_window@1",
+    "modelKind": null,
+    "modelHash": null,
+    "verifierUsed": "0xB503369b4d419062296931f304911F406cf8E3cc",
+    "plonkVerifier": null,
+    "proof": {
+      "modelId": "cs.kills_in_window@1",
+      "params": {
+        "start_ts": 1761834555,
+        "end_ts": 1761920955,
+        "kills": 30
+      },
+      "paramsHash": "0x9f406ec17c13f53e97cfcdc4f94e5bd141c189cd6e75083c98807b398e84d4b9"
+    },
+    "description": "ZENM",
+    "params": {
+      "start_ts": 1761834555,
+      "end_ts": 1761920955,
+      "kills": 30
+    },
+    "category": "gaming",
+    "txHash": "0x16017560de8461eccd45294d854f232a25b8ffe1eb834fd0464eb89b51cfdd2a",
+    "subject": "0xa969a5c0434B427a5ae3e673607060eb5c87B886",
+    "createdAt": 1761748207
+  },
+  {
+    "id": "41",
+    "title": "Dota 2 5v5 Challenge",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_k1r6ri86pn",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5",
+      "aivm"
+    ],
+    "modelId": "dota.private_match_5v5@1",
+    "modelKind": "aivm",
+    "modelHash": "0xa36667f7fba0e008bfca236bcec118fef4f7177046cbc57f093b557b41ca95e6",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "dota.private_match_5v5@1",
+      "params": {
+        "start_ts": 1767254264,
+        "end_ts": 1767513464,
+        "minMatches": 1,
+        "minWins": 1
+      },
+      "paramsHash": "0x08fedfbbffdbe6f88cb49e61f4db57f2b2ea317e38d2ee7e7b25330d49c6b0b8"
+    },
+    "description": "",
+    "params": {
+      "start_ts": 1767254264,
+      "end_ts": 1767513464,
+      "minMatches": 1,
+      "minWins": 1
+    },
+    "category": "gaming",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "txHash": "0x814187449564ebdb795605194ebb7aea98502960f04780444e66a9e97f8831c4",
+    "subject": "0xa969a5c0434B427a5ae3e673607060eb5c87B886",
+    "createdAt": 1767167932
+  },
+  {
+    "id": "42",
+    "title": "ZZZZX",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_839phjyv3a",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5",
+      "aivm"
+    ],
+    "modelId": "dota.hero_kills_window@1",
+    "modelKind": "aivm",
+    "modelHash": "0x0de4617204f86e47e89b88696ce2d323fa053589dce9152a523741429a83ddb1",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "dota.hero_kills_window@1",
+      "params": {
+        "start_ts": 1767256930,
+        "end_ts": 1767343330,
+        "hero": "antimage",
+        "minKills": 50,
+        "rankedOnly": true
+      },
+      "paramsHash": "0xd80059869665c27816401d3bcef1a800ce08cb2eba467762692d023a9a4cc4eb"
+    },
+    "description": "asadsa",
+    "params": {
+      "start_ts": 1767256930,
+      "end_ts": 1767343330,
+      "hero": "antimage",
+      "minKills": 50,
+      "rankedOnly": true
+    },
+    "category": "gaming",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "txHash": "0x874e874a8e652f02b794954613d060ab5f97d1b096d23f9148dbc16c86f816f9",
+    "subject": "0xa969a5c0434B427a5ae3e673607060eb5c87B886",
+    "createdAt": 1767170646
+  },
+  {
+    "id": "43",
+    "title": "Dota 2 5v5 Challenge",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_1nphsejn33",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5",
+      "aivm"
+    ],
+    "modelId": "dota.hero_kills_window@1",
+    "modelKind": "aivm",
+    "modelHash": "0x0de4617204f86e47e89b88696ce2d323fa053589dce9152a523741429a83ddb1",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "dota.hero_kills_window@1",
+      "params": {
+        "start_ts": 1767391259,
+        "end_ts": 1767650459,
+        "hero": "antimage",
+        "minKills": 50,
+        "rankedOnly": true
+      },
+      "paramsHash": "0xc022b6a158b383b23f8b3f9b01b2e33d7150d9bfd8a2bd7a1cfbf10d9ec14706"
+    },
+    "description": "",
+    "params": {
+      "start_ts": 1767391259,
+      "end_ts": 1767650459,
+      "hero": "antimage",
+      "minKills": 50,
+      "rankedOnly": true
+    },
+    "category": "gaming",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "txHash": "0x983978b42b188e63b855f2828630905aa07cc1660794b8999d0d818a59c11cb7",
+    "subject": "0xa969a5c0434B427a5ae3e673607060eb5c87B886",
+    "createdAt": 1767339544
+  },
+  {
+    "id": "44",
+    "title": "Gaming AM",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_ep33qux6fr",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5",
+      "aivm"
+    ],
+    "modelId": "dota.hero_kills_window@1",
+    "modelKind": "aivm",
+    "modelHash": "0x0de4617204f86e47e89b88696ce2d323fa053589dce9152a523741429a83ddb1",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "dota.hero_kills_window@1",
+      "params": {
+        "start_ts": 1767510600,
+        "end_ts": 1767521400,
+        "hero": "antimage",
+        "minKills": 91,
+        "rankedOnly": true
+      },
+      "paramsHash": "0xebf51148e96c253421134ebbdbfb77243a64f2aa6619f20ee057ff8e9e4d291a"
+    },
+    "description": "Kill with AM - 100 people",
+    "params": {
+      "start_ts": 1767510600,
+      "end_ts": 1767521400,
+      "hero": "antimage",
+      "minKills": 91,
+      "rankedOnly": true
+    },
+    "category": "gaming",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "txHash": "0xf60492bfa4473f577452e443900def6e50abe12ab6a190d99704c3b638d07638",
+    "subject": "0xa969a5c0434B427a5ae3e673607060eb5c87B886",
+    "createdAt": 1767424265
+  },
+  {
+    "id": "45",
+    "title": "Fitness Challenge",
+    "game": null,
+    "mode": null,
+    "status": "Approved",
+    "externalId": "lc_516vpxl6tp",
+    "tags": [
+      "fitness",
+      "aivm"
+    ],
+    "modelId": "apple_health.steps@1",
+    "modelKind": "aivm",
+    "modelHash": "0x2e3f88a0496e6650c192355be471a62cae0bda1aece751eb2b30affd0f010c9e",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "apple_health.steps@1",
+      "params": {
+        "days": 7,
+        "minSteps": 8000
+      },
+      "paramsHash": "0xb1acf56dfe7e1e69ec41519ac4cfb911e4886486ae2e1c4d0b9a8b73de38ec9c"
+    },
+    "description": "",
+    "params": {
+      "days": 7,
+      "minSteps": 8000
+    },
+    "category": "fitness",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "txHash": "0xc06974523136afdc500ae2d5d8e8e28bb0d61fb21fa238a70ef283d937abdf07",
+    "subject": "0x8176735dE44c6a6e64C9153F2448B15F2F53cB31",
+    "createdAt": 1767534340
+  },
+  {
+    "id": "46",
+    "title": "Pudge Party",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_l809s9f9ve",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5",
+      "aivm"
+    ],
+    "modelId": "dota.hero_kills_window@1",
+    "modelKind": "aivm",
+    "modelHash": "0x0de4617204f86e47e89b88696ce2d323fa053589dce9152a523741429a83ddb1",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "dota.hero_kills_window@1",
+      "params": {
+        "start_ts": 1767650459,
+        "end_ts": 1767655859,
+        "hero": "pudge",
+        "minKills": 14,
+        "rankedOnly": true
+      },
+      "paramsHash": "0xd5ee73659b670a109a6dae81f6457c70478d6cc45de98d5efdcaf38b2439a1d4"
+    },
+    "description": "Make 20 kills within an hour with Pudge",
+    "params": {
+      "start_ts": 1767650459,
+      "end_ts": 1767655859,
+      "hero": "pudge",
+      "minKills": 14,
+      "rankedOnly": true
+    },
+    "category": "gaming",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "txHash": "0x2997ed72d4511923cb950d67d1fbeeec8cb4432d4faa5405a987a522274f9f06",
+    "subject": "0x8176735dE44c6a6e64C9153F2448B15F2F53cB31",
+    "createdAt": 1767608262
+  },
+  {
+    "id": "47",
+    "title": "1v1 Excellence - Enjoy Party",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_64r1kyenax",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5",
+      "aivm"
+    ],
+    "modelId": "dota.hero_kills_window@1",
+    "modelKind": "aivm",
+    "modelHash": "0x0de4617204f86e47e89b88696ce2d323fa053589dce9152a523741429a83ddb1",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "dota.hero_kills_window@1",
+      "params": {
+        "start_ts": 1767650459,
+        "end_ts": 1767654059,
+        "hero": "pudge",
+        "minKills": 98,
+        "rankedOnly": true
+      },
+      "paramsHash": "0x230e26da891cd552a4a5d026b62b5cec4738d6f539b0d7ba7090b62747b55b57"
+    },
+    "description": "I would like to invite you for a 121 to determine who is the best player.\nCondition: Pudge ; 100 kills",
+    "params": {
+      "start_ts": 1767650459,
+      "end_ts": 1767654059,
+      "hero": "pudge",
+      "minKills": 98,
+      "rankedOnly": true
+    },
+    "category": "gaming",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "txHash": "0xdf3d1a6999d972eed61f6409fb1c99cd810c32a219a8cc3cddd3ba4e165ab597",
+    "subject": "0x8176735dE44c6a6e64C9153F2448B15F2F53cB31",
+    "createdAt": 1767620825
+  },
+  {
+    "id": "48",
+    "title": "Amazing Killing Session - AM vs ALL",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_6a8ak4e29p",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5",
+      "aivm"
+    ],
+    "modelId": "dota.hero_kills_window@1",
+    "modelKind": "aivm",
+    "modelHash": "0x0de4617204f86e47e89b88696ce2d323fa053589dce9152a523741429a83ddb1",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "dota.hero_kills_window@1",
+      "params": {
+        "start_ts": 1767707400,
+        "end_ts": 1767793800,
+        "hero": "antimage",
+        "minKills": 50,
+        "rankedOnly": true
+      },
+      "paramsHash": "0x9eb3ce8e2e3ae172acc580e4fe3b7239e2a5500b46738d613de6108b55956a15"
+    },
+    "description": "Lets make a test environment , all sald , go sa,dsa , rich , testing , all good , okay,\ntetsta mirana , lesh  , zs\nzdzs pudg , esh gogo",
+    "params": {
+      "start_ts": 1767707400,
+      "end_ts": 1767793800,
+      "hero": "antimage",
+      "minKills": 50,
+      "rankedOnly": true
+    },
+    "category": "gaming",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "txHash": "0x36fbea85b3ae8f27c58c1724f4ebfdc86e39779c5b9a5bf2e625e57a0bdffd7e",
+    "subject": "0x8176735dE44c6a6e64C9153F2448B15F2F53cB31",
+    "createdAt": 1767620995
+  },
+  {
+    "id": "49",
+    "title": "ZXC",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_rsy1o6j0so",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5",
+      "aivm"
+    ],
+    "modelId": "dota.hero_kills_window@1",
+    "modelKind": "aivm",
+    "modelHash": "0x0de4617204f86e47e89b88696ce2d323fa053589dce9152a523741429a83ddb1",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "dota.hero_kills_window@1",
+      "params": {
+        "start_ts": 1767823259,
+        "end_ts": 1767826859,
+        "hero": "antimage",
+        "minKills": 50,
+        "rankedOnly": true
+      },
+      "paramsHash": "0x885ac357517d8996919e3cb84ad009d1557fba8e28529fae012b4956eaaf511a"
+    },
+    "description": "ABRA KADABRA",
+    "params": {
+      "start_ts": 1767823259,
+      "end_ts": 1767826859,
+      "hero": "antimage",
+      "minKills": 50,
+      "rankedOnly": true
+    },
+    "category": "gaming",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "txHash": "0x1c2a5e25c4f0848159595bd7f0738cae37785f56bdc13357149f73c0f555c640",
+    "subject": "0xa969a5c0434B427a5ae3e673607060eb5c87B886",
+    "createdAt": 1767801544
+  },
+  {
+    "id": "2",
+    "title": "Test",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_09xoiqeg1x",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5",
+      "aivm"
+    ],
+    "txHash": "0x7f4c6954f1220ed3e658e7f85d5f6869a24bab4ca9b4cc7a827be2e02505e294",
+    "subject": "0x555C7116eF836875823C3ECF8005036825d24a94",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "modelId": "dota.hero_kills_window@1",
+    "modelKind": "aivm",
+    "modelHash": "0x0de4617204f86e47e89b88696ce2d323fa053589dce9152a523741429a83ddb1",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "dota.hero_kills_window@1",
+      "params": {
+        "start_ts": 1768314000,
+        "end_ts": 1768317600,
+        "hero": "antimage",
+        "minKills": 50,
+        "rankedOnly": true
+      },
+      "paramsHash": "0xe181748e155eccd596047601717ec332bfd2e83269140618b0fd104448aeba84"
+    },
+    "description": "Zumba",
+    "params": {
+      "start_ts": 1768314000,
+      "end_ts": 1768317600,
+      "hero": "antimage",
+      "minKills": 50,
+      "rankedOnly": true
+    },
+    "category": "gaming",
+    "createdAt": 1768313131
+  },
+  {
+    "id": "3",
+    "title": "TestAM",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_v9jrnj3f3i",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5",
+      "aivm"
+    ],
+    "txHash": "0x0d1970ccc23c3decde2f920a2c77b974298f546d91193999e1438a358059a771",
+    "subject": "0xa969a5c0434B427a5ae3e673607060eb5c87B886",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "modelId": "dota.hero_kills_window@1",
+    "modelKind": "aivm",
+    "modelHash": "0x0de4617204f86e47e89b88696ce2d323fa053589dce9152a523741429a83ddb1",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "dota.hero_kills_window@1",
+      "params": {
+        "start_ts": 1768384800,
+        "end_ts": 1768388400,
+        "hero": "antimage",
+        "minKills": 50,
+        "rankedOnly": true
+      },
+      "paramsHash": "0xa1d7ea47ca92f0f595687c0c2180f01eb7406abe064033d3421db6c84cccec94"
+    },
+    "description": "BLGK",
+    "params": {
+      "start_ts": 1768384800,
+      "end_ts": 1768388400,
+      "hero": "antimage",
+      "minKills": 50,
+      "rankedOnly": true
+    },
+    "category": "gaming",
+    "createdAt": 1768383858
+  },
+  {
+    "id": "4",
+    "title": "ObichamZ",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_51awnoqs1l",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5",
+      "aivm"
+    ],
+    "txHash": "0x093e177aa687a9fe267b700c91f4942e6220b09a302ff65ce459c4bf94756229",
+    "subject": "0xa969a5c0434B427a5ae3e673607060eb5c87B886",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "modelId": "dota.hero_kills_window@1",
+    "modelKind": "aivm",
+    "modelHash": "0x0de4617204f86e47e89b88696ce2d323fa053589dce9152a523741429a83ddb1",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "dota.hero_kills_window@1",
+      "params": {
+        "start_ts": 1768389900,
+        "end_ts": 1768400700,
+        "hero": "drow_ranger",
+        "minKills": 50,
+        "rankedOnly": true
+      },
+      "paramsHash": "0xd05a0e68cfc87232e013f3e215f49e7cc4a5f9c76708f8450d925b846f13022b"
+    },
+    "description": "Realkt",
+    "params": {
+      "start_ts": 1768389900,
+      "end_ts": 1768400700,
+      "hero": "drow_ranger",
+      "minKills": 50,
+      "rankedOnly": true
+    },
+    "category": "gaming",
+    "createdAt": 1768388418
+  },
+  {
+    "id": "5",
+    "title": "NekaVidim",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_809c7rcqf9",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5",
+      "aivm"
+    ],
+    "txHash": "0xabd1224d39123088fc8a2af9766782bc7742bcbc58dd0fdc33af9ed0cc801fab",
+    "subject": "0xa969a5c0434B427a5ae3e673607060eb5c87B886",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "modelId": "dota.hero_kills_window@1",
+    "modelKind": "aivm",
+    "modelHash": "0x0de4617204f86e47e89b88696ce2d323fa053589dce9152a523741429a83ddb1",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "dota.hero_kills_window@1",
+      "params": {
+        "start_ts": 1768395300,
+        "end_ts": 1768406100,
+        "hero": "mirana",
+        "minKills": 1,
+        "rankedOnly": false
+      },
+      "paramsHash": "0x689f8de1e1fe655bf9f1e35ca66fc50abbaf97e3cf39b5701cc48abc1ba2b799"
+    },
+    "description": "Testing 1213",
+    "params": {
+      "start_ts": 1768395300,
+      "end_ts": 1768406100,
+      "hero": "mirana",
+      "minKills": 1,
+      "rankedOnly": false
+    },
+    "category": "gaming",
+    "createdAt": 1768394141
+  },
+  {
+    "id": "6",
+    "title": "Let me tes",
+    "game": "dota",
+    "mode": "5v5",
+    "status": "Approved",
+    "externalId": "lc_v1zjbh5kzn",
+    "tags": [
+      "gaming",
+      "dota",
+      "5v5",
+      "aivm"
+    ],
+    "txHash": "0x2622174be5f5978ab21dc6a1193f140f320a50844ea564133b47fc38cd59e758",
+    "subject": "0xa969a5c0434B427a5ae3e673607060eb5c87B886",
+    "verifier": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "modelId": "dota.hero_kills_window@1",
+    "modelKind": "aivm",
+    "modelHash": "0x0de4617204f86e47e89b88696ce2d323fa053589dce9152a523741429a83ddb1",
+    "verifierUsed": "0x6aa0387ABF657d5Bf0710BbC9239e000eC4223d0",
+    "plonkVerifier": null,
+    "proof": {
+      "kind": "aivm",
+      "modelId": "dota.hero_kills_window@1",
+      "params": {
+        "start_ts": 1769615400,
+        "end_ts": 1769619000,
+        "hero": "antimage",
+        "minKills": 50,
+        "rankedOnly": true
+      },
+      "paramsHash": "0xb0166047cb8fd9f1a8291e89aa662dcea87560dd7be624a66d3b040c0e69c5b2"
+    },
+    "description": "s",
+    "params": {
+      "start_ts": 1769615400,
+      "end_ts": 1769619000,
+      "hero": "antimage",
+      "minKills": 50,
+      "rankedOnly": true
+    },
+    "category": "gaming",
+    "createdAt": 1769613641
+  }
+]

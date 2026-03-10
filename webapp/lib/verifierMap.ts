@@ -1,5 +1,5 @@
 // webapp/lib/verifierMap.ts
-import { ADDR } from "./contracts";
+import { ADDR, ZERO_ADDR } from "./contracts";
 
 export type CategoryOption = { value: string; label: string };
 
@@ -12,12 +12,20 @@ export const categoryOptions: CategoryOption[] = [
 ];
 
 export function defaultVerifierForCategory(category: string) {
+  // Current architecture: everything routes through ChallengePayAivmPoiVerifier
+  const verifier =
+    ADDR.ChallengePayAivmPoiVerifier !== ZERO_ADDR
+      ? ADDR.ChallengePayAivmPoiVerifier
+      : undefined;
+
   switch (category) {
-    case "fitness": return ADDR.AivmProofVerifier;
-    case "gaming":  return ADDR.AivmProofVerifier;
-    case "creative": return (ADDR as any).MultiSigProofVerifier;
-    case "betting":  return (ADDR as any).MultiSigProofVerifier;
-    case "privacy":  return ADDR.ZkProofVerifier;
-    default: return undefined;
+    case "fitness":
+    case "gaming":
+    case "creative":
+    case "betting":
+    case "privacy":
+      return verifier;
+    default:
+      return verifier;
   }
 }

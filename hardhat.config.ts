@@ -1,65 +1,179 @@
-import { config as dotenv } from "dotenv"
-dotenv()
+// hardhat.config.ts
+import "dotenv/config";
 
-import "@nomicfoundation/hardhat-toolbox"
+import "@nomicfoundation/hardhat-toolbox";
+import "hardhat-deploy";
+import "hardhat-contract-sizer";
+import type { HardhatUserConfig } from "hardhat/config";
+import { ethers } from "ethers";
 
-// keep hardhat-deploy optional (you installed it, but this is harmless)
-let hasDeploy = false
-try { require("hardhat-deploy"); hasDeploy = true } catch {}
+try {
+  require("./scripts/verify/verify-all");
+} catch {}
 
-import type { HardhatUserConfig } from "hardhat/config"
-try { require("./scripts/verify/verify-all") } catch {}
-
+/* ────────────────────────────────────────────────────────────────
+   ENV CONFIG
+   ──────────────────────────────────────────────────────────────── */
 const LIGHTCHAIN_RPC =
   process.env.LIGHTCHAIN_RPC ||
   process.env.NEXT_PUBLIC_RPC_URL ||
-  "https://light-testnet-rpc.lightchain.ai"
+  "https://light-testnet-rpc.lightchain.ai";
 
-const PRIVATE_KEY =
-  process.env.PRIVATE_KEY ||
-  "0x0000000000000000000000000000000000000000000000000000000000000001"
+const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 504);
+const EXPLORER_URL =
+  process.env.NEXT_PUBLIC_EXPLORER_URL || "https://testnet.lightscan.app";
 
-const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 504)
+const ADMIN_ADDRESS = (process.env.ADMIN_ADDRESS || "").trim();
+const ADMIN_PRIVATE_KEY = (process.env.ADMIN_PRIVATE_KEY || "").trim();
+const PRIVATE_KEY = (process.env.PRIVATE_KEY || "").trim();
 
+const USE_ADMIN_KEY = (process.env.USE_ADMIN_KEY ?? "0") === "1";
+
+function isPk(v: string) {
+  return /^0x[0-9a-fA-F]{64}$/.test(v);
+}
+
+function needPk(name: string, v: string) {
+  if (!v) throw new Error(`${name} is missing in .env`);
+  if (!isPk(v)) throw new Error(`${name} must be 0x + 64 hex chars`);
+  return v;
+}
+
+function needAddr(name: string, v: string) {
+  if (!v) throw new Error(`${name} is missing in .env`);
+  if (!/^0x[0-9a-fA-F]{40}$/.test(v)) throw new Error(`${name} must be a 0x address`);
+  return ethers.getAddress(v);
+}
+
+// pick keys
+const DEPLOYER_KEY = needPk("PRIVATE_KEY", PRIVATE_KEY);
+const ADMIN_KEY = needPk("ADMIN_PRIVATE_KEY", ADMIN_PRIVATE_KEY);
+
+// choose active signer key for this run
+const ACTIVE_KEY = USE_ADMIN_KEY ? ADMIN_KEY : DEPLOYER_KEY;
+
+// optional but HIGHLY recommended safety: if you say USE_ADMIN_KEY=1,
+// ensure that key actually corresponds to ADMIN_ADDRESS
+if (USE_ADMIN_KEY) {
+  const adminAddr = needAddr("ADMIN_ADDRESS", ADMIN_ADDRESS);
+  const derived = new ethers.Wallet(ADMIN_KEY).address;
+  if (ethers.getAddress(derived) !== adminAddr) {
+    throw new Error(
+      [
+        `USE_ADMIN_KEY=1 but ADMIN_PRIVATE_KEY does NOT match ADMIN_ADDRESS`,
+        `ADMIN_ADDRESS     = ${adminAddr}`,
+        `Derived from key  = ${ethers.getAddress(derived)}`,
+        `Fix .env: set ADMIN_PRIVATE_KEY to the key for ADMIN_ADDRESS`,
+      ].join("\n")
+    );
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────
+   HARDHAT CONFIG
+   ──────────────────────────────────────────────────────────────── */
 const config: HardhatUserConfig & { namedAccounts?: Record<string, any> } = {
   solidity: {
-    version: "0.8.24",
-    settings: {
-      optimizer: { enabled: true, runs: 200 },
-      viaIR: true, // ← enable IR globally to fix “stack too deep”
+    compilers: [
+      {
+        version: "0.8.24",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+          viaIR: true,
+          metadata: { bytecodeHash: "none" },
+          evmVersion: "istanbul",
+        },
+      },
+      {
+        version: "0.7.6",
+        settings: {
+          optimizer: { enabled: true, runs: 200 },
+          viaIR: false,
+          metadata: { bytecodeHash: "none" },
+          evmVersion: "istanbul",
+        },
+      },
+    ],
+  
+    overrides: {
+      "contracts/PlonkVerifier.sol": {
+        version: "0.7.6",
+        settings: {
+          optimizer: { enabled: true, runs: 200 },
+          viaIR: false,
+          metadata: { bytecodeHash: "none" },
+          evmVersion: "istanbul",
+        },
+      },
+  
+      "contracts/ChallengePay.sol": {
+        version: "0.8.24",
+        settings: {
+          optimizer: { enabled: true, runs: 200 },
+          viaIR: true,
+          metadata: { bytecodeHash: "none" },
+          evmVersion: "istanbul",
+        },
+      },
+  
+      "contracts/verifiers/ChallengePayAivmPoiVerifier.sol": {
+        version: "0.8.24",
+        settings: {
+          optimizer: { enabled: true, runs: 200 },
+          viaIR: true,
+          metadata: { bytecodeHash: "none" },
+          evmVersion: "istanbul",
+        },
+      },
     },
   },
+
   networks: {
     hardhat: {},
     lightchain: {
       url: LIGHTCHAIN_RPC,
-      accounts: [PRIVATE_KEY],
+      accounts: [ACTIVE_KEY],
       chainId: CHAIN_ID,
     },
   },
+
   etherscan: {
-    // IMPORTANT: use the literal 'empty', not an empty string.
-    apiKey: { lightchain: 'empty' },
+    apiKey: { lightchain: "empty" },
     customChains: [
       {
-        // MUST match your Hardhat network name ('lightchain')
-        network: 'lightchain',
-        chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 504),
+        network: "lightchain",
+        chainId: CHAIN_ID,
         urls: {
-          // per Lightscan’s docs/screenshot
-          apiURL: 'https://testnet.lightscan.app/api',
-          browserURL: process.env.NEXT_PUBLIC_EXPLORER_URL || 'https://testnet.lightscan.app',
+          apiURL: `${EXPLORER_URL}/api`,
+          browserURL: EXPLORER_URL,
         },
       },
     ],
   },
+
+  contractSizer: {
+    alphaSort: true,
+    runOnCompile: true,
+    disambiguatePaths: false,
+    strict: false,
+  },
+
   gasReporter: {
     enabled: !!process.env.GAS_REPORT,
     currency: "USD",
     coinmarketcap: process.env.CMC_API_KEY || undefined,
   },
-}
 
-if (hasDeploy) config.namedAccounts = { deployer: { default: 0 } }
+  mocha: { timeout: 60_000 },
 
-export default config
+  // hardhat-deploy convention (not used by ethers.getSigners directly)
+  namedAccounts: {
+    deployer: { default: 0 },
+    admin: { default: 0 },
+  },
+};
+
+export default config;

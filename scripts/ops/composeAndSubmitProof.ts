@@ -15,8 +15,8 @@
 //   FORCE_SIGN=1                   (override guard that prevents PASS before periodEnd)
 //   VERIFIER=<0xaddr>              (required; MultiSigProofVerifier)
 //   ATTESTER_PKS=<pk1,pk2,...>     (comma-separated hex keys)
-import hardhat from "hardhat";
-const { ethers, network } = hardhat;
+import hre from "hardhat";
+const { ethers, network } = hre;
 import { header, info, fail, context } from "../dev/utils";
 import { Attestation, buildProof, signAttestation } from "../lib/attestation";
 import { keccak256, toUtf8Bytes } from "ethers";

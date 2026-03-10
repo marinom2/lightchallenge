@@ -1,7 +1,7 @@
 // scripts/bet.ts
 import "@nomicfoundation/hardhat-ethers";
-import hardhat from "hardhat";
-const { ethers } = hardhat;
+import hre from "hardhat";
+const { ethers } = hre;
 import { header, info, fail, context, toWei, NATIVE_SYMBOL } from "../dev/utils";
 
 function parseOutcome(side: string): 1 | 2 {

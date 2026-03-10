@@ -1,5 +1,5 @@
-import hardhat from "hardhat";
-const { ethers } = hardhat;
+import hre from "hardhat";
+const { ethers } = hre;
 import { header, info, fail, context } from "../dev/utils";
 
 function toBool(v: any): boolean {

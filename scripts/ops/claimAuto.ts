@@ -12,9 +12,9 @@
 // - VALIDATOR is only for inspecting a different address; the claim is
 //   always executed by the connected signer (you).
 //
-import hardhat from "hardhat";
+import hre from "hardhat";
 import "@nomicfoundation/hardhat-ethers";
-const { ethers, network } = hardhat;
+const { ethers, network } = hre;
 
 function fmt(n: bigint | number): string {
   const b = typeof n === "bigint" ? n : BigInt(n);

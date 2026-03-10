@@ -1,7 +1,7 @@
 // scripts/admin/setAttesters.ts
 import "@nomicfoundation/hardhat-ethers";
-import hardhat from "hardhat";
-const { ethers, network } = hardhat;
+import * as hre from "hardhat";
+const { ethers, network } = hre;
 import fs from "fs";
 import path from "path";
 

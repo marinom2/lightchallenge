@@ -5,8 +5,8 @@
 // Usage:
 //   ADDR=<ChallengePay> \
 //   npx hardhat run scripts/ops/withdrawUnstaked.ts --network <net>
-import hardhat from "hardhat";
-const { ethers, network } = hardhat;
+import hre from "hardhat";
+const { ethers, network } = hre;
 import { context, header, info, fail, NATIVE_SYMBOL } from "../dev/utils";
 
 async function main() {

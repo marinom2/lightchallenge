@@ -12,9 +12,9 @@
 // - WHO is for inspecting a different wallet, but *claims are executed by the signer*.
 // - Works with the enhanced ChallengePay (read-only helpers optional).
 //
-import hardhat from "hardhat";
+import hre from "hardhat";
 import "@nomicfoundation/hardhat-ethers";
-const { ethers, network } = hardhat;
+const { ethers, network } = hre;
 
 function fmt(n: bigint | number) { return (typeof n === "bigint" ? n : BigInt(n)).toString(); }
 

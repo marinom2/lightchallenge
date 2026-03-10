@@ -1,0 +1,410 @@
+{
+  "address": "0x0fDB5A5fC0104930489Bcb4A5207c824e096126e",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "initialOwner",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "BindingMismatch",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NoPublicSignals",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NotOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ZeroAddress",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "modelHash",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "verifier",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "active",
+          "type": "bool"
+        },
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "enforceBinding",
+          "type": "bool"
+        }
+      ],
+      "name": "ModelSet",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "prev",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "next",
+          "type": "address"
+        }
+      ],
+      "name": "OwnershipTransferred",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "challengeId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "subject",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "modelHash",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "ok",
+          "type": "bool"
+        }
+      ],
+      "name": "Verified",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "models",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "verifier",
+          "type": "address"
+        },
+        {
+          "internalType": "enum ZkProofVerifier.Flavor",
+          "name": "flavor",
+          "type": "uint8"
+        },
+        {
+          "internalType": "bool",
+          "name": "active",
+          "type": "bool"
+        },
+        {
+          "internalType": "bool",
+          "name": "enforceBinding",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "modelHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "address",
+          "name": "verifier",
+          "type": "address"
+        },
+        {
+          "internalType": "bool",
+          "name": "active",
+          "type": "bool"
+        },
+        {
+          "internalType": "bool",
+          "name": "enforceBinding",
+          "type": "bool"
+        }
+      ],
+      "name": "setModel",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4",
+          "name": "interfaceId",
+          "type": "bytes4"
+        }
+      ],
+      "name": "supportsInterface",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "n",
+          "type": "address"
+        }
+      ],
+      "name": "transferOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "challengeId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "subject",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes",
+          "name": "proof",
+          "type": "bytes"
+        }
+      ],
+      "name": "verify",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0x2015210e592e057d03ae07e9506df70625e6d04381ed967deb574d04e9a394c5",
+  "receipt": {
+    "to": null,
+    "from": "0x95A4CE3c93dBcDb9b3CdFb4CCAE6EFBDb4cCA217",
+    "contractAddress": "0x0fDB5A5fC0104930489Bcb4A5207c824e096126e",
+    "transactionIndex": 0,
+    "gasUsed": "628571",
+    "logsBloom": "0x00000000000000004000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000004000001000000000000000000000000000000000000020000000000000000000800000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000800000000000",
+    "blockHash": "0xe09c8bff08fef61143c078db5b694e5323cd7503ca09c2e8531014de8b132561",
+    "transactionHash": "0x2015210e592e057d03ae07e9506df70625e6d04381ed967deb574d04e9a394c5",
+    "logs": [
+      {
+        "transactionIndex": 0,
+        "blockNumber": 1280391,
+        "transactionHash": "0x2015210e592e057d03ae07e9506df70625e6d04381ed967deb574d04e9a394c5",
+        "address": "0x0fDB5A5fC0104930489Bcb4A5207c824e096126e",
+        "topics": [
+          "0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0",
+          "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "0x0000000000000000000000008176735de44c6a6e64c9153f2448b15f2f53cb31"
+        ],
+        "data": "0x",
+        "logIndex": 0,
+        "blockHash": "0xe09c8bff08fef61143c078db5b694e5323cd7503ca09c2e8531014de8b132561"
+      }
+    ],
+    "blockNumber": 1280391,
+    "cumulativeGasUsed": "628571",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [
+    "0x8176735dE44c6a6e64C9153F2448B15F2F53cB31"
+  ],
+  "numDeployments": 1,
+  "solcInputHash": "e2df1da9d10690299fbbf088748853f5",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"initialOwner\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"BindingMismatch\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NoPublicSignals\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NotOwner\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ZeroAddress\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"modelHash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"verifier\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"bool\",\"name\":\"active\",\"type\":\"bool\"},{\"indexed\":false,\"internalType\":\"bool\",\"name\":\"enforceBinding\",\"type\":\"bool\"}],\"name\":\"ModelSet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"prev\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"next\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"challengeId\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"subject\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"modelHash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"bool\",\"name\":\"ok\",\"type\":\"bool\"}],\"name\":\"Verified\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"models\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"verifier\",\"type\":\"address\"},{\"internalType\":\"enum ZkProofVerifier.Flavor\",\"name\":\"flavor\",\"type\":\"uint8\"},{\"internalType\":\"bool\",\"name\":\"active\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"enforceBinding\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"modelHash\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"verifier\",\"type\":\"address\"},{\"internalType\":\"bool\",\"name\":\"active\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"enforceBinding\",\"type\":\"bool\"}],\"name\":\"setModel\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"n\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"challengeId\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"subject\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"proof\",\"type\":\"bytes\"}],\"name\":\"verify\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"supportsInterface(bytes4)\":{\"details\":\"Returns true if this contract implements the interface defined by `interfaceId`. See the corresponding https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[ERC section] to learn more about how these ids are created. This function call must use less than 30 000 gas.\"},\"verify(uint256,address,bytes)\":{\"params\":{\"challengeId\":\"Challenge identifier.\",\"proof\":\"ABI-encoded verifier-specific payload (opaque to callers).\",\"subject\":\"The user/account the proof is about.\"},\"returns\":{\"_0\":\"        True if the proof is valid.\"}}},\"title\":\"ZkProofVerifier\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"verify(uint256,address,bytes)\":{\"notice\":\"Verify an off-chain proof bound to (challengeId, subject).\"}},\"notice\":\"Adapter that plugs Plonk verifiers into ChallengePay.         Binds challengeId+subject to public signals if enforceBinding=true.\",\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/zk/ZkProofVerifier.sol\":\"ZkProofVerifier\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"none\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":1},\"remappings\":[]},\"sources\":{\"@openzeppelin/contracts/utils/introspection/IERC165.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v5.4.0) (utils/introspection/IERC165.sol)\\n\\npragma solidity >=0.4.16;\\n\\n/**\\n * @dev Interface of the ERC-165 standard, as defined in the\\n * https://eips.ethereum.org/EIPS/eip-165[ERC].\\n *\\n * Implementers can declare support of contract interfaces, which can then be\\n * queried by others ({ERC165Checker}).\\n *\\n * For an implementation, see {ERC165}.\\n */\\ninterface IERC165 {\\n    /**\\n     * @dev Returns true if this contract implements the interface defined by\\n     * `interfaceId`. See the corresponding\\n     * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[ERC section]\\n     * to learn more about how these ids are created.\\n     *\\n     * This function call must use less than 30 000 gas.\\n     */\\n    function supportsInterface(bytes4 interfaceId) external view returns (bool);\\n}\\n\",\"keccak256\":\"0x8891738ffe910f0cf2da09566928589bf5d63f4524dd734fd9cedbac3274dd5c\",\"license\":\"MIT\"},\"contracts/verifiers/IProofVerifier.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.24;\\n\\nimport {IERC165} from \\\"@openzeppelin/contracts/utils/introspection/IERC165.sol\\\";\\n\\n/**\\n * @title IProofVerifier\\n * @notice Base interface for proof verifiers used by ChallengePay.\\n *\\n * IMPORTANT:\\n * - verify() is intentionally NON-VIEW to allow implementations to emit events\\n *   or update internal accounting if desired.\\n * - Pure/view verifiers can still implement non-view verify() and simply not write state.\\n */\\ninterface IProofVerifier is IERC165 {\\n  /**\\n   * @notice Verify an off-chain proof bound to (challengeId, subject).\\n   * @param challengeId Challenge identifier.\\n   * @param subject     The user/account the proof is about.\\n   * @param proof       ABI-encoded verifier-specific payload (opaque to callers).\\n   * @return ok         True if the proof is valid.\\n   */\\n  function verify(\\n    uint256 challengeId,\\n    address subject,\\n    bytes calldata proof\\n  ) external returns (bool ok);\\n}\\n\\n/**\\n * @title IProofVerifierEIP712\\n * @notice Optional extension for EIP-712 verifiers.\\n */\\ninterface IProofVerifierEIP712 is IProofVerifier {\\n  function domainSeparator() external view returns (bytes32);\\n  function structTypehash() external pure returns (bytes32);\\n}\\n\\n/**\\n * @title IProofVerifierWithReason\\n * @notice Optional extension that can explain failures in a machine-friendly way.\\n */\\ninterface IProofVerifierWithReason is IProofVerifier {\\n  /**\\n   * @return ok     True if valid.\\n   * @return code   Reason code (0=OK, 1=BINDING_FAIL, 2=EXPIRED, ...).\\n   * @return detail Arbitrary detail (e.g., modelId or attestation hash).\\n   */\\n  function verifyAndExplain(\\n    uint256 challengeId,\\n    address subject,\\n    bytes calldata proof\\n  ) external view returns (bool ok, uint8 code, bytes32 detail);\\n}\",\"keccak256\":\"0x047f787be215abc4fe51155292e003e3b04fb3b48c40bc119ae93cc138ddf188\",\"license\":\"MIT\"},\"contracts/zk/IPlonkVerifier.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.24;\\n\\n/// @notice Minimal PLONK verifier interface (generator-agnostic).\\ninterface IPlonkVerifier {\\n  /**\\n   * @dev Verifies a PLONK proof against public signals.\\n   * @param proof Opaque proof blob (format defined by the generator/circuit).\\n   * @param pubSignals Public inputs as field elements (uint256 mod p).\\n   * @return ok True if the proof is valid.\\n   */\\n  function verifyProof(bytes calldata proof, uint256[] calldata pubSignals) external view returns (bool ok);\\n}\",\"keccak256\":\"0xcc0a0cd5ec5896296ea75fb2cc2a7cbc5b90adad535f130e48a898cb321387e6\",\"license\":\"MIT\"},\"contracts/zk/ZkProofVerifier.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.24;\\n\\nimport {IERC165} from \\\"@openzeppelin/contracts/utils/introspection/IERC165.sol\\\";\\nimport {IProofVerifier} from \\\"../verifiers/IProofVerifier.sol\\\";\\nimport {IPlonkVerifier} from \\\"./IPlonkVerifier.sol\\\";\\n\\nerror NotOwner();\\nerror ZeroAddress();\\nerror ModelInactive();\\nerror BindingMismatch();\\nerror NoPublicSignals();\\n\\n/**\\n * @title ZkProofVerifier\\n * @notice Adapter that plugs Plonk verifiers into ChallengePay.\\n *         Binds challengeId+subject to public signals if enforceBinding=true.\\n */\\ncontract ZkProofVerifier is IProofVerifier {\\n    event ModelSet(bytes32 indexed modelHash, address verifier, bool active, bool enforceBinding);\\n    event Verified(uint256 indexed challengeId, address indexed subject, bytes32 indexed modelHash, bool ok);\\n    event OwnershipTransferred(address indexed prev, address indexed next);\\n\\n    address public owner;\\n\\n    enum Flavor { PLONK }\\n\\n    struct ModelCfg {\\n        address verifier;\\n        Flavor  flavor;\\n        bool    active;\\n        bool    enforceBinding;\\n    }\\n\\n    mapping(bytes32 => ModelCfg) public models;\\n\\n    modifier onlyOwner() {\\n        if (msg.sender != owner) revert NotOwner();\\n        _;\\n    }\\n\\n    constructor(address initialOwner) {\\n        if (initialOwner == address(0)) revert ZeroAddress();\\n        owner = initialOwner;\\n        emit OwnershipTransferred(address(0), initialOwner);\\n    }\\n\\n    function transferOwnership(address n) external onlyOwner {\\n        if (n == address(0)) revert ZeroAddress();\\n        emit OwnershipTransferred(owner, n);\\n        owner = n;\\n    }\\n\\n    function setModel(bytes32 modelHash, address verifier, bool active, bool enforceBinding) external onlyOwner {\\n        if (verifier == address(0)) revert ZeroAddress();\\n        models[modelHash] = ModelCfg({\\n            verifier: verifier,\\n            flavor: Flavor.PLONK,\\n            active: active,\\n            enforceBinding: enforceBinding\\n        });\\n        emit ModelSet(modelHash, verifier, active, enforceBinding);\\n    }\\n\\n    /// @inheritdoc IProofVerifier\\n    function verify(uint256 challengeId, address subject, bytes calldata proof)\\n        external\\n        override\\n        returns (bool)\\n    {\\n        (bytes32 modelHash, bytes memory proofData, uint256[] memory publicSignals) =\\n            abi.decode(proof, (bytes32, bytes, uint256[]));\\n\\n        ModelCfg memory cfg = models[modelHash];\\n        if (!cfg.active) {\\n            return false;\\n        }\\n\\n        if (cfg.enforceBinding) {\\n            if (publicSignals.length == 0) revert NoPublicSignals();\\n            uint256 bind = uint256(keccak256(abi.encode(challengeId, subject)));\\n            if (publicSignals[0] != bind) revert BindingMismatch();\\n        }\\n\\n        bool ok;\\n        try IPlonkVerifier(cfg.verifier).verifyProof(proofData, publicSignals) returns (bool v) {\\n            ok = v;\\n        } catch {\\n            ok = false; // fail-closed on verifier exceptions\\n        }\\n\\n        emit Verified(challengeId, subject, modelHash, ok);\\n        return ok;\\n    }\\n\\n    // IMPORTANT: match IERC165 signature\\n    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {\\n         return\\n             interfaceId == type(IProofVerifier).interfaceId ||\\n             interfaceId == type(IERC165).interfaceId;\\n     }\\n}\",\"keccak256\":\"0xc09ec02a352d056934e9740dee43c0b4070cf88e37eaa46401c4226d707b0f44\",\"license\":\"MIT\"}},\"version\":1}",
+  "bytecode": "0x608060405234801561001057600080fd5b50604051610acd380380610acd83398101604081905261002f916100a4565b6001600160a01b0381166100565760405163d92e233d60e01b815260040160405180910390fd5b600080546001600160a01b0319166001600160a01b03831690811782556040519091907f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0908290a3506100d4565b6000602082840312156100b657600080fd5b81516001600160a01b03811681146100cd57600080fd5b9392505050565b6109ea806100e36000396000f3fe608060405234801561001057600080fd5b50600436106100625760003560e01c806301ffc9a71461006757806354c2db031461008f5780638da5cb5b146100a4578063b7b9f7d5146100cf578063e236f46b146100e2578063f2fde38b1461013c575b600080fd5b61007a6100753660046105c4565b61014f565b60405190151581526020015b60405180910390f35b6100a261009d366004610622565b610186565b005b6000546100b7906001600160a01b031681565b6040516001600160a01b039091168152602001610086565b61007a6100dd366004610673565b6102ee565b61012c6100f03660046106f9565b6001602052600090815260409020546001600160a01b0381169060ff600160a01b8204811691600160a81b8104821691600160b01b9091041684565b6040516100869493929190610728565b6100a261014a366004610773565b610517565b60006001600160e01b0319821663b7b9f7d560e01b148061018057506001600160e01b031982166301ffc9a760e01b145b92915050565b6000546001600160a01b031633146101b1576040516330cd747160e01b815260040160405180910390fd5b6001600160a01b0383166101d85760405163d92e233d60e01b815260040160405180910390fd5b60408051608081019091526001600160a01b0384168152602081016000815283151560208083019190915283151560409283015260008781526001825291909120825181546001600160a01b039091166001600160a01b031982168117835592840151919283916001600160a81b03191617600160a01b83801561025e5761025e610712565b021790555060408281015182546060948501511515600160b01b0260ff60b01b19921515600160a81b029290921661ffff60a81b19909116171790915580516001600160a01b038616815284151560208201528315159181019190915285917fd176ff3274580bf20a2e2bec742bf7b00fb18b69d9027a080f40f9390ef200a1910160405180910390a250505050565b60008080806102ff85870187610853565b600083815260016020908152604080832081516080810190925280546001600160a01b0381168352969950949750929550909391929190830190600160a01b900460ff16801561035157610351610712565b801561035f5761035f610712565b8152905460ff600160a81b8204811615156020840152600160b01b90910416151560409182015281015190915061039d57600094505050505061050f565b8060600151156104475781516000036103c957604051631653f51160e01b815260040160405180910390fd5b600089896040516020016103f09291909182526001600160a01b0316602082015260400190565b6040516020818303038152906040528051906020012060001c9050808360008151811061041f5761041f610912565b6020026020010151146104455760405163438c487360e01b815260040160405180910390fd5b505b8051604051631e8e1e1360e01b81526000916001600160a01b031690631e8e1e13906104799087908790600401610928565b602060405180830381865afa9250505080156104b2575060408051601f3d908101601f191682019092526104af918101906109c0565b60015b6104be575060006104c1565b90505b84896001600160a01b03168b7f31ce099646c5706ae774e53ed3719bf4cac51d696848ad196de3c344ac563fd684604051610500911515815260200190565b60405180910390a49450505050505b949350505050565b6000546001600160a01b03163314610542576040516330cd747160e01b815260040160405180910390fd5b6001600160a01b0381166105695760405163d92e233d60e01b815260040160405180910390fd5b600080546040516001600160a01b03808516939216917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e091a3600080546001600160a01b0319166001600160a01b0392909216919091179055565b6000602082840312156105d657600080fd5b81356001600160e01b0319811681146105ee57600080fd5b9392505050565b80356001600160a01b038116811461060c57600080fd5b919050565b801515811461061f57600080fd5b50565b6000806000806080858703121561063857600080fd5b84359350610648602086016105f5565b9250604085013561065881610611565b9150606085013561066881610611565b939692955090935050565b6000806000806060858703121561068957600080fd5b84359350610699602086016105f5565b925060408501356001600160401b03808211156106b557600080fd5b818701915087601f8301126106c957600080fd5b8135818111156106d857600080fd5b8860208285010111156106ea57600080fd5b95989497505060200194505050565b60006020828403121561070b57600080fd5b5035919050565b634e487b7160e01b600052602160045260246000fd5b6001600160a01b0385168152608081016001851061075657634e487b7160e01b600052602160045260246000fd5b602082019490945291151560408301521515606090910152919050565b60006020828403121561078557600080fd5b6105ee826105f5565b634e487b7160e01b600052604160045260246000fd5b604051601f8201601f191681016001600160401b03811182821017156107cc576107cc61078e565b604052919050565b600082601f8301126107e557600080fd5b813560206001600160401b038211156108005761080061078e565b8160051b61080f8282016107a4565b928352848101820192828101908785111561082957600080fd5b83870192505b848310156108485782358252918301919083019061082f565b979650505050505050565b60008060006060848603121561086857600080fd5b833592506020808501356001600160401b038082111561088757600080fd5b818701915087601f83011261089b57600080fd5b8135818111156108ad576108ad61078e565b6108bf601f8201601f191685016107a4565b81815289858386010111156108d357600080fd5b8185850186830137600091810190940152919350604086013591808311156108fa57600080fd5b5050610908868287016107d4565b9150509250925092565b634e487b7160e01b600052603260045260246000fd5b604081526000835180604084015260005b818110156109565760208187018101516060868401015201610939565b50600060608285010152601f19601f820116830190506060810160206060858403016020860152818651808452608085019150602088019450600093505b808410156109b45784518252938201936001939093019290820190610994565b50979650505050505050565b6000602082840312156109d257600080fd5b81516105ee8161061156fea164736f6c6343000818000a",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b50600436106100625760003560e01c806301ffc9a71461006757806354c2db031461008f5780638da5cb5b146100a4578063b7b9f7d5146100cf578063e236f46b146100e2578063f2fde38b1461013c575b600080fd5b61007a6100753660046105c4565b61014f565b60405190151581526020015b60405180910390f35b6100a261009d366004610622565b610186565b005b6000546100b7906001600160a01b031681565b6040516001600160a01b039091168152602001610086565b61007a6100dd366004610673565b6102ee565b61012c6100f03660046106f9565b6001602052600090815260409020546001600160a01b0381169060ff600160a01b8204811691600160a81b8104821691600160b01b9091041684565b6040516100869493929190610728565b6100a261014a366004610773565b610517565b60006001600160e01b0319821663b7b9f7d560e01b148061018057506001600160e01b031982166301ffc9a760e01b145b92915050565b6000546001600160a01b031633146101b1576040516330cd747160e01b815260040160405180910390fd5b6001600160a01b0383166101d85760405163d92e233d60e01b815260040160405180910390fd5b60408051608081019091526001600160a01b0384168152602081016000815283151560208083019190915283151560409283015260008781526001825291909120825181546001600160a01b039091166001600160a01b031982168117835592840151919283916001600160a81b03191617600160a01b83801561025e5761025e610712565b021790555060408281015182546060948501511515600160b01b0260ff60b01b19921515600160a81b029290921661ffff60a81b19909116171790915580516001600160a01b038616815284151560208201528315159181019190915285917fd176ff3274580bf20a2e2bec742bf7b00fb18b69d9027a080f40f9390ef200a1910160405180910390a250505050565b60008080806102ff85870187610853565b600083815260016020908152604080832081516080810190925280546001600160a01b0381168352969950949750929550909391929190830190600160a01b900460ff16801561035157610351610712565b801561035f5761035f610712565b8152905460ff600160a81b8204811615156020840152600160b01b90910416151560409182015281015190915061039d57600094505050505061050f565b8060600151156104475781516000036103c957604051631653f51160e01b815260040160405180910390fd5b600089896040516020016103f09291909182526001600160a01b0316602082015260400190565b6040516020818303038152906040528051906020012060001c9050808360008151811061041f5761041f610912565b6020026020010151146104455760405163438c487360e01b815260040160405180910390fd5b505b8051604051631e8e1e1360e01b81526000916001600160a01b031690631e8e1e13906104799087908790600401610928565b602060405180830381865afa9250505080156104b2575060408051601f3d908101601f191682019092526104af918101906109c0565b60015b6104be575060006104c1565b90505b84896001600160a01b03168b7f31ce099646c5706ae774e53ed3719bf4cac51d696848ad196de3c344ac563fd684604051610500911515815260200190565b60405180910390a49450505050505b949350505050565b6000546001600160a01b03163314610542576040516330cd747160e01b815260040160405180910390fd5b6001600160a01b0381166105695760405163d92e233d60e01b815260040160405180910390fd5b600080546040516001600160a01b03808516939216917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e091a3600080546001600160a01b0319166001600160a01b0392909216919091179055565b6000602082840312156105d657600080fd5b81356001600160e01b0319811681146105ee57600080fd5b9392505050565b80356001600160a01b038116811461060c57600080fd5b919050565b801515811461061f57600080fd5b50565b6000806000806080858703121561063857600080fd5b84359350610648602086016105f5565b9250604085013561065881610611565b9150606085013561066881610611565b939692955090935050565b6000806000806060858703121561068957600080fd5b84359350610699602086016105f5565b925060408501356001600160401b03808211156106b557600080fd5b818701915087601f8301126106c957600080fd5b8135818111156106d857600080fd5b8860208285010111156106ea57600080fd5b95989497505060200194505050565b60006020828403121561070b57600080fd5b5035919050565b634e487b7160e01b600052602160045260246000fd5b6001600160a01b0385168152608081016001851061075657634e487b7160e01b600052602160045260246000fd5b602082019490945291151560408301521515606090910152919050565b60006020828403121561078557600080fd5b6105ee826105f5565b634e487b7160e01b600052604160045260246000fd5b604051601f8201601f191681016001600160401b03811182821017156107cc576107cc61078e565b604052919050565b600082601f8301126107e557600080fd5b813560206001600160401b038211156108005761080061078e565b8160051b61080f8282016107a4565b928352848101820192828101908785111561082957600080fd5b83870192505b848310156108485782358252918301919083019061082f565b979650505050505050565b60008060006060848603121561086857600080fd5b833592506020808501356001600160401b038082111561088757600080fd5b818701915087601f83011261089b57600080fd5b8135818111156108ad576108ad61078e565b6108bf601f8201601f191685016107a4565b81815289858386010111156108d357600080fd5b8185850186830137600091810190940152919350604086013591808311156108fa57600080fd5b5050610908868287016107d4565b9150509250925092565b634e487b7160e01b600052603260045260246000fd5b604081526000835180604084015260005b818110156109565760208187018101516060868401015201610939565b50600060608285010152601f19601f820116830190506060810160206060858403016020860152818651808452608085019150602088019450600093505b808410156109b45784518252938201936001939093019290820190610994565b50979650505050505050565b6000602082840312156109d257600080fd5b81516105ee8161061156fea164736f6c6343000818000a",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {
+      "supportsInterface(bytes4)": {
+        "details": "Returns true if this contract implements the interface defined by `interfaceId`. See the corresponding https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[ERC section] to learn more about how these ids are created. This function call must use less than 30 000 gas."
+      },
+      "verify(uint256,address,bytes)": {
+        "params": {
+          "challengeId": "Challenge identifier.",
+          "proof": "ABI-encoded verifier-specific payload (opaque to callers).",
+          "subject": "The user/account the proof is about."
+        },
+        "returns": {
+          "_0": "        True if the proof is valid."
+        }
+      }
+    },
+    "title": "ZkProofVerifier",
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {
+      "verify(uint256,address,bytes)": {
+        "notice": "Verify an off-chain proof bound to (challengeId, subject)."
+      }
+    },
+    "notice": "Adapter that plugs Plonk verifiers into ChallengePay.         Binds challengeId+subject to public signals if enforceBinding=true.",
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [
+      {
+        "astId": 13173,
+        "contract": "contracts/zk/ZkProofVerifier.sol:ZkProofVerifier",
+        "label": "owner",
+        "offset": 0,
+        "slot": "0",
+        "type": "t_address"
+      },
+      {
+        "astId": 13190,
+        "contract": "contracts/zk/ZkProofVerifier.sol:ZkProofVerifier",
+        "label": "models",
+        "offset": 0,
+        "slot": "1",
+        "type": "t_mapping(t_bytes32,t_struct(ModelCfg)13185_storage)"
+      }
+    ],
+    "types": {
+      "t_address": {
+        "encoding": "inplace",
+        "label": "address",
+        "numberOfBytes": "20"
+      },
+      "t_bool": {
+        "encoding": "inplace",
+        "label": "bool",
+        "numberOfBytes": "1"
+      },
+      "t_bytes32": {
+        "encoding": "inplace",
+        "label": "bytes32",
+        "numberOfBytes": "32"
+      },
+      "t_enum(Flavor)13175": {
+        "encoding": "inplace",
+        "label": "enum ZkProofVerifier.Flavor",
+        "numberOfBytes": "1"
+      },
+      "t_mapping(t_bytes32,t_struct(ModelCfg)13185_storage)": {
+        "encoding": "mapping",
+        "key": "t_bytes32",
+        "label": "mapping(bytes32 => struct ZkProofVerifier.ModelCfg)",
+        "numberOfBytes": "32",
+        "value": "t_struct(ModelCfg)13185_storage"
+      },
+      "t_struct(ModelCfg)13185_storage": {
+        "encoding": "inplace",
+        "label": "struct ZkProofVerifier.ModelCfg",
+        "members": [
+          {
+            "astId": 13177,
+            "contract": "contracts/zk/ZkProofVerifier.sol:ZkProofVerifier",
+            "label": "verifier",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_address"
+          },
+          {
+            "astId": 13180,
+            "contract": "contracts/zk/ZkProofVerifier.sol:ZkProofVerifier",
+            "label": "flavor",
+            "offset": 20,
+            "slot": "0",
+            "type": "t_enum(Flavor)13175"
+          },
+          {
+            "astId": 13182,
+            "contract": "contracts/zk/ZkProofVerifier.sol:ZkProofVerifier",
+            "label": "active",
+            "offset": 21,
+            "slot": "0",
+            "type": "t_bool"
+          },
+          {
+            "astId": 13184,
+            "contract": "contracts/zk/ZkProofVerifier.sol:ZkProofVerifier",
+            "label": "enforceBinding",
+            "offset": 22,
+            "slot": "0",
+            "type": "t_bool"
+          }
+        ],
+        "numberOfBytes": "32"
+      }
+    }
+  }
+}

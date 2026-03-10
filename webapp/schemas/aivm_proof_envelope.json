@@ -1,0 +1,20 @@
+{
+    "title": "AIVMProofEnvelope",
+    "type": "object",
+    "properties": {
+      "modelHash": { "type": "string", "description": "0x…32 bytes" },
+      "bind": { "type": "string", "description": "uint256 decimal string" },
+      "publicSignals": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "uint256[] as decimal strings"
+      },
+      "dataHash": { "type": "string", "description": "0x…32 bytes; hash of normalized inputs" },
+      "nonce": { "type": "string", "description": "uint256 decimal string" },
+      "expiry": { "type": "number", "description": "unix timestamp" },
+      "payload": { "type": "string", "description": "0x… bytes; opaque proofData" },
+      "signer": { "type": "string", "description": "EOA or contract wallet" },
+      "signature": { "type": "string", "description": "0x… EIP-712 signature" }
+    },
+    "required": ["modelHash","bind","publicSignals","dataHash","payload","signer","signature"]
+  }

@@ -1,5 +1,6 @@
 // scripts/admin/setTreasury.ts
-import { ethers } from "hardhat"
+import * as hre from "hardhat";
+const { ethers } = hre;
 
 async function main() {
   const challengeAddr = process.env.CHALLENGEPAY as `0x${string}`

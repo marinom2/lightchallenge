@@ -39,8 +39,8 @@
 //   SIGNERS=0x<pk1>,0x<pk2> \
 //   npx hardhat run scripts/ops/submitProof.ts --network <net>
 
-import hardhat from "hardhat";
-const { ethers, network } = hardhat;
+import hre from "hardhat";
+const { ethers, network } = hre;
 import * as fs from "fs";
 import path from "path";
 import { context, header, info, fail } from "../dev/utils";

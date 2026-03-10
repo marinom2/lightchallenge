@@ -1,0 +1,20 @@
+{
+    "title": "GamingCanonicalRecord",
+    "type": "object",
+    "properties": {
+      "provider": { "type": "string" },
+      "player_id": { "type": "string" },
+      "match_id": { "type": "string" },
+      "queue": { "type": "string", "enum": ["ranked","normal","other"] },
+      "start_ts": { "type": "number" },
+      "end_ts": { "type": "number" },
+      "team_result": { "type": "string", "enum": ["win","loss","draw"] },
+      "k": { "type": "number" },
+      "d": { "type": "number" },
+      "a": { "type": "number" },
+      "hero_champion": { "type": "string" },
+      "mmr_or_lp": { "type": ["number","null"] },
+      "checksum": { "type": "string" }
+    },
+    "required": ["provider","player_id","match_id","queue","start_ts","team_result","k","d","a","hero_champion","checksum"]
+  }

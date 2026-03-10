@@ -1,0 +1,23 @@
+[
+  {
+    "subject": "0x95a4ce3c93dbcdb9b3cdfb4ccae6efbdb4cca217",
+    "provider": "steam",
+    "external_id": "76561198104201341",
+    "handle": "EL PATRON",
+    "avatar_url": "https://avatars.steamstatic.com/3cc969107a76d05aa179858fb578efd6f7c2f1f9_full.jpg"
+  },
+  {
+    "subject": "0xa969a5c0434b427a5ae3e673607060eb5c87b886",
+    "provider": "steam",
+    "external_id": "76561198104201341",
+    "handle": "EL PATRON",
+    "avatar_url": "https://avatars.steamstatic.com/3cc969107a76d05aa179858fb578efd6f7c2f1f9_full.jpg"
+  },
+  {
+    "subject": "0xe5a4ef99195e33a2e0ab42820a74d29990139131",
+    "provider": "steam",
+    "external_id": "76561198104201341",
+    "handle": "EL PATRON",
+    "avatar_url": "https://avatars.steamstatic.com/3cc969107a76d05aa179858fb578efd6f7c2f1f9_full.jpg"
+  }
+]

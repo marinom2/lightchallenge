@@ -1,79 +1,102 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IProofVerifier} from "../IProofVerifier.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {IProofVerifier} from "../verifiers/IProofVerifier.sol";
 import {IPlonkVerifier} from "./IPlonkVerifier.sol";
+
+error NotOwner();
+error ZeroAddress();
+error ModelInactive();
+error BindingMismatch();
+error NoPublicSignals();
 
 /**
  * @title ZkProofVerifier
- * @notice Generic zk verifier that plugs into ChallengePay via IProofVerifier.
- *         Owner registers allowed model hashes and their PLONK verifier contracts.
- *
- * Proof bytes layout (ABI-encoded):
- *   (bytes32 modelHash, bytes proofData, uint256[] publicSignals)
- *
- * Binding (recommended):
- *   If enforceBinding=true for a model, publicSignals[0] MUST equal
- *   uint256(keccak256(abi.encode(challengeId, subject))).
- *
- * NOTE: This contract is PLONK-only for now. Add Groth16 adapter later if needed.
+ * @notice Adapter that plugs Plonk verifiers into ChallengePay.
+ *         Binds challengeId+subject to public signals if enforceBinding=true.
  */
 contract ZkProofVerifier is IProofVerifier {
     event ModelSet(bytes32 indexed modelHash, address verifier, bool active, bool enforceBinding);
     event Verified(uint256 indexed challengeId, address indexed subject, bytes32 indexed modelHash, bool ok);
+    event OwnershipTransferred(address indexed prev, address indexed next);
 
     address public owner;
 
-    enum Flavor { PLONK } // extendable
+    enum Flavor { PLONK }
 
     struct ModelCfg {
-        address verifier;   // IPlonkVerifier
-        Flavor  flavor;     // future-proof enum
+        address verifier;
+        Flavor  flavor;
         bool    active;
-        bool    enforceBinding; // require pubSignals[0] == keccak(challengeId, subject)
+        bool    enforceBinding;
     }
 
     mapping(bytes32 => ModelCfg) public models;
 
     modifier onlyOwner() {
-        require(msg.sender == owner, "not-owner");
+        if (msg.sender != owner) revert NotOwner();
         _;
     }
 
-    constructor() {
-        owner = msg.sender;
+    constructor(address initialOwner) {
+        if (initialOwner == address(0)) revert ZeroAddress();
+        owner = initialOwner;
+        emit OwnershipTransferred(address(0), initialOwner);
     }
 
     function transferOwnership(address n) external onlyOwner {
+        if (n == address(0)) revert ZeroAddress();
+        emit OwnershipTransferred(owner, n);
         owner = n;
     }
 
-    /// @notice Register/activate a model hash with a verifier.
     function setModel(bytes32 modelHash, address verifier, bool active, bool enforceBinding) external onlyOwner {
-        require(verifier != address(0), "verifier=0");
-        models[modelHash] = ModelCfg({verifier: verifier, flavor: Flavor.PLONK, active: active, enforceBinding: enforceBinding});
+        if (verifier == address(0)) revert ZeroAddress();
+        models[modelHash] = ModelCfg({
+            verifier: verifier,
+            flavor: Flavor.PLONK,
+            active: active,
+            enforceBinding: enforceBinding
+        });
         emit ModelSet(modelHash, verifier, active, enforceBinding);
     }
 
     /// @inheritdoc IProofVerifier
-    function verify(uint256 challengeId, address subject, bytes calldata proof) external override returns (bool) {
+    function verify(uint256 challengeId, address subject, bytes calldata proof)
+        external
+        override
+        returns (bool)
+    {
         (bytes32 modelHash, bytes memory proofData, uint256[] memory publicSignals) =
             abi.decode(proof, (bytes32, bytes, uint256[]));
 
         ModelCfg memory cfg = models[modelHash];
         if (!cfg.active) {
-            emit Verified(challengeId, subject, modelHash, false);
             return false;
         }
 
         if (cfg.enforceBinding) {
-            require(publicSignals.length > 0, "no-pubs");
+            if (publicSignals.length == 0) revert NoPublicSignals();
             uint256 bind = uint256(keccak256(abi.encode(challengeId, subject)));
-            require(publicSignals[0] == bind, "binding-mismatch");
+            if (publicSignals[0] != bind) revert BindingMismatch();
         }
 
-        bool ok = IPlonkVerifier(cfg.verifier).verifyProof(proofData, publicSignals);
+        bool ok;
+        try IPlonkVerifier(cfg.verifier).verifyProof(proofData, publicSignals) returns (bool v) {
+            ok = v;
+        } catch {
+            ok = false; // fail-closed on verifier exceptions
+        }
+
         emit Verified(challengeId, subject, modelHash, ok);
         return ok;
     }
+
+    // IMPORTANT: match IERC165 signature
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+         return
+             interfaceId == type(IProofVerifier).interfaceId ||
+             interfaceId == type(IERC165).interfaceId;
+     }
 }

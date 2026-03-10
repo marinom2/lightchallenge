@@ -2,8 +2,8 @@ import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-ethers";
 // scripts/unregisterValidator.ts
 import hre from "hardhat";
-import hardhat from "hardhat";
-const { ethers } = hardhat;
+import hre from "hardhat";
+const { ethers } = hre;
 import fs from "fs";
 
 type BigNumberish = bigint;

@@ -1,6 +1,6 @@
 import "@nomicfoundation/hardhat-ethers";
-import hardhat from "hardhat";
-const { ethers } = hardhat;
+import hre from "hardhat";
+const { ethers } = hre;
 import * as fs from "fs";
 import * as path from "path";
 import dotenv from "dotenv";

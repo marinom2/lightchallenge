@@ -6,9 +6,9 @@
 //   ADDR=<ChallengePay> CH_ID=<number> [DRY=1] \
 //   npx hardhat run scripts/ops/claimAllForMe.ts --network <yourNet>
 //
-import hardhat from "hardhat";
+import hre from "hardhat";
 import "@nomicfoundation/hardhat-ethers";
-const { run } = hardhat;
+const { run } = hre;
 
 async function main() {
   console.log("— ChallengePay: Claim ALL —");

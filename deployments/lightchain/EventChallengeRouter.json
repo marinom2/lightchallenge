@@ -1,0 +1,594 @@
+{
+  "address": "0x2c33B069E86EaF1D8b413eD32D7A35995499b5D2",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "challengePay",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "metadataRegistry",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "AlreadyFinalized",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "BadIndex",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "EventExists",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "EventMissing",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NotOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ZeroAddress",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "eventId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint8",
+          "name": "winnerIndex",
+          "type": "uint8"
+        }
+      ],
+      "name": "EventFinalized",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "eventId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "title",
+          "type": "string"
+        }
+      ],
+      "name": "EventRegistered",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "eventId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "uri",
+          "type": "string"
+        }
+      ],
+      "name": "EventURISet",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "eventId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint8",
+          "name": "index",
+          "type": "uint8"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "challengeId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "subject",
+          "type": "address"
+        }
+      ],
+      "name": "OutcomeAdded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "prev",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "next",
+          "type": "address"
+        }
+      ],
+      "name": "OwnerChanged",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "eventId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "challengeId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "subject",
+          "type": "address"
+        }
+      ],
+      "name": "addOutcome",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "challenge",
+      "outputs": [
+        {
+          "internalType": "contract IChallengePay",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "eventId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint8",
+          "name": "winnerIndex",
+          "type": "uint8"
+        },
+        {
+          "internalType": "bytes",
+          "name": "proof",
+          "type": "bytes"
+        }
+      ],
+      "name": "finalizeEvent",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "eventId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getEvent",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "title",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "metaURI",
+          "type": "string"
+        },
+        {
+          "internalType": "bool",
+          "name": "finalized",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint8",
+          "name": "winnerIndex",
+          "type": "uint8"
+        },
+        {
+          "components": [
+            {
+              "internalType": "string",
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "internalType": "uint256",
+              "name": "challengeId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "subject",
+              "type": "address"
+            }
+          ],
+          "internalType": "struct EventChallengeRouter.Outcome[]",
+          "name": "outcomes",
+          "type": "tuple[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "eventId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "outcomesCount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "eventId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "title",
+          "type": "string"
+        }
+      ],
+      "name": "registerEvent",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "registry",
+      "outputs": [
+        {
+          "internalType": "contract IMetadataRegistry",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "eventId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "string",
+          "name": "uri",
+          "type": "string"
+        }
+      ],
+      "name": "setEventURI",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4",
+          "name": "interfaceId",
+          "type": "bytes4"
+        }
+      ],
+      "name": "supportsInterface",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "n",
+          "type": "address"
+        }
+      ],
+      "name": "transferOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0xe684eab1ffb3134118741c0c618c3fd68ef80d73c5581d105ee7053faa523e36",
+  "receipt": {
+    "to": null,
+    "from": "0x95A4CE3c93dBcDb9b3CdFb4CCAE6EFBDb4cCA217",
+    "contractAddress": "0x2c33B069E86EaF1D8b413eD32D7A35995499b5D2",
+    "transactionIndex": 0,
+    "gasUsed": "1013239",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000080000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000004000000020000000000000000000800000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000000020000000000000000000000000080000000000000000000000000008000000000000",
+    "blockHash": "0x67316697fc0b619308cf6ca0501eba6a21a0d35fb067e38c156dbd810b50a860",
+    "transactionHash": "0xe684eab1ffb3134118741c0c618c3fd68ef80d73c5581d105ee7053faa523e36",
+    "logs": [
+      {
+        "transactionIndex": 0,
+        "blockNumber": 1280418,
+        "transactionHash": "0xe684eab1ffb3134118741c0c618c3fd68ef80d73c5581d105ee7053faa523e36",
+        "address": "0x2c33B069E86EaF1D8b413eD32D7A35995499b5D2",
+        "topics": [
+          "0xb532073b38c83145e3e5135377a08bf9aab55bc0fd7c1179cd4fb995d2a5159c",
+          "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "0x00000000000000000000000095a4ce3c93dbcdb9b3cdfb4ccae6efbdb4cca217"
+        ],
+        "data": "0x",
+        "logIndex": 0,
+        "blockHash": "0x67316697fc0b619308cf6ca0501eba6a21a0d35fb067e38c156dbd810b50a860"
+      }
+    ],
+    "blockNumber": 1280418,
+    "cumulativeGasUsed": "1013239",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [
+    "0xEF52411a2f13DbE3BBB60A8474808D4d4F7F4CA2",
+    "0xe9bAA8c04cd77d06A736fc987cC13348DfF0bfAb"
+  ],
+  "numDeployments": 1,
+  "solcInputHash": "e2df1da9d10690299fbbf088748853f5",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.24+commit.e11b9ed9\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"challengePay\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"metadataRegistry\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"AlreadyFinalized\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"BadIndex\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"EventExists\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"EventMissing\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NotOwner\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ZeroAddress\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"eventId\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"winnerIndex\",\"type\":\"uint8\"}],\"name\":\"EventFinalized\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"eventId\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"title\",\"type\":\"string\"}],\"name\":\"EventRegistered\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"eventId\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"uri\",\"type\":\"string\"}],\"name\":\"EventURISet\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"eventId\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"index\",\"type\":\"uint8\"},{\"indexed\":false,\"internalType\":\"string\",\"name\":\"name\",\"type\":\"string\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"challengeId\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"subject\",\"type\":\"address\"}],\"name\":\"OutcomeAdded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"prev\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"next\",\"type\":\"address\"}],\"name\":\"OwnerChanged\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"eventId\",\"type\":\"bytes32\"},{\"internalType\":\"string\",\"name\":\"name\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"challengeId\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"subject\",\"type\":\"address\"}],\"name\":\"addOutcome\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"challenge\",\"outputs\":[{\"internalType\":\"contract IChallengePay\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"eventId\",\"type\":\"bytes32\"},{\"internalType\":\"uint8\",\"name\":\"winnerIndex\",\"type\":\"uint8\"},{\"internalType\":\"bytes\",\"name\":\"proof\",\"type\":\"bytes\"}],\"name\":\"finalizeEvent\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"eventId\",\"type\":\"bytes32\"}],\"name\":\"getEvent\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"title\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"metaURI\",\"type\":\"string\"},{\"internalType\":\"bool\",\"name\":\"finalized\",\"type\":\"bool\"},{\"internalType\":\"uint8\",\"name\":\"winnerIndex\",\"type\":\"uint8\"},{\"components\":[{\"internalType\":\"string\",\"name\":\"name\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"challengeId\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"subject\",\"type\":\"address\"}],\"internalType\":\"struct EventChallengeRouter.Outcome[]\",\"name\":\"outcomes\",\"type\":\"tuple[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"eventId\",\"type\":\"bytes32\"}],\"name\":\"outcomesCount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"eventId\",\"type\":\"bytes32\"},{\"internalType\":\"string\",\"name\":\"title\",\"type\":\"string\"}],\"name\":\"registerEvent\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"registry\",\"outputs\":[{\"internalType\":\"contract IMetadataRegistry\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"eventId\",\"type\":\"bytes32\"},{\"internalType\":\"string\",\"name\":\"uri\",\"type\":\"string\"}],\"name\":\"setEventURI\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"n\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"supportsInterface(bytes4)\":{\"details\":\"Returns true if this contract implements the interface defined by `interfaceId`. See the corresponding https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[ERC section] to learn more about how these ids are created. This function call must use less than 30 000 gas.\"}},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/router/EventChallengeRouter.sol\":\"EventChallengeRouter\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"none\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":1},\"remappings\":[]},\"sources\":{\"@openzeppelin/contracts/utils/introspection/IERC165.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\n// OpenZeppelin Contracts (last updated v5.4.0) (utils/introspection/IERC165.sol)\\n\\npragma solidity >=0.4.16;\\n\\n/**\\n * @dev Interface of the ERC-165 standard, as defined in the\\n * https://eips.ethereum.org/EIPS/eip-165[ERC].\\n *\\n * Implementers can declare support of contract interfaces, which can then be\\n * queried by others ({ERC165Checker}).\\n *\\n * For an implementation, see {ERC165}.\\n */\\ninterface IERC165 {\\n    /**\\n     * @dev Returns true if this contract implements the interface defined by\\n     * `interfaceId`. See the corresponding\\n     * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[ERC section]\\n     * to learn more about how these ids are created.\\n     *\\n     * This function call must use less than 30 000 gas.\\n     */\\n    function supportsInterface(bytes4 interfaceId) external view returns (bool);\\n}\\n\",\"keccak256\":\"0x8891738ffe910f0cf2da09566928589bf5d63f4524dd734fd9cedbac3274dd5c\",\"license\":\"MIT\"},\"contracts/router/EventChallengeRouter.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.24;\\n\\nimport {IERC165} from \\\"@openzeppelin/contracts/utils/introspection/IERC165.sol\\\";\\n\\ninterface IChallengePay {\\n  function submitProof(uint256 id, bytes calldata proof) external;\\n  function finalize(uint256 id) external;\\n}\\n\\ninterface IMetadataRegistry {\\n  function ownerSet(address contractAddr, uint256 id, string calldata uri) external;\\n}\\n\\nerror NotOwner();\\nerror EventExists();\\nerror EventMissing();\\nerror AlreadyFinalized();\\nerror BadIndex();\\nerror ZeroAddress();\\n\\ncontract EventChallengeRouter is IERC165 {\\n  address public owner;\\n  IChallengePay public immutable challenge;\\n  IMetadataRegistry public immutable registry;\\n\\n  struct Outcome {\\n    string name;\\n    uint256 challengeId;\\n    address subject; // for UI; ChallengePay binds to challenger internally\\n  }\\n\\n  struct EventInfo {\\n    string title;\\n    string metaURI;\\n    bool finalized;\\n    uint8 winnerIndex;\\n    Outcome[] outcomes;\\n  }\\n\\n  mapping(bytes32 => EventInfo) private events;\\n\\n  event OwnerChanged(address indexed prev, address indexed next);\\n  event EventRegistered(bytes32 indexed eventId, string title);\\n  event OutcomeAdded(bytes32 indexed eventId, uint8 index, string name, uint256 challengeId, address subject);\\n  event EventURISet(bytes32 indexed eventId, string uri);\\n  event EventFinalized(bytes32 indexed eventId, uint8 winnerIndex);\\n\\n  modifier onlyOwner() {\\n    if (msg.sender != owner) revert NotOwner();\\n    _;\\n  }\\n\\n  constructor(address challengePay, address metadataRegistry) {\\n    if (challengePay == address(0) || metadataRegistry == address(0)) revert ZeroAddress();\\n    owner = msg.sender;\\n    challenge = IChallengePay(challengePay);\\n    registry = IMetadataRegistry(metadataRegistry);\\n    emit OwnerChanged(address(0), msg.sender);\\n  }\\n\\n  function transferOwnership(address n) external onlyOwner {\\n    if (n == address(0)) revert ZeroAddress();\\n    emit OwnerChanged(owner, n);\\n    owner = n;\\n  }\\n\\n  function registerEvent(bytes32 eventId, string calldata title) external onlyOwner {\\n    EventInfo storage e = events[eventId];\\n    if (bytes(e.title).length != 0) revert EventExists();\\n    e.title = title;\\n    emit EventRegistered(eventId, title);\\n  }\\n\\n  function addOutcome(bytes32 eventId, string calldata name, uint256 challengeId, address subject)\\n    external\\n    onlyOwner\\n  {\\n    EventInfo storage e = events[eventId];\\n    if (bytes(e.title).length == 0) revert EventMissing();\\n    e.outcomes.push(Outcome(name, challengeId, subject));\\n    emit OutcomeAdded(eventId, uint8(e.outcomes.length - 1), name, challengeId, subject);\\n  }\\n\\n  function setEventURI(bytes32 eventId, string calldata uri) external onlyOwner {\\n    EventInfo storage e = events[eventId];\\n    if (bytes(e.title).length == 0) revert EventMissing();\\n    e.metaURI = uri;\\n    // Best-effort mirror into external registry\\n    try registry.ownerSet(address(this), uint256(eventId), uri) {} catch {}\\n    emit EventURISet(eventId, uri);\\n  }\\n\\n  function finalizeEvent(bytes32 eventId, uint8 winnerIndex, bytes calldata proof) external onlyOwner {\\n    EventInfo storage e = events[eventId];\\n    if (bytes(e.title).length == 0) revert EventMissing();\\n    if (e.finalized) revert AlreadyFinalized();\\n    if (winnerIndex >= e.outcomes.length) revert BadIndex();\\n\\n    Outcome storage w = e.outcomes[winnerIndex];\\n\\n    // Step 1: submit proof (if the challenge requires one)\\n    // Safe to try/catch: some challenges may not require proof or may reject empty proof.\\n    try challenge.submitProof(w.challengeId, proof) { } catch { }\\n\\n    // Step 2: finalize challenge\\n    challenge.finalize(w.challengeId);\\n\\n    e.finalized = true;\\n    e.winnerIndex = winnerIndex;\\n    emit EventFinalized(eventId, winnerIndex);\\n  }\\n\\n  function getEvent(bytes32 eventId) external view returns (\\n    string memory title,\\n    string memory metaURI,\\n    bool finalized,\\n    uint8 winnerIndex,\\n    Outcome[] memory outcomes\\n  ) {\\n    EventInfo storage e = events[eventId];\\n    return (e.title, e.metaURI, e.finalized, e.winnerIndex, e.outcomes);\\n  }\\n\\n  function outcomesCount(bytes32 eventId) external view returns (uint256) {\\n    return events[eventId].outcomes.length;\\n  }\\n\\n  // IERC165\\n  function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {\\n    return interfaceId == type(IERC165).interfaceId;\\n  }\\n}\",\"keccak256\":\"0xf7b405166d90a44609abb1641beb9d07cf4d5158632ebdf6e1ed26adcfa41223\",\"license\":\"MIT\"}},\"version\":1}",
+  "bytecode": "0x60c060405234801561001057600080fd5b5060405161122938038061122983398101604081905261002f916100df565b6001600160a01b038216158061004c57506001600160a01b038116155b1561006a5760405163d92e233d60e01b815260040160405180910390fd5b600080546001600160a01b0319163390811782556001600160a01b03848116608052831660a0526040519091907fb532073b38c83145e3e5135377a08bf9aab55bc0fd7c1179cd4fb995d2a5159c908290a35050610112565b80516001600160a01b03811681146100da57600080fd5b919050565b600080604083850312156100f257600080fd5b6100fb836100c3565b9150610109602084016100c3565b90509250929050565b60805160a0516110dd61014c6000396000818161014801526103470152600081816101d1015281816104c1015261055b01526110dd6000f3fe608060405234801561001057600080fd5b50600436106100995760003560e01c806301ffc9a71461009e57806306e9d8a8146100d757806308f548ae146100ec578063135e0536146100ff578063799a9b92146101125780637b103999146101435780638c172fa2146101825780638da5cb5b146101a6578063cd285a33146101b9578063d2ef7398146101cc578063f2fde38b146101f3575b600080fd5b6100c26100ac366004610aac565b6001600160e01b0319166301ffc9a760e01b1490565b60405190151581526020015b60405180910390f35b6100ea6100e5366004610b25565b610206565b005b6100ea6100fa366004610b25565b6102b8565b6100ea61010d366004610b70565b6103e0565b610135610120366004610bd1565b60009081526001602052604090206003015490565b6040519081526020016100ce565b61016a7f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b0390911681526020016100ce565b610195610190366004610bd1565b610625565b6040516100ce959493929190610c30565b60005461016a906001600160a01b031681565b6100ea6101c7366004610d10565b61089a565b61016a7f000000000000000000000000000000000000000000000000000000000000000081565b6100ea610201366004610d76565b6109ff565b6000546001600160a01b03163314610231576040516330cd747160e01b815260040160405180910390fd5b60008381526001602052604090208054819061024c90610d91565b15905061026b5760405162ceef7560e11b815260040160405180910390fd5b80610277838583610e47565b50837fdb838df1fbb32d807bb1ec43afc8f81fb0c76964708c79e129a864b4417c84e384846040516102aa929190610f2a565b60405180910390a250505050565b6000546001600160a01b031633146102e3576040516330cd747160e01b815260040160405180910390fd5b6000838152600160205260409020805481906102fe90610d91565b90506000036103205760405163255aba8360e11b815260040160405180910390fd5b6001810161032f838583610e47565b506040516311676ea960e31b81526001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001690638b3b754890610382903090889088908890600401610f46565b600060405180830381600087803b15801561039c57600080fd5b505af19250505080156103ad575060015b50837f3100a2f512c72362c64d90465c7105bfab0c880a966349b7be017e5e1096380584846040516102aa929190610f2a565b6000546001600160a01b0316331461040b576040516330cd747160e01b815260040160405180910390fd5b60008481526001602052604090208054819061042690610d91565b90506000036104485760405163255aba8360e11b815260040160405180910390fd5b600281015460ff161561046e5760405163475a253560e01b815260040160405180910390fd5b600381015460ff8516106104955760405163779ffa5760e11b815260040160405180910390fd5b6000816003018560ff16815481106104af576104af610f78565b906000526020600020906003020190507f00000000000000000000000000000000000000000000000000000000000000006001600160a01b031663c244a7b9826001015486866040518463ffffffff1660e01b815260040161051393929190610f8e565b600060405180830381600087803b15801561052d57600080fd5b505af192505050801561053e575060015b5060018101546040516302930d7560e11b815260048101919091527f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316906305261aea90602401600060405180830381600087803b1580156105a757600080fd5b505af11580156105bb573d6000803e3d6000fd5b50505060028301805460ff88166101000261ffff199091161760011790555060405186907f67f0f83c848088b39d90925894f5c2c32dc3b0cc976c0dddb576920e79c1c8e89061061590889060ff91909116815260200190565b60405180910390a2505050505050565b60008181526001602081905260408220600281015481546060948594909384938693919283929083019160ff8082169261010090920416906003850190859061066d90610d91565b80601f016020809104026020016040519081016040528092919081815260200182805461069990610d91565b80156106e65780601f106106bb576101008083540402835291602001916106e6565b820191906000526020600020905b8154815290600101906020018083116106c957829003601f168201915b505050505094508380546106f990610d91565b80601f016020809104026020016040519081016040528092919081815260200182805461072590610d91565b80156107725780601f1061074757610100808354040283529160200191610772565b820191906000526020600020905b81548152906001019060200180831161075557829003601f168201915b5050505050935080805480602002602001604051908101604052809291908181526020016000905b8282101561088157838290600052602060002090600302016040518060600160405290816000820180546107cd90610d91565b80601f01602080910402602001604051908101604052809291908181526020018280546107f990610d91565b80156108465780601f1061081b57610100808354040283529160200191610846565b820191906000526020600020905b81548152906001019060200180831161082957829003601f168201915b50505091835250506001828101546020808401919091526002909301546001600160a01b03166040909201919091529183529201910161079a565b50979f969e50949c50929a509850929650505050505050565b6000546001600160a01b031633146108c5576040516330cd747160e01b815260040160405180910390fd5b6000858152600160205260409020805481906108e090610d91565b90506000036109025760405163255aba8360e11b815260040160405180910390fd5b6040805160806020601f880181900402820181019092526060810186815260038401928291908990899081908501838280828437600092018290525093855250505060208083018890526001600160a01b03871660409093019290925283546001810185559381522081519192600302019081906109809082610fb1565b506020820151600182810191909155604090920151600290910180546001600160a01b0319166001600160a01b03909216919091179055600382015487917fed211b5f022ed6ecf7e09b632771774351f85235200143c152be230494543133916109ea919061106a565b87878787604051610615959493929190611091565b6000546001600160a01b03163314610a2a576040516330cd747160e01b815260040160405180910390fd5b6001600160a01b038116610a515760405163d92e233d60e01b815260040160405180910390fd5b600080546040516001600160a01b03808516939216917fb532073b38c83145e3e5135377a08bf9aab55bc0fd7c1179cd4fb995d2a5159c91a3600080546001600160a01b0319166001600160a01b0392909216919091179055565b600060208284031215610abe57600080fd5b81356001600160e01b031981168114610ad657600080fd5b9392505050565b60008083601f840112610aef57600080fd5b5081356001600160401b03811115610b0657600080fd5b602083019150836020828501011115610b1e57600080fd5b9250929050565b600080600060408486031215610b3a57600080fd5b8335925060208401356001600160401b03811115610b5757600080fd5b610b6386828701610add565b9497909650939450505050565b60008060008060608587031215610b8657600080fd5b84359350602085013560ff81168114610b9e57600080fd5b925060408501356001600160401b03811115610bb957600080fd5b610bc587828801610add565b95989497509550505050565b600060208284031215610be357600080fd5b5035919050565b6000815180845260005b81811015610c1057602081850181015186830182015201610bf4565b506000602082860101526020601f19601f83011685010191505092915050565b60a081526000610c4360a0830188610bea565b602083820381850152610c568289610bea565b915060408715156040860152606060ff8816606087015285840360808701528387518086528486019150848160051b870101858a0160005b83811015610ce057888303601f1901855281518051878552610cb288860182610bea565b828b0151868c0152918901516001600160a01b03169489019490945294880194925090870190600101610c8e565b50909e9d5050505050505050505050505050565b80356001600160a01b0381168114610d0b57600080fd5b919050565b600080600080600060808688031215610d2857600080fd5b8535945060208601356001600160401b03811115610d4557600080fd5b610d5188828901610add565b90955093505060408601359150610d6a60608701610cf4565b90509295509295909350565b600060208284031215610d8857600080fd5b610ad682610cf4565b600181811c90821680610da557607f821691505b602082108103610dc557634e487b7160e01b600052602260045260246000fd5b50919050565b634e487b7160e01b600052604160045260246000fd5b601f821115610e2d576000816000526020600020601f850160051c81016020861015610e0a5750805b601f850160051c820191505b81811015610e2957828155600101610e16565b5050505b505050565b600019600383901b1c191660019190911b1790565b6001600160401b03831115610e5e57610e5e610dcb565b610e7283610e6c8354610d91565b83610de1565b6000601f841160018114610ea05760008515610e8e5750838201355b610e988682610e32565b845550610efa565b600083815260209020601f19861690835b82811015610ed15786850135825560209485019460019092019101610eb1565b5086821015610eee5760001960f88860031b161c19848701351681555b505060018560011b0183555b5050505050565b81835281816020850137506000828201602090810191909152601f909101601f19169091010190565b602081526000610f3e602083018486610f01565b949350505050565b60018060a01b0385168152836020820152606060408201526000610f6e606083018486610f01565b9695505050505050565b634e487b7160e01b600052603260045260246000fd5b838152604060208201526000610fa8604083018486610f01565b95945050505050565b81516001600160401b03811115610fca57610fca610dcb565b610fde81610fd88454610d91565b84610de1565b602080601f83116001811461100d5760008415610ffb5750858301515b6110058582610e32565b865550610e29565b600085815260208120601f198616915b8281101561103c5788860151825594840194600190910190840161101d565b508582101561105a5787850151600019600388901b60f8161c191681555b5050505050600190811b01905550565b8181038181111561108b57634e487b7160e01b600052601160045260246000fd5b92915050565b60ff861681526080602082015260006110ae608083018688610f01565b6040830194909452506001600160a01b0391909116606090910152939250505056fea164736f6c6343000818000a",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b50600436106100995760003560e01c806301ffc9a71461009e57806306e9d8a8146100d757806308f548ae146100ec578063135e0536146100ff578063799a9b92146101125780637b103999146101435780638c172fa2146101825780638da5cb5b146101a6578063cd285a33146101b9578063d2ef7398146101cc578063f2fde38b146101f3575b600080fd5b6100c26100ac366004610aac565b6001600160e01b0319166301ffc9a760e01b1490565b60405190151581526020015b60405180910390f35b6100ea6100e5366004610b25565b610206565b005b6100ea6100fa366004610b25565b6102b8565b6100ea61010d366004610b70565b6103e0565b610135610120366004610bd1565b60009081526001602052604090206003015490565b6040519081526020016100ce565b61016a7f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b0390911681526020016100ce565b610195610190366004610bd1565b610625565b6040516100ce959493929190610c30565b60005461016a906001600160a01b031681565b6100ea6101c7366004610d10565b61089a565b61016a7f000000000000000000000000000000000000000000000000000000000000000081565b6100ea610201366004610d76565b6109ff565b6000546001600160a01b03163314610231576040516330cd747160e01b815260040160405180910390fd5b60008381526001602052604090208054819061024c90610d91565b15905061026b5760405162ceef7560e11b815260040160405180910390fd5b80610277838583610e47565b50837fdb838df1fbb32d807bb1ec43afc8f81fb0c76964708c79e129a864b4417c84e384846040516102aa929190610f2a565b60405180910390a250505050565b6000546001600160a01b031633146102e3576040516330cd747160e01b815260040160405180910390fd5b6000838152600160205260409020805481906102fe90610d91565b90506000036103205760405163255aba8360e11b815260040160405180910390fd5b6001810161032f838583610e47565b506040516311676ea960e31b81526001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001690638b3b754890610382903090889088908890600401610f46565b600060405180830381600087803b15801561039c57600080fd5b505af19250505080156103ad575060015b50837f3100a2f512c72362c64d90465c7105bfab0c880a966349b7be017e5e1096380584846040516102aa929190610f2a565b6000546001600160a01b0316331461040b576040516330cd747160e01b815260040160405180910390fd5b60008481526001602052604090208054819061042690610d91565b90506000036104485760405163255aba8360e11b815260040160405180910390fd5b600281015460ff161561046e5760405163475a253560e01b815260040160405180910390fd5b600381015460ff8516106104955760405163779ffa5760e11b815260040160405180910390fd5b6000816003018560ff16815481106104af576104af610f78565b906000526020600020906003020190507f00000000000000000000000000000000000000000000000000000000000000006001600160a01b031663c244a7b9826001015486866040518463ffffffff1660e01b815260040161051393929190610f8e565b600060405180830381600087803b15801561052d57600080fd5b505af192505050801561053e575060015b5060018101546040516302930d7560e11b815260048101919091527f00000000000000000000000000000000000000000000000000000000000000006001600160a01b0316906305261aea90602401600060405180830381600087803b1580156105a757600080fd5b505af11580156105bb573d6000803e3d6000fd5b50505060028301805460ff88166101000261ffff199091161760011790555060405186907f67f0f83c848088b39d90925894f5c2c32dc3b0cc976c0dddb576920e79c1c8e89061061590889060ff91909116815260200190565b60405180910390a2505050505050565b60008181526001602081905260408220600281015481546060948594909384938693919283929083019160ff8082169261010090920416906003850190859061066d90610d91565b80601f016020809104026020016040519081016040528092919081815260200182805461069990610d91565b80156106e65780601f106106bb576101008083540402835291602001916106e6565b820191906000526020600020905b8154815290600101906020018083116106c957829003601f168201915b505050505094508380546106f990610d91565b80601f016020809104026020016040519081016040528092919081815260200182805461072590610d91565b80156107725780601f1061074757610100808354040283529160200191610772565b820191906000526020600020905b81548152906001019060200180831161075557829003601f168201915b5050505050935080805480602002602001604051908101604052809291908181526020016000905b8282101561088157838290600052602060002090600302016040518060600160405290816000820180546107cd90610d91565b80601f01602080910402602001604051908101604052809291908181526020018280546107f990610d91565b80156108465780601f1061081b57610100808354040283529160200191610846565b820191906000526020600020905b81548152906001019060200180831161082957829003601f168201915b50505091835250506001828101546020808401919091526002909301546001600160a01b03166040909201919091529183529201910161079a565b50979f969e50949c50929a509850929650505050505050565b6000546001600160a01b031633146108c5576040516330cd747160e01b815260040160405180910390fd5b6000858152600160205260409020805481906108e090610d91565b90506000036109025760405163255aba8360e11b815260040160405180910390fd5b6040805160806020601f880181900402820181019092526060810186815260038401928291908990899081908501838280828437600092018290525093855250505060208083018890526001600160a01b03871660409093019290925283546001810185559381522081519192600302019081906109809082610fb1565b506020820151600182810191909155604090920151600290910180546001600160a01b0319166001600160a01b03909216919091179055600382015487917fed211b5f022ed6ecf7e09b632771774351f85235200143c152be230494543133916109ea919061106a565b87878787604051610615959493929190611091565b6000546001600160a01b03163314610a2a576040516330cd747160e01b815260040160405180910390fd5b6001600160a01b038116610a515760405163d92e233d60e01b815260040160405180910390fd5b600080546040516001600160a01b03808516939216917fb532073b38c83145e3e5135377a08bf9aab55bc0fd7c1179cd4fb995d2a5159c91a3600080546001600160a01b0319166001600160a01b0392909216919091179055565b600060208284031215610abe57600080fd5b81356001600160e01b031981168114610ad657600080fd5b9392505050565b60008083601f840112610aef57600080fd5b5081356001600160401b03811115610b0657600080fd5b602083019150836020828501011115610b1e57600080fd5b9250929050565b600080600060408486031215610b3a57600080fd5b8335925060208401356001600160401b03811115610b5757600080fd5b610b6386828701610add565b9497909650939450505050565b60008060008060608587031215610b8657600080fd5b84359350602085013560ff81168114610b9e57600080fd5b925060408501356001600160401b03811115610bb957600080fd5b610bc587828801610add565b95989497509550505050565b600060208284031215610be357600080fd5b5035919050565b6000815180845260005b81811015610c1057602081850181015186830182015201610bf4565b506000602082860101526020601f19601f83011685010191505092915050565b60a081526000610c4360a0830188610bea565b602083820381850152610c568289610bea565b915060408715156040860152606060ff8816606087015285840360808701528387518086528486019150848160051b870101858a0160005b83811015610ce057888303601f1901855281518051878552610cb288860182610bea565b828b0151868c0152918901516001600160a01b03169489019490945294880194925090870190600101610c8e565b50909e9d5050505050505050505050505050565b80356001600160a01b0381168114610d0b57600080fd5b919050565b600080600080600060808688031215610d2857600080fd5b8535945060208601356001600160401b03811115610d4557600080fd5b610d5188828901610add565b90955093505060408601359150610d6a60608701610cf4565b90509295509295909350565b600060208284031215610d8857600080fd5b610ad682610cf4565b600181811c90821680610da557607f821691505b602082108103610dc557634e487b7160e01b600052602260045260246000fd5b50919050565b634e487b7160e01b600052604160045260246000fd5b601f821115610e2d576000816000526020600020601f850160051c81016020861015610e0a5750805b601f850160051c820191505b81811015610e2957828155600101610e16565b5050505b505050565b600019600383901b1c191660019190911b1790565b6001600160401b03831115610e5e57610e5e610dcb565b610e7283610e6c8354610d91565b83610de1565b6000601f841160018114610ea05760008515610e8e5750838201355b610e988682610e32565b845550610efa565b600083815260209020601f19861690835b82811015610ed15786850135825560209485019460019092019101610eb1565b5086821015610eee5760001960f88860031b161c19848701351681555b505060018560011b0183555b5050505050565b81835281816020850137506000828201602090810191909152601f909101601f19169091010190565b602081526000610f3e602083018486610f01565b949350505050565b60018060a01b0385168152836020820152606060408201526000610f6e606083018486610f01565b9695505050505050565b634e487b7160e01b600052603260045260246000fd5b838152604060208201526000610fa8604083018486610f01565b95945050505050565b81516001600160401b03811115610fca57610fca610dcb565b610fde81610fd88454610d91565b84610de1565b602080601f83116001811461100d5760008415610ffb5750858301515b6110058582610e32565b865550610e29565b600085815260208120601f198616915b8281101561103c5788860151825594840194600190910190840161101d565b508582101561105a5787850151600019600388901b60f8161c191681555b5050505050600190811b01905550565b8181038181111561108b57634e487b7160e01b600052601160045260246000fd5b92915050565b60ff861681526080602082015260006110ae608083018688610f01565b6040830194909452506001600160a01b0391909116606090910152939250505056fea164736f6c6343000818000a",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {
+      "supportsInterface(bytes4)": {
+        "details": "Returns true if this contract implements the interface defined by `interfaceId`. See the corresponding https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[ERC section] to learn more about how these ids are created. This function call must use less than 30 000 gas."
+      }
+    },
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {},
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [
+      {
+        "astId": 12190,
+        "contract": "contracts/router/EventChallengeRouter.sol:EventChallengeRouter",
+        "label": "owner",
+        "offset": 0,
+        "slot": "0",
+        "type": "t_address"
+      },
+      {
+        "astId": 12221,
+        "contract": "contracts/router/EventChallengeRouter.sol:EventChallengeRouter",
+        "label": "events",
+        "offset": 0,
+        "slot": "1",
+        "type": "t_mapping(t_bytes32,t_struct(EventInfo)12216_storage)"
+      }
+    ],
+    "types": {
+      "t_address": {
+        "encoding": "inplace",
+        "label": "address",
+        "numberOfBytes": "20"
+      },
+      "t_array(t_struct(Outcome)12203_storage)dyn_storage": {
+        "base": "t_struct(Outcome)12203_storage",
+        "encoding": "dynamic_array",
+        "label": "struct EventChallengeRouter.Outcome[]",
+        "numberOfBytes": "32"
+      },
+      "t_bool": {
+        "encoding": "inplace",
+        "label": "bool",
+        "numberOfBytes": "1"
+      },
+      "t_bytes32": {
+        "encoding": "inplace",
+        "label": "bytes32",
+        "numberOfBytes": "32"
+      },
+      "t_mapping(t_bytes32,t_struct(EventInfo)12216_storage)": {
+        "encoding": "mapping",
+        "key": "t_bytes32",
+        "label": "mapping(bytes32 => struct EventChallengeRouter.EventInfo)",
+        "numberOfBytes": "32",
+        "value": "t_struct(EventInfo)12216_storage"
+      },
+      "t_string_storage": {
+        "encoding": "bytes",
+        "label": "string",
+        "numberOfBytes": "32"
+      },
+      "t_struct(EventInfo)12216_storage": {
+        "encoding": "inplace",
+        "label": "struct EventChallengeRouter.EventInfo",
+        "members": [
+          {
+            "astId": 12205,
+            "contract": "contracts/router/EventChallengeRouter.sol:EventChallengeRouter",
+            "label": "title",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_string_storage"
+          },
+          {
+            "astId": 12207,
+            "contract": "contracts/router/EventChallengeRouter.sol:EventChallengeRouter",
+            "label": "metaURI",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_string_storage"
+          },
+          {
+            "astId": 12209,
+            "contract": "contracts/router/EventChallengeRouter.sol:EventChallengeRouter",
+            "label": "finalized",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_bool"
+          },
+          {
+            "astId": 12211,
+            "contract": "contracts/router/EventChallengeRouter.sol:EventChallengeRouter",
+            "label": "winnerIndex",
+            "offset": 1,
+            "slot": "2",
+            "type": "t_uint8"
+          },
+          {
+            "astId": 12215,
+            "contract": "contracts/router/EventChallengeRouter.sol:EventChallengeRouter",
+            "label": "outcomes",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_array(t_struct(Outcome)12203_storage)dyn_storage"
+          }
+        ],
+        "numberOfBytes": "128"
+      },
+      "t_struct(Outcome)12203_storage": {
+        "encoding": "inplace",
+        "label": "struct EventChallengeRouter.Outcome",
+        "members": [
+          {
+            "astId": 12198,
+            "contract": "contracts/router/EventChallengeRouter.sol:EventChallengeRouter",
+            "label": "name",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_string_storage"
+          },
+          {
+            "astId": 12200,
+            "contract": "contracts/router/EventChallengeRouter.sol:EventChallengeRouter",
+            "label": "challengeId",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_uint256"
+          },
+          {
+            "astId": 12202,
+            "contract": "contracts/router/EventChallengeRouter.sol:EventChallengeRouter",
+            "label": "subject",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_address"
+          }
+        ],
+        "numberOfBytes": "96"
+      },
+      "t_uint256": {
+        "encoding": "inplace",
+        "label": "uint256",
+        "numberOfBytes": "32"
+      },
+      "t_uint8": {
+        "encoding": "inplace",
+        "label": "uint8",
+        "numberOfBytes": "1"
+      }
+    }
+  }
+}
