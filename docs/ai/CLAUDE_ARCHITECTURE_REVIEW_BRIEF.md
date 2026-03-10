@@ -4,6 +4,19 @@ This is not a narrow bug fix. I want you to inspect the ENTIRE codebase, underst
 
 You must be extremely thorough, conservative, and explicit.
 
+# Claude Architecture Review Brief
+
+Purpose: perform a full end-to-end architecture audit, cleanup, consolidation, and modernization of the LightChallenge repository.
+
+Instructions:
+- Read the entire relevant codebase first
+- Do not jump straight into code edits
+- First produce architecture diagnosis and file classification
+- Then propose migration plan
+- Then implement only the highest-value safe changes
+- Prefer full-file replacements
+- Be explicit about delete / archive / rewrite / keep
+- 
 ==================================================
 PROJECT CONTEXT
 ==================================================
@@ -281,3 +294,22 @@ Do not jump straight into code without first showing that you understood the arc
 
 If you need to make assumptions, state them clearly.
 If you find broken or contradictory paths, point them out explicitly.
+
+## Mandatory Working Style
+
+Before changing code, produce these files in the response:
+
+1. Repo map
+2. File classification table
+3. Target architecture
+4. Migration order
+5. Risk list
+
+Only after that begin implementation.
+
+For implementation:
+- do not modify more files than necessary in a single pass
+- keep each pass coherent
+- explain why each changed file belongs in that pass
+- when deleting a file, explicitly justify deletion
+- when archiving a file, propose the archive location
