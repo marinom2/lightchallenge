@@ -1,4 +1,4 @@
-{
+export default {
   "deploy": "Deployment",
   "operations": "Operations",
   "environments": "Environments",

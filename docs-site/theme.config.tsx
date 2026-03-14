@@ -12,7 +12,7 @@ const config: DocsThemeConfig = {
   },
   docsRepositoryBase: "https://github.com/marinom2/lightchallenge/tree/main/docs-site/pages",
   footer: {
-    text: (
+    content: (
       <span>
         {new Date().getFullYear()} LightChallenge Protocol — Powered by{" "}
         <a href="https://lightchain.ai" target="_blank" rel="noopener noreferrer">
@@ -28,9 +28,6 @@ const config: DocsThemeConfig = {
       <meta name="og:title" content="LightChallenge Documentation" />
     </>
   ),
-  useNextSeoProps() {
-    return { titleTemplate: "%s — LightChallenge Docs" };
-  },
   sidebar: {
     defaultMenuCollapseLevel: 1,
     toggleButton: true,
@@ -42,7 +39,6 @@ const config: DocsThemeConfig = {
     prev: true,
     next: true,
   },
-  primaryHue: 250,
 };
 
 export default config;

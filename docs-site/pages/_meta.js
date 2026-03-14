@@ -1,4 +1,4 @@
-{
+export default {
   "index": "Introduction",
   "protocol": "Protocol",
   "how-it-works": "How It Works",
