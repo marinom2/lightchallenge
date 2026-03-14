@@ -1,0 +1,5 @@
+{
+  "redirects": [
+    { "source": "/api", "destination": "/api-reference", "permanent": true }
+  ]
+}
