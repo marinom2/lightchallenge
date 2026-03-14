@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { isAddress } from "viem";
-import { ChevronDown, CheckCircle2, Check, Coins, Tags } from "lucide-react";
+import { ChevronDown, Coins, Tags, ArrowRight } from "lucide-react";
 
 import type {
   Action,
@@ -14,6 +14,13 @@ import MoneyInput from "../MoneyInput";
 import TimelineWheel from "../inputs/TimelineWheel";
 
 type CardKey = "basics" | "tags" | "schedule" | "funds";
+
+const CARD_NUMBERS: Record<CardKey, number> = {
+  basics: 1,
+  tags: 2,
+  schedule: 3,
+  funds: 4,
+};
 
 function splitTags(raw: string): string[] {
   return raw
@@ -41,6 +48,7 @@ type Props = {
 };
 
 type BuilderCardProps = {
+  step: number;
   title: string;
   subtitle: string;
   done: boolean;
@@ -52,6 +60,7 @@ type BuilderCardProps = {
 };
 
 function BuilderCard({
+  step,
   title,
   subtitle,
   done,
@@ -65,25 +74,20 @@ function BuilderCard({
     return (
       <button
         type="button"
-        className="create-card-summary create-card-collapsed w-full"
+        className={`builder-card builder-card--collapsed w-full${done ? " builder-card--done" : ""}`}
         onClick={onExpand}
       >
-        <div className="create-card-summary__row">
-          <div className="create-card-summary__meta">
-            <div className="create-card-summary__label">
-              {done ? (
-                <CheckCircle2 size={16} />
-              ) : (
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-(--text-muted)" />
-              )}
-              <span>{done ? `${title} completed` : title}</span>
-            </div>
-            <div className="create-card-summary__text">
+        <div className="builder-card__row">
+          <div className={`builder-card__ring${done ? " builder-card__ring--done" : ""}`}>
+            {step}
+          </div>
+          <div className="builder-card__meta">
+            <div className="builder-card__label">{title}</div>
+            <div className="builder-card__text">
               {done ? summary : subtitle}
             </div>
           </div>
-
-          <span className="create-card-summary__toggle">
+          <span className="builder-card__chevron">
             <ChevronDown size={16} />
           </span>
         </div>
@@ -92,32 +96,32 @@ function BuilderCard({
   }
 
   return (
-    <section className="timeline" aria-label={title}>
-      <div className="subpanel__head">
-        <div className="subpanel__title">
-          <div className="subpanel__icon" aria-hidden>
-            {done ? <Check size={18} /> : "•"}
+    <section className="builder-card builder-card--expanded" aria-label={title}>
+      <div className="builder-card__head">
+        <div className="builder-card__head-row">
+          <div className={`builder-card__ring builder-card__ring--active`}>
+            {step}
           </div>
           <div>
-            <h3 className="h2">{title}</h3>
-            <p className="text-sm text-(--text-muted)">{subtitle}</p>
+            <h3 className="builder-card__title">{title}</h3>
+            <p className="builder-card__subtitle">{subtitle}</p>
           </div>
         </div>
       </div>
 
-      <div className="subpanel__body space-y-4">
+      <div className="builder-card__body">
         {children}
 
         {onDone ? (
-          <div className="flex justify-end">
+          <div className="flex justify-end pt-2">
             <button
               type="button"
-              className="create-card-summary__toggle"
+              className="builder-card__continue"
               onClick={onDone}
-              aria-label={`Finish ${title}`}
-              title="Done"
+              aria-label={`Continue from ${title}`}
             >
-              <Check size={16} />
+              Continue
+              <ArrowRight size={14} />
             </button>
           </div>
         ) : null}
@@ -185,6 +189,7 @@ export default function Step2_Essentials({
   return (
     <div className="space-y-4">
       <BuilderCard
+        step={CARD_NUMBERS.basics}
         title="Title & description"
         subtitle="What are participants competing to do?"
         done={basicsDone}
@@ -242,6 +247,7 @@ export default function Step2_Essentials({
       </BuilderCard>
 
       <BuilderCard
+        step={CARD_NUMBERS.tags}
         title="Tags"
         subtitle="Help others find your challenge."
         done={tagsDone}
@@ -295,6 +301,7 @@ export default function Step2_Essentials({
       </BuilderCard>
 
       <BuilderCard
+        step={CARD_NUMBERS.schedule}
         title="Schedule"
         subtitle="When does the challenge start and end?"
         done={scheduleDone}
@@ -335,6 +342,7 @@ export default function Step2_Essentials({
       </BuilderCard>
 
       <BuilderCard
+        step={CARD_NUMBERS.funds}
         title="Stake"
         subtitle="How much are you putting up?"
         done={fundsDone}
