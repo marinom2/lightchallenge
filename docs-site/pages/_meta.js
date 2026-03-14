@@ -7,5 +7,6 @@ export default {
   "guides": "Guides",
   "ios": "iOS Collector",
   "api-reference": "API Reference",
+  "competition-api": "Competition API",
   "faq": "FAQ"
 }

@@ -1,0 +1,2124 @@
+# Competition API (v1)
+
+The Competition Platform API provides a full-featured competition management layer on top of the LightChallenge protocol. It supports organizations, teams, brackets, leagues, seasons, webhooks, analytics, white-labeling, and embeddable widgets.
+
+**Base URL:**
+- Production: `https://app.lightchallenge.ai/api/v1`
+- UAT: `https://uat.lightchallenge.app/api/v1`
+- Local: `http://localhost:3000/api/v1`
+
+**Response format (all v1 endpoints):**
+
+Success:
+```json
+{ "ok": true, "data": { ... } }
+```
+
+Error:
+```json
+{ "ok": false, "error": "Human-readable error message" }
+```
+
+HTTP status codes follow standard conventions: `200` for success, `201` for created, `400` for validation errors, `401` for missing auth, `403` for insufficient permissions, `404` for not found, `409` for conflicts.
+
+---
+
+## Authentication
+
+All state-mutating routes require authentication. Most read routes are public or require organization membership.
+
+### API Key (recommended for integrations)
+
+Pass a Bearer token in the `Authorization` header:
+
+```
+Authorization: Bearer lc_xxxxx
+```
+
+API keys are scoped to an organization. They inherit the permissions of the org member who created them.
+
+### Wallet Signature (same as core API)
+
+Pass all three headers:
+
+| Header | Description |
+|--------|-------------|
+| `x-lc-address` | Signer's wallet address (checksummed or lowercase) |
+| `x-lc-signature` | EIP-191 `personal_sign` of `lightchallenge:{timestamp}` |
+| `x-lc-timestamp` | Unix epoch milliseconds |
+
+Signatures are valid for 5 minutes.
+
+---
+
+## API Keys
+
+Manage API keys for programmatic access. Keys are scoped to an organization and displayed in plaintext exactly once (on creation).
+
+### POST /api/v1/auth/api-keys
+
+Create a new API key.
+
+**Auth:** Required (wallet or existing API key).
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `org_id` | string (uuid) | Yes | Organization to scope the key to |
+| `label` | string | No | Human-readable label (e.g. "CI Pipeline") |
+
+**Example request:**
+```bash
+curl -X POST https://app.lightchallenge.ai/api/v1/auth/api-keys \
+  -H "Authorization: Bearer lc_existing_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "org_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "label": "CI Pipeline"
+  }'
+```
+
+**Response (201):**
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "org_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "label": "CI Pipeline",
+    "key": "lc_k1_a8f3b2e1c9d4567890abcdef12345678",
+    "created_at": "2026-03-15T10:00:00.000Z"
+  }
+}
+```
+
+> **Warning:** The `key` field is returned only once. Store it securely. It cannot be retrieved later.
+
+### GET /api/v1/auth/api-keys
+
+List API keys for an organization. The key hash is never returned.
+
+**Auth:** Required.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `org_id` | string (uuid) | Yes | Organization ID |
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/auth/api-keys?org_id=f47ac10b-..." \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": [
+    {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "org_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "label": "CI Pipeline",
+      "created_by": "0x95A4CE3c93...",
+      "created_at": "2026-03-15T10:00:00.000Z",
+      "last_used_at": "2026-03-15T12:30:00.000Z",
+      "revoked_at": null
+    }
+  ]
+}
+```
+
+### DELETE /api/v1/auth/api-keys
+
+Revoke an API key. Sets `revoked_at` -- the key becomes immediately unusable.
+
+**Auth:** Required. Must be org owner or admin.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string (uuid) | Yes | API key ID to revoke |
+
+**Example request:**
+```bash
+curl -X DELETE "https://app.lightchallenge.ai/api/v1/auth/api-keys?id=a1b2c3d4-..." \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": { "id": "a1b2c3d4-...", "revoked_at": "2026-03-15T14:00:00.000Z" }
+}
+```
+
+---
+
+## Organizations
+
+Organizations group members, teams, competitions, and API keys under a single entity.
+
+### POST /api/v1/organizations
+
+Create an organization. The authenticated wallet becomes the owner. An initial API key is auto-generated and returned.
+
+**Auth:** Required.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Organization name (2-100 chars) |
+| `description` | string | No | Short description |
+| `website` | string | No | Website URL |
+| `logo_url` | string | No | Logo image URL |
+| `theme` | object | No | Visual theme config |
+
+**Example request:**
+```bash
+curl -X POST https://app.lightchallenge.ai/api/v1/organizations \
+  -H "x-lc-address: 0x95A4CE3c93..." \
+  -H "x-lc-signature: 0xabc..." \
+  -H "x-lc-timestamp: 1710000000000" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Esports League NA",
+    "description": "North American competitive gaming organization",
+    "website": "https://esportsna.gg"
+  }'
+```
+
+**Response (201):**
+```json
+{
+  "ok": true,
+  "data": {
+    "organization": {
+      "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "name": "Esports League NA",
+      "description": "North American competitive gaming organization",
+      "website": "https://esportsna.gg",
+      "logo_url": null,
+      "theme": null,
+      "created_at": "2026-03-15T10:00:00.000Z"
+    },
+    "membership": {
+      "id": "b1c2d3e4-...",
+      "wallet": "0x95A4CE3c93...",
+      "role": "owner"
+    },
+    "api_key": {
+      "id": "c3d4e5f6-...",
+      "key": "lc_k1_initial_key_store_this_now",
+      "label": "default"
+    }
+  }
+}
+```
+
+### GET /api/v1/organizations
+
+List organizations. Optionally filter by wallet to see only orgs a wallet belongs to.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `wallet` | string | No | Filter by member wallet address |
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/organizations?wallet=0x95A4CE3c93..."
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": [
+    {
+      "id": "f47ac10b-...",
+      "name": "Esports League NA",
+      "description": "North American competitive gaming organization",
+      "website": "https://esportsna.gg",
+      "logo_url": null,
+      "member_count": 5,
+      "competition_count": 12,
+      "created_at": "2026-03-15T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+### GET /api/v1/organizations/[id]
+
+Get full organization details.
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/organizations/f47ac10b-..."
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "f47ac10b-...",
+    "name": "Esports League NA",
+    "description": "North American competitive gaming organization",
+    "website": "https://esportsna.gg",
+    "logo_url": null,
+    "theme": null,
+    "member_count": 5,
+    "team_count": 8,
+    "competition_count": 12,
+    "created_at": "2026-03-15T10:00:00.000Z",
+    "updated_at": "2026-03-15T10:00:00.000Z"
+  }
+}
+```
+
+### PATCH /api/v1/organizations/[id]
+
+Update organization details.
+
+**Auth:** Required. Must be org owner or admin.
+
+**Request body (all fields optional):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Organization name |
+| `description` | string | Short description |
+| `website` | string | Website URL |
+| `logo_url` | string | Logo image URL |
+| `theme` | object | Visual theme config (`{ primary_color, accent_color, dark_mode }`) |
+
+**Example request:**
+```bash
+curl -X PATCH "https://app.lightchallenge.ai/api/v1/organizations/f47ac10b-..." \
+  -H "Authorization: Bearer lc_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "website": "https://new-site.gg", "theme": { "primary_color": "#ff6600" } }'
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "f47ac10b-...",
+    "name": "Esports League NA",
+    "website": "https://new-site.gg",
+    "theme": { "primary_color": "#ff6600" },
+    "updated_at": "2026-03-15T14:00:00.000Z"
+  }
+}
+```
+
+### POST /api/v1/organizations/[id]/members
+
+Add or upsert an organization member.
+
+**Auth:** Required. Must be org owner or admin.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `wallet` | string | Yes | Member wallet address |
+| `role` | string | Yes | `owner`, `admin`, or `member` |
+| `email` | string | No | Contact email |
+
+**Example request:**
+```bash
+curl -X POST "https://app.lightchallenge.ai/api/v1/organizations/f47ac10b-.../members" \
+  -H "Authorization: Bearer lc_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "wallet": "0x1234567890abcdef...",
+    "role": "admin",
+    "email": "admin@esportsna.gg"
+  }'
+```
+
+**Response (201):**
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "d4e5f6a7-...",
+    "org_id": "f47ac10b-...",
+    "wallet": "0x1234567890abcdef...",
+    "role": "admin",
+    "email": "admin@esportsna.gg",
+    "created_at": "2026-03-15T10:00:00.000Z"
+  }
+}
+```
+
+### GET /api/v1/organizations/[id]/members
+
+List all members of an organization.
+
+**Auth:** Required. Must be org member.
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/organizations/f47ac10b-.../members" \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": [
+    {
+      "id": "b1c2d3e4-...",
+      "wallet": "0x95A4CE3c93...",
+      "role": "owner",
+      "email": "owner@esportsna.gg",
+      "created_at": "2026-03-15T10:00:00.000Z"
+    },
+    {
+      "id": "d4e5f6a7-...",
+      "wallet": "0x1234567890abcdef...",
+      "role": "admin",
+      "email": "admin@esportsna.gg",
+      "created_at": "2026-03-15T10:30:00.000Z"
+    }
+  ]
+}
+```
+
+### DELETE /api/v1/organizations/[id]/members/[uid]
+
+Remove a member from the organization.
+
+**Auth:** Required. Must be org owner or admin. Cannot remove the last owner.
+
+**Example request:**
+```bash
+curl -X DELETE "https://app.lightchallenge.ai/api/v1/organizations/f47ac10b-.../members/d4e5f6a7-..." \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{ "ok": true, "data": { "id": "d4e5f6a7-...", "removed": true } }
+```
+
+---
+
+## Teams
+
+Teams belong to an organization and have a roster of players. Used for team-based competitions.
+
+### POST /api/v1/teams
+
+Create a team within an organization.
+
+**Auth:** Required. Must be org member.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `org_id` | string (uuid) | Yes | Parent organization ID |
+| `name` | string | Yes | Team name (2-100 chars) |
+| `tag` | string | No | Short tag / abbreviation (2-6 chars) |
+| `logo_url` | string | No | Team logo URL |
+
+**Example request:**
+```bash
+curl -X POST https://app.lightchallenge.ai/api/v1/teams \
+  -H "Authorization: Bearer lc_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "org_id": "f47ac10b-...",
+    "name": "Team Alpha",
+    "tag": "ALPHA",
+    "logo_url": "https://cdn.example.com/alpha.png"
+  }'
+```
+
+**Response (201):**
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "e5f6a7b8-...",
+    "org_id": "f47ac10b-...",
+    "name": "Team Alpha",
+    "tag": "ALPHA",
+    "logo_url": "https://cdn.example.com/alpha.png",
+    "created_at": "2026-03-15T10:00:00.000Z"
+  }
+}
+```
+
+### GET /api/v1/teams
+
+List teams for an organization, with roster counts.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `org_id` | string (uuid) | Yes | Organization ID |
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/teams?org_id=f47ac10b-..." \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": [
+    {
+      "id": "e5f6a7b8-...",
+      "name": "Team Alpha",
+      "tag": "ALPHA",
+      "logo_url": "https://cdn.example.com/alpha.png",
+      "roster_count": 5,
+      "created_at": "2026-03-15T10:00:00.000Z"
+    },
+    {
+      "id": "f6a7b8c9-...",
+      "name": "Team Bravo",
+      "tag": "BRV",
+      "logo_url": null,
+      "roster_count": 4,
+      "created_at": "2026-03-15T10:05:00.000Z"
+    }
+  ]
+}
+```
+
+### GET /api/v1/teams/[id]
+
+Get team details with the full roster.
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/teams/e5f6a7b8-..." \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "e5f6a7b8-...",
+    "org_id": "f47ac10b-...",
+    "name": "Team Alpha",
+    "tag": "ALPHA",
+    "logo_url": "https://cdn.example.com/alpha.png",
+    "roster": [
+      { "id": "r1-...", "wallet": "0xaaa...", "role": "captain", "joined_at": "2026-03-15T10:00:00.000Z" },
+      { "id": "r2-...", "wallet": "0xbbb...", "role": "player", "joined_at": "2026-03-15T10:01:00.000Z" },
+      { "id": "r3-...", "wallet": "0xccc...", "role": "substitute", "joined_at": "2026-03-15T10:02:00.000Z" }
+    ],
+    "created_at": "2026-03-15T10:00:00.000Z"
+  }
+}
+```
+
+### DELETE /api/v1/teams/[id]
+
+Delete a team and its entire roster.
+
+**Auth:** Required. Must be org admin or owner.
+
+**Example request:**
+```bash
+curl -X DELETE "https://app.lightchallenge.ai/api/v1/teams/e5f6a7b8-..." \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{ "ok": true, "data": { "id": "e5f6a7b8-...", "deleted": true } }
+```
+
+### POST /api/v1/teams/[id]/roster
+
+Add or upsert a player on the team roster.
+
+**Auth:** Required. Must be org member.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `wallet` | string | Yes | Player wallet address |
+| `role` | string | No | `captain`, `player`, or `substitute` (default: `player`) |
+
+**Example request:**
+```bash
+curl -X POST "https://app.lightchallenge.ai/api/v1/teams/e5f6a7b8-.../roster" \
+  -H "Authorization: Bearer lc_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "wallet": "0xddd...", "role": "player" }'
+```
+
+**Response (201):**
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "r4-...",
+    "team_id": "e5f6a7b8-...",
+    "wallet": "0xddd...",
+    "role": "player",
+    "joined_at": "2026-03-15T11:00:00.000Z"
+  }
+}
+```
+
+### GET /api/v1/teams/[id]/roster
+
+List roster entries for a team.
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/teams/e5f6a7b8-.../roster" \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": [
+    { "id": "r1-...", "wallet": "0xaaa...", "role": "captain", "joined_at": "2026-03-15T10:00:00.000Z" },
+    { "id": "r2-...", "wallet": "0xbbb...", "role": "player", "joined_at": "2026-03-15T10:01:00.000Z" }
+  ]
+}
+```
+
+### DELETE /api/v1/teams/[id]/roster/[uid]
+
+Remove a player from the roster.
+
+**Auth:** Required. Must be org member.
+
+**Example request:**
+```bash
+curl -X DELETE "https://app.lightchallenge.ai/api/v1/teams/e5f6a7b8-.../roster/r2-..." \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{ "ok": true, "data": { "id": "r2-...", "removed": true } }
+```
+
+---
+
+## Competitions
+
+Competitions are the core entity of the platform. They support multiple formats and follow a well-defined lifecycle.
+
+### Competition Types
+
+| Type | Description |
+|------|-------------|
+| `challenge` | Individual or group challenge with pass/fail verification (wraps core LightChallenge) |
+| `bracket` | Single/double elimination tournament |
+| `league` | Round-robin format where every participant plays every other |
+| `circuit` | Multi-event series (season-based) |
+| `ladder` | Open-ended ranking system with challenge-based advancement |
+
+### Competition Statuses
+
+| Status | Description |
+|--------|-------------|
+| `draft` | Editable, not yet open for registration |
+| `registration` | Open for participant registration |
+| `active` | Competition in progress, matches being played |
+| `completed` | All matches finished, results finalized |
+| `canceled` | Competition was canceled |
+
+### POST /api/v1/competitions
+
+Create a new competition.
+
+**Auth:** Required. Must be org member.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `org_id` | string (uuid) | Yes | Organization ID |
+| `title` | string | Yes | Competition title (2-200 chars) |
+| `description` | string | No | Detailed description |
+| `type` | string | Yes | `challenge`, `bracket`, `league`, `circuit`, or `ladder` |
+| `category` | string | No | Category tag (e.g. `dota2`, `fitness`, `cs2`) |
+| `rules` | object | No | Custom rules and settings |
+| `max_participants` | number | No | Maximum registrations allowed |
+| `registration_opens` | string (ISO 8601) | No | When registration opens |
+| `registration_closes` | string (ISO 8601) | No | When registration closes |
+| `starts_at` | string (ISO 8601) | No | Scheduled start time |
+| `ends_at` | string (ISO 8601) | No | Scheduled end time |
+| `entry_fee_wei` | string | No | Entry fee in wei (on-chain) |
+| `prize_pool_wei` | string | No | Total prize pool in wei |
+| `metadata` | object | No | Arbitrary metadata (banner_url, stream_url, etc.) |
+
+**Example request:**
+```bash
+curl -X POST https://app.lightchallenge.ai/api/v1/competitions \
+  -H "Authorization: Bearer lc_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "org_id": "f47ac10b-...",
+    "title": "Dota 2 Spring Invitational",
+    "description": "16-team single elimination bracket",
+    "type": "bracket",
+    "category": "dota2",
+    "max_participants": 16,
+    "registration_opens": "2026-04-01T00:00:00Z",
+    "registration_closes": "2026-04-14T23:59:59Z",
+    "starts_at": "2026-04-15T18:00:00Z",
+    "entry_fee_wei": "100000000000000000",
+    "prize_pool_wei": "2000000000000000000",
+    "rules": {
+      "format": "single_elimination",
+      "best_of": 3,
+      "third_place_match": true
+    },
+    "metadata": {
+      "banner_url": "https://cdn.example.com/banner.jpg",
+      "stream_url": "https://twitch.tv/esportsna"
+    }
+  }'
+```
+
+**Response (201):**
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "c1d2e3f4-...",
+    "org_id": "f47ac10b-...",
+    "title": "Dota 2 Spring Invitational",
+    "description": "16-team single elimination bracket",
+    "type": "bracket",
+    "status": "draft",
+    "category": "dota2",
+    "max_participants": 16,
+    "registration_opens": "2026-04-01T00:00:00.000Z",
+    "registration_closes": "2026-04-14T23:59:59.000Z",
+    "starts_at": "2026-04-15T18:00:00.000Z",
+    "ends_at": null,
+    "entry_fee_wei": "100000000000000000",
+    "prize_pool_wei": "2000000000000000000",
+    "rules": { "format": "single_elimination", "best_of": 3, "third_place_match": true },
+    "metadata": { "banner_url": "https://cdn.example.com/banner.jpg", "stream_url": "https://twitch.tv/esportsna" },
+    "created_at": "2026-03-15T10:00:00.000Z"
+  }
+}
+```
+
+### GET /api/v1/competitions
+
+List competitions with filters and pagination.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `org_id` | string (uuid) | No | Filter by organization |
+| `type` | string | No | Filter by type (`bracket`, `league`, etc.) |
+| `status` | string | No | Filter by status (`draft`, `active`, etc.) |
+| `category` | string | No | Filter by category tag |
+| `limit` | number | No | Max results (default: 50, max: 200) |
+| `offset` | number | No | Pagination offset (default: 0) |
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/competitions?org_id=f47ac10b-...&status=active&limit=10"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "items": [
+      {
+        "id": "c1d2e3f4-...",
+        "title": "Dota 2 Spring Invitational",
+        "type": "bracket",
+        "status": "active",
+        "category": "dota2",
+        "participant_count": 16,
+        "match_count": 15,
+        "starts_at": "2026-04-15T18:00:00.000Z"
+      }
+    ],
+    "total": 1,
+    "limit": 10,
+    "offset": 0
+  }
+}
+```
+
+### GET /api/v1/competitions/[id]
+
+Get full competition details with summary statistics.
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/competitions/c1d2e3f4-..."
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "c1d2e3f4-...",
+    "org_id": "f47ac10b-...",
+    "title": "Dota 2 Spring Invitational",
+    "description": "16-team single elimination bracket",
+    "type": "bracket",
+    "status": "active",
+    "category": "dota2",
+    "max_participants": 16,
+    "registration_opens": "2026-04-01T00:00:00.000Z",
+    "registration_closes": "2026-04-14T23:59:59.000Z",
+    "starts_at": "2026-04-15T18:00:00.000Z",
+    "ends_at": null,
+    "entry_fee_wei": "100000000000000000",
+    "prize_pool_wei": "2000000000000000000",
+    "rules": { "format": "single_elimination", "best_of": 3, "third_place_match": true },
+    "metadata": { "banner_url": "https://cdn.example.com/banner.jpg" },
+    "summary": {
+      "registrations": 16,
+      "checked_in": 16,
+      "matches_total": 15,
+      "matches_completed": 8,
+      "matches_pending": 7,
+      "current_round": 2
+    },
+    "created_at": "2026-03-15T10:00:00.000Z",
+    "updated_at": "2026-04-15T20:30:00.000Z"
+  }
+}
+```
+
+### PATCH /api/v1/competitions/[id]
+
+Update a competition. Only allowed while in `draft` status.
+
+**Auth:** Required. Must be org admin or owner.
+
+**Request body:** Same fields as POST (all optional). Cannot change `org_id` or `type`.
+
+**Example request:**
+```bash
+curl -X PATCH "https://app.lightchallenge.ai/api/v1/competitions/c1d2e3f4-..." \
+  -H "Authorization: Bearer lc_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "max_participants": 32, "description": "Updated to 32 teams" }'
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "c1d2e3f4-...",
+    "max_participants": 32,
+    "description": "Updated to 32 teams",
+    "updated_at": "2026-03-16T08:00:00.000Z"
+  }
+}
+```
+
+### DELETE /api/v1/competitions/[id]
+
+Cancel or delete a competition. Draft competitions are deleted; others are transitioned to `canceled`.
+
+**Auth:** Required. Must be org admin or owner.
+
+**Example request:**
+```bash
+curl -X DELETE "https://app.lightchallenge.ai/api/v1/competitions/c1d2e3f4-..." \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{ "ok": true, "data": { "id": "c1d2e3f4-...", "status": "canceled" } }
+```
+
+---
+
+## Competition Lifecycle
+
+These endpoints drive the competition through its lifecycle stages.
+
+### POST /api/v1/competitions/[id]/register
+
+Register a participant (individual wallet or team) for a competition.
+
+**Auth:** Required.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `wallet` | string | Conditional | Participant wallet address (for individual registration) |
+| `team_id` | string (uuid) | Conditional | Team ID (for team registration). Provide either `wallet` or `team_id`. |
+| `seed` | number | No | Manual seed number (admin only) |
+
+**Example request (individual):**
+```bash
+curl -X POST "https://app.lightchallenge.ai/api/v1/competitions/c1d2e3f4-.../register" \
+  -H "Authorization: Bearer lc_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "wallet": "0xaaa..." }'
+```
+
+**Example request (team):**
+```bash
+curl -X POST "https://app.lightchallenge.ai/api/v1/competitions/c1d2e3f4-.../register" \
+  -H "Authorization: Bearer lc_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "team_id": "e5f6a7b8-..." }'
+```
+
+**Response (201):**
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "reg-1234-...",
+    "competition_id": "c1d2e3f4-...",
+    "wallet": "0xaaa...",
+    "team_id": null,
+    "seed": null,
+    "checked_in": false,
+    "registered_at": "2026-04-05T14:00:00.000Z"
+  }
+}
+```
+
+### GET /api/v1/competitions/[id]/register
+
+List all registrations for a competition.
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/competitions/c1d2e3f4-.../register"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": [
+    {
+      "id": "reg-1234-...",
+      "wallet": "0xaaa...",
+      "team_id": null,
+      "team_name": null,
+      "seed": 1,
+      "checked_in": true,
+      "registered_at": "2026-04-05T14:00:00.000Z"
+    },
+    {
+      "id": "reg-5678-...",
+      "wallet": null,
+      "team_id": "e5f6a7b8-...",
+      "team_name": "Team Alpha",
+      "seed": 2,
+      "checked_in": true,
+      "registered_at": "2026-04-06T09:00:00.000Z"
+    }
+  ]
+}
+```
+
+### POST /api/v1/competitions/[id]/check-in
+
+Check in a registered participant. Required before a competition can start.
+
+**Auth:** Required.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `wallet` | string | Conditional | Participant wallet |
+| `team_id` | string (uuid) | Conditional | Team ID. Provide either `wallet` or `team_id`. |
+
+**Example request:**
+```bash
+curl -X POST "https://app.lightchallenge.ai/api/v1/competitions/c1d2e3f4-.../check-in" \
+  -H "Authorization: Bearer lc_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "wallet": "0xaaa..." }'
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": { "id": "reg-1234-...", "checked_in": true, "checked_in_at": "2026-04-15T17:30:00.000Z" }
+}
+```
+
+### POST /api/v1/competitions/[id]/start
+
+Start the competition. Generates bracket/round-robin matches, assigns seeds, auto-advances byes, and transitions status to `active`.
+
+**Auth:** Required. Must be org admin or owner.
+
+**Request body:** None required. Optional overrides:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `seed_order` | string | No | `random` (default) or `manual` (uses registration seed values) |
+
+**Example request:**
+```bash
+curl -X POST "https://app.lightchallenge.ai/api/v1/competitions/c1d2e3f4-.../start" \
+  -H "Authorization: Bearer lc_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "seed_order": "random" }'
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "competition_id": "c1d2e3f4-...",
+    "status": "active",
+    "matches_generated": 15,
+    "byes_advanced": 0,
+    "started_at": "2026-04-15T18:00:00.000Z"
+  }
+}
+```
+
+### POST /api/v1/competitions/[id]/finalize
+
+Finalize a completed competition. Computes final standings and transitions status to `completed`.
+
+**Auth:** Required. Must be org admin or owner.
+
+**Example request:**
+```bash
+curl -X POST "https://app.lightchallenge.ai/api/v1/competitions/c1d2e3f4-.../finalize" \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "competition_id": "c1d2e3f4-...",
+    "status": "completed",
+    "finalized_at": "2026-04-20T22:00:00.000Z"
+  }
+}
+```
+
+### POST /api/v1/competitions/[id]/cancel
+
+Cancel a competition. Transitions to `canceled` status.
+
+**Auth:** Required. Must be org admin or owner.
+
+**Example request:**
+```bash
+curl -X POST "https://app.lightchallenge.ai/api/v1/competitions/c1d2e3f4-.../cancel" \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "competition_id": "c1d2e3f4-...",
+    "status": "canceled",
+    "canceled_at": "2026-03-20T10:00:00.000Z"
+  }
+}
+```
+
+---
+
+## Bracket & Matches
+
+Manage tournament brackets and report match results.
+
+### GET /api/v1/competitions/[id]/bracket
+
+Get the full bracket state, grouped by bracket type and round.
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/competitions/c1d2e3f4-.../bracket"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "competition_id": "c1d2e3f4-...",
+    "type": "bracket",
+    "format": "single_elimination",
+    "rounds": {
+      "winners": [
+        {
+          "round": 1,
+          "label": "Round of 16",
+          "matches": [
+            {
+              "id": "m-0001-...",
+              "round": 1,
+              "position": 1,
+              "participant_a": { "wallet": "0xaaa...", "team_id": null, "team_name": null, "seed": 1 },
+              "participant_b": { "wallet": "0xbbb...", "team_id": null, "team_name": null, "seed": 16 },
+              "score_a": 2,
+              "score_b": 1,
+              "winner": "a",
+              "status": "completed",
+              "scheduled_at": "2026-04-15T18:00:00.000Z",
+              "completed_at": "2026-04-15T19:30:00.000Z"
+            },
+            {
+              "id": "m-0002-...",
+              "round": 1,
+              "position": 2,
+              "participant_a": { "wallet": "0xccc...", "team_id": null, "team_name": null, "seed": 8 },
+              "participant_b": { "wallet": "0xddd...", "team_id": null, "team_name": null, "seed": 9 },
+              "score_a": null,
+              "score_b": null,
+              "winner": null,
+              "status": "pending",
+              "scheduled_at": "2026-04-15T20:00:00.000Z",
+              "completed_at": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "label": "Quarterfinals",
+          "matches": []
+        }
+      ],
+      "losers": null,
+      "grand_final": null
+    }
+  }
+}
+```
+
+### POST /api/v1/competitions/[id]/bracket/seed
+
+Manually set seeds for registered participants. Must be done before starting the competition.
+
+**Auth:** Required. Must be org admin or owner.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `seeds` | array | Yes | Array of `{ registration_id, seed }` objects |
+
+**Example request:**
+```bash
+curl -X POST "https://app.lightchallenge.ai/api/v1/competitions/c1d2e3f4-.../bracket/seed" \
+  -H "Authorization: Bearer lc_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "seeds": [
+      { "registration_id": "reg-1234-...", "seed": 1 },
+      { "registration_id": "reg-5678-...", "seed": 2 },
+      { "registration_id": "reg-9abc-...", "seed": 3 }
+    ]
+  }'
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": { "seeded": 3 }
+}
+```
+
+### POST /api/v1/competitions/[id]/matches/[mid]/result
+
+Report the result of a match. Automatically advances the winner to the next round. When no pending matches remain, the competition is auto-completed.
+
+**Auth:** Required. Must be org admin or owner.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `score_a` | number | Yes | Score for participant A |
+| `score_b` | number | Yes | Score for participant B |
+| `winner` | string | Yes | `a`, `b`, or `draw` |
+| `notes` | string | No | Optional admin notes |
+
+**Example request:**
+```bash
+curl -X POST "https://app.lightchallenge.ai/api/v1/competitions/c1d2e3f4-.../matches/m-0002-.../result" \
+  -H "Authorization: Bearer lc_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "score_a": 2,
+    "score_b": 0,
+    "winner": "a",
+    "notes": "Forfeit in game 2"
+  }'
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "match": {
+      "id": "m-0002-...",
+      "score_a": 2,
+      "score_b": 0,
+      "winner": "a",
+      "status": "completed",
+      "completed_at": "2026-04-15T21:00:00.000Z"
+    },
+    "advancement": {
+      "next_match_id": "m-0010-...",
+      "round": 2,
+      "position": 1,
+      "slot": "a"
+    },
+    "competition_auto_completed": false
+  }
+}
+```
+
+---
+
+## Standings & Results
+
+### GET /api/v1/competitions/[id]/standings
+
+Computed W/L/D standings with points. Applicable to all competition types.
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/competitions/c1d2e3f4-.../standings"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "competition_id": "c1d2e3f4-...",
+    "type": "league",
+    "standings": [
+      {
+        "rank": 1,
+        "wallet": "0xaaa...",
+        "team_id": null,
+        "team_name": null,
+        "wins": 5,
+        "losses": 1,
+        "draws": 0,
+        "points": 15,
+        "matches_played": 6,
+        "score_for": 12,
+        "score_against": 4
+      },
+      {
+        "rank": 2,
+        "wallet": "0xbbb...",
+        "team_id": null,
+        "team_name": null,
+        "wins": 4,
+        "losses": 1,
+        "draws": 1,
+        "points": 13,
+        "matches_played": 6,
+        "score_for": 10,
+        "score_against": 5
+      }
+    ]
+  }
+}
+```
+
+### GET /api/v1/competitions/[id]/results
+
+Final placements for a competition. For bracket types, shows progression through rounds.
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/competitions/c1d2e3f4-.../results"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "competition_id": "c1d2e3f4-...",
+    "status": "completed",
+    "placements": [
+      {
+        "place": 1,
+        "wallet": "0xaaa...",
+        "team_id": null,
+        "team_name": null,
+        "prize_wei": "1200000000000000000",
+        "rounds_won": 4,
+        "matches": [
+          { "round": 1, "opponent": "0xppp...", "score": "2-0", "result": "win" },
+          { "round": 2, "opponent": "0xqqq...", "score": "2-1", "result": "win" },
+          { "round": 3, "opponent": "0xrrr...", "score": "2-0", "result": "win" },
+          { "round": 4, "opponent": "0xbbb...", "score": "3-1", "result": "win" }
+        ]
+      },
+      {
+        "place": 2,
+        "wallet": "0xbbb...",
+        "team_id": null,
+        "team_name": null,
+        "prize_wei": "600000000000000000",
+        "rounds_won": 3,
+        "matches": [
+          { "round": 1, "opponent": "0xsss...", "score": "2-0", "result": "win" },
+          { "round": 2, "opponent": "0xttt...", "score": "2-1", "result": "win" },
+          { "round": 3, "opponent": "0xuuu...", "score": "2-0", "result": "win" },
+          { "round": 4, "opponent": "0xaaa...", "score": "1-3", "result": "loss" }
+        ]
+      },
+      {
+        "place": 3,
+        "wallet": "0xrrr...",
+        "team_id": null,
+        "team_name": null,
+        "prize_wei": "200000000000000000",
+        "rounds_won": 2,
+        "matches": []
+      }
+    ]
+  }
+}
+```
+
+---
+
+## Webhooks
+
+Register webhook endpoints to receive real-time notifications about competition events.
+
+### Supported Events
+
+| Event | Description |
+|-------|-------------|
+| `competition.created` | A new competition was created |
+| `competition.started` | Competition transitioned to active |
+| `competition.completed` | Competition finalized |
+| `competition.canceled` | Competition was canceled |
+| `registration.created` | New participant registered |
+| `registration.checked_in` | Participant checked in |
+| `match.completed` | A match result was reported |
+| `match.advanced` | A participant was advanced to next round |
+| `standings.updated` | Standings recalculated |
+| `season.standings_updated` | Season standings recalculated |
+
+### Webhook Delivery
+
+Webhook payloads are signed with HMAC-SHA256 using the webhook secret. Verify the signature before processing.
+
+**Delivery headers:**
+
+| Header | Description |
+|--------|-------------|
+| `X-LightChallenge-Signature` | `sha256={hmac_hex_digest}` |
+| `X-LightChallenge-Event` | Event name (e.g. `match.completed`) |
+| `X-LightChallenge-Delivery` | Unique delivery UUID |
+| `Content-Type` | `application/json` |
+
+**Signature verification (Node.js example):**
+```js
+const crypto = require("crypto");
+
+function verifyWebhook(payload, signature, secret) {
+  const expected = "sha256=" +
+    crypto.createHmac("sha256", secret).update(payload).digest("hex");
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expected)
+  );
+}
+```
+
+**Retry policy:** Failed deliveries (non-2xx response or timeout) are retried up to 5 times with exponential backoff:
+
+| Attempt | Delay |
+|---------|-------|
+| 1 | 30 seconds |
+| 2 | 2 minutes |
+| 3 | 10 minutes |
+| 4 | 1 hour |
+| 5 | 4 hours |
+
+After 5 failed attempts, the delivery is marked as failed. Consistently failing webhooks (>50% failure rate over 7 days) are automatically deactivated.
+
+### POST /api/v1/webhooks
+
+Register a new webhook endpoint.
+
+**Auth:** Required. Must be org member.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `org_id` | string (uuid) | Yes | Organization ID |
+| `url` | string | Yes | Webhook endpoint URL (must be HTTPS) |
+| `events` | string[] | Yes | Array of event names to subscribe to |
+
+**Example request:**
+```bash
+curl -X POST https://app.lightchallenge.ai/api/v1/webhooks \
+  -H "Authorization: Bearer lc_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "org_id": "f47ac10b-...",
+    "url": "https://myserver.com/hooks/lightchallenge",
+    "events": ["match.completed", "competition.started", "competition.completed"]
+  }'
+```
+
+**Response (201):**
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "wh-1234-...",
+    "org_id": "f47ac10b-...",
+    "url": "https://myserver.com/hooks/lightchallenge",
+    "events": ["match.completed", "competition.started", "competition.completed"],
+    "secret": "whsec_a1b2c3d4e5f6g7h8i9j0",
+    "active": true,
+    "created_at": "2026-03-15T10:00:00.000Z"
+  }
+}
+```
+
+> **Warning:** The `secret` is returned only on creation. Store it securely for signature verification.
+
+### GET /api/v1/webhooks
+
+List webhooks for an organization. Secrets are never returned.
+
+**Auth:** Required. Must be org member.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `org_id` | string (uuid) | Yes | Organization ID |
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/webhooks?org_id=f47ac10b-..." \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": [
+    {
+      "id": "wh-1234-...",
+      "url": "https://myserver.com/hooks/lightchallenge",
+      "events": ["match.completed", "competition.started", "competition.completed"],
+      "active": true,
+      "created_at": "2026-03-15T10:00:00.000Z",
+      "last_delivery_at": "2026-04-15T20:00:00.000Z",
+      "failure_count": 0
+    }
+  ]
+}
+```
+
+### GET /api/v1/webhooks/[id]
+
+Get webhook detail including recent delivery history.
+
+**Auth:** Required. Must be org member.
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/webhooks/wh-1234-..." \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "wh-1234-...",
+    "org_id": "f47ac10b-...",
+    "url": "https://myserver.com/hooks/lightchallenge",
+    "events": ["match.completed", "competition.started", "competition.completed"],
+    "active": true,
+    "created_at": "2026-03-15T10:00:00.000Z",
+    "updated_at": "2026-03-15T10:00:00.000Z",
+    "recent_deliveries": [
+      {
+        "id": "del-001-...",
+        "event": "match.completed",
+        "status": "delivered",
+        "response_code": 200,
+        "delivered_at": "2026-04-15T20:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+### PATCH /api/v1/webhooks/[id]
+
+Update a webhook's URL, subscribed events, or active status.
+
+**Auth:** Required. Must be org admin or owner.
+
+**Request body (all fields optional):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `url` | string | New endpoint URL |
+| `events` | string[] | New event subscription list |
+| `active` | boolean | Enable or disable the webhook |
+
+**Example request:**
+```bash
+curl -X PATCH "https://app.lightchallenge.ai/api/v1/webhooks/wh-1234-..." \
+  -H "Authorization: Bearer lc_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "events": ["match.completed"], "active": false }'
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "wh-1234-...",
+    "events": ["match.completed"],
+    "active": false,
+    "updated_at": "2026-03-16T08:00:00.000Z"
+  }
+}
+```
+
+### DELETE /api/v1/webhooks/[id]
+
+Delete a webhook. All pending deliveries are canceled.
+
+**Auth:** Required. Must be org admin or owner.
+
+**Example request:**
+```bash
+curl -X DELETE "https://app.lightchallenge.ai/api/v1/webhooks/wh-1234-..." \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{ "ok": true, "data": { "id": "wh-1234-...", "deleted": true } }
+```
+
+---
+
+## Seasons
+
+Seasons aggregate multiple competitions into a unified leaderboard with weighted scoring.
+
+### POST /api/v1/seasons
+
+Create a new season.
+
+**Auth:** Required. Must be org admin or owner.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `org_id` | string (uuid) | Yes | Organization ID |
+| `name` | string | Yes | Season name (e.g. "Spring 2026") |
+| `description` | string | No | Season description |
+| `starts_at` | string (ISO 8601) | No | Season start date |
+| `ends_at` | string (ISO 8601) | No | Season end date |
+| `scoring_config` | object | No | Point values for standings |
+
+**Scoring config defaults:**
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `win` | 3 | Points per win |
+| `loss` | 0 | Points per loss |
+| `draw` | 1 | Points per draw |
+
+**Example request:**
+```bash
+curl -X POST https://app.lightchallenge.ai/api/v1/seasons \
+  -H "Authorization: Bearer lc_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "org_id": "f47ac10b-...",
+    "name": "Spring 2026",
+    "description": "Spring competitive season",
+    "starts_at": "2026-03-01T00:00:00Z",
+    "ends_at": "2026-06-01T00:00:00Z",
+    "scoring_config": { "win": 3, "loss": 0, "draw": 1 }
+  }'
+```
+
+**Response (201):**
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "s1a2b3c4-...",
+    "org_id": "f47ac10b-...",
+    "name": "Spring 2026",
+    "description": "Spring competitive season",
+    "status": "active",
+    "starts_at": "2026-03-01T00:00:00.000Z",
+    "ends_at": "2026-06-01T00:00:00.000Z",
+    "scoring_config": { "win": 3, "loss": 0, "draw": 1 },
+    "created_at": "2026-03-15T10:00:00.000Z"
+  }
+}
+```
+
+### GET /api/v1/seasons
+
+List seasons for an organization.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `org_id` | string (uuid) | No | Filter by organization |
+| `status` | string | No | Filter by status (`active`, `completed`, `upcoming`) |
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/seasons?org_id=f47ac10b-...&status=active" \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": [
+    {
+      "id": "s1a2b3c4-...",
+      "name": "Spring 2026",
+      "status": "active",
+      "competition_count": 4,
+      "participant_count": 32,
+      "starts_at": "2026-03-01T00:00:00.000Z",
+      "ends_at": "2026-06-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+### GET /api/v1/seasons/[id]
+
+Get season detail with summary statistics.
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/seasons/s1a2b3c4-..." \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "s1a2b3c4-...",
+    "org_id": "f47ac10b-...",
+    "name": "Spring 2026",
+    "description": "Spring competitive season",
+    "status": "active",
+    "starts_at": "2026-03-01T00:00:00.000Z",
+    "ends_at": "2026-06-01T00:00:00.000Z",
+    "scoring_config": { "win": 3, "loss": 0, "draw": 1 },
+    "summary": {
+      "competitions": 4,
+      "competitions_completed": 2,
+      "total_matches": 60,
+      "unique_participants": 32
+    },
+    "created_at": "2026-03-15T10:00:00.000Z",
+    "updated_at": "2026-04-10T08:00:00.000Z"
+  }
+}
+```
+
+### PATCH /api/v1/seasons/[id]
+
+Update season details.
+
+**Auth:** Required. Must be org admin or owner.
+
+**Request body (all fields optional):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Season name |
+| `description` | string | Season description |
+| `starts_at` | string (ISO 8601) | Start date |
+| `ends_at` | string (ISO 8601) | End date |
+| `scoring_config` | object | Updated scoring config |
+| `status` | string | `active` or `completed` |
+
+**Example request:**
+```bash
+curl -X PATCH "https://app.lightchallenge.ai/api/v1/seasons/s1a2b3c4-..." \
+  -H "Authorization: Bearer lc_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "ends_at": "2026-06-15T00:00:00Z" }'
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "s1a2b3c4-...",
+    "ends_at": "2026-06-15T00:00:00.000Z",
+    "updated_at": "2026-04-10T08:00:00.000Z"
+  }
+}
+```
+
+### POST /api/v1/seasons/[id]/competitions
+
+Add a competition to the season. Competitions can have different weights for standings calculation.
+
+**Auth:** Required. Must be org admin or owner.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `competition_id` | string (uuid) | Yes | Competition to add |
+| `weight` | number | No | Weight multiplier for standings (default: 1.0) |
+
+**Example request:**
+```bash
+curl -X POST "https://app.lightchallenge.ai/api/v1/seasons/s1a2b3c4-.../competitions" \
+  -H "Authorization: Bearer lc_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "competition_id": "c1d2e3f4-...", "weight": 1.5 }'
+```
+
+**Response (201):**
+```json
+{
+  "ok": true,
+  "data": {
+    "season_id": "s1a2b3c4-...",
+    "competition_id": "c1d2e3f4-...",
+    "weight": 1.5,
+    "added_at": "2026-03-15T10:00:00.000Z"
+  }
+}
+```
+
+### GET /api/v1/seasons/[id]/competitions
+
+List competitions in a season with their weights.
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/seasons/s1a2b3c4-.../competitions" \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": [
+    {
+      "competition_id": "c1d2e3f4-...",
+      "title": "Dota 2 Spring Invitational",
+      "type": "bracket",
+      "status": "completed",
+      "weight": 1.5,
+      "added_at": "2026-03-15T10:00:00.000Z"
+    },
+    {
+      "competition_id": "d2e3f4a5-...",
+      "title": "Weekly League #3",
+      "type": "league",
+      "status": "active",
+      "weight": 1.0,
+      "added_at": "2026-03-20T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+### DELETE /api/v1/seasons/[id]/competitions
+
+Remove a competition from the season.
+
+**Auth:** Required. Must be org admin or owner.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `competition_id` | string (uuid) | Yes | Competition to remove |
+
+**Example request:**
+```bash
+curl -X DELETE "https://app.lightchallenge.ai/api/v1/seasons/s1a2b3c4-.../competitions?competition_id=c1d2e3f4-..." \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{ "ok": true, "data": { "competition_id": "c1d2e3f4-...", "removed": true } }
+```
+
+### GET /api/v1/seasons/[id]/standings
+
+Computed season standings. Points are aggregated across all competitions in the season, weighted by each competition's `weight` multiplier.
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/seasons/s1a2b3c4-.../standings" \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "season_id": "s1a2b3c4-...",
+    "season_name": "Spring 2026",
+    "scoring_config": { "win": 3, "loss": 0, "draw": 1 },
+    "standings": [
+      {
+        "rank": 1,
+        "wallet": "0xaaa...",
+        "team_id": null,
+        "team_name": null,
+        "total_points": 28.5,
+        "competitions_entered": 3,
+        "total_wins": 8,
+        "total_losses": 2,
+        "total_draws": 1,
+        "breakdown": [
+          { "competition_id": "c1d2e3f4-...", "title": "Spring Invitational", "points": 12, "weight": 1.5, "weighted_points": 18 },
+          { "competition_id": "d2e3f4a5-...", "title": "Weekly League #3", "points": 10.5, "weight": 1.0, "weighted_points": 10.5 }
+        ]
+      },
+      {
+        "rank": 2,
+        "wallet": "0xbbb...",
+        "team_id": null,
+        "team_name": null,
+        "total_points": 24.0,
+        "competitions_entered": 3,
+        "total_wins": 7,
+        "total_losses": 3,
+        "total_draws": 0,
+        "breakdown": []
+      }
+    ]
+  }
+}
+```
+
+---
+
+## Analytics
+
+### GET /api/v1/analytics
+
+Organization analytics dashboard with competition counts, registration trends, top participants, and match statistics.
+
+**Auth:** Required. Must be org member.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `org_id` | string (uuid) | Yes | Organization ID |
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/analytics?org_id=f47ac10b-..." \
+  -H "Authorization: Bearer lc_xxxxx"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "org_id": "f47ac10b-...",
+    "period": "all_time",
+    "competitions": {
+      "total": 12,
+      "by_status": { "draft": 1, "registration": 2, "active": 3, "completed": 5, "canceled": 1 },
+      "by_type": { "bracket": 6, "league": 4, "challenge": 2 }
+    },
+    "registrations": {
+      "total": 480,
+      "unique_wallets": 120,
+      "trend": [
+        { "date": "2026-03-01", "count": 15 },
+        { "date": "2026-03-02", "count": 22 },
+        { "date": "2026-03-03", "count": 18 }
+      ]
+    },
+    "matches": {
+      "total": 340,
+      "completed": 310,
+      "pending": 30,
+      "avg_score_a": 1.8,
+      "avg_score_b": 1.2
+    },
+    "top_participants": [
+      { "wallet": "0xaaa...", "wins": 25, "losses": 5, "winrate": 83.3, "competitions_entered": 8 },
+      { "wallet": "0xbbb...", "wins": 20, "losses": 8, "winrate": 71.4, "competitions_entered": 7 }
+    ]
+  }
+}
+```
+
+---
+
+## White-Label
+
+Customize the visual appearance and branding of the competition platform for your organization.
+
+### GET /api/v1/whitelabel
+
+Get the white-label configuration for an organization.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `org_id` | string (uuid) | Yes | Organization ID |
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/whitelabel?org_id=f47ac10b-..."
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "org_id": "f47ac10b-...",
+    "primary_color": "#ff6600",
+    "logo_url": "https://cdn.example.com/logo.svg",
+    "favicon_url": "https://cdn.example.com/favicon.ico",
+    "custom_css": ".header { background: linear-gradient(135deg, #ff6600, #ff9900); }",
+    "footer_text": "Powered by Esports League NA",
+    "custom_domain": "compete.esportsna.gg",
+    "updated_at": "2026-03-15T10:00:00.000Z"
+  }
+}
+```
+
+### PUT /api/v1/whitelabel
+
+Create or update white-label configuration.
+
+**Auth:** Required. Must be org admin or owner.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `org_id` | string (uuid) | Yes | Organization ID |
+| `primary_color` | string | No | Primary brand color (hex) |
+| `logo_url` | string | No | Logo image URL |
+| `favicon_url` | string | No | Favicon URL |
+| `custom_css` | string | No | Custom CSS snippet (max 10KB) |
+| `footer_text` | string | No | Custom footer text |
+| `custom_domain` | string | No | Custom domain (requires DNS CNAME setup) |
+
+**Example request:**
+```bash
+curl -X PUT https://app.lightchallenge.ai/api/v1/whitelabel \
+  -H "Authorization: Bearer lc_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "org_id": "f47ac10b-...",
+    "primary_color": "#ff6600",
+    "logo_url": "https://cdn.example.com/logo.svg",
+    "footer_text": "Powered by Esports League NA",
+    "custom_domain": "compete.esportsna.gg"
+  }'
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "org_id": "f47ac10b-...",
+    "primary_color": "#ff6600",
+    "logo_url": "https://cdn.example.com/logo.svg",
+    "favicon_url": null,
+    "custom_css": null,
+    "footer_text": "Powered by Esports League NA",
+    "custom_domain": "compete.esportsna.gg",
+    "updated_at": "2026-03-15T14:00:00.000Z"
+  }
+}
+```
+
+---
+
+## Embeds
+
+Generate embeddable widgets for competitions that can be dropped into any website.
+
+### GET /api/v1/embed
+
+Get an embeddable HTML snippet for a competition widget.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `competition_id` | string (uuid) | Yes | Competition to embed |
+| `theme` | string | No | `light` (default), `dark`, or `auto` |
+
+**Example request:**
+```bash
+curl "https://app.lightchallenge.ai/api/v1/embed?competition_id=c1d2e3f4-...&theme=dark"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "competition_id": "c1d2e3f4-...",
+    "title": "Dota 2 Spring Invitational",
+    "theme": "dark",
+    "iframe": "<iframe src=\"https://app.lightchallenge.ai/embed/c1d2e3f4-...?theme=dark\" width=\"100%\" height=\"600\" frameborder=\"0\" allow=\"clipboard-write\"></iframe>",
+    "script": "<div id=\"lc-widget-c1d2e3f4\"></div>\n<script src=\"https://app.lightchallenge.ai/embed.js\" data-competition=\"c1d2e3f4-...\" data-theme=\"dark\" async></script>"
+  }
+}
+```
+
+**Usage (iframe):**
+```html
+<iframe
+  src="https://app.lightchallenge.ai/embed/c1d2e3f4-...?theme=dark"
+  width="100%"
+  height="600"
+  frameborder="0"
+  allow="clipboard-write"
+></iframe>
+```
+
+**Usage (script tag):**
+```html
+<div id="lc-widget-c1d2e3f4"></div>
+<script
+  src="https://app.lightchallenge.ai/embed.js"
+  data-competition="c1d2e3f4-..."
+  data-theme="dark"
+  async
+></script>
+```
+
+---
+
+## Rate Limits
+
+All v1 API endpoints are rate-limited per API key or wallet address:
+
+| Tier | Limit | Window |
+|------|-------|--------|
+| Read endpoints | 600 requests | 1 minute |
+| Write endpoints | 60 requests | 1 minute |
+| Webhook delivery | 1000 deliveries | 1 hour per org |
+
+Rate limit headers are included in every response:
+
+| Header | Description |
+|--------|-------------|
+| `X-RateLimit-Limit` | Max requests in window |
+| `X-RateLimit-Remaining` | Remaining requests |
+| `X-RateLimit-Reset` | Unix timestamp when the window resets |
+
+When rate-limited, the API returns `429 Too Many Requests`:
+```json
+{ "ok": false, "error": "Rate limit exceeded. Retry after 1710000060." }
+```
+
+---
+
+## Error Reference
+
+All errors follow a consistent format:
+
+```json
+{ "ok": false, "error": "Descriptive error message" }
+```
+
+| HTTP Status | Meaning |
+|-------------|---------|
+| `400` | Bad request -- missing or invalid parameters |
+| `401` | Unauthorized -- missing or invalid authentication |
+| `403` | Forbidden -- insufficient permissions for this action |
+| `404` | Not found -- resource does not exist |
+| `409` | Conflict -- duplicate resource or state conflict |
+| `422` | Unprocessable -- valid syntax but semantic error (e.g. starting a competition with no registrations) |
+| `429` | Rate limited -- too many requests |
+| `500` | Internal server error |
