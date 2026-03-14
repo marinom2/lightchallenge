@@ -10,6 +10,7 @@ module.exports = {
   },
   experimental: {
     outputFileTracingRoot: path.join(__dirname, ".."),
+    serverComponentsExternalPackages: ["unzipper", "pg", "node-fetch"],
   },
   webpack: (config, { isServer }) => {
     config.resolve.alias["@react-native-async-storage/async-storage"] = false;
