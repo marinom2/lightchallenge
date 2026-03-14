@@ -12,6 +12,10 @@ coverage.json
 # Next.js
 webapp/.next/
 webapp/out/
+.next/
+
+# Xcode
+*.xcuserstate
 
 # Editor / OS
 .DS_Store
