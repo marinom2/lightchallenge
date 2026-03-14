@@ -1,0 +1,752 @@
+/**
+ * scripts/demo/steps_challenge_lifecycle.ts
+ *
+ * Full end-to-end demo of the LightChallenge steps challenge lifecycle.
+ *
+ * Runs TWO challenges concurrently:
+ *   A (PASS)  — participant did ≥1000 steps → proof submitted on-chain → claims reward
+ *   B (FAIL)  — participant did <1000 steps  → no proof              → forfeits stake
+ *
+ * Steps performed:
+ *   1. Create two on-chain challenges (AutoApproval → immediately Approved)
+ *   2. Join both as participant
+ *   3. Insert DB records, evidence metadata, and verdicts
+ *   4. AIVM pipeline for A: requestInferenceV2 + simulate worker+validator
+ *   5. Wait for challenge startTs (proof window opens)
+ *   6. Indexer bridge: submitProofFor(A) → winner flag set on-chain
+ *   7. Wait for proofDeadlineTs (proof window closes)
+ *   8. finalize(A) → success | finalize(B) → fail (no winners)
+ *   9. claimPrincipal(A) → participant gets back stake + bonus
+ *      challengeB → no principal claim possible (stake forfeited)
+ *
+ * Usage:
+ *   npx tsx scripts/demo/steps_challenge_lifecycle.ts
+ *
+ * Env (from webapp/.env.local):
+ *   NEXT_PUBLIC_RPC_URL, LCAI_WORKER_PK, NEXT_PUBLIC_AUTO_APPROVAL_STRATEGY,
+ *   DATABASE_URL, AIVM_INFERENCE_V2_ADDRESS, AIVM_TASK_REGISTRY_ADDRESS,
+ *   CHALLENGEPAY_ADDRESS, LCAI_FINALIZE_PK (or LCAI_WORKER_PK)
+ */
+
+import dotenv from "dotenv";
+import path from "path";
+import { ethers } from "ethers";
+import { Pool } from "pg";
+import {
+  createPublicClient,
+  createWalletClient,
+  http,
+  parseAbi,
+  parseEventLogs,
+  defineChain,
+  type Address,
+  type Hex,
+} from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { encodeAivmPoiProofV1 } from "../../offchain/lib/aivmProof";
+
+dotenv.config({ path: path.resolve(process.cwd(), "webapp/.env.local") });
+
+// ─── Config ──────────────────────────────────────────────────────────────────
+
+const RPC         = process.env.NEXT_PUBLIC_RPC_URL || "https://light-testnet-rpc.lightchain.ai";
+const CHAIN_ID    = 504;
+const ZERO32      = ("0x" + "00".repeat(32)) as Hex;
+const ZERO_ADDR   = "0x0000000000000000000000000000000000000000" as Address;
+
+const PK                = (process.env.LCAI_WORKER_PK || process.env.PRIVATE_KEY) as Hex;
+const CHALLENGEPAY_ADDR = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || process.env.CHALLENGEPAY_ADDRESS || "0xEF52411a2f13DbE3BBB60A8474808D4d4F7F4CA2") as Address;
+const AIVM_ADDR         = (process.env.AIVM_INFERENCE_V2_ADDRESS || "0x2d499C52312ca8F0AD3B7A53248113941650bA7E") as Address;
+const REGISTRY_ADDR     = (process.env.AIVM_TASK_REGISTRY_ADDRESS || process.env.CHALLENGE_TASK_REGISTRY_ADDRESS || "0x0e079C693Bd177Fa31baab70EfCD5b9D625c355E") as Address;
+const VERIFIER_ADDR     = (process.env.CHALLENGEPAY_AIVM_POI_VERIFIER_ADDRESS || "0x44c750aA01Ec2465CB3E7354EF1c16cc83D45123") as Address;
+const AUTO_STRATEGY     = (process.env.NEXT_PUBLIC_AUTO_APPROVAL_STRATEGY || "0xC087b4D45b88218fce458031a212487B7E2D0538") as Address;
+
+if (!PK) throw new Error("Missing LCAI_WORKER_PK / PRIVATE_KEY");
+
+// Model config
+const MODEL_ID     = "apple_health.steps@1";
+const MODEL_DIGEST = ethers.keccak256(ethers.toUtf8Bytes(MODEL_ID)) as Hex;
+const RULE         = { adapter: "apple_health", minSteps: 1000 };
+const PARAMS_HASH  = ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify({ rule: RULE }))) as Hex;
+const BENCHMARK_HASH = ZERO32;
+
+// Challenge financial config (keep small for demo)
+const STAKE_WEI        = ethers.parseEther("0.01");  // 0.01 ETH per participant
+const PROPOSAL_BOND    = ethers.parseEther("0.0001"); // minimal bond
+const REQUEST_FEE_WEI  = ethers.parseEther("0.001");  // AIVM request fee
+
+// ─── ABIs ────────────────────────────────────────────────────────────────────
+
+const CP_ABI = parseAbi([
+  // Matches ChallengePay V1 CreateParams struct — field order matters for ABI encoding
+  "function createChallenge((uint8 kind, uint8 currency, address token, uint256 stakeAmount, uint256 proposalBond, uint256 joinClosesTs, uint256 startTs, uint256 duration, uint256 maxParticipants, address verifier, uint256 proofDeadlineTs, bytes32 externalId, uint256 leadTime, bytes fastTrackData, address strategy, bytes strategyData) p) payable returns (uint256)",
+  "function joinChallengeNative(uint256 id) payable",
+  "function submitProofFor(uint256 id, address participant, bytes proof)",
+  "function finalize(uint256 id)",
+  "function claimPrincipal(uint256 id)",
+  "function claimCashback(uint256 id)",
+  "function minLeadTime() view returns (uint256)",
+  "function nextChallengeId() view returns (uint256)",
+  "function getSnapshot(uint256 id) view returns (bool set, bool success, uint32 eligibleValidators, uint256 committedPool, uint256 forfeitedPool, uint256 cashback, uint256 forfeitedAfterCashback, uint256 charityAmt, uint256 protocolAmt, uint256 creatorAmt, uint256 validatorsAmt, uint256 perCommittedBonusX, uint256 perCashbackX, uint256 perValidatorAmt)",
+  "event ChallengeCreated(uint256 indexed id, address indexed challenger, uint8 kind, uint8 currency, address token, uint256 startTs, bytes32 externalId, bool fastTracked)",
+]);
+
+const AIVM_ABI = parseAbi([
+  "function requestInferenceV2(string model, bytes32 promptHash, bytes32 promptId, bytes32 modelDigest, bytes32 detConfigHash) payable returns (uint256 requestId, bytes32 taskId)",
+  "function commitInference(uint256 requestId, bytes32 commitment)",
+  "function revealInference(uint256 requestId, bytes32 secret, string response)",
+  "function submitPoIAttestation(bytes32 taskId, bytes32 resultHash, bytes32 transcriptHash, uint64 slot, bytes signature)",
+  "function requests(uint256) view returns (address requester, string model, bytes32 modelDigest, bytes32 detConfigHash, bytes32 promptHash, bytes32 promptId, bytes32 taskId, uint256 fee, uint64 createdAt, uint64 commitDeadline, uint64 revealDeadline, uint64 finalizeDeadline, uint8 status, address worker, bytes32 commitment, uint64 committedAt, bytes32 responseHash, string response, uint64 revealedAt, uint64 finalizedAt)",
+  "event InferenceRequestedV2(uint256 indexed requestId, address indexed requester, bytes32 indexed taskId, string model, bytes32 promptHash, bytes32 promptId, bytes32 modelDigest, bytes32 detConfigHash)",
+]);
+
+const REGISTRY_ABI = parseAbi([
+  "function recordBinding(uint256 challengeId, address subject, uint256 requestId, bytes32 taskId, bytes32 modelDigest, bytes32 paramsHash, bytes32 benchmarkHash, uint16 schemaVersion)",
+]);
+
+
+// ─── Viem chain + clients ────────────────────────────────────────────────────
+
+const chain = defineChain({
+  id: CHAIN_ID,
+  name: "lightchain-testnet",
+  nativeCurrency: { name: "Native", symbol: "ETH", decimals: 18 },
+  rpcUrls: { default: { http: [RPC] }, public: { http: [RPC] } },
+});
+
+const account = privateKeyToAccount(PK);
+
+const publicClient = createPublicClient({ chain, transport: http(RPC) });
+const walletClient = createWalletClient({ account, chain, transport: http(RPC) });
+
+// ─── Ethers (for EIP-712 signing) ────────────────────────────────────────────
+
+const provider = new ethers.JsonRpcProvider(RPC);
+const signer   = new ethers.Wallet(PK as string, provider);
+
+// ─── DB ──────────────────────────────────────────────────────────────────────
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function nowSec() { return Math.floor(Date.now() / 1000); }
+
+async function waitTx(hash: Hex, label: string) {
+  const r = await publicClient.waitForTransactionReceipt({ hash });
+  if (r.status !== "success") throw new Error(`[${label}] tx failed: ${hash}`);
+  console.log(`  ✓ [${label}] block ${r.blockNumber}`);
+  return r;
+}
+
+function section(title: string) {
+  console.log(`\n${"═".repeat(60)}\n  ${title}\n${"═".repeat(60)}`);
+}
+
+async function waitUntil(targetTs: number, label: string) {
+  const now = nowSec();
+  if (now >= targetTs) return;
+  const wait = targetTs - now;
+  console.log(`\n  ⏳ Waiting ${wait}s for ${label}...`);
+  // Poll on-chain time to be safe
+  let logged = false;
+  while (true) {
+    const block = await publicClient.getBlock();
+    if (Number(block.timestamp) >= targetTs) break;
+    const remaining = targetTs - Number(block.timestamp);
+    if (!logged || remaining % 15 === 0) {
+      process.stdout.write(`\r     ${remaining}s remaining...`);
+      logged = true;
+    }
+    await new Promise(r => setTimeout(r, 3000));
+  }
+  console.log(`\r  ✓ ${label} reached                      `);
+}
+
+// ─── AIVM helpers ────────────────────────────────────────────────────────────
+
+function buildPromptId(challengeId: bigint, subject: string): Hex {
+  return ethers.keccak256(
+    ethers.solidityPacked(["uint256", "address"], [challengeId, subject])
+  ) as Hex;
+}
+
+function buildCanonicalResult(challengeId: bigint): string {
+  return `{"challengeId":"${challengeId}","verified":true}`;
+}
+
+async function simulateWorkerAndValidator(
+  requestId: bigint,
+  taskId: Hex,
+  challengeId: bigint,
+  label: string
+) {
+  const canonicalResult = buildCanonicalResult(challengeId);
+  const responseHash = ethers.keccak256(ethers.toUtf8Bytes(canonicalResult)) as Hex;
+
+  // Commit
+  const secret = ethers.keccak256(ethers.toUtf8Bytes(`secret-${Date.now()}-${label}`));
+  const commitment = ethers.keccak256(
+    ethers.solidityPacked(
+      ["uint256", "address", "bytes32", "bytes32"],
+      [requestId, account.address, secret, responseHash]
+    )
+  );
+  const commitHash = await walletClient.writeContract({
+    address: AIVM_ADDR,
+    abi: AIVM_ABI,
+    functionName: "commitInference",
+    args: [requestId, commitment as Hex],
+    account, chain,
+  });
+  await waitTx(commitHash, `${label}:commit`);
+
+  // Reveal
+  const revealHash = await walletClient.writeContract({
+    address: AIVM_ADDR,
+    abi: AIVM_ABI,
+    functionName: "revealInference",
+    args: [requestId, secret as Hex, canonicalResult],
+    account, chain,
+  });
+  await waitTx(revealHash, `${label}:reveal`);
+
+  // PoI attestation
+  const domain = { name: "LCAI-PoI-Attestation", version: "1", chainId: CHAIN_ID, verifyingContract: AIVM_ADDR as `0x${string}` };
+  const types = { PoIAttestation: [
+    { name: "taskId",         type: "bytes32" },
+    { name: "resultHash",     type: "bytes32" },
+    { name: "transcriptHash", type: "bytes32" },
+    { name: "slot",           type: "uint64"  },
+  ]};
+  const msg = { taskId, resultHash: responseHash, transcriptHash: ZERO32, slot: 0n };
+  const signature = await signer.signTypedData(domain, types, msg);
+
+  const poiHash = await walletClient.writeContract({
+    address: AIVM_ADDR,
+    abi: AIVM_ABI,
+    functionName: "submitPoIAttestation",
+    args: [taskId, responseHash, ZERO32, 0n, signature as Hex],
+    account, chain,
+  });
+  await waitTx(poiHash, `${label}:attest`);
+
+  // Verify final state
+  const reqState = await publicClient.readContract({
+    address: AIVM_ADDR,
+    abi: AIVM_ABI,
+    functionName: "requests",
+    args: [requestId],
+  }) as unknown as any[];
+  const status = Number(reqState[12]);
+  const statusNames = ["None","Requested","Committed","Revealed","Finalized","Cancelled","TimedOut","Disputed"];
+  console.log(`  AIVM request ${requestId}: ${statusNames[status]} (${status})`);
+  if (status !== 4) throw new Error(`Expected Finalized(4), got ${status}`);
+  return { responseHash };
+}
+
+// ─── Main ────────────────────────────────────────────────────────────────────
+
+async function main() {
+  section("LightChallenge Steps Challenge — Full Lifecycle Demo");
+  console.log(`  Wallet:   ${account.address}`);
+  console.log(`  RPC:      ${RPC}`);
+  console.log(`  ChallengePay: ${CHALLENGEPAY_ADDR}`);
+  console.log(`  AIVM:         ${AIVM_ADDR}`);
+  console.log(`  Verifier:     ${VERIFIER_ADDR}`);
+
+  const walletBal = await publicClient.getBalance({ address: account.address });
+  console.log(`  Balance:  ${ethers.formatEther(walletBal)} ETH`);
+
+  // ── Phase 1: Compute timing ──────────────────────────────────────────────
+
+  section("Phase 1 — Compute challenge timeline");
+
+  const minLeadTime = await publicClient.readContract({
+    address: CHALLENGEPAY_ADDR, abi: CP_ABI, functionName: "minLeadTime",
+  }) as bigint;
+
+  const blockHead = await publicClient.getBlock();
+  const now = Number(blockHead.timestamp);
+  const startTs      = now + Number(minLeadTime) + 90;   // 90s buffer after minLeadTime (gives ~60s margin for Phase 2-3 txs)
+  const duration     = 120;                              // 2 min challenge
+  const endTime      = startTs + duration;
+  const proofWindow  = 120;                              // 2 min proof submission window
+  const proofDeadlineTs = endTime + proofWindow;
+
+  console.log(`  now:              ${new Date(now * 1000).toISOString()}`);
+  console.log(`  startTs:          +${startTs - now}s → ${new Date(startTs * 1000).toISOString()}`);
+  console.log(`  endTime:          +${endTime - now}s  → ${new Date(endTime * 1000).toISOString()}`);
+  console.log(`  proofDeadlineTs:  +${proofDeadlineTs - now}s  → ${new Date(proofDeadlineTs * 1000).toISOString()}`);
+  console.log(`  Total demo time:  ~${proofDeadlineTs - now}s (~${Math.ceil((proofDeadlineTs - now)/60)} min)`);
+
+  // ── Phase 2: Create challenges A and B on-chain ─────────────────────────
+
+  section("Phase 2 — Create challenges on-chain");
+
+  const nextId = await publicClient.readContract({
+    address: CHALLENGEPAY_ADDR, abi: CP_ABI, functionName: "nextChallengeId",
+  }) as bigint;
+
+  let idA = nextId;
+  let idB = nextId + 1n;
+  console.log(`  Expected IDs: A=${idA} (pass), B=${idB} (fail)`);
+
+  // Field order MUST match ChallengePay V1 CreateParams struct exactly for viem ABI encoding
+  const params = {
+    kind: 0,
+    currency: 0,
+    token: ZERO_ADDR,
+    stakeAmount: STAKE_WEI,
+    proposalBond: PROPOSAL_BOND,
+    joinClosesTs: BigInt(startTs - 30),   // closes 30s before start (must be < startTs and > block.timestamp)
+    startTs: BigInt(startTs),
+    duration: BigInt(duration),
+    maxParticipants: 0n,
+    verifier: VERIFIER_ADDR,
+    proofDeadlineTs: BigInt(proofDeadlineTs),
+    externalId: ZERO32,
+    leadTime: minLeadTime,
+    fastTrackData: "0x" as Hex,
+    strategy: AUTO_STRATEGY,
+    strategyData: "0x" as Hex,
+  };
+
+  const valuePerChallenge = STAKE_WEI + PROPOSAL_BOND;
+  const ts = Date.now();
+
+  // Submit A and B in parallel — both enter mempool at nearly same time, land in adjacent blocks
+  // Must use explicit nonces since both are submitted before either is confirmed
+  const currentNonce = await provider.getTransactionCount(account.address);
+  console.log(`  Submitting A+B in parallel (nonces ${currentNonce}, ${currentNonce + 1})...`);
+
+  const [hashA, hashB] = await Promise.all([
+    walletClient.writeContract({
+      address: CHALLENGEPAY_ADDR, abi: CP_ABI, functionName: "createChallenge",
+      args: [{ ...params, externalId: ethers.keccak256(ethers.toUtf8Bytes("demo-A-" + ts)) as Hex }],
+      value: valuePerChallenge, account, chain,
+      nonce: currentNonce,
+    }),
+    walletClient.writeContract({
+      address: CHALLENGEPAY_ADDR, abi: CP_ABI, functionName: "createChallenge",
+      args: [{ ...params, externalId: ethers.keccak256(ethers.toUtf8Bytes("demo-B-" + ts)) as Hex }],
+      value: valuePerChallenge, account, chain,
+      nonce: currentNonce + 1,
+    }),
+  ]);
+
+  // Wait for both receipts in parallel
+  const [rcptA, rcptB] = await Promise.all([
+    waitTx(hashA, "createChallenge-A"),
+    waitTx(hashB, "createChallenge-B"),
+  ]);
+
+  // Parse challenge IDs from events — authoritative on-chain IDs
+  const logsA = parseEventLogs({ abi: CP_ABI, logs: rcptA.logs as any, eventName: "ChallengeCreated" });
+  if (!logsA[0]?.args?.id) throw new Error("ChallengeCreated event not found for A");
+  idA = logsA[0].args.id as bigint;
+
+  const logsB = parseEventLogs({ abi: CP_ABI, logs: rcptB.logs as any, eventName: "ChallengeCreated" });
+  if (!logsB[0]?.args?.id) throw new Error("ChallengeCreated event not found for B");
+  idB = logsB[0].args.id as bigint;
+
+  console.log(`  ✓ Challenge A created: id=${idA} (pass path)`);
+  console.log(`  ✓ Challenge B created: id=${idB} (fail path)`);
+
+  // Challenge is immediately Active after creation in V1
+  console.log(`\n  ✓ Challenges created (status: Active)`);
+
+  // ── Phase 3: Join both challenges ────────────────────────────────────────
+
+  section("Phase 3 — Join challenges as participant");
+
+  const joinNonce = await provider.getTransactionCount(account.address);
+  const [joinHashA, joinHashB] = await Promise.all([
+    walletClient.writeContract({
+      address: CHALLENGEPAY_ADDR, abi: CP_ABI, functionName: "joinChallengeNative",
+      args: [idA], value: STAKE_WEI, account, chain, nonce: joinNonce,
+    }),
+    walletClient.writeContract({
+      address: CHALLENGEPAY_ADDR, abi: CP_ABI, functionName: "joinChallengeNative",
+      args: [idB], value: STAKE_WEI, account, chain, nonce: joinNonce + 1,
+    }),
+  ]);
+  await Promise.all([
+    waitTx(joinHashA, "joinChallenge-A"),
+    waitTx(joinHashB, "joinChallenge-B"),
+  ]);
+  console.log(`  ✓ Joined both challenges with ${ethers.formatEther(STAKE_WEI)} ETH each`);
+
+  // ── Phase 4: DB records ──────────────────────────────────────────────────
+
+  section("Phase 4 — Insert DB records");
+
+  // Shared structures
+  const challengeParams   = { rule: { adapter: "apple_health", minSteps: RULE.minSteps } };
+  const challengeOptions  = { templateId: "steps_daily", provider: "apple_health", minSteps: RULE.minSteps, fitnessKind: "steps" };
+  const challengeFunds    = { stake: STAKE_WEI.toString(), bond: PROPOSAL_BOND.toString(), currency: { type: "NATIVE", symbol: "ETH" } };
+  const timelineA = { start: startTs, end: endTime, proofDeadline: proofDeadlineTs, joinClosesTs: startTs - 30 };
+  const timelineB = { start: startTs, end: endTime, proofDeadline: proofDeadlineTs, joinClosesTs: startTs - 30 };
+
+  const baseProof = (verdict: { pass: boolean; steps: number }) => ({
+    kind: "aivm",
+    backend: "lightchain_poi",
+    modelId: MODEL_ID,
+    params: {
+      form: { days: 1, minSteps: RULE.minSteps },
+      intent: { type: "FITNESS", fitnessKind: "steps", visibility: "PUBLIC", gameId: null, gameMode: null },
+      templateId: "steps_daily",
+    },
+    verifier: VERIFIER_ADDR,
+    paramsHash: PARAMS_HASH,
+    benchmarkHash: BENCHMARK_HASH,
+    evidenceSummary: { steps: verdict.steps, verdict: verdict.pass ? "PASS" : "FAIL" },
+  });
+
+  // challenges: full row including tx_hash, params, timeline, funds, options
+  await pool.query(
+    `INSERT INTO public.challenges (id, title, description, subject, tx_hash, model_id, model_hash,
+       params, timeline, funds, options, status, proof, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, 'Active', $12::jsonb, NOW(), NOW())
+     ON CONFLICT (id) DO UPDATE SET
+       status=EXCLUDED.status, tx_hash=COALESCE(EXCLUDED.tx_hash, challenges.tx_hash),
+       params=EXCLUDED.params, timeline=EXCLUDED.timeline, funds=EXCLUDED.funds,
+       options=EXCLUDED.options, proof=EXCLUDED.proof, updated_at=NOW()`,
+    [idA.toString(), "Walk 1000 Steps Daily — Pass Demo",
+     "Demo: participant walks 1500 steps (goal: 1000) → PASS",
+     account.address, hashA,
+     MODEL_ID, MODEL_DIGEST,
+     JSON.stringify(challengeParams), JSON.stringify(timelineA), JSON.stringify(challengeFunds), JSON.stringify(challengeOptions),
+     JSON.stringify(baseProof({ pass: true, steps: 1500 }))]
+  );
+  console.log(`  ✓ Challenge A DB record (id=${idA}): full row with tx_hash, params, timeline, funds`);
+
+  await pool.query(
+    `INSERT INTO public.challenges (id, title, description, subject, tx_hash, model_id, model_hash,
+       params, timeline, funds, options, status, proof, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, 'Active', $12::jsonb, NOW(), NOW())
+     ON CONFLICT (id) DO UPDATE SET
+       status=EXCLUDED.status, tx_hash=COALESCE(EXCLUDED.tx_hash, challenges.tx_hash),
+       params=EXCLUDED.params, timeline=EXCLUDED.timeline, funds=EXCLUDED.funds,
+       options=EXCLUDED.options, proof=EXCLUDED.proof, updated_at=NOW()`,
+    [idB.toString(), "Walk 1000 Steps Daily — Fail Demo",
+     "Demo: participant walks 500 steps (goal: 1000) → FAIL",
+     account.address, hashB,
+     MODEL_ID, MODEL_DIGEST,
+     JSON.stringify(challengeParams), JSON.stringify(timelineB), JSON.stringify(challengeFunds), JSON.stringify(challengeOptions),
+     JSON.stringify(baseProof({ pass: false, steps: 500 }))]
+  );
+  console.log(`  ✓ Challenge B DB record (id=${idB}): full row with tx_hash, params, timeline, funds`);
+
+  // participants: record on-chain join
+  for (const [id, joinHash, joinedAtSec] of [
+    [idA, joinHashA, Number((await publicClient.getBlock({ blockHash: (await publicClient.waitForTransactionReceipt({ hash: joinHashA })).blockHash! })).timestamp)],
+    [idB, joinHashB, Number((await publicClient.getBlock({ blockHash: (await publicClient.waitForTransactionReceipt({ hash: joinHashB })).blockHash! })).timestamp)],
+  ] as [bigint, string, number][]) {
+    await pool.query(
+      `INSERT INTO public.participants (challenge_id, subject, tx_hash, joined_at, created_at, updated_at)
+       VALUES ($1::bigint, $2::text, $3, to_timestamp($4), NOW(), NOW())
+       ON CONFLICT (challenge_id, (lower(subject)))
+       DO UPDATE SET tx_hash=COALESCE(EXCLUDED.tx_hash, participants.tx_hash),
+         joined_at=COALESCE(EXCLUDED.joined_at, participants.joined_at), updated_at=NOW()`,
+      [id.toString(), account.address.toLowerCase(), joinHash, joinedAtSec]
+    );
+  }
+  console.log(`  ✓ Participants records inserted for A and B with join tx_hash + joined_at`);
+
+  // evidence: synthetic apple_health step count records (represent what real adapter would write)
+  const evidenceHashA = ethers.keccak256(ethers.toUtf8Bytes("steps:1500:apple_health")) as Hex;
+  const evidenceHashB = ethers.keccak256(ethers.toUtf8Bytes("steps:500:apple_health")) as Hex;
+  const evidenceDateA = new Date(startTs * 1000).toISOString().slice(0, 10);
+  const evidenceDateB = new Date(startTs * 1000).toISOString().slice(0, 10);
+
+  await pool.query(
+    `INSERT INTO public.evidence (challenge_id, subject, provider, data, evidence_hash, created_at, updated_at)
+     VALUES ($1::bigint, $2::text, 'apple', $3::jsonb, $4, NOW(), NOW())
+     ON CONFLICT DO NOTHING`,
+    [idA.toString(), account.address.toLowerCase(),
+     JSON.stringify([{ date: evidenceDateA, steps: 1500, source: "apple_health", unit: "count" }]),
+     evidenceHashA]
+  );
+  await pool.query(
+    `INSERT INTO public.evidence (challenge_id, subject, provider, data, evidence_hash, created_at, updated_at)
+     VALUES ($1::bigint, $2::text, 'apple', $3::jsonb, $4, NOW(), NOW())
+     ON CONFLICT DO NOTHING`,
+    [idB.toString(), account.address.toLowerCase(),
+     JSON.stringify([{ date: evidenceDateB, steps: 500, source: "apple_health", unit: "count" }]),
+     evidenceHashB]
+  );
+  console.log(`  ✓ Evidence records inserted: A=1500 steps (apple), B=500 steps (apple)`);
+
+  // verdicts
+  await pool.query(
+    `INSERT INTO public.verdicts (challenge_id, subject, pass, evaluator, reasons, evidence_hash, updated_at)
+     VALUES ($1, $2, true, 'fitnessEvaluator', $3::text[], $4, NOW())
+     ON CONFLICT (challenge_id, subject) DO UPDATE SET pass=true, evidence_hash=$4, updated_at=NOW()`,
+    [idA.toString(), account.address, [`steps: 1500 >= 1000 (minSteps)`], evidenceHashA]
+  );
+  console.log(`  ✓ Verdict A: PASS (1500 steps >= 1000 threshold)`);
+
+  await pool.query(
+    `INSERT INTO public.verdicts (challenge_id, subject, pass, evaluator, reasons, evidence_hash, updated_at)
+     VALUES ($1, $2, false, 'fitnessEvaluator', $3::text[], $4, NOW())
+     ON CONFLICT (challenge_id, subject) DO UPDATE SET pass=false, evidence_hash=$4, updated_at=NOW()`,
+    [idB.toString(), account.address, [`steps: 500 < 1000 (minSteps) - FAIL`], evidenceHashB]
+  );
+  console.log(`  ✓ Verdict B: FAIL  (500 steps < 1000 threshold)`);
+
+  // aivm_jobs
+  await pool.query(
+    `INSERT INTO public.aivm_jobs (challenge_id, status) VALUES ($1, 'queued')
+     ON CONFLICT (challenge_id) DO UPDATE SET status='queued', updated_at=NOW()`,
+    [idA.toString()]
+  );
+  await pool.query(
+    `INSERT INTO public.aivm_jobs (challenge_id, status) VALUES ($1, 'skipped')
+     ON CONFLICT (challenge_id) DO UPDATE SET status='skipped', updated_at=NOW()`,
+    [idB.toString()]
+  );
+  console.log(`  ✓ AIVM jobs: A=queued, B=skipped (fail path needs no proof)`);
+
+  // ── Phase 5: AIVM pipeline for Challenge A ───────────────────────────────
+
+  section("Phase 5 — AIVM pipeline for Challenge A (pass path)");
+
+  const promptId   = buildPromptId(idA, account.address);
+  const promptPayload = JSON.stringify({
+    schema: "lc-aivm-eval-v1",
+    challengeId: idA.toString(),
+    subject: account.address.toLowerCase(),
+    modelId: MODEL_ID,
+    verdict: { pass: true, score: 0 },
+    evidence: { steps: 1500 },
+  });
+  const promptHash = ethers.keccak256(ethers.toUtf8Bytes(promptPayload)) as Hex;
+  const detConfigHash = PARAMS_HASH;
+
+  console.log("  Submitting requestInferenceV2...");
+  const reqTxHash = await walletClient.writeContract({
+    address: AIVM_ADDR, abi: AIVM_ABI, functionName: "requestInferenceV2",
+    args: [MODEL_ID, promptHash, promptId, MODEL_DIGEST, detConfigHash],
+    value: REQUEST_FEE_WEI, account, chain,
+  });
+  const reqRcpt = await waitTx(reqTxHash, "requestInferenceV2");
+
+  const reqLogs = parseEventLogs({
+    abi: AIVM_ABI, logs: reqRcpt.logs as any, eventName: "InferenceRequestedV2",
+  });
+  if (!reqLogs[0]?.args?.requestId || !reqLogs[0]?.args?.taskId) {
+    throw new Error("InferenceRequestedV2 event not found");
+  }
+  const requestId = reqLogs[0].args.requestId as bigint;
+  const taskId    = reqLogs[0].args.taskId as Hex;
+  console.log(`  ✓ AIVM request ${requestId} submitted | taskId: ${taskId.slice(0,14)}...`);
+
+  // Record binding in ChallengeTaskRegistry
+  const bindTxHash = await walletClient.writeContract({
+    address: REGISTRY_ADDR, abi: REGISTRY_ABI, functionName: "recordBinding",
+    args: [idA, account.address as Address, requestId, taskId, MODEL_DIGEST, PARAMS_HASH, BENCHMARK_HASH, 1],
+    account, chain,
+  });
+  await waitTx(bindTxHash, "recordBinding");
+  console.log(`  ✓ Binding recorded in ChallengeTaskRegistry`);
+
+  // Update DB with binding
+  await pool.query(
+    `UPDATE public.challenges
+     SET proof = jsonb_set(jsonb_set(jsonb_set(proof, '{taskBinding}',
+         jsonb_build_object('requestId', $2::text, 'taskId', $3::text, 'schemaVersion', 1), true),
+       '{requestTxHash}', to_jsonb($4::text), true),
+       '{verificationStatus}', '"submitted"', true),
+         updated_at = NOW()
+     WHERE id = $1::bigint`,
+    [idA.toString(), requestId.toString(), taskId, reqTxHash]
+  );
+  await pool.query(
+    `UPDATE public.aivm_jobs SET task_id=$2, status='submitted', updated_at=NOW() WHERE challenge_id=$1::bigint`,
+    [idA.toString(), taskId]
+  );
+  console.log(`  ✓ DB binding saved`);
+
+  // Simulate Lightchain worker (commit+reveal) and validator (attest)
+  console.log("\n  Simulating Lightchain worker (commit+reveal) + validator (attest)...");
+  console.log("  ⚠ TESTNET SIMULATION — real Lightchain network does this in production");
+  const { responseHash } = await simulateWorkerAndValidator(requestId, taskId, idA, "A");
+  console.log(`  ✓ AIVM request ${requestId} FINALIZED on Lightchain`);
+  console.log(`  responseHash: ${responseHash}`);
+
+  // Update DB: mark as finalized by indexer
+  await pool.query(
+    `UPDATE public.challenges
+     SET proof = jsonb_set(jsonb_set(proof, '{verificationStatus}', '"finalized"', true),
+                           '{poiResultHash}', to_jsonb($2::text), true),
+         status = 'Finalized', updated_at = NOW()
+     WHERE id = $1::bigint`,
+    [idA.toString(), responseHash]
+  );
+  await pool.query(
+    `UPDATE public.aivm_jobs SET status='done', updated_at=NOW() WHERE challenge_id=$1::bigint`,
+    [idA.toString()]
+  );
+
+  // ── Phase 6: Wait for proof window, then submitProofFor ─────────────────
+
+  section("Phase 6 — Wait for proof window to open, then submit proof");
+
+  await waitUntil(startTs, "challenge startTs (proof window opens)");
+
+  // Build the AIVM PoI proof
+  console.log("\n  Building AivmPoiProof for Challenge A...");
+  const evaluatedAt = BigInt(Math.floor(Date.now() / 1000));
+
+  const encodedProof = encodeAivmPoiProofV1({
+    requestId,
+    taskId,
+    challengeId: idA,
+    subject: account.address as Address,
+    passed: true,
+    score: 0n,
+    evidenceHash: evidenceHashA as Hex,
+    benchmarkHash: BENCHMARK_HASH,
+    metricHash: undefined,
+    evaluatedAt,
+    modelDigest: MODEL_DIGEST,
+    paramsHash: PARAMS_HASH,
+  });
+
+  console.log(`  Calling submitProofFor(${idA}, ${account.address.slice(0,8)}...)...`);
+  const submitHash = await walletClient.writeContract({
+    address: CHALLENGEPAY_ADDR, abi: CP_ABI, functionName: "submitProofFor",
+    args: [idA, account.address as Address, encodedProof],
+    account, chain,
+  });
+  await waitTx(submitHash, "submitProofFor-A");
+  console.log(`  ✓ Proof submitted for Challenge A`);
+  console.log(`  ✓ Participant ${account.address.slice(0,8)}... is now marked as WINNER on-chain`);
+
+  // Update DB
+  await pool.query(
+    `UPDATE public.challenges
+     SET proof = jsonb_set(proof, '{finalizationAttempted}', 'true', true),
+         updated_at = NOW()
+     WHERE id = $1::bigint`,
+    [idA.toString()]
+  );
+
+  // ── Phase 7: Wait for proofDeadlineTs ───────────────────────────────────
+
+  section("Phase 7 — Wait for proof window to close (proofDeadlineTs)");
+
+  await waitUntil(proofDeadlineTs + 2, "proofDeadlineTs");
+
+  // ── Phase 8: Finalize both challenges ───────────────────────────────────
+
+  section("Phase 8 — Finalize challenges");
+
+  const finalHashA = await walletClient.writeContract({
+    address: CHALLENGEPAY_ADDR, abi: CP_ABI, functionName: "finalize",
+    args: [idA], account, chain,
+  });
+  await waitTx(finalHashA, "finalize-A");
+  console.log(`  ✓ Challenge A finalized (has winners)`);
+
+  const finalHashB = await walletClient.writeContract({
+    address: CHALLENGEPAY_ADDR, abi: CP_ABI, functionName: "finalize",
+    args: [idB], account, chain,
+  });
+  await waitTx(finalHashB, "finalize-B");
+  console.log(`  ✓ Challenge B finalized (no winners — outcome=Fail)`);
+
+  // Update DB
+  await pool.query(`UPDATE public.challenges SET status='Finalized', updated_at=NOW() WHERE id IN ($1::bigint, $2::bigint)`,
+    [idA.toString(), idB.toString()]);
+
+  // ── Phase 9: Read snapshots ──────────────────────────────────────────────
+
+  section("Phase 9 — Snapshot (rewards distribution)");
+
+  const snapA = await publicClient.readContract({
+    address: CHALLENGEPAY_ADDR, abi: CP_ABI, functionName: "getSnapshot", args: [idA],
+  }) as unknown as any[];
+  const snapB = await publicClient.readContract({
+    address: CHALLENGEPAY_ADDR, abi: CP_ABI, functionName: "getSnapshot", args: [idB],
+  }) as unknown as any[];
+
+  console.log(`\n  Challenge A snapshot:`);
+  console.log(`    success:        ${snapA[1]}`);
+  console.log(`    committedPool:  ${ethers.formatEther(snapA[3])} ETH  (winners' stake, claimable)`);
+  console.log(`    forfeitedPool:  ${ethers.formatEther(snapA[4])} ETH  (losers' stake forfeited)`);
+  console.log(`    perCommittedBonusX: ${snapA[11].toString()}`);
+
+  console.log(`\n  Challenge B snapshot:`);
+  console.log(`    success:        ${snapB[1]}`);
+  console.log(`    committedPool:  ${ethers.formatEther(snapB[3])} ETH`);
+  console.log(`    forfeitedPool:  ${ethers.formatEther(snapB[4])} ETH  (participant's stake — forfeited)`);
+  console.log(`    perCashbackX:   ${snapB[12].toString()}`);
+
+  // ── Phase 10: Claim rewards ──────────────────────────────────────────────
+
+  section("Phase 10 — Claim rewards");
+
+  const balBefore = await publicClient.getBalance({ address: account.address });
+  console.log(`  Wallet balance before claim: ${ethers.formatEther(balBefore)} ETH`);
+
+  // Claim principal for Challenge A (passing participant)
+  const claimHashA = await walletClient.writeContract({
+    address: CHALLENGEPAY_ADDR, abi: CP_ABI, functionName: "claimPrincipal",
+    args: [idA], account, chain,
+  });
+  await waitTx(claimHashA, "claimPrincipal-A");
+  console.log(`  ✓ claimPrincipal(A) succeeded — stake returned + bonus`);
+
+  // Try claimCashback for Challenge B (failing participant, if cashback > 0)
+  const cashbackX = snapB[12] as bigint;
+  if (cashbackX > 0n) {
+    const cashbackHash = await walletClient.writeContract({
+      address: CHALLENGEPAY_ADDR, abi: CP_ABI, functionName: "claimCashback",
+      args: [idB], account, chain,
+    });
+    await waitTx(cashbackHash, "claimCashback-B");
+    console.log(`  ✓ claimCashback(B) — partial refund on forfeited stake`);
+  } else {
+    console.log(`  ✗ No cashback for Challenge B (cashbackBps=0 — stake fully forfeited)`);
+  }
+
+  const balAfter = await publicClient.getBalance({ address: account.address });
+  console.log(`\n  Wallet balance after claim:  ${ethers.formatEther(balAfter)} ETH`);
+  const net = balAfter - balBefore;
+  console.log(`  Net (claim - gas):           ${net > 0n ? "+" : ""}${ethers.formatEther(net)} ETH`);
+
+  // ── Final summary ────────────────────────────────────────────────────────
+
+  section("DEMO COMPLETE — Final State");
+
+  console.log(`
+  ┌─────────────────────────────────────────────────────┐
+  │  Challenge A (PASS — 1500 steps ≥ 1000 goal)        │
+  │    DB id:            ${String(idA).padEnd(28)} │
+  │    On-chain status:  Finalized / Outcome: Success   │
+  │    Participant:      WINNER ✓                       │
+  │    claimPrincipal:   stake returned + bonus         │
+  ├─────────────────────────────────────────────────────┤
+  │  Challenge B (FAIL — 500 steps < 1000 goal)         │
+  │    DB id:            ${String(idB).padEnd(28)} │
+  │    On-chain status:  Finalized / Outcome: Fail      │
+  │    Participant:      NOT WINNER ✗                   │
+  │    claimPrincipal:   NOT ELIGIBLE (revert expected) │
+  │    Stake:            Forfeited to protocol/creator  │
+  └─────────────────────────────────────────────────────┘
+
+  ✅ Full lifecycle demonstrated:
+     create → auto-approve → join → evidence → verdict
+     → AIVM request → Lightchain finalize → submitProofFor
+     → finalize → claim rewards
+  `);
+}
+
+main()
+  .catch(e => {
+    console.error("\n❌ Demo failed:", e.message || e);
+    process.exit(1);
+  })
+  .finally(() => pool.end());

@@ -43,10 +43,10 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     EventChallengeRouter: dep.address,
   });
 
-  // ✅ 1-command redeploy: runs admin config automatically (AIVM policy, strategy policy, etc.)
+  // ✅ 1-command redeploy: runs admin config automatically (AIVM policy, etc.)
   await runPostDeployConfigIfEnabled(hre);
 };
 
 export default func;
 func.tags = ["router"];
-func.dependencies = ["challengepay", "metadata"];
+func.dependencies = ["ChallengePay", "metadata"];

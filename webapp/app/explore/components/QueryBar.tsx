@@ -13,7 +13,7 @@ export default function QueryBar({
   onRefresh, onLoadOlder, disabledLoadOlder,
   rangeLabel,
 }: {
-  status: "ALL" | "Pending" | "Approved" | "Rejected" | "Finalized" | "Canceled" | "Paused";
+  status: "ALL" | "Active" | "Finalized" | "Canceled";
   onStatusChange: (s: any) => void;
   span: bigint;
   onSpanChange: (s: bigint) => void;
@@ -40,12 +40,9 @@ export default function QueryBar({
             title="Filter by status"
           >
             <option value="ALL">All statuses</option>
-            <option value="Pending">Pending</option>
-            <option value="Approved">Approved</option>
-            <option value="Rejected">Rejected</option>
+            <option value="Active">Active</option>
             <option value="Finalized">Finalized</option>
             <option value="Canceled">Canceled</option>
-            <option value="Paused">Paused</option>
           </select>
 
           {/* Span */}
@@ -90,7 +87,7 @@ export default function QueryBar({
         </div>
 
         <div className="flex-1" />
-        {rangeLabel && <div className="text-[color:var(--text-muted)] text-sm">{rangeLabel}</div>}
+        {rangeLabel && <div className="text-(--text-muted) text-sm">{rangeLabel}</div>}
       </div>
     </div>
   );

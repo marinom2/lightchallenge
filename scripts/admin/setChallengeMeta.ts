@@ -35,21 +35,21 @@ Set Challenge Metadata (URI)
   console.log("URI               :", uri);
 
   const reg = await ethers.getContractAt("MetadataRegistry", registryAddr, signer);
+  const force = (process.env.FORCE || "").toLowerCase() === "true";
 
-  // Try challengerSet first (friendly permission). If it reverts, fall back to ownerSet.
-  try {
-    const tx = await reg.challengerSet(challengeContract, id, uri);
+  if (force) {
+    console.log("Mode              : ownerForceSet (overwrite)");
+    const tx = await reg.ownerForceSet(challengeContract, id, uri);
     const rec = await tx.wait();
-    console.log("Mode              : challengerSet");
     console.log("Tx                :", tx.hash);
     console.log("Block             :", rec?.blockNumber);
-  } catch (e) {
-    console.log("challengerSet failed — trying ownerSet (requires registry owner) …");
+  } else {
+    console.log("Mode              : ownerSet (write-once)");
     const tx = await reg.ownerSet(challengeContract, id, uri);
     const rec = await tx.wait();
-    console.log("Mode              : ownerSet");
     console.log("Tx                :", tx.hash);
     console.log("Block             :", rec?.blockNumber);
+    console.log("Note: URI is now locked (write-once). Use FORCE=true to overwrite.");
   }
 }
 

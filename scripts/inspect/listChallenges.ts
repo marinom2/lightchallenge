@@ -18,7 +18,7 @@ function getModeFromArgs(): Mode | null {
   return null;
 }
 
-const STATUS = ["Pending", "Approved", "Rejected", "Finalized"] as const;
+const STATUS = ["Active", "Finalized", "Canceled"] as const;
 const OUTCOME = ["None", "Success", "Fail"] as const;
 
 function toIso(n: bigint | number): string {
@@ -115,35 +115,29 @@ async function main() {
     const outcome = Number(ch.outcome ?? ch[1] ?? 0);
     const challenger = (ch.challenger ?? ch[2]) as string;
 
-    const approvalDeadline = BigInt(ch.approvalDeadline ?? ch[7] ?? 0);
     const startTs = BigInt(ch.startTs ?? ch[8] ?? 0);
 
     // pools (defensively)
     const poolSuccess = BigInt(ch.poolSuccess ?? ch[12] ?? 0);
     const poolFail    = BigInt(ch.poolFail ?? ch[13] ?? 0);
 
-    // NEW: proof & peers (defensive reads with index fallbacks)
+    // proof (defensive reads with index fallbacks)
     const proofRequired = Boolean(ch.proofRequired ?? ch[19] ?? false);
     const proofOk       = Boolean(ch.proofOk ?? ch[20] ?? false);
 
-    const peerApprovalsNeeded = Number(ch.peerApprovalsNeeded ?? ch[5] ?? 0);
-    const peerApprovals       = Number(ch.peerApprovals ?? ch[6] ?? 0);
-
-    // NEW: finalization helpers
-    const canFinalizeAt = Number(approvalDeadline > startTs ? approvalDeadline : startTs);
+    // finalization helpers
+    const canFinalizeAt = Number(startTs);
     const finalizableNow =
-      status !== 3 && // not already Finalized
+      status !== 1 && // not already Finalized
+      status !== 2 && // not Canceled
       now >= canFinalizeAt &&
-      (!proofRequired || proofOk) &&
-      (peerApprovalsNeeded === 0 || peerApprovals >= peerApprovalsNeeded);
+      (!proofRequired || proofOk);
 
     out.push({
       id: Number(i),
-      status: ["Pending", "Approved", "Rejected", "Finalized"][status] ?? String(status),
+      status: ["Active", "Finalized", "Canceled"][status] ?? String(status),
       outcome: ["None", "Success", "Fail"][outcome] ?? String(outcome),
       challenger,
-      approvalDeadline: Number(approvalDeadline),
-      approvalDeadlineISO: toIso(approvalDeadline),
       startTs: Number(startTs),
       startTsISO: toIso(startTs),
       poolSuccessWei: poolSuccess.toString(),
@@ -152,8 +146,6 @@ async function main() {
       poolFailLCAI: fmtLCAIFromWeiStr(poolFail.toString()),
       proofRequired,
       proofOk,
-      peerApprovalsNeeded,
-      peerApprovals,
       canFinalizeAt,
       canFinalizeAtISO: iso(canFinalizeAt),
       finalizableNow,
@@ -167,20 +159,17 @@ async function main() {
 
   console.log("\n================ CHALLENGES (table) ================\n");
   console.log(
-    "ID | STATUS     | OUTCOME  | AD (UTC)                | START (UTC)             | Proof  | Peers   | Finalizable"
+    "ID | STATUS     | OUTCOME  | START (UTC)             | Proof  | Finalizable"
   );
-  console.log("----------------------------------------------------------------------------------------------------------------");
+  console.log("------------------------------------------------------------------------------------");
   for (const r of out) {
     const id = String(r.id).padStart(2);
     const st = (r.status + "        ").slice(0, 10);
     const oc = (r.outcome + "        ").slice(0, 8);
     const proofCell = r.proofRequired ? (r.proofOk ? "req✓" : "req✗") : "n/a ";
-    const peersCell = `${String(r.peerApprovals).padStart(2)}/${String(r.peerApprovalsNeeded).padEnd(2)}`;
     const finCell = r.finalizableNow ? "yes" : "no";
     console.log(
-      `${id} | ${st} | ${oc} | ${r.approvalDeadlineISO.padEnd(24)} | ${r.startTsISO.padEnd(
-        24
-      )} | ${proofCell} | ${peersCell} | ${finCell}`
+      `${id} | ${st} | ${oc} | ${r.startTsISO.padEnd(24)} | ${proofCell} | ${finCell}`
     );
   }
   console.log("----------------------------------------------------------------------------------------------------------------\n");

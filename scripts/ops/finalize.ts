@@ -28,8 +28,7 @@ async function tryFinalize(cp: any, id: bigint) {
     console.log("  success:", s2.success);
     console.log("  winnersPool:", fmt(s2.winnersPool));
     console.log("  losersPool :", fmt(s2.losersPool));
-    console.log("  validatorsAmt:", fmt(s2.validatorsAmt));
-    console.log("  perValidatorAmt:", fmt(s2.perValidatorAmt));
+    if (s2.validatorsAmt != null) console.log("  validatorsAmt:", fmt(s2.validatorsAmt));
   } else {
     console.log("\nNo snapshot (reject path). Refunds & fees handled immediately.");
   }
@@ -54,26 +53,15 @@ async function main() {
   const now = Number(latest?.timestamp ?? Math.floor(Date.now() / 1000));
 
   const ch = await cp.getChallenge(id);
-  console.log("status:", Number(ch.status), "(0=Pending,1=Approved,2=Rejected,3=Finalized)");
+  console.log("status:", Number(ch.status), "(0=Active,1=Finalized,2=Canceled)");
   console.log("outcome:", Number(ch.outcome), "(0=None,1=Success,2=Fail)");
-  console.log("approvalDeadline:", Number(ch.approvalDeadline), "now:", now, `(${iso(now)})`);
   console.log("startTs:", Number(ch.startTs), `(${iso(Number(ch.startTs))})`);
 
   // Helpful hints before sending
-  if (Number(ch.status) === 0 && now <= Number(ch.approvalDeadline)) {
-    console.log("\nℹ️ Pending before approvalDeadline — finalize will REVERT (BeforeDeadline).\n");
-  }
-  if (Number(ch.status) === 1) {
-    // Approved → check peers/proof
-    const peerNeeded = Number(ch.peerApprovalsNeeded);
-    if (peerNeeded > 0) {
-      const peerCount = Number(ch.peerApprovals);
-      console.log(`peer approvals: ${peerCount} / ${peerNeeded}`);
-      if (peerCount < peerNeeded) console.log("⚠️ PeersNotMet likely if you finalize now.");
-    }
+  if (Number(ch.status) === 0) {
+    // Active → check proof
     if (ch.proofRequired) {
       console.log("proofRequired: true");
-      // getSnapshot is only after finalize; rely on c.proofOk
       if (!ch.proofOk) console.log("Note: Proof not verified yet — finalize will REVERT (ProofRequired).");
     }
   }
@@ -85,8 +73,7 @@ async function main() {
     } catch (e: any) {
       const m = (e?.error?.message || e?.message || "").toLowerCase();
       console.log("\n❌ Finalize reverted.");
-      if (m.includes("beforedeadline")) console.log("- Still before approvalDeadline for a Pending challenge.");
-      if (m.includes("peersnotmet")) console.log("- Not enough peer approvals.");
+      if (m.includes("beforedeadline")) console.log("- Still before deadline.");
       if (m.includes("proofrequired")) console.log("- Proof is required and not yet verified.");
       if (m.includes("pausedorcanceled")) console.log("- Challenge is paused or canceled.");
       console.log("\nDetails:", e?.message || e);
@@ -105,15 +92,13 @@ async function main() {
     const now2 = Number((await ethers.provider.getBlock("latest"))!.timestamp);
     const c = await cp.getChallenge(id);
 
-    const statusName = ["Pending","Approved","Rejected","Finalized"][Number(c.status)] || String(c.status);
+    const statusName = ["Active","Finalized","Canceled"][Number(c.status)] || String(c.status);
     console.log(
       `now=${now2} (${iso(now2)}) | status=${statusName} | ` +
-      `approvalDeadline=${c.approvalDeadline} (${iso(Number(c.approvalDeadline))}) | ` +
       `startTs=${c.startTs} (${iso(Number(c.startTs))}) | proofRequired=${c.proofRequired} | proofOk=${c.proofOk}`
     );
 
     const can =
-      now2 >= Number(c.approvalDeadline) &&
       now2 >= Number(c.startTs) &&
       (!c.proofRequired || c.proofOk);
 

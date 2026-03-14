@@ -82,7 +82,7 @@ export async function getDotaMatchNormalized(args: {
 
   const enriched = await Promise.all(
     args.participants.map(async (p) => {
-      const b = lookup(p.wallet, "steam");
+      const b = await lookup(p.wallet, "steam");
       if (!b) throw new Error(`No Steam binding for ${p.wallet}`);
       const platformId = /^\d{17}$/.test(b.platformId) ? steam64To32(b.platformId) : String(b.platformId);
       return { wallet: p.wallet, platformId, handle: b.handle, team: teamFor(platformId, radiant32, dire32) };

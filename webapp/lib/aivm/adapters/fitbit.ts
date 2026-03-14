@@ -1,8 +1,8 @@
-import { Adapter, AdapterContext, AdapterResult, CanonicalRecord, adapters } from "./index";
+import { Adapter, AdapterContext, AdapterResult, CanonicalRecord } from "./types";
 import { computeBind } from "@/lib/aivm/bind";
 
-const FITBIT_STEPS_DAY_MODEL       = "0x3333333333333333333333333333333333333333333333333333333333333333" as const;
-const FITBIT_DISTANCE_WINDOW_MODEL = "0x4444444444444444444444444444444444444444444444444444444444444444" as const;
+const FITBIT_STEPS_DAY_MODEL       = "0xef89f75d3f5b1bb04ee42748a51dc8410c79cfdea474356ed5edb0b08e451ee9" as const;
+const FITBIT_DISTANCE_WINDOW_MODEL = "0x3a7a7b773abcce8dd5619d63eff68bb14d12b873ca5d2fb395aee7a5c5d89fd6" as const;
 
 function sha256hex(buf: Buffer | string): `0x${string}` {
   const { createHash } = require("node:crypto");
@@ -126,5 +126,4 @@ export const fitbitAdapter: Adapter = {
   }
 };
 
-(adapters as any).push(fitbitAdapter);
 export default fitbitAdapter;

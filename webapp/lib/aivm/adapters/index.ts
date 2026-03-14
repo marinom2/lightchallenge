@@ -1,28 +1,7 @@
-export interface CanonicalRecord { [k: string]: any }
+// Re-export types for external consumers (from types.ts — no circular import)
+export type { CanonicalRecord, AdapterResult, AdapterContext, Adapter } from "./types";
 
-export interface AdapterResult {
-  records: CanonicalRecord[];
-  publicSignals: bigint[];
-  dataHash: `0x${string}`;
-}
-
-export interface AdapterContext {
-  challengeId: bigint;
-  subject: `0x${string}`;
-  modelHash: `0x${string}`;
-  params: Record<string, any>;
-}
-
-export interface Adapter {
-  name: string;
-  supports(modelHash: string): boolean;
-  ingest(input: { file?: Buffer; json?: any; context: AdapterContext }): Promise<AdapterResult>;
-}
-
-// Shared registry (adapters push themselves via side-effect imports)
-export const adapters: Adapter[] = [];
-
-// Side-effect imports to register:
+// Re-export individual adapters for named imports
 export { appleAdapter } from "./apple";
 export { dotaAdapter } from "./dota";
 export { stravaAdapter } from "./strava";
@@ -30,3 +9,26 @@ export { garminAdapter } from "./garmin";
 export { lolAdapter } from "./lol";
 export { googleFitAdapter } from "./googlefit";
 export { fitbitAdapter } from "./fitbit";
+export { cs2Adapter } from "./cs2";
+
+// Registry — each adapter imports from ./types (not ./index), so no cycle
+import { appleAdapter } from "./apple";
+import { dotaAdapter } from "./dota";
+import { stravaAdapter } from "./strava";
+import { garminAdapter } from "./garmin";
+import { lolAdapter } from "./lol";
+import { googleFitAdapter } from "./googlefit";
+import { fitbitAdapter } from "./fitbit";
+import { cs2Adapter } from "./cs2";
+import type { Adapter } from "./types";
+
+export const adapters: Adapter[] = [
+  appleAdapter,
+  dotaAdapter,
+  stravaAdapter,
+  garminAdapter,
+  lolAdapter,
+  googleFitAdapter,
+  fitbitAdapter,
+  cs2Adapter,
+];

@@ -69,7 +69,6 @@ export default function ReviewCard(props: {
 
   const currency = labelCurrency(s);
   const stake = s.money.stake || "0";
-  const bond = s.money.bond || "0";
   const deposit = `${props.derived.totalDepositFormatted} ${currency}`;
 
   const challengePay = ADDR.ChallengePay;
@@ -161,12 +160,6 @@ export default function ReviewCard(props: {
                 <span className="font-mono">{fmtDate(s.timeline.proofDeadline)}</span>
               </div>
 
-              {Number(s.peerApprovalsNeeded || 0) > 0 ? (
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-(--text-muted)">Peer deadline</span>
-                  <span className="font-mono">{fmtDate(s.timeline.peerDeadline)}</span>
-                </div>
-              ) : null}
             </div>
           </div>
 
@@ -186,14 +179,7 @@ export default function ReviewCard(props: {
               </div>
 
               <div className="flex items-center justify-between gap-2">
-                <span className="text-(--text-muted)">Bond</span>
-                <span className="font-mono">
-                  {bond} {currency}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-(--text-muted)">Total deposit</span>
+                <span className="text-(--text-muted)">Deposit</span>
                 <span className="font-mono font-semibold">{deposit}</span>
               </div>
 
@@ -251,30 +237,6 @@ export default function ReviewCard(props: {
               </>
             ) : null}
 
-            {Number(s.peerApprovalsNeeded || 0) > 0 ? (
-              <>
-                <div className="mt-3 text-xs text-(--text-muted)">Peer approvals</div>
-                <div className="mt-1 text-sm font-semibold">
-                  {s.peerApprovalsNeeded} / {s.peers.length}
-                </div>
-
-                {s.peers.length > 0 ? (
-                  <>
-                    <div className="mt-3 text-xs text-(--text-muted)">Peer wallets</div>
-                    <div className="mt-1 space-y-1">
-                      {s.peers.map((peer) => (
-                        <div
-                          key={peer}
-                          className="break-all font-mono text-xs text-(--text-muted)"
-                        >
-                          {peer}
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                ) : null}
-              </>
-            ) : null}
           </div>
 
           <div>
@@ -300,15 +262,6 @@ export default function ReviewCard(props: {
                 {treasury}
               </div>
 
-              <div className="mt-3 flex items-center justify-between gap-2">
-                <span className="text-(--text-muted)">Strategy</span>
-                <span className="font-mono" title={ADDR.AutoApprovalStrategy}>
-                  {formatAddress(ADDR.AutoApprovalStrategy)}
-                </span>
-              </div>
-              <div className="mt-1 break-all text-xs text-(--text-muted)">
-                {ADDR.AutoApprovalStrategy}
-              </div>
             </div>
           </div>
 
@@ -339,52 +292,6 @@ export default function ReviewCard(props: {
                 </span>
               </div>
 
-              <div className="mt-3 text-xs text-(--text-muted)">Strategy checks</div>
-
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-(--text-muted)">Strategy configured</span>
-                <span className="font-mono">{formatBool(p?.autoApprovalSet)}</span>
-              </div>
-
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-(--text-muted)">Strategy paused</span>
-                <span className="font-mono">{formatBool(p?.strategyPaused)}</span>
-              </div>
-
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-(--text-muted)">Creator allowlist required</span>
-                <span className="font-mono">
-                  {formatBool(p?.strategyRequireCreatorAllowlist)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-(--text-muted)">Creator allowed</span>
-                <span className="font-mono">
-                  {formatBool(p?.strategyCreatorAllowed)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-(--text-muted)">Native allowed</span>
-                <span className="font-mono">
-                  {formatBool(p?.strategyAllowNative)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-(--text-muted)">Strategy min lead</span>
-                <span className="font-mono">
-                  {p?.strategyMinLeadSec != null ? `${p.strategyMinLeadSec}s` : "—"}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-(--text-muted)">Strategy max duration</span>
-                <span className="font-mono">
-                  {p?.strategyMaxDurSec != null ? `${p.strategyMaxDurSec}s` : "—"}
-                </span>
-              </div>
             </div>
           </div>
         </div>

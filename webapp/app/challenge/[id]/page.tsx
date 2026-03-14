@@ -20,12 +20,27 @@ import { addressUrl, blockUrl, txUrl } from "@/lib/explorer";
 import { useToasts } from "@/lib/ui/toast";
 import { prettyGame } from "@/lib/games";
 import { GlassIcon } from "@/app/components/ui/GlassIcon";
-import UnderlineTabs, { UnderlineTab } from "@/app/components/ui/UnderlineTabs";
 import * as Lucide from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import ChallengeLayout from "@/app/components/challenge/ChallengeLayout";
-import { useHaptics } from "@/app/components/challenge/useHaptics";
-import { resolvePrimaryAction } from "@/app/components/challenge/PrimaryActionResolver";
+import ChallengeLayout from "./components/ChallengeLayout";
+import AchievementClaim from "./components/AchievementClaim";
+import { useHaptics } from "./hooks/useHaptics";
+import { resolvePrimaryAction } from "./lib/PrimaryActionResolver";
+
+// Extracted modules
+import type { Status, ApiOut, SnapshotOut, TabKey } from "./lib/types";
+import { safeLower, safeBigintFrom, safeParseId, normalizeDecimalInput, toNum, fetchJson } from "./lib/utils";
+import { decodeSnapshot, decodeChallenge, normalizeApi } from "./lib/decoders";
+import {
+  safeText, buildDetailsRibbon, code, safe, yesno, ts, fmtNum, short, shortOrDash,
+  linkAddr, linkBlock, linkTx, timeAgo, timeAgoAbs,
+  formatLCAI, formatMaxParticipants, formatDuration, prettyCountdown, formatDateShort, enumLabel, computePublicStatus,
+} from "./lib/formatters";
+import { usePullToRefresh } from "./hooks/usePullToRefresh";
+import { SkeletonLine, HeroSummarySkeleton, PrimaryActionSkeleton } from "./components/Skeletons";
+import { StatusCapsule, DetailsRibbon, HeroMetricsRow, HeroProgress } from "./components/HeroSection";
+import { PrimaryActionCard, JoinCard } from "./components/ActionCards";
+import { CollapsiblePanel, PhaseStory, ActionRow, TabBar, DLGrid, Metric, SectionPanel, ChainTimeline } from "./components/DetailPanels";
 
 
 type LI = Lucide.LucideIcon;
@@ -60,10 +75,16 @@ const {
 
 const PartyPopperSafe: LI = (Lucide as any).PartyPopper ?? Award;
 
+// NOTE: Types (Status, ApiOut, SnapshotOut, TabKey) → ./lib/types.ts
+// NOTE: Utilities (isHexAddress, safeLower, etc.) → ./lib/utils.ts
+// NOTE: Decoders (decodeChallenge, decodeSnapshot, normalizeApi) → ./lib/decoders.ts
+// NOTE: Formatters (formatLCAI, timeAgo, etc.) → ./lib/formatters.tsx
+// NOTE: UI components → ./components/*.tsx
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Dynamic bits
 // ─────────────────────────────────────────────────────────────────────────────
-const ValidatorVote = dynamic(() => import("@/app/components/ValidatorVote"), { ssr: false });
+// ValidatorVote removed — V1 ChallengePay has no validator approval mechanism
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -72,429 +93,7 @@ const ZERO = "0x0000000000000000000000000000000000000000" as const;
 const CP = (ADDR?.ChallengePay ?? ZERO) as `0x${string}`;
 const TREAS = (ADDR?.Treasury ?? ZERO) as `0x${string}`;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
-type Status = "Pending" | "Approved" | "Rejected" | "Finalized" | "Canceled" | "Paused";
-
-type SnapshotOut = {
-  set: boolean;
-  success: boolean;
-  rightSide: number;
-  eligibleValidators: number;
-  committedPool: string;
-  forfeitedPool: string;
-  cashback: string;
-  forfeitedAfterCashback?: string;
-  charityAmt: string;
-  protocolAmt: string;
-  creatorAmt: string;
-  validatorsAmt: string;
-  perCommittedBonusX: string;
-  perCashbackX: string;
-  perValidatorAmt: string;
-  schedule?: {
-    joinClosesTs?: number | string | null;
-    startTs?: number | string | null;
-    endTs?: number | string | null;
-  } | null;
-  money?: { stakeWei?: string | null; bondWei?: string | null } | null;
-  meta?: { title?: string; description?: string } | null;
-};
-
-type ApiOut = {
-  id: string;
-  status: Status;
-
-  creator?: `0x${string}`;
-  startTs?: string | number | null;
-  endTs?: string | number | null;
-  approvalDeadline?: string;
-  peerDeadlineTs?: string;
-  createdBlock?: string;
-  createdTx?: `0x${string}`;
-  winnersClaimed?: number;
-  proofRequired?: boolean;
-  proofOk?: boolean;
-  strategy?: `0x${string}` | null;
-  fastTracked?: boolean;
-  autoApproved?: boolean;
-
-  kindKey?: string | null;
-  category?: string | null;
-  game?: string | null;
-  mode?: string | null;
-
-  title?: string;
-  description?: string;
-  params?: Record<string, any> | string;
-  verifier?: string;
-  externalId?: string;
-
-  modelId?: string | null;
-  modelKind?: "aivm" | "zk" | "plonk" | null;
-  modelHash?: `0x${string}` | null;
-  plonkVerifier?: `0x${string}` | null;
-  verifierUsed?: `0x${string}` | null;
-  proof?: {
-    kind: "aivm" | "zk" | "plonk";
-    modelId: string;
-    params: Record<string, any>;
-    paramsHash: `0x${string}`;
-  } | null;
-
-  money?: { stakeWei?: string | null; bondWei?: string | null } | null;
-  pool?: { committedWei?: string | null } | null;
-
-  peerApprovals?: number;
-  peerApprovalsNeeded?: number;
-  youAlreadyVoted?: boolean;
-  youAreEligibleValidator?: boolean;
-  youMeetMinStake?: boolean;
-
-  snapshot?: SnapshotOut | null;
-  timeline: Array<{
-    name: string;
-    label: string;
-    tx: `0x${string}`;
-    block: string;
-    timestamp?: number;
-    challengeId?: string | number;
-    who?: `0x${string}`;
-  }>;
-
-  meta?: { title?: string; description?: string } | null;
-  schedule?: {
-    joinClosesTs?: number | string | null;
-    startTs?: number | string | null;
-    endTs?: number | string | null;
-  } | null;
-
-  createdAt?: number;
-  tags?: string[];
-};
-
-const STATUS_LABEL = ["Pending", "Approved", "Rejected", "Finalized", "Canceled", "Paused"] as const;
-type TabKey = "details" | "economics" | "model" | "onchain" | "links" | "params";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Small utilities (robust + production-friendly)
-// ─────────────────────────────────────────────────────────────────────────────
-function isHexAddress(v: unknown): v is `0x${string}` {
-  return typeof v === "string" && /^0x[a-fA-F0-9]{40}$/.test(v);
-}
-function safeLower(v?: string | null) {
-  return (v ?? "").toLowerCase();
-}
-function safeBigintFrom(v: unknown): bigint | null {
-  try {
-    if (typeof v === "bigint") return v;
-    if (typeof v === "number" && Number.isFinite(v)) return BigInt(Math.trunc(v));
-    if (typeof v === "string" && v.trim() !== "") return BigInt(v);
-    return null;
-  } catch {
-    return null;
-  }
-}
-function safeParseId(id: unknown): bigint | null {
-  if (typeof id !== "string" || !id.trim()) return null;
-  if (!/^\d+$/.test(id.trim())) return null;
-  try {
-    const x = BigInt(id.trim());
-    return x >= 0n ? x : null;
-  } catch {
-    return null;
-  }
-}
-function normalizeDecimalInput(s: string) {
-  return (s ?? "").trim().replace(",", ".");
-}
-function toNum(v: unknown): number | null {
-  if (v == null) return null;
-  if (typeof v === "number") return Number.isFinite(v) ? v : null;
-  if (typeof v === "bigint") return Number(v);
-  if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) return Number(v);
-  return null;
-}
-function safeJson<T = any>(s: string): T | null {
-  try {
-    return JSON.parse(s) as T;
-  } catch {
-    return null;
-  }
-}
-
-function dedupeStrings(arr: unknown): string[] {
-  if (!Array.isArray(arr)) return [];
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const x of arr) {
-    if (typeof x !== "string") continue;
-    const k = x.trim();
-    if (!k) continue;
-    if (seen.has(k)) continue;
-    seen.add(k);
-    out.push(k);
-  }
-  return out;
-}
-
-async function fetchJson<T>(
-  url: string,
-  opts?: RequestInit & { timeoutMs?: number; signal?: AbortSignal }
-): Promise<{ ok: true; data: T } | { ok: false; error: string; status?: number }> {
-  const timeoutMs = opts?.timeoutMs ?? 15000;
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
-  const signal = opts?.signal ? anySignal([opts.signal, ctrl.signal]) : ctrl.signal;
-
-  try {
-    const res = await fetch(url, { ...opts, signal, cache: "no-store" });
-    const txt = await res.text();
-    const parsed = typeof txt === "string" && txt.length ? safeJson<any>(txt) : null;
-
-    if (!res.ok) {
-      const msg = (parsed && (parsed.error || parsed.message)) || txt || `HTTP ${res.status}`;
-      return { ok: false, error: String(msg), status: res.status };
-    }
-
-    const data = (parsed ?? (txt as any)) as T;
-    return { ok: true, data };
-  } catch (e: any) {
-    const msg = e?.name === "AbortError" ? "Request timed out" : e?.message || "Network error";
-    return { ok: false, error: msg };
-  } finally {
-    clearTimeout(t);
-  }
-}
-function anySignal(signals: AbortSignal[]) {
-  const controller = new AbortController();
-  const onAbort = () => controller.abort();
-  for (const s of signals) {
-    if (!s) continue;
-    if (s.aborted) {
-      controller.abort();
-      return controller.signal;
-    }
-    s.addEventListener("abort", onAbort, { once: true });
-  }
-  return controller.signal;
-}
-
- 
-function decodeSnapshot(raw: unknown): { set: boolean; success?: boolean } {
-  const s: any = raw ?? {};
-  const setRaw = s.set ?? s[0];
-  const okRaw = s.success ?? s[1];
-  const set = Boolean(setRaw);
-  const success = okRaw == null ? undefined : Boolean(okRaw);
-  return { set, success };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Normalizers / Decoders
-// ─────────────────────────────────────────────────────────────────────────────
-  function decodeChallenge(raw: unknown) {
-    const c: any = raw ?? {};
-    const num = (x: any, fallbackIdx?: number) => {
-      const v = x ?? (fallbackIdx != null ? c[fallbackIdx] : undefined);
-      if (typeof v === "bigint") return Number(v);
-      if (typeof v === "number") return v;
-      if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) return Number(v);
-      return null;
-    };
-
-  const bigOrStr = (x: any, fallbackIdx?: number) => {
-    const v = x ?? (fallbackIdx != null ? c[fallbackIdx] : undefined);
-    if (typeof v === "bigint") return v;
-    if (typeof v === "string") {
-      try {
-        return BigInt(v);
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  };
-
-  const addr = (x: any, fallbackIdx?: number) => {
-    const v = x ?? (fallbackIdx != null ? c[fallbackIdx] : undefined);
-    return isHexAddress(v) ? (v as `0x${string}`) : null;
-  };
-
-  const statusIdx = (() => {
-    const v = c.status ?? c[2];
-    if (typeof v === "number") return v;
-    if (typeof v === "bigint") return Number(v);
-    if (typeof v === "string" && !Number.isNaN(Number(v))) return Number(v);
-    return 0;
-  })();
-
-  return {
-    status: (STATUS_LABEL[statusIdx] as Status) ?? "Pending",
-
-    token: addr(c.token, 6) ?? (ZERO as `0x${string}`),
-    currency: num(c.currency, 5),
-    poolWei: bigOrStr(c.pool, 22),
-    stakeWei: bigOrStr(c.stake, 7),
-    bondWei: bigOrStr(c.proposalBond, 8),
-
-    approvalDeadline: num(c.approvalDeadline, 9),
-    startTs: num(c.startTs, 10),
-    duration: num(c.duration, 11),
-    peerDeadlineTs: num(c.peerDeadlineTs, 28),
-
-    maxParticipants: num(c.maxParticipants, 12),
-    participantsCount: num(c.participantsCount, 27),
-
-    charityAddr: addr(c.charity, 20),
-    charityBps: num(c.charityBps, 19),
-
-    kind: num(c.kind, 1),
-    outcome: num(c.outcome, 3),
-    yesWeight: num(c.yesWeight, 14),
-    noWeight: num(c.noWeight, 15),
-    partWeight: num(c.partWeight, 16),
-  };
-}
-
-function normalizeApi(id: string, d: any, m: any | null): ApiOut {
-  const timelineRaw = Array.isArray(d?.timeline) ? d.timeline : [];
-  const status: Status = STATUS_LABEL.includes(d?.status) ? d.status : (d?.status as Status) ?? "Pending";
-
-  return {
-    ...(d as ApiOut),
-    id: d?.id ?? id,
-    status,
-
-    title: d?.title || m?.title || `Challenge #${id}`,
-    description: d?.description || m?.description || "",
-    category: d?.category || m?.category || null,
-    game: d?.game ?? m?.game ?? null,
-    mode: d?.mode ?? m?.mode ?? null,
-    externalId: d?.externalId || m?.externalId,
-
-    modelId: d?.modelId ?? m?.modelId ?? null,
-    modelKind: d?.modelKind ?? m?.modelKind ?? null,
-    modelHash: d?.modelHash ?? m?.modelHash ?? null,
-    verifierUsed: d?.verifierUsed ?? m?.verifierUsed ?? null,
-    plonkVerifier: d?.plonkVerifier ?? m?.plonkVerifier ?? null,
-    proof: d?.proof ?? m?.proof ?? null,
-
-    params: d?.params ?? m?.params ?? "",
-    createdAt: d?.createdAt ?? m?.createdAt,
-    tags: Array.from(new Set([...(dedupeStrings(d?.tags)), ...(dedupeStrings(m?.tags))])),
-    timeline: timelineRaw,
-  };
-}
-// ─────────────────────────────────────────────────────────────────────────────
-// Pull-to-refresh (mobile)
-// ─────────────────────────────────────────────────────────────────────────────
-function usePullToRefresh(opts: {
-  rootRef: React.RefObject<HTMLElement>;
-  enabled: boolean;
-  onRefresh: () => void | Promise<void>;
-  refreshing: boolean;
-  haptics?: { light?: () => void; success?: () => void; error?: () => void };
-  thresholdPx?: number;
-  maxPullPx?: number;
-}) {
-  const { rootRef, enabled, onRefresh, refreshing, haptics, thresholdPx = 72, maxPullPx = 140 } = opts;
-  const [pullPx, setPullPx] = React.useState(0);
-  const [armed, setArmed] = React.useState(false);
-
-  const startY = React.useRef<number | null>(null);
-  const pulling = React.useRef(false);
-
-  React.useEffect(() => {
-    if (!enabled) return;
-
-    const el = rootRef.current;
-    if (!el) return;
-
-    const atTop = () => {
-      // window scroll OR element scroll — we support both
-      const winTop = typeof window !== "undefined" ? window.scrollY <= 0 : true;
-      const elTop = (el as any).scrollTop != null ? (el as any).scrollTop <= 0 : true;
-      return winTop && elTop;
-    };
-
-    const onStart = (e: TouchEvent) => {
-      if (refreshing) return;
-      if (!atTop()) return;
-      startY.current = e.touches[0]?.clientY ?? null;
-      pulling.current = false;
-      setArmed(false);
-      setPullPx(0);
-    };
-
-    const onMove = (e: TouchEvent) => {
-      if (refreshing) return;
-      if (startY.current == null) return;
-      if (!atTop()) return;
-
-      const y = e.touches[0]?.clientY ?? startY.current;
-      const dy = y - startY.current;
-
-      if (dy <= 0) {
-        pulling.current = false;
-        setPullPx(0);
-        setArmed(false);
-        return;
-      }
-
-      // We are pulling down
-      pulling.current = true;
-
-      // prevent "rubber band" scroll from stealing the gesture
-      // (needs passive:false listener)
-      e.preventDefault();
-
-      const eased = Math.min(maxPullPx, Math.pow(dy, 0.92));
-      setPullPx(eased);
-
-      const nextArmed = eased >= thresholdPx;
-      setArmed(nextArmed);
-    };
-
-    const onEnd = async () => {
-      if (refreshing) return;
-
-      const shouldFire = pulling.current && pullPx >= thresholdPx;
-      startY.current = null;
-      pulling.current = false;
-
-      if (shouldFire) {
-        try {
-          haptics?.light?.();
-          await onRefresh();
-          haptics?.success?.();
-        } catch {
-          haptics?.error?.();
-        }
-      }
-
-      setPullPx(0);
-      setArmed(false);
-    };
-
-    el.addEventListener("touchstart", onStart, { passive: true });
-    // IMPORTANT: passive:false so preventDefault works
-    el.addEventListener("touchmove", onMove, { passive: false });
-    el.addEventListener("touchend", onEnd, { passive: true });
-    el.addEventListener("touchcancel", onEnd, { passive: true });
-
-    return () => {
-      el.removeEventListener("touchstart", onStart as any);
-      el.removeEventListener("touchmove", onMove as any);
-      el.removeEventListener("touchend", onEnd as any);
-      el.removeEventListener("touchcancel", onEnd as any);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, rootRef, refreshing, thresholdPx, maxPullPx, haptics, pullPx, onRefresh]);
-
-  return { pullPx, armed };
-}
+// Types, utilities, decoders, and hooks are imported from ./lib/* and ./hooks/*
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Page
@@ -537,6 +136,8 @@ export default function ChallengePage() {
 
   const [tab, setTab] = React.useState<TabKey>("details");
   const [data, setData] = React.useState<ApiOut | null>(null);
+  /** Fast preview from DB meta \u2014 populated before slow RPC call completes */
+  const [metaPreview, setMetaPreview] = React.useState<{ title?: string; description?: string } | null>(null);
   const [err, setErr] = React.useState<string | null>(null);
   const isInitialLoading = !data && !err;
   const [mounted, setMounted] = React.useState(false);
@@ -587,22 +188,36 @@ export default function ChallengePage() {
     qs.set("span", "200000");
 
     try {
-      const [dRes, mRes] = await Promise.all([
-        fetchJson<any>(`/api/challenge/${id}?${qs.toString()}`, {
-          signal: abort.signal,
-          timeoutMs: 15000,
-        }),
-        fetchJson<any>(`/api/challenges/meta/${id}`, {
-          signal: abort.signal,
-          timeoutMs: 8000,
-        }).catch(() => ({ ok: false as const, error: "meta fetch failed" })),
-      ]);
+      // Phase 1: Fast DB meta fetch (~100-300ms) — show title/description immediately
+      const metaFetch = fetchJson<any>(`/api/challenges/meta/${id}`, {
+        signal: abort.signal,
+        timeoutMs: 6000,
+      }).catch(() => ({ ok: false as const, error: "meta fetch failed" }));
+
+      // Phase 2: Slow on-chain fetch (5-15s) — runs concurrently
+      const chainFetch = fetchJson<any>(`/api/challenge/${id}?${qs.toString()}`, {
+        signal: abort.signal,
+        timeoutMs: 20000,
+      });
+
+      // When meta arrives (fast), show title/description right away
+      const mRes = await metaFetch;
+      if (!abort.signal.aborted && mRes && (mRes as any).ok && (mRes as any).data) {
+        const md = (mRes as any).data;
+        setMetaPreview({
+          title: md.title || undefined,
+          description: md.description || undefined,
+        });
+      }
+
+      // Wait for chain data
+      const dRes = await chainFetch;
 
       // If we were aborted, do nothing (prevents stale UI updates)
       if (abort.signal.aborted) return;
 
       if (!dRes.ok) throw new Error(dRes.error || "Failed to load challenge");
-      const m = mRes && mRes.ok ? mRes.data : null;
+      const m = mRes && (mRes as any).ok ? (mRes as any).data : null;
 
       const merged = normalizeApi(id, dRes.data, m);
 
@@ -610,6 +225,7 @@ export default function ChallengePage() {
       if (abort.signal.aborted) return;
 
       setData(merged);
+      setMetaPreview(null); // clear preview now that real data is set
       setLastUpdatedAt(Date.now());
     } catch (e: any) {
       // Ignore abort errors (common during route changes / rapid refresh)
@@ -716,7 +332,7 @@ export default function ChallengePage() {
 
   const scheduleBucket = data?.snapshot?.schedule || data?.schedule || null;
   const metaTitle = data?.title ?? data?.meta?.title ?? data?.snapshot?.meta?.title ?? "";
-  const metaDesc = data?.description ?? data?.meta?.description ?? data?.snapshot?.meta?.description ?? "";
+  const metaDesc = data?.description || data?.meta?.description || data?.snapshot?.meta?.description || "";
 
   const startSec = decoded.startTs ?? toNum(scheduleBucket?.startTs ?? data?.startTs);
   const endSec = React.useMemo(() => {
@@ -724,7 +340,7 @@ export default function ChallengePage() {
     return toNum(scheduleBucket?.endTs ?? data?.endTs);
   }, [decoded.duration, decoded.startTs, scheduleBucket?.endTs, data?.endTs]);
 
-  const joinCloseSec = toNum(scheduleBucket?.joinClosesTs ?? data?.approvalDeadline ?? decoded.approvalDeadline);
+  const joinCloseSec = toNum(scheduleBucket?.joinClosesTs ?? decoded.joinClosesTs);
 
   const publicStatus = React.useMemo(() => {
     const now = Math.floor(Date.now() / 1000);
@@ -746,14 +362,34 @@ export default function ChallengePage() {
     data?.money?.stakeWei ??
     (decoded.stakeWei ? decoded.stakeWei.toString() : null);
 
-  const bondWei =
-    data?.snapshot?.money?.bondWei ??
-    data?.money?.bondWei ??
-    (decoded.bondWei ? decoded.bondWei.toString() : null);
+  const bondWei: string | null = null; // V1: no proposal bond
 
   // Joined total (viewer)
   const [myJoinedTotalWei, setMyJoinedTotalWei] = React.useState<bigint | null>(null);
   const [joinedLocally, setJoinedLocally] = React.useState(false);
+  const [participantStatus, setParticipantStatus] = React.useState<{
+    has_evidence: boolean;
+    evidence_provider: string | null;
+    verdict_pass: boolean | null;
+    verdict_reasons: string[] | null;
+    aivm_verification_status: string | null;
+    challenge_status: string | null;
+  } | null>(null);
+
+  // Fire-and-forget: record an on-chain join in public.participants.
+  // Non-blocking — a failure here never surfaces to the user.
+  async function recordParticipant(txHash: string) {
+    if (!address || !challengeId) return;
+    try {
+      await fetch(`/api/challenge/${challengeId}/participant`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject: address, txHash }),
+      });
+    } catch {
+      // intentionally swallowed — participation is confirmed on-chain
+    }
+  }
 
   const createdBlockBn = React.useMemo(() => safeBigintFrom(data?.createdBlock) ?? 0n, [data?.createdBlock]);
 
@@ -818,15 +454,12 @@ export default function ChallengePage() {
             toBlock: "latest",
           });
 
-        const [joined, principal, cashback, rejectContr, rejectCreator, validator, validatorReject] =
+        const [joined, winner, loser, refund] =
           await Promise.all([
             get("Joined"),
-            get("PrincipalClaimed"),
-            get("CashbackClaimed"),
-            get("RejectContributionClaimed"),
-            get("RejectCreatorClaimed"),
-            get("ValidatorClaimed"),
-            get("ValidatorRejectClaimed"),
+            get("WinnerClaimed"),
+            get("LoserClaimed"),
+            get("RefundClaimed"),
           ]);
 
         const onlyThis = <T,>(logs: T[]) => logs.filter((l: any) => (l as any).args?.id === challengeId);
@@ -838,12 +471,9 @@ export default function ChallengePage() {
 
         const joinsWei = sumAmt(onlyThis(joined));
         const outWei =
-          sumAmt(onlyThis(principal)) +
-          sumAmt(onlyThis(cashback)) +
-          sumAmt(onlyThis(rejectContr)) +
-          sumAmt(onlyThis(rejectCreator)) +
-          sumAmt(onlyThis(validator)) +
-          sumAmt(onlyThis(validatorReject));
+          sumAmt(onlyThis(winner)) +
+          sumAmt(onlyThis(loser)) +
+          sumAmt(onlyThis(refund));
 
         const net = joinsWei - outWei;
         if (!stop) setPotAfterClaimsWei(net < 0n ? 0n : net);
@@ -906,6 +536,23 @@ export default function ChallengePage() {
     return false;
   }, [joinedLocally, data?.timeline, (data as any)?.snapshot, address]);
 
+  // Fetch participant status (evidence + verdict) from DB when viewer has joined
+  React.useEffect(() => {
+    if (!address || !challengeId || !hasJoined) {
+      setParticipantStatus(null);
+      return;
+    }
+    fetch(
+      `/api/challenge/${challengeId}/participant?subject=${encodeURIComponent(address)}`,
+      { cache: "no-store" }
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && typeof d === "object") setParticipantStatus(d);
+      })
+      .catch(() => {});
+  }, [address, challengeId, hasJoined]);
+
   // Join window
   const joinWindowOpen = React.useMemo(() => {
     const now = Math.floor(Date.now() / 1000);
@@ -916,7 +563,8 @@ export default function ChallengePage() {
     if (!challengeId) return false;
     if (hasJoined) return false;
     if (!effectiveStatus) return false;
-    if (["Canceled", "Rejected", "Finalized", "Paused"].includes(effectiveStatus)) return false;
+    // V1: only Active challenges accept joins
+    if (effectiveStatus !== "Active") return false;
     return joinWindowOpen;
   }, [challengeId, hasJoined, effectiveStatus, joinWindowOpen]);
 
@@ -924,7 +572,8 @@ export default function ChallengePage() {
     if (!challengeId) return false;
     if (!hasJoined) return false;
     if (!effectiveStatus) return false;
-    if (["Canceled", "Rejected", "Finalized", "Paused"].includes(effectiveStatus)) return false;
+    // V1: only Active challenges accept top-ups
+    if (effectiveStatus !== "Active") return false;
     return joinWindowOpen;
   }, [challengeId, hasJoined, effectiveStatus, joinWindowOpen]);
 
@@ -932,7 +581,7 @@ export default function ChallengePage() {
     if (busy !== null) return "A transaction is already in progress.";
     if (!address) return "Connect your wallet to join.";
     if (!effectiveStatus) return "Challenge status is not available yet.";
-    if (["Canceled", "Rejected", "Finalized", "Paused"].includes(effectiveStatus))
+    if (effectiveStatus !== "Active")
       return `Joining is disabled while status is ${effectiveStatus}.`;
     if (!joinWindowOpen) return "Join window is closed.";
     if (!hasJoined && !canInitialJoin) return "Joining is not available right now.";
@@ -940,39 +589,8 @@ export default function ChallengePage() {
     return "";
   }, [busy, address, effectiveStatus, joinWindowOpen, hasJoined, canInitialJoin, canTopUp]);
 
-  // Voting
-  const voteDeadline =
-    (data?.peerDeadlineTs ? Number(data.peerDeadlineTs) : undefined) ?? (decoded.peerDeadlineTs ?? undefined);
-
-  const canVote = React.useMemo(() => {
-    const now = Math.floor(Date.now() / 1000);
-    const deadlinePassed = voteDeadline ? voteDeadline < now : false;
-    return Boolean(
-      effectiveStatus === "Pending" &&
-        !deadlinePassed &&
-        data?.youAlreadyVoted !== true &&
-        data?.youAreEligibleValidator === true &&
-        (data?.youMeetMinStake ?? true)
-    );
-  }, [effectiveStatus, voteDeadline, data?.youAlreadyVoted, data?.youAreEligibleValidator, data?.youMeetMinStake]);
-
-  const voteDisabledReason = React.useMemo(() => {
-    const now = Math.floor(Date.now() / 1000);
-    const deadlinePassed = voteDeadline ? voteDeadline < now : false;
-
-    if (effectiveStatus !== "Pending") return "Voting is only available while Pending.";
-    if (deadlinePassed) return "Voting window is closed.";
-    if (data?.youAlreadyVoted) return "You already voted.";
-    if (data?.youAreEligibleValidator !== true) return "You are not an eligible validator.";
-    if (data?.youMeetMinStake === false) return "Minimum validator stake is not met.";
-    return "";
-  }, [
-    effectiveStatus,
-    voteDeadline,
-    data?.youAlreadyVoted,
-    data?.youAreEligibleValidator,
-    data?.youMeetMinStake,
-  ]);
+  // V1: No validator voting — challenges are immediately Active
+  const canVote = false;
 
   // Timeline grouping
   const timeline = React.useMemo(() => {
@@ -987,8 +605,8 @@ export default function ChallengePage() {
     address: TREAS,
     abi: ABI.Treasury,
     functionName: "ethAllowanceOf",
-    args: [(address ?? ZERO) as `0x${string}`],
-    query: { enabled: Boolean(TREAS && TREAS !== ZERO && address) },
+    args: [challengeId ?? 0n, (address ?? ZERO) as `0x${string}`],
+    query: { enabled: Boolean(TREAS && TREAS !== ZERO && address && challengeId) },
   });
 
   const allowanceBn = React.useMemo(() => {
@@ -1018,12 +636,9 @@ export default function ChallengePage() {
     const base = { abi: ABI.ChallengePay as unknown as Abi, address: CP } as const;
 
     const candidates: ClaimCfg[] = [
-      { ...base, functionName: "claimPrincipal", args: [challengeId] },
-      { ...base, functionName: "claimCashback", args: [challengeId] },
-      { ...base, functionName: "claimValidatorReward", args: [challengeId] },
-      { ...base, functionName: "claimValidatorReject", args: [challengeId] },
-      { ...base, functionName: "claimRejectCreator", args: [challengeId] },
-      { ...base, functionName: "claimRejectContribution", args: [challengeId] },
+      { ...base, functionName: "claimWinner", args: [challengeId] },
+      { ...base, functionName: "claimLoser", args: [challengeId] },
+      { ...base, functionName: "claimRefund", args: [challengeId] },
     ];
 
     const checks = await Promise.all(candidates.map(async (cfg) => ((await canRun(cfg)) ? cfg : null)));
@@ -1034,7 +649,7 @@ export default function ChallengePage() {
         abi: ABI.Treasury as unknown as Abi,
         address: TREAS,
         functionName: "claimETH",
-        args: [allowanceBn],
+        args: [challengeId, allowanceBn],
       } as any);
     }
 
@@ -1150,6 +765,7 @@ export default function ChallengePage() {
 
         if (rc.status === "success") {
           setJoinedLocally(true);
+          void recordParticipant(String(hash));
           haptics?.success?.();
           notify("Joined ✅");
           setMyJoinedTotalWei((prev) => (prev ?? 0n) + value);
@@ -1223,6 +839,7 @@ export default function ChallengePage() {
 
         if (rc.status === "success") {
           setJoinedLocally(true);
+          void recordParticipant(String(hash));
           haptics?.success?.();
           notify("Joined ✅");
           await refetchChainChallenge();
@@ -1272,6 +889,7 @@ export default function ChallengePage() {
 
       if (jrc.status === "success") {
         setJoinedLocally(true);
+        void recordParticipant(String(joinHash));
         haptics?.success?.();
         notify("Joined ✅");
         await refetchChainChallenge();
@@ -1289,13 +907,13 @@ export default function ChallengePage() {
   }
 
   const canFinalize = React.useMemo(
-    () => effectiveStatus === "Approved" || effectiveStatus === "Paused",
+    () => effectiveStatus === "Active",
     [effectiveStatus]
   );
 
   const finalizeDisabledReason = React.useMemo(() => {
     if (busy !== null) return "A transaction is already in progress.";
-    if (!canFinalize) return "Finalization is only available when Approved or Paused.";
+    if (!canFinalize) return "Finalization is only available when Active.";
     return "";
   }, [busy, canFinalize]);
 
@@ -1333,6 +951,7 @@ export default function ChallengePage() {
   }
 
   async function claimAll() {
+    if (busy !== null) return; // Prevent double-click race
     if (needsSettlement) {
       await finalize().catch(() => {});
       await refreshClaimables().catch(() => {});
@@ -1351,8 +970,25 @@ export default function ChallengePage() {
           notify("Pending confirmation…");
           const rc = await pc.waitForTransactionReceipt({ hash });
 
-          if (rc.status === "success") haptics?.success?.();
-          else haptics?.error?.();
+          if (rc.status === "success") {
+            haptics?.success?.();
+            // Persist claim to DB (fire-and-forget)
+            const CLAIM_FN_MAP: Record<string, string> = {
+              claimWinner: "winner", claimLoser: "loser", claimRefund: "refund",
+              claimETH: "treasury_eth",
+            };
+            fetch("/api/me/claims", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                challengeId: String(challengeId),
+                subject: address,
+                claimType: CLAIM_FN_MAP[fn] ?? fn,
+                txHash: hash,
+                blockNumber: rc.blockNumber ? Number(rc.blockNumber) : undefined,
+              }),
+            }).catch(() => {});
+          } else haptics?.error?.();
 
           rc.status === "success" ? notify(`${fn} ✓`) : notify(`${fn} failed ❌`);
         } catch (e: any) {
@@ -1379,9 +1015,12 @@ const isUpcoming = publicStatus.label === "Upcoming";
 const shouldShowJoin = canInitialJoin || canTopUp;
 const shouldShowClaims = mounted && !checkingClaims && (claimables?.length ?? 0) > 0;
 // keep vote topic visible when Pending (so you can show disabled reason)
-const shouldShowVoteTopic = effectiveStatus === "Pending";
-const shouldShowVote = mounted && canVote;
-const shouldShowProofs = Boolean(data?.proofRequired);
+// V1: No validator voting — removed
+const shouldShowVoteTopic = false;
+const shouldShowVote = false;
+// Only show proof submission after the challenge period has ended
+const challengeEnded = !!endSec && Math.floor(Date.now() / 1000) >= endSec;
+const shouldShowProofs = Boolean(data?.proofRequired) && challengeEnded && !(participantStatus?.verdict_pass === true);
 
 // Completion moment: show once when status flips into Completed
 const prevPublicLabel = React.useRef<string | null>(null);
@@ -1404,8 +1043,7 @@ const needsSettlement = React.useMemo(() => {
   const ended = !!endSec && now >= endSec;
   const adminDone =
     effectiveStatus === "Finalized" ||
-    effectiveStatus === "Canceled" ||
-    effectiveStatus === "Rejected";
+    effectiveStatus === "Canceled";
   return ended && !adminDone && !snapshotSet;
 }, [endSec, effectiveStatus, snapshotSet]);
 
@@ -1431,7 +1069,6 @@ const primaryAction = React.useMemo(() => {
       shouldShowProofs,
 
       shouldShowVote: shouldShowVoteTopic,
-      voteDisabledReason: voteDisabledReason || undefined,
 
       isFinalizing,
       isCompleted,
@@ -1444,8 +1081,8 @@ const primaryAction = React.useMemo(() => {
       onFinalize: finalize,
       onRefresh: fetchOnce,
       onExplore: () => router.push("/explore"),
-      onSubmitProof: () => router.push(`/proofs/submit?id=${challengeIdStr}`),
-      onOpenValidators: () => router.push(`/validators?challengeId=${challengeIdStr}`),
+      onSubmitProof: () => router.push(`/proofs/${challengeIdStr}`),
+      onOpenValidators: () => router.push(`/proofs/${challengeIdStr}`),
     });
   } catch {
     // If resolver ever breaks, keep page alive with your local fallback
@@ -1463,7 +1100,7 @@ const primaryAction = React.useMemo(() => {
     return {
       kind: "claims" as const,
       title: "Claim your reward",
-      desc: `${count} reward${count === 1 ? "" : "s"} ready`,
+      desc: "Reward available — claim now",
       cta: busy === "claimAll" ? "Claiming…" : "Claim",
       icon: Receipt,
       disabled,
@@ -1475,7 +1112,7 @@ const primaryAction = React.useMemo(() => {
   }
 
   // 2) Admin settlement/finalize (only when admin + allowed)
-  if (isAdmin && (effectiveStatus === "Approved" || effectiveStatus === "Paused")) {
+  if (isAdmin && effectiveStatus === "Active") {
     if (needsSettlement) {
       const disabled = busy !== null;
 
@@ -1516,9 +1153,9 @@ const primaryAction = React.useMemo(() => {
       cta: "Submit proof",
       icon: BadgeCheck,
       disabled: false,
-      onClick: () => router.push(`/proofs/submit?id=${challengeIdStr}`),
-      secondaryLabel: "Validators",
-      onSecondary: () => router.push(`/validators?challengeId=${challengeIdStr}`),
+      onClick: () => router.push(`/proofs/${challengeIdStr}`),
+      secondaryLabel: "All proofs",
+      onSecondary: () => router.push(`/proofs/${challengeIdStr}`),
     };
   }
 
@@ -1531,7 +1168,7 @@ const primaryAction = React.useMemo(() => {
       cta: "Vote",
       icon: Vote,
       disabled: false,
-      disabledReason: voteDisabledReason || undefined,
+      disabledReason: undefined,
     };
   }
 
@@ -1607,7 +1244,7 @@ const primaryAction = React.useMemo(() => {
   joinDisabledReason,
   shouldShowProofs,
   shouldShowVoteTopic,
-  voteDisabledReason,
+  undefined,
   isFinalizing,
   isCompleted,
   isInProgress,
@@ -1624,19 +1261,9 @@ const primaryAction = React.useMemo(() => {
   // ────────────────────────────────────────────────────────────────────────────
   // Render data
   // ────────────────────────────────────────────────────────────────────────────
-  const approvalDeadlineFromChain = decoded.approvalDeadline ?? null;
-  const peerDeadlineFromChain = decoded.peerDeadlineTs ?? null;
-
   const currencyFromChain = decoded.currency ?? null;
   const maxParticipantsFromChain = decoded.maxParticipants ?? null;
   const participantsCountFromChain = decoded.participantsCount ?? null;
-
-  const charityAddrFromChain: `0x${string}` | null = decoded.charityAddr ?? null;
-  const charityBpsFromChain = decoded.charityBps ?? null;
-
-  const yesWeightFromChain = decoded.yesWeight ?? null;
-  const noWeightFromChain = decoded.noWeight ?? null;
-  const partWeightFromChain = decoded.partWeight ?? null;
 
   const kindFromChain = decoded.kind ?? null;
   const outcomeFromChain = decoded.outcome ?? null;
@@ -1725,14 +1352,25 @@ const primaryAction = React.useMemo(() => {
                 </span>
 
                 <StatusCapsule label={publicStatus.label} note={publicStatus.note} />
-                {data?.fastTracked ? <span className="chip chip--soft">Fast-tracked</span> : null}
-                {data?.autoApproved ? <span className="chip chip--soft">Auto-approved</span> : null}
               </div>
 
               {isInitialLoading ? (
                 <div className="space-y-2">
-                  <SkeletonLine className="h-7 w-[min(520px,90%)]" />
-                  <SkeletonLine className="h-4 w-[min(680px,95%)]" />
+                  {metaPreview?.title ? (
+                    <>
+                      <h1 className="text-xl sm:text-2xl title-premium truncate">{metaPreview.title}</h1>
+                      {metaPreview.description && (
+                        <p className="text-sm text-(--text-muted) leading-relaxed line-clamp-2">{metaPreview.description}</p>
+                      )}
+                      {/* subtle loading shimmer while chain data loads */}
+                      <SkeletonLine className="h-3 w-[min(260px,50%)] opacity-40" />
+                    </>
+                  ) : (
+                    <>
+                      <SkeletonLine className="h-7 w-[min(520px,90%)]" />
+                      <SkeletonLine className="h-4 w-[min(680px,95%)]" />
+                    </>
+                  )}
                 </div>
               ) : (
                 <>
@@ -1740,10 +1378,8 @@ const primaryAction = React.useMemo(() => {
                     {metaTitle || `Challenge #${id}`}
                   </h1>
 
-                  {metaDesc ? (
+                  {metaDesc && (
                     <p className="text-sm text-(--text-muted) leading-relaxed line-clamp-2">{metaDesc}</p>
-                  ) : (
-                    <p className="text-sm text-(--text-muted)">No description provided.</p>
                   )}
                 </>
               )}
@@ -1809,7 +1445,7 @@ const primaryAction = React.useMemo(() => {
         <div className="min-w-0">
           <div className="text-sm font-semibold">What’s happening</div>
           <div className="text-xs text-(--text-muted)">
-            One clear status, one primary action. Everything else is optional detail.
+            Track your progress and take the next required action.
           </div>
         </div>
       </div>
@@ -1846,6 +1482,7 @@ const primaryAction = React.useMemo(() => {
                 <DLGrid
                   rows={[
                     ["Title", metaTitle || `Challenge #${id}`],
+                    ...(metaDesc ? [["Description", metaDesc] as [string, string]] : []),
                     ["Category", safe(data?.category)],
                     ["Game", prettyGame(data?.game) || "—"],
                     ["Mode", safe(data?.mode)],
@@ -1887,17 +1524,17 @@ const primaryAction = React.useMemo(() => {
 
                 {challengeIdStr ? (
                   <ActionRow
-                    primaryLabel={data?.proofRequired ? "Submit proof" : "Open validators"}
+                    primaryLabel={data?.proofRequired ? "Submit proof" : "All proofs"}
                     onPrimary={() =>
                       data?.proofRequired
-                        ? router.push(`/proofs/submit?id=${challengeIdStr}`)
-                        : router.push(`/validators?challengeId=${challengeIdStr}`)
+                        ? router.push(`/proofs/${challengeIdStr}`)
+                        : router.push(`/proofs/${challengeIdStr}`)
                     }
-                    secondaryLabel={data?.proofRequired ? "Open validators" : "Submit proof"}
+                    secondaryLabel={data?.proofRequired ? "All proofs" : "Submit proof"}
                     onSecondary={() =>
                       data?.proofRequired
-                        ? router.push(`/validators?challengeId=${challengeIdStr}`)
-                        : router.push(`/proofs/submit?id=${challengeIdStr}`)
+                        ? router.push(`/proofs/${challengeIdStr}`)
+                        : router.push(`/proofs/${challengeIdStr}`)
                     }
                   />
                 ) : null}
@@ -1932,12 +1569,7 @@ const primaryAction = React.useMemo(() => {
                         ? `ERC-20 ${short(tokenFromChain)}`
                         : "—",
                   ],
-                  ["Charity", charityAddrFromChain ? linkAddr(charityAddrFromChain) : "—"],
-                  [
-                    "Charity %",
-                    typeof charityBpsFromChain === "number" ? (charityBpsFromChain / 100).toFixed(2) + "%" : "—",
-                  ],
-                  ["Pool (raw wei)", code(poolFromChainStr)],
+                  ["Pool", poolFromChainStr ? formatLCAI(poolFromChainStr) : "—"],
                   ["Your joined total", myJoinedTotalWei != null ? formatLCAI(myJoinedTotalWei.toString()) : "—"],
                 ]}
               />
@@ -1951,7 +1583,6 @@ const primaryAction = React.useMemo(() => {
                 ["Model ID", safe(data?.modelId)],
                 ["Model hash", code((data as any)?.modelHash)],
                 ["Verifier (used)", shortOrDash((data as any)?.verifierUsed ?? data?.verifier)],
-                ["PLONK verifier", shortOrDash((data as any)?.plonkVerifier)],
                 ["Params hash", code(data?.proof?.paramsHash)],
               ]}
             />
@@ -1962,12 +1593,6 @@ const primaryAction = React.useMemo(() => {
               rows={[
                 ["Kind", enumLabel("kind", kindFromChain)],
                 ["Outcome", enumLabel("outcome", outcomeFromChain)],
-                ["Yes weight", fmtNum(yesWeightFromChain)],
-                ["No weight", fmtNum(noWeightFromChain)],
-                ["Partial weight", fmtNum(partWeightFromChain)],
-                ["Peer approvals", `${fmtNum(data?.peerApprovals)} / ${fmtNum(data?.peerApprovalsNeeded)}`],
-                ["Validator deadline", ts(toNum(data?.peerDeadlineTs ?? peerDeadlineFromChain))],
-                ["Approval deadline", ts(toNum(data?.approvalDeadline ?? approvalDeadlineFromChain))],
                 ["Duration", formatDuration(decoded.duration)],
               ]}
             />
@@ -1977,9 +1602,7 @@ const primaryAction = React.useMemo(() => {
             <DLGrid
               rows={[
                 ["Creator", linkAddr(data?.creator)],
-                ["Strategy", linkAddr(data?.strategy)],
                 ["Verifier", linkAddr((data as any)?.verifierUsed ?? data?.verifier)],
-                ["Charity", charityAddrFromChain ? linkAddr(charityAddrFromChain) : "—"],
                 ["Created block", data?.createdBlock ? linkBlock(data.createdBlock) : "—"],
                 ["Created tx", data?.createdTx ? linkTx(data.createdTx) : "—"],
               ]}
@@ -2028,9 +1651,7 @@ const primaryAction = React.useMemo(() => {
               <Metric label="Forfeited">{formatLCAI(data.snapshot.forfeitedPool)}</Metric>
               <Metric label="Cashback">{formatLCAI(data.snapshot.cashback)}</Metric>
               <Metric label="Creator">{formatLCAI(data.snapshot.creatorAmt)}</Metric>
-              <Metric label="Validators">{formatLCAI(data.snapshot.validatorsAmt)}</Metric>
               <Metric label="Protocol">{formatLCAI(data.snapshot.protocolAmt)}</Metric>
-              <Metric label="Charity">{formatLCAI(data.snapshot.charityAmt)}</Metric>
             </div>
           </div>
         </div>
@@ -2079,44 +1700,6 @@ const primaryAction = React.useMemo(() => {
         <PrimaryActionCard action={primaryAction as any} busy={busy} />
       )}
 
-      {/* Validator vote */}
-      {effectiveStatus === "Pending" ? (
-        <CollapsiblePanel
-          title="Validator vote"
-          subtitle={
-            data?.peerDeadlineTs
-              ? `Deadline ${timeAgoAbs(Number(data.peerDeadlineTs) * 1000)}`
-              : "Eligibility and approvals"
-          }
-          defaultOpen={canVote}
-          icon={Vote}
-        >
-          <div className="mb-2 text-xs text-(--text-muted)">
-            {!mounted ? (
-              "Checking validator eligibility…"
-            ) : (
-              <>
-                Approvals: {data?.peerApprovals ?? 0}
-                {typeof data?.peerApprovalsNeeded === "number" ? ` / ${data?.peerApprovalsNeeded}` : ""}
-                {data?.peerDeadlineTs ? ` • Deadline ${timeAgoAbs(Number(data.peerDeadlineTs) * 1000)}` : ""}
-              </>
-            )}
-          </div>
-
-          {mounted && canVote ? (
-            <ValidatorVote
-              id={challengeId ?? 0n}
-              canVote={true}
-              minStakeMet={true}
-              alreadyVoted={false}
-              deadlinePassed={false}
-            />
-          ) : (
-            <p className="text-sm text-(--text-muted)">Voting is available only while the challenge is Pending.</p>
-          )}
-        </CollapsiblePanel>
-      ) : null}
-
       {/* Proofs */}
       {shouldShowProofs ? (
         <CollapsiblePanel
@@ -2136,17 +1719,102 @@ const primaryAction = React.useMemo(() => {
             {challengeIdStr ? (
               <ActionRow
                 primaryLabel="Submit proof"
-                onPrimary={() => router.push(`/proofs/submit?id=${challengeIdStr}`)}
-                secondaryLabel="Open validators"
-                onSecondary={() => router.push(`/validators?challengeId=${challengeIdStr}`)}
+                onPrimary={() => router.push(`/proofs/${challengeIdStr}`)}
+                secondaryLabel="All proofs"
+                onSecondary={() => router.push(`/proofs/${challengeIdStr}`)}
               />
             ) : null}
 
             <div className="text-xs text-(--text-muted)">
-              Tip: submit within the valid window. Validators accept only proofs that match the configured verifier/model.
+              Tip: submit within the valid window. The network verifies only proofs that match the configured verifier and model.
             </div>
           </div>
         </CollapsiblePanel>
+      ) : null}
+
+      {/* Participant verification status */}
+      {hasJoined && participantStatus ? (
+        <div className="panel">
+          <div className="panel-header">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold">Your verification status</div>
+              <div className="text-xs text-(--text-muted)">
+                Evidence submission and evaluation result
+              </div>
+            </div>
+            {participantStatus.verdict_pass === true &&
+              participantStatus.challenge_status?.toLowerCase() === "finalized" && (
+                <span className="chip chip--ok">Claimable</span>
+            )}
+            {participantStatus.verdict_pass === true &&
+              participantStatus.challenge_status?.toLowerCase() !== "finalized" &&
+              ["requested", "committed", "revealed"].includes(
+                participantStatus.aivm_verification_status ?? ""
+              ) && (
+                <span className="chip chip--info">Network pending</span>
+            )}
+            {participantStatus.verdict_pass === true &&
+              !["requested", "committed", "revealed"].includes(
+                participantStatus.aivm_verification_status ?? ""
+              ) &&
+              participantStatus.challenge_status?.toLowerCase() !== "finalized" && (
+                <span className="chip chip--ok">Passed</span>
+            )}
+            {participantStatus.verdict_pass === false && (
+              <span className="chip chip--bad">Failed</span>
+            )}
+            {participantStatus.verdict_pass === null && participantStatus.has_evidence && (
+              <span className="chip chip--warn">Evaluating…</span>
+            )}
+            {participantStatus.verdict_pass === null && !participantStatus.has_evidence && !challengeEnded && (
+              <span className="chip chip--info">In progress</span>
+            )}
+            {participantStatus.verdict_pass === null && !participantStatus.has_evidence && challengeEnded && (
+              <span className="chip chip--soft">No evidence yet</span>
+            )}
+          </div>
+          <div className="mt-3 space-y-1 text-sm">
+            <div className="flex gap-2">
+              <span className="text-(--text-muted) w-32 shrink-0">Evidence</span>
+              <span>
+                {participantStatus.has_evidence
+                  ? (() => {
+                      const p = participantStatus.evidence_provider ?? "";
+                      const autoProviders = ["strava", "opendota", "riot"];
+                      const isAuto = autoProviders.includes(p.toLowerCase());
+                      return isAuto
+                        ? `Collected automatically via ${p}`
+                        : p
+                          ? `Submitted via ${p}`
+                          : "Submitted";
+                    })()
+                  : "Not submitted"}
+              </span>
+            </div>
+            {participantStatus.verdict_pass === false && participantStatus.verdict_reasons?.length ? (
+              <div className="flex gap-2">
+                <span className="text-(--text-muted) w-32 shrink-0">Reason</span>
+                <span className="text-red-400">
+                  {participantStatus.verdict_reasons.slice(0, 3).join(" · ")}
+                </span>
+              </div>
+            ) : null}
+            {participantStatus.aivm_verification_status &&
+              participantStatus.aivm_verification_status !== "finalized" &&
+              participantStatus.verdict_pass !== false && (
+                <div className="flex gap-2">
+                  <span className="text-(--text-muted) w-32 shrink-0">Lightchain</span>
+                  <span className="capitalize">{participantStatus.aivm_verification_status}</span>
+                </div>
+            )}
+          {allowanceBn > 0n && (
+            <div className="flex gap-2 mt-2">
+              <span className="text-(--text-muted) w-32 shrink-0">Claimable</span>
+              <span className="font-semibold">{formatLCAI(allowanceBn.toString())} LCAI</span>
+            </div>
+          )}
+          </div>
+        </div>
       ) : null}
 
       {/* Admin finalize */}
@@ -2165,6 +1833,15 @@ const primaryAction = React.useMemo(() => {
           <div className="mt-2 text-xs text-(--text-muted)">Finalizing settles the outcome and enables claims.</div>
         </CollapsiblePanel>
       ) : null}
+
+      {/* Achievement claims */}
+      <AchievementClaim
+        challengeId={Number(challengeId ?? 0)}
+        address={address}
+        isFinalized={effectiveStatus === "Finalized"}
+        isParticipant={hasJoined}
+        isWinner={shouldShowClaims && (claimables?.some((c: any) => c.functionName === "claimWinner") ?? false)}
+      />
     </div>
   );
 
@@ -2189,1052 +1866,3 @@ const primaryAction = React.useMemo(() => {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// UI Atoms (Globals-aligned)
-// ─────────────────────────────────────────────────────────────────────────────
-function SkeletonLine({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-xl bg-(--border) ${className}`} aria-hidden />;
-}
-
-function HeroSummarySkeleton() {
-  return (
-    <div className="hero-banner relative overflow-hidden rounded-2xl">
-      <div className="relative z-10 p-3 sm:p-4 space-y-3">
-        <SkeletonLine className="h-3 w-40" />
-        <SkeletonLine className="h-10 w-56" />
-        <div className="grid grid-cols-2 gap-2">
-          <SkeletonLine className="h-16 w-full" />
-          <SkeletonLine className="h-16 w-full" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PrimaryActionSkeleton() {
-  return (
-    <div className="panel">
-      <div className="panel-header">
-        <div className="w-full space-y-2">
-          <SkeletonLine className="h-4 w-40" />
-          <SkeletonLine className="h-3 w-64" />
-        </div>
-      </div>
-      <div className="panel-body">
-        <SkeletonLine className="h-10 w-full" />
-        <div className="mt-2">
-          <SkeletonLine className="h-9 w-28" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StatusCapsule({ label, note }: { label?: string; note?: string }) {
-  if (!label) return null;
-
-  const tone =
-    label === "Completed"
-      ? "chip"
-      : label === "Finalizing"
-        ? "chip"
-        : label === "In progress"
-          ? "chip"
-          : label === "Paused"
-            ? "chip chip--soft"
-            : label === "Rejected" || label === "Canceled"
-              ? "chip chip--soft"
-              : "chip chip--soft";
-
-  const Icon =
-    label === "Completed"
-      ? CheckCircle2
-      : label === "Finalizing"
-        ? Hourglass
-        : label === "In progress"
-          ? Clock
-          : label === "Paused"
-            ? PauseCircle
-            : label === "Rejected"
-              ? XCircle
-              : label === "Canceled"
-                ? AlertTriangle
-                : Info;
-
-  return (
-    <span className={`${tone} py-1! inline-flex items-center gap-1.5`}>
-      <Icon size={14} />
-      <span>{label}</span>
-      {note ? <span className="text-(--text-muted)">• {note}</span> : null}
-    </span>
-  );
-}
-
-function DetailsRibbon({ text }: { text: string }) {
-  return (
-    <div className="text-xs text-(--text-muted) flex flex-wrap gap-x-2 gap-y-1 items-center">
-      <span className="mono opacity-80">{text}</span>
-    </div>
-  );
-}
-
-function HeroMetricsRow({
-  treasuryLabel,
-  treasuryWei,
-  winnersClaimed = 0,
-  startTs,
-  endTs,
-}: {
-  treasuryLabel: string;
-  treasuryWei: string | null;
-  winnersClaimed?: number;
-  startTs?: number | null;
-  endTs?: number | null;
-}) {
-  const pot = formatLCAI(treasuryWei);
-
-  return (
-    <div className="grid grid-cols-1 gap-3">
-      {/* Primary metric */}
-      <div className="subpanel">
-        <div className="subpanel__body">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-xs uppercase tracking-wider text-(--text-muted) flex items-center gap-2">
-                <span className="metric-ic" aria-hidden>
-                  <GlassIcon icon={Zap} size={18} />
-                </span>
-                {treasuryLabel}
-              </div>
-              <div className="mt-1 text-2xl sm:text-3xl font-semibold tabular-nums">{pot}</div>
-              <div className="mt-1 text-xs text-(--text-muted)">This is what’s at stake.</div>
-            </div>
-
-            <div className="text-right text-xs text-(--text-muted) tabular-nums">
-              <div>Winners claimed</div>
-              <div className="mt-1 text-base font-semibold text-(--text)">{winnersClaimed}</div>
-            </div>
-          </div>
-
-          {/* Supporting schedule (quiet) */}
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="metric">
-              <div className="flex items-center gap-2">
-                <span className="metric-ic" aria-hidden>
-                  <GlassIcon icon={Clock} size={18} />
-                </span>
-                <div className="text-xs uppercase tracking-wider text-(--text-muted)">Starts</div>
-              </div>
-              <div className="mt-1 text-sm font-semibold tabular-nums">{startTs ? formatDateShort(startTs) : "—"}</div>
-            </div>
-
-            <div className="metric">
-              <div className="flex items-center gap-2">
-                <span className="metric-ic" aria-hidden>
-                  <GlassIcon icon={Hourglass} size={18} />
-                </span>
-                <div className="text-xs uppercase tracking-wider text-(--text-muted)">Ends</div>
-              </div>
-              <div className="mt-1 text-sm font-semibold tabular-nums">{endTs ? formatDateShort(endTs) : "—"}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PrimaryActionCard({
-  action,
-  busy,
-}: {
-  action: {
-    kind:
-      | "claims"
-      | "finalize"
-      | "join"
-      | "proofs"
-      | "vote"
-      | "waiting"
-      | "done"
-      | "active"
-      | "upcoming"
-      | "neutral";
-    title: string;
-    desc: string;
-    cta: string;
-    icon: LI;
-    disabled?: boolean;
-    disabledReason?: string;
-    onClick?: () => void;
-    secondaryLabel?: string;
-    onSecondary?: () => void;
-  };
-  busy: null | "join" | "finalize" | "claimAll";
-}) {
-  const Icon = action.icon;
-
-  const isBusy =
-    (action.kind === "claims" && busy === "claimAll") ||
-    (action.kind === "finalize" && busy === "finalize");
-
-  const primaryDisabled = Boolean(action.disabled) || isBusy;
-
-  const disabledReason =
-    (isBusy && "A transaction is already in progress.") ||
-    action.disabledReason ||
-    (action.disabled ? "This action is not available right now." : "");
-
-  const reasonId = React.useId();
-
-  return (
-    <div className="panel">
-      <div className="panel-header">
-        <div className="min-w-0 flex items-start gap-2">
-          <span className="subpanel__icon">
-            <GlassIcon icon={Icon} size={18} />
-          </span>
-          <div className="min-w-0">
-            <div className="text-sm font-semibold">{action.title}</div>
-            <div className="text-xs text-(--text-muted) mt-0.5">{action.desc}</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="panel-body">
-        {action.kind === "join" ? (
-          <div className="space-y-2">
-            <div className="text-sm text-(--text-muted)">Use the “Join” card below to commit an amount.</div>
-            {disabledReason ? <div className="text-xs text-(--text-muted)">{disabledReason}</div> : null}
-          </div>
-        ) : action.kind === "vote" ? (
-          <div className="space-y-2">
-            <div className="text-sm text-(--text-muted)">If you’re eligible, the voting panel below will be available.</div>
-            {disabledReason ? <div className="text-xs text-(--text-muted)">{disabledReason}</div> : null}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="flex gap-2">
-              <button
-                className="btn btn-primary focus-visible:ring-2 focus-visible:ring-white/25"
-                disabled={primaryDisabled}
-                onClick={action.onClick}
-                aria-busy={isBusy ? "true" : "false"}
-                aria-describedby={disabledReason ? reasonId : undefined}
-                title={disabledReason || undefined}
-              >
-                {action.cta}
-                {isBusy ? <span className="btn__spinner" aria-hidden /> : null}
-              </button>
-
-              {action.secondaryLabel && action.onSecondary ? (
-                <button className="btn btn-ghost" onClick={action.onSecondary} disabled={primaryDisabled}>
-                  {action.secondaryLabel}
-                </button>
-              ) : null}
-            </div>
-
-            {disabledReason && primaryDisabled ? (
-              <div id={reasonId} className="text-xs text-(--text-muted)">
-                {disabledReason}
-              </div>
-            ) : null}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function CollapsiblePanel({
-  title,
-  subtitle,
-  icon: Icon,
-  defaultOpen = false,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  icon?: LI;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = React.useState(defaultOpen);
-
-  return (
-    <div className="panel">
-      <button
-        type="button"
-        className="panel-header w-full text-left"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-      >
-        <div className="flex items-start gap-2 w-full">
-          {Icon ? (
-            <span className="subpanel__icon">
-              <GlassIcon icon={Icon} size={18} />
-            </span>
-          ) : null}
-
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold">{title}</div>
-            {subtitle ? <div className="text-xs text-(--text-muted) mt-0.5">{subtitle}</div> : null}
-          </div>
-
-          <div className="ml-auto pt-0.5 text-(--text-muted)">
-            {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </div>
-        </div>
-      </button>
-
-      {open ? <div className="panel-body">{children}</div> : null}
-    </div>
-  );
-}
-
-function PhaseStory(props: {
-  statusLabel?: string;
-  startTs: number | null;
-  endTs: number | null;
-  joinCloseTs: number | null;
-  hasJoined: boolean;
-  proofRequired: boolean;
-  canVote: boolean;
-  isAdmin: boolean;
-  canFinalize: boolean;
-  claimablesCount: number;
-}) {
-  const { statusLabel, startTs, endTs, joinCloseTs, hasJoined, proofRequired, canVote, isAdmin, canFinalize, claimablesCount } =
-    props;
-
-  const now = Math.floor(Date.now() / 1000);
-
-  const joinOpen = !!joinCloseTs && now < joinCloseTs && (!!startTs ? now < startTs : true);
-  const preStart = !!startTs && now < startTs;
-  const active = !!startTs && !!endTs && now >= startTs && now < endTs;
-  const ended = !!endTs && now >= endTs;
-
-  const steps: Array<{ title: string; desc: string; done: boolean }> = [
-    {
-      title: "Join",
-      desc: joinOpen ? "Join is open right now." : preStart ? "Join may be closed." : "Join phase ended.",
-      done: hasJoined || (!joinOpen && !preStart),
-    },
-    {
-      title: "Run",
-      desc: active ? "Challenge is running." : preStart ? "Not started yet." : ended ? "Challenge ended." : "—",
-      done: ended || active,
-    },
-    {
-      title: "Verify",
-      desc: proofRequired ? "Proof may be required for verification." : "Validators may still review outcomes.",
-      done: statusLabel === "Completed" || statusLabel === "Finalizing",
-    },
-    {
-      title: "Claim",
-      desc: claimablesCount > 0 ? "Your reward is ready." : "Claims are available after finalization.",
-      done: claimablesCount === 0 ? statusLabel === "Completed" : true,
-    },
-  ];
-
-  return (
-    <div className="space-y-3">
-      <div className="subpanel">
-        <div className="subpanel__body">
-          <div className="flex items-start gap-2">
-            <span className="subpanel__icon">
-              <GlassIcon icon={Sparkles} size={18} />
-            </span>
-
-            <div className="min-w-0">
-              <div className="text-sm font-semibold">Your path</div>
-              <div className="text-xs text-(--text-muted) mt-0.5">This turns the page into a story, not a dashboard.</div>
-            </div>
-          </div>
-
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {steps.map((s) => (
-              <div key={s.title} className="metric">
-                <div className="flex items-center gap-2">
-                  <span className="metric-ic" aria-hidden>
-                    <GlassIcon icon={s.done ? CheckCircle2 : Info} size={18} />
-                  </span>
-                  <div className="text-xs uppercase tracking-wider text-(--text-muted)">{s.title}</div>
-                </div>
-                <div className="mt-1 text-sm font-semibold">{s.desc}</div>
-              </div>
-            ))}
-          </div>
-
-          {canVote ? <div className="mt-3 text-xs text-(--text-muted)">Validators: voting is available now.</div> : null}
-
-          {isAdmin && canFinalize ? (
-            <div className="mt-2 text-xs text-(--text-muted)">Admin: finalization is available for this challenge.</div>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ActionRow(props: {
-  primaryLabel: string;
-  secondaryLabel: string;
-  onPrimary: () => void;
-  onSecondary: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="mt-3 flex flex-col sm:flex-row gap-2">
-      <button type="button" className="btn btn-outline flex-1" onClick={props.onPrimary} disabled={props.disabled}>
-        {props.primaryLabel}
-      </button>
-
-      <button
-        type="button"
-        className="btn btn-outline btn-ice flex-1"
-        onClick={props.onSecondary}
-        disabled={props.disabled}
-      >
-        {props.secondaryLabel}
-      </button>
-    </div>
-  );
-}
-
-function TabBar(props: { value: TabKey; onChange: (k: TabKey) => void }) {
-  const tabs: UnderlineTab[] = [
-    { key: "details", label: "Details", icon: <LayoutDashboard size={16} /> },
-    { key: "economics", label: "Economics", icon: <Coins size={16} /> },
-    { key: "model", label: "Model", icon: <BrainCircuit size={16} /> },
-    { key: "onchain", label: "On-Chain", icon: <Layers size={16} /> },
-    { key: "links", label: "Links", icon: <Link2 size={16} /> },
-    { key: "params", label: "Params", icon: <SlidersHorizontal size={16} /> },
-  ];
-
-  return (
-    <UnderlineTabs
-      tabs={tabs}
-      activeKey={props.value}
-      onChange={(k) => props.onChange(k as TabKey)}
-      ariaLabel="Challenge tabs"
-      indicatorInsetPx={10}
-    />
-  );
-}
-
-function DLGrid({ rows }: { rows: Array<[string, string | JSX.Element]> }) {
-  return (
-    <dl className="ov-grid">
-      {rows.map(([dt, dd]) => (
-        <div className="ov-item" key={dt}>
-          <dt>{dt}</dt>
-          <dd>{dd}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-function Metric({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="stat">
-      <div className="stat__label">{label}</div>
-      <div className="stat__value">{children}</div>
-    </div>
-  );
-}
-
-function SectionPanel({
-  title,
-  help,
-  icon: Icon,
-  children,
-}: {
-  title: string;
-  help?: string;
-  icon: LI;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="subpanel">
-      <div className="subpanel__head">
-        <div className="subpanel__title">
-          <span className="subpanel__icon">
-            <GlassIcon icon={Icon} size={18} />
-          </span>
-          <div className="min-w-0">
-            <div className="text-sm font-semibold">{title}</div>
-            {help ? <div className="text-xs text-(--text-muted) mt-0.5">{help}</div> : null}
-          </div>
-        </div>
-      </div>
-
-      <div className="subpanel__body">{children}</div>
-    </div>
-  );
-}
-
-function JoinCard({
-  hasJoined,
-  canInitialJoin,
-  canTopUp,
-  tokenFromChain,
-  myJoinedTotalWei,
-  busy,
-  disabledReason,
-  onJoin,
-}: {
-  hasJoined: boolean;
-  canInitialJoin: boolean;
-  canTopUp: boolean;
-  tokenFromChain: any;
-  myJoinedTotalWei: bigint | null;
-  busy: null | "join" | "finalize" | "claimAll";
-  disabledReason?: string;
-  onJoin: (amount: string) => Promise<void> | void;
-}) {
-  const [joinAmt, setJoinAmt] = React.useState<string>("0.10");
-
-  const bump = (n: number) => {
-    const v = Number(normalizeDecimalInput(joinAmt || "0"));
-    const next = Math.max(0, v + n);
-    setJoinAmt(next.toFixed(2));
-  };
-
-  const disabled = busy !== null;
-  const joinBlocked = disabled || (!hasJoined ? !canInitialJoin : !canTopUp);
-  const joinReason = joinBlocked ? (disabledReason || "Joining is unavailable.") : "";
-  const joinReasonId = "join-disabled-reason";
-  const amtNum = Number(normalizeDecimalInput(joinAmt || "0"));
-  const isClose = (a: number) => Number.isFinite(amtNum) && Math.abs(amtNum - a) < 0.001;
-
-  return (
-    <div className="panel">
-      <div className="panel-header">
-        <div className="min-w-0">
-          <div className="text-sm font-semibold">{hasJoined ? "Top up commitment" : "Join"}</div>
-          <div className="text-xs text-(--text-muted)">
-            {hasJoined ? "Increase your commitment before the join window closes." : "Commit stake to enter the challenge."}
-          </div>
-        </div>
-      </div>
-
-      <div className="panel-body">
-        {typeof myJoinedTotalWei === "bigint" ? (
-          <div className="mb-3 text-xs text-(--text-muted)">
-            You’ve joined with <span className="font-semibold">{formatLCAI(myJoinedTotalWei.toString())}</span>.
-          </div>
-        ) : null}
-
-        <div className="flex items-center gap-2">
-          <input
-            className="input flex-1"
-            placeholder="Amount"
-            value={joinAmt}
-            onChange={(e) => setJoinAmt(e.target.value)}
-            autoComplete="off"
-            inputMode="decimal"
-            pattern="[0-9]*[.,]?[0-9]*"
-            disabled={disabled}
-            aria-describedby={joinReason ? joinReasonId : undefined}
-          />
-          <button
-            className="btn btn-primary"
-            disabled={disabled || (!hasJoined ? !canInitialJoin : !canTopUp)}
-            onClick={() => onJoin(joinAmt)}
-            aria-busy={busy === "join" ? "true" : "false"}
-            title={joinReason || undefined}
-          >
-            {busy === "join" ? (hasJoined ? "Topping up…" : "Joining…") : hasJoined ? "Top up" : "Join"}
-            {busy === "join" ? <span className="btn__spinner" aria-hidden /> : null}
-          </button>
-        </div>
-
-        {joinReason ? (
-          <div id={joinReasonId} className="mt-2 text-xs text-(--text-muted)">
-            {joinReason}
-          </div>
-        ) : null}
-
-        <div className="mt-3 stepper">
-          <button
-            type="button"
-            className="stepper__btn"
-            aria-pressed={isClose(0.1)}
-            onClick={() => setJoinAmt("0.10")}
-            disabled={disabled}
-          >
-            0.10
-          </button>
-
-          <button
-            type="button"
-            className="stepper__btn"
-            aria-pressed={isClose(0.5)}
-            onClick={() => setJoinAmt("0.50")}
-            disabled={disabled}
-          >
-            0.50
-          </button>
-
-          <button
-            type="button"
-            className="stepper__btn"
-            aria-pressed={isClose(1)}
-            onClick={() => setJoinAmt("1.00")}
-            disabled={disabled}
-          >
-            1.00
-          </button>
-
-          <button
-            type="button"
-            className="stepper__btn"
-            onClick={() => bump(0.1)}
-            disabled={disabled}
-            title="Add 0.10"
-          >
-            +0.10
-          </button>
-
-          <button
-            type="button"
-            className="stepper__btn"
-            onClick={() => bump(0.5)}
-            disabled={disabled}
-            title="Add 0.50"
-          >
-            +0.50
-          </button>
-        </div>
-
-        {!hasJoined && !canInitialJoin ? (
-          <div className="mt-3 text-xs text-(--text-muted)">Joining is closed (status / window).</div>
-        ) : null}
-        {hasJoined && !canTopUp ? (
-          <div className="mt-3 text-xs text-(--text-muted)">Top-ups are closed (status / window).</div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function ChainTimeline({ items }: { items: ApiOut["timeline"] }) {
-  const days = groupByDate(items);
-
-  const sameText = (a?: string, b?: string) => {
-    const x = (a ?? "").trim().toLowerCase();
-    const y = (b ?? "").trim().toLowerCase();
-    return !!x && !!y && x === y;
-  };
-
-  return (
-    <div className="timeline relative">
-      <div aria-hidden className="timeline__spine" />
-
-      {days.map(({ date, arr }) => (
-        <div key={date} className="timeline__day space-y-3">
-          <div className="timeline__date">{date}</div>
-
-          <div className="timeline__list">
-            {arr.map((t) => {
-              const hideLabel = sameText(t.name, t.label);
-
-              return (
-                <div key={`${t.tx}-${t.block}`} className="timeline__row">
-                  <span aria-hidden className="timeline__node" />
-
-                  <div className="timeline__card">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="chip chip--soft py-1!">{t.name}</span>
-                      {!hideLabel ? <div className="font-medium text-sm sm:text-base">{t.label}</div> : null}
-                    </div>
-
-                    <div className="timeline__meta mt-2 text-sm">
-                      {t.timestamp ? (
-                        <>
-                          <span className="tabular-nums">{new Date(t.timestamp * 1000).toLocaleTimeString()}</span>
-                          <span> • </span>
-                          <span>{timeAgo(t.timestamp * 1000)}</span>
-                          <span> • </span>
-                        </>
-                      ) : null}
-
-                      <a className="link" target="_blank" rel="noreferrer" href={blockUrl(t.block)}>
-                        Block #{t.block}
-                      </a>
-
-                      <span> • </span>
-
-                      <a className="link" target="_blank" rel="noreferrer" href={txUrl(t.tx)}>
-                        {t.tx.slice(0, 10)}…
-                      </a>
-
-                      {t.who ? (
-                        <>
-                          <span> • </span>
-                          <a className="link" target="_blank" rel="noreferrer" href={addressUrl(t.who)}>
-                            {short(t.who)}
-                          </a>
-                        </>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/**
- * Progress transitions are now animated (Framer Motion).
- */
-function HeroProgress({
-  start,
-  end,
-  joinClose,
-  status,
-}: {
-  start: number | null;
-  end: number | null;
-  joinClose?: number | null;
-  status?: Status;
-}) {
-  if (!start || !end) return null;
-
-  const [now, setNow] = React.useState(() => Math.floor(Date.now() / 1000));
-  React.useEffect(() => {
-    const t = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  const canceled = status === "Canceled";
-  const rejected = status === "Rejected";
-  const paused = status === "Paused";
-  const finalized = status === "Finalized";
-
-  const total = Math.max(1, end - start);
-  const elapsed = Math.min(Math.max(0, now - start), total);
-  const pctRaw = Math.min(100, Math.max(0, (elapsed / total) * 100));
-  const pct = Math.round(pctRaw);
-
-  const joinOpen = !!joinClose && now < joinClose && now < start;
-  const preStart = now < start;
-  const active = now >= start && now < end && !(paused || canceled || rejected);
-  const finalizing = now >= end && !finalized && !(paused || canceled || rejected);
-
-  const caption =
-    finalized
-      ? "Completed"
-      : finalizing
-        ? "Finalizing…"
-        : active
-          ? `${pct}% complete`
-          : joinOpen
-            ? `Join open • closes in ${prettyCountdown(Math.max(0, (joinClose ?? 0) - now))}`
-            : preStart
-              ? `Starts in ${prettyCountdown(Math.max(0, start - now))}`
-              : canceled
-                ? "Canceled"
-                : rejected
-                  ? "Rejected"
-                  : paused
-                    ? "Paused"
-                    : "";
-
-  const widthPct = `${finalized ? 100 : pctRaw}%`;
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between gap-3">
-        <AnimatePresence mode="popLayout">
-          <motion.div
-            key={caption}
-            initial={{ opacity: 0, y: -3 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 3 }}
-            transition={{ duration: 0.18, ease: [0.2, 0.8, 0.2, 1] }}
-            className="text-xs text-(--text-muted) tabular-nums"
-          >
-            {caption}
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      <div
-        className="relative overflow-hidden rounded-full"
-        style={{
-          height: 12,
-          background: "var(--progress-track)",
-          boxShadow:
-            "inset 0 0 0 1px var(--progress-outline, color-mix(in oklab, var(--border-strong) 75%, transparent))",
-        }}
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={finalized ? 100 : pct}
-      >
-        <motion.div
-          className="absolute inset-y-0 left-0 rounded-full"
-          animate={{ width: widthPct }}
-          transition={{ type: "spring", stiffness: 140, damping: 26 }}
-          style={{
-            background: "var(--progress-fill)",
-            boxShadow:
-              "0 0 0 1px var(--progress-edge, color-mix(in oklab, var(--border) 30%, transparent)), " +
-              "0 10px 24px var(--progress-glow, color-mix(in oklab, var(--accent-2) 18%, transparent))",
-          }}
-        />
-
-        <motion.div
-          className="absolute inset-y-0 left-0 rounded-full pointer-events-none"
-          animate={{ width: widthPct }}
-          transition={{ type: "spring", stiffness: 140, damping: 26 }}
-          style={{
-            background:
-              "var(--progress-sheen, linear-gradient(90deg, transparent, color-mix(in oklab, white 22%, transparent), transparent))",
-            opacity: 0.55,
-          }}
-        />
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-function safeText(v?: any) {
-  const s = v == null ? "" : String(v);
-  return s.trim() ? s : "";
-}
-function buildDetailsRibbon(input: {
-  category: string | null;
-  game: string | null;
-  mode: string | null;
-  joinCloseSec: number | null;
-  startSec: number | null;
-  endSec: number | null;
-  externalId: string | null;
-}) {
-  const parts: string[] = [];
-  if (input.game) parts.push(input.game);
-  if (input.mode) parts.push(input.mode);
-  if (input.category) parts.push(input.category);
-
-  if (input.startSec) parts.push(`Starts ${formatDateTiny(input.startSec)}`);
-  if (input.endSec) parts.push(`Ends ${formatDateTiny(input.endSec)}`);
-  if (input.joinCloseSec) parts.push(`Join closes ${formatDateTiny(input.joinCloseSec)}`);
-
-  if (input.externalId) parts.push(`ID ${shortWide(input.externalId)}`);
-
-  if (parts.length === 0) return "—";
-  return parts.join(" · ");
-}
-
-function shortWide(v: string) {
-  const s = (v ?? "").trim();
-  if (!s) return "—";
-  return s.length > 22 ? `${s.slice(0, 12)}…${s.slice(-6)}` : s;
-}
-
-function formatDateTiny(sec: number) {
-  const d = new Date(sec * 1000);
-  return d.toLocaleString(undefined, { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
-}
-
-function code(v?: any) {
-  return v ? <code className="mono">{String(v)}</code> : "—";
-}
-function safe(v?: any) {
-  return v == null || v === "" ? "—" : String(v);
-}
-function yesno(v?: any) {
-  return v == null ? "—" : v ? "Yes" : "No";
-}
-function ts(n?: number | null) {
-  return n ? new Date(n * 1000).toLocaleString() : "—";
-}
-function fmtNum(n?: any) {
-  if (n == null) return "—";
-  try {
-    const x = typeof n === "bigint" ? Number(n) : Number(n);
-    return Number.isFinite(x) ? String(x) : "—";
-  } catch {
-    return "—";
-  }
-}
-function shortOrDash(a?: string | null) {
-  return a ? short(a) : "—";
-}
-function linkAddr(a?: string | null) {
-  return a ? (
-    <a className="link" href={addressUrl(a)} target="_blank" rel="noreferrer">
-      {short(a)}
-    </a>
-  ) : (
-    "—"
-  );
-}
-function linkBlock(b?: string | number | null) {
-  return b ? (
-    <a className="link" href={blockUrl(String(b))} target="_blank" rel="noreferrer">
-      #{b}
-    </a>
-  ) : (
-    "—"
-  );
-}
-function linkTx(t?: string | null) {
-  return t ? (
-    <a className="link" href={txUrl(t)} target="_blank" rel="noreferrer">
-      {t.slice(0, 12)}…
-    </a>
-  ) : (
-    "—"
-  );
-}
-function short(a: string) {
-  if (!a) return "—";
-  return `${a.slice(0, 6)}…${a.slice(-4)}`;
-}
-function timeAgo(ms: number) {
-  const sec = Math.max(1, Math.floor((Date.now() - ms) / 1000));
-  if (sec < 60) return `${sec}s ago`;
-  const m = Math.floor(sec / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 48) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
-}
-function timeAgoAbs(ms: number) {
-  const diff = ms - Date.now();
-  const sec = Math.abs(Math.floor(diff / 1000));
-  if (sec < 60) return diff < 0 ? `${sec}s ago` : `in ${sec}s`;
-  const m = Math.floor(sec / 60);
-  if (m < 60) return diff < 0 ? `${m}m ago` : `in ${m}m`;
-  const h = Math.floor(m / 60);
-  if (h < 48) return diff < 0 ? `${h}h ago` : `in ${h}h`;
-  const d = Math.floor(h / 24);
-  return diff < 0 ? `${d}d ago` : `in ${d}d`;
-}
-function formatLCAI(weiStr?: string | null) {
-  if (!weiStr) return "—";
-  try {
-    const x = BigInt(weiStr);
-    const neg = x < 0n ? "-" : "";
-    const abs = x < 0n ? -x : x;
-    const s = abs.toString().padStart(19, "0");
-    const head = s.slice(0, -18).replace(/^0+/, "") || "0";
-    const tail = s.slice(-18, -16);
-    return `${neg}${head}.${tail} LCAI`;
-  } catch {
-    return "—";
-  }
-}
-function groupByDate(items: any[]) {
-  const fmt = (ts?: number) => new Date((ts ?? 0) * 1000).toLocaleDateString();
-  const m = new Map<string, any[]>();
-  for (const it of items) {
-    const k = fmt(it.timestamp);
-    if (!m.has(k)) m.set(k, []);
-    m.get(k)!.push(it);
-  }
-
-  const out = Array.from(m.entries()).map(([date, arr]) => ({
-    date,
-    arr: arr.slice().sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0)),
-  }));
-
-  out.sort((a, b) => {
-    const ta = a.arr?.[0]?.timestamp ?? 0;
-    const tb = b.arr?.[0]?.timestamp ?? 0;
-    return tb - ta;
-  });
-
-  return out;
-}
-function formatMaxParticipants(n?: number | null) {
-  if (n == null) return "—";
-  return n === 0 ? "No limit" : String(n);
-}
-function formatDuration(sec?: number | null) {
-  if (!sec || sec < 0) return "—";
-  const s = Math.floor(sec % 60);
-  const m = Math.floor((sec / 60) % 60);
-  const h = Math.floor(sec / 3600);
-  const parts: string[] = [];
-  if (h) parts.push(`${h}h`);
-  if (m || h) parts.push(`${m}m`);
-  parts.push(`${s}s`);
-  return parts.join(" ");
-}
-function prettyCountdown(sec: number) {
-  const s = Math.max(0, Math.floor(sec));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const r = s % 60;
-  const pad = (x: number) => x.toString().padStart(2, "0");
-  return h > 0 ? `${h}:${pad(m)}:${pad(r)}` : `${m}:${pad(r)}`;
-}
-function formatDateShort(sec?: number | null) {
-  if (!sec) return "—";
-  const d = new Date(sec * 1000);
-  return d.toLocaleString(undefined, {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-function enumLabel(kind: "kind" | "outcome", v?: number | null) {
-  if (v == null) return "—";
-  if (kind === "kind") {
-    const map: Record<number, string> = { 0: "Unknown", 1: "Standard", 2: "AIVM", 3: "ZK/Plonk" };
-    return map[v] ?? `Type #${v}`;
-  }
-  const out: Record<number, string> = { 0: "Unset / Pending", 1: "Success", 2: "Fail", 3: "Canceled" };
-  return out[v] ?? `#${v}`;
-}
-
-function computePublicStatus({
-  now,
-  start,
-  end,
-  joinClose,
-  adminStatus,
-  snapshotSet,
-}: {
-  now: number;
-  start: number | null;
-  end: number | null;
-  joinClose?: number | null;
-  adminStatus?: Status;
-  snapshotSet?: boolean;
-}) {
-  if (!start || !end) return { label: "—", note: "" };
-
-  if (adminStatus === "Rejected") return { label: "Rejected", note: "" };
-  if (adminStatus === "Paused") return { label: "Paused", note: "" };
-  if (adminStatus === "Canceled") return { label: "Canceled", note: "" };
-
-  if (now >= end) {
-    // Option A: snapshot being set means payouts are settled => Completed
-    if (snapshotSet || adminStatus === "Finalized") return { label: "Completed", note: "" };
-    return { label: "Finalizing", note: "" };
-  }
-
-  if (now < start) {
-    const joinOpen = !!joinClose && now < joinClose;
-    return { label: "Upcoming", note: joinOpen ? "Join open" : "Join closed" };
-  }
-
-  return { label: "In progress", note: "" };
-}

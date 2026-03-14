@@ -10,6 +10,7 @@ export type Activity = {
   max_hr_bpm?: number;
   elev_gain_m?: number;
   steps_count?: number;
+  calories?: number;
   gps_path?: [number, number][]; // [lat, lon]
 };
 
@@ -102,6 +103,7 @@ function metricValue(a: Activity, m: string): number | null {
     case "gps_continuity_score": return gpsContinuityScore(a.gps_path).score;
     case "hr_activity_consistency": return hrActivityConsistency(a.avg_hr_bpm, a.duration_min, a.type);
     case "swim_distance_km": return a.type === "swim" ? (a.distance_km ?? 0) : 0;
+    case "calories": return a.calories ?? null;
     default: return null;
   }
 }

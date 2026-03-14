@@ -1,38 +1,49 @@
-# Node / Hardhat
+# Dependencies
 node_modules/
+
+# Build outputs
 artifacts/
 cache/
 typechain-types/
+exports/
+coverage/
+coverage.json
 
-# Editor
+# Next.js
+webapp/.next/
+webapp/out/
+
+# Editor / OS
 .DS_Store
 **/._*
-._*
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
-# Env / Secrets
+# Environment / Secrets
 .env
 .env.local
+.env.*.local
 
-# Build outputs / exports
-exports/
-snapshots/
-writes/
+# Logs
+*.log
 lightchain-run.log
 
 # Archives
 *.zip
-*.tgzcoverage
-zk/circomlib
-
-.attic/
-
-.attic/
-
-# large archives (ignore)
 *.tgz
 *.tar.gz
-*.zip
 .snapshots/
-.env
+snapshots/
+writes/
+
+# Archived code (local only, not published)
+.attic/
+
+# Lightchain reference contracts (local dev reference only)
+lightchain_references/
+
+# ZK circuits (legacy, not in active compilation)
+zk/

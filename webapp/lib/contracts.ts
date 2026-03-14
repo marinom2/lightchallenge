@@ -14,7 +14,6 @@ import {
   EXPLORER_URL as EXPLORER_URL_ENV,
   CHALLENGEPAY_ADDR as CHALLENGEPAY_ENV,
   TREASURY_ADDR as TREASURY_ENV,
-  AUTO_APPROVAL_STRATEGY as STRAT_ENV,
 } from "@/lib/env";
 
 import deploymentsJson from "@/public/deployments/lightchain.json";
@@ -62,9 +61,8 @@ function depAddr(name: string): Address | null {
    ──────────────────────────────────────────────────────────────── */
 import ChallengePayAbiJson from "@/public/abi/ChallengePay.abi.json";
 import TreasuryAbiJson from "@/public/abi/Treasury.abi.json";
-import EventChallengeRouterAbiJson from "@/public/abi/EventChallengeRouter.abi.json";
 import MetadataRegistryAbiJson from "@/public/abi/MetadataRegistry.abi.json";
-import AutoApprovalStrategyAbiJson from "@/public/abi/AutoApprovalStrategy.abi.json";
+import ChallengeAchievementAbiJson from "@/public/abi/ChallengeAchievement.abi.json";
 import ERC20AbiJson from "@/public/abi/ERC20.abi.json";
 
 type AbiLike = Abi | { abi: Abi };
@@ -74,9 +72,8 @@ const asAbi = (x: unknown): Abi =>
 export const ABI: Record<string, Abi> = {
   ChallengePay: asAbi(ChallengePayAbiJson),
   Treasury: asAbi(TreasuryAbiJson),
-  EventChallengeRouter: asAbi(EventChallengeRouterAbiJson),
   MetadataRegistry: asAbi(MetadataRegistryAbiJson),
-  AutoApprovalStrategy: asAbi(AutoApprovalStrategyAbiJson),
+  ChallengeAchievement: asAbi(ChallengeAchievementAbiJson),
   ERC20: asAbi(ERC20AbiJson),
 };
 
@@ -115,26 +112,21 @@ export const EXPLORER_URL =
 export const ADDR = {
   ChallengePay: safeAddr(depAddr("ChallengePay")),
   Treasury: safeAddr(depAddr("Treasury")),
-  EventChallengeRouter: safeAddr(depAddr("EventChallengeRouter")),
   MetadataRegistry: safeAddr(depAddr("MetadataRegistry")),
-  AutoApprovalStrategy: safeAddr(depAddr("AutoApprovalStrategy")),
   ChallengeTaskRegistry: safeAddr(depAddr("ChallengeTaskRegistry")),
   ChallengePayAivmPoiVerifier: safeAddr(depAddr("ChallengePayAivmPoiVerifier")),
+  ChallengeAchievement: safeAddr(depAddr("ChallengeAchievement")),
   AIVMInferenceV2: safeAddr(depAddr("AIVMInferenceV2")),
-  TrustedForwarder: safeAddr(depAddr("TrustedForwarder")),
   Protocol: safeAddr(depAddr("Protocol")),
 } as const;
 
 export type KnownContract =
   | "ChallengePay"
   | "Treasury"
-  | "EventChallengeRouter"
-  | "MetadataRegistry"
-  | "AutoApprovalStrategy";
+  | "MetadataRegistry";
 
 export const CHALLENGEPAY_ADDR = ADDR.ChallengePay;
 export const TREASURY_ADDR = ADDR.Treasury;
-export const AUTO_APPROVAL_STRATEGY_ADDR = ADDR.AutoApprovalStrategy;
 export const CHALLENGE_TASK_REGISTRY_ADDR = ADDR.ChallengeTaskRegistry;
 export const CHALLENGEPAY_AIVM_POI_VERIFIER_ADDR = ADDR.ChallengePayAivmPoiVerifier;
 export const AIVM_INFERENCE_V2_ADDR = ADDR.AIVMInferenceV2;
@@ -146,7 +138,6 @@ if (process.env.NODE_ENV !== "production") {
   const pairs: Array<[string, string | undefined, string]> = [
     ["NEXT_PUBLIC_CHALLENGEPAY_ADDR", CHALLENGEPAY_ENV, ADDR.ChallengePay],
     ["NEXT_PUBLIC_TREASURY_ADDR", TREASURY_ENV, ADDR.Treasury],
-    ["NEXT_PUBLIC_AUTO_APPROVAL_STRATEGY", STRAT_ENV, ADDR.AutoApprovalStrategy],
   ];
 
   for (const [key, envVal, depVal] of pairs) {
@@ -205,28 +196,3 @@ export async function getViemContractStrict<TName extends KnownContract>(name: T
   return getContract({ address: addr, abi, client: { public: publicClient } });
 }
 
-export async function getAutoApprovalStatus() {
-  if (ADDR.AutoApprovalStrategy === ZERO_ADDR) {
-    return { ok: false, reason: "Strategy address is zero" };
-  }
-
-  const [paused, requireAllow, nativeAllowed] = await Promise.all([
-    publicClient.readContract({
-      address: ADDR.AutoApprovalStrategy,
-      abi: ABI.AutoApprovalStrategy,
-      functionName: "paused",
-    }) as Promise<boolean>,
-    publicClient.readContract({
-      address: ADDR.AutoApprovalStrategy,
-      abi: ABI.AutoApprovalStrategy,
-      functionName: "requireCreatorAllowlist",
-    }) as Promise<boolean>,
-    publicClient.readContract({
-      address: ADDR.AutoApprovalStrategy,
-      abi: ABI.AutoApprovalStrategy,
-      functionName: "allowNative",
-    }) as Promise<boolean>,
-  ]);
-
-  return { ok: !paused, paused, requireAllow, nativeAllowed };
-}

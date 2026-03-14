@@ -1,5 +1,6 @@
 // hardhat.config.ts
-import "dotenv/config";
+import * as dotenv from "dotenv";
+dotenv.config({ path: ".env" });
 
 import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-deploy";
@@ -99,16 +100,6 @@ const config: HardhatUserConfig & { namedAccounts?: Record<string, any> } = {
     ],
   
     overrides: {
-      "contracts/PlonkVerifier.sol": {
-        version: "0.7.6",
-        settings: {
-          optimizer: { enabled: true, runs: 200 },
-          viaIR: false,
-          metadata: { bytecodeHash: "none" },
-          evmVersion: "istanbul",
-        },
-      },
-  
       "contracts/ChallengePay.sol": {
         version: "0.8.24",
         settings: {

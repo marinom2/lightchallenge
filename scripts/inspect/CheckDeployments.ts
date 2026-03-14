@@ -45,7 +45,7 @@ async function main() {
     console.log(`- ${name}: ${addr} → ${ok ? "OK" : "MISSING CODE (re-deploy)"}`)
   }
 
-  const contractsToCare = ["ChallengePay", "ZkProofVerifier", "PlonkVerifier", "Treasury"]
+  const contractsToCare = ["ChallengePay", "Treasury", "MetadataRegistry", "ChallengePayAivmPoiVerifier", "ChallengeTaskRegistry"]
   console.log("\nArtifacts present:")
   for (const c of contractsToCare) {
     try { await artifacts.readArtifact(c); console.log(`- ${c}: ✓ artifact found`) }

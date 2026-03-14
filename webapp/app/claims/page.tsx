@@ -1,16 +1,29 @@
 // app/claims/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useChainId } from "wagmi";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 import Link from "next/link";
-import { ADDR } from "@/lib/contracts";
-import { addressUrl, blockUrl, txUrl } from "@/lib/explorer";
-import ChallengeFinalize from "@/app/components/ChallengeFinalize";
-import ChallengeClaims from "@/app/components/ChallengeClaims";
-import ProofPanel from "@/app/components/ProofPanel";
+import type { Abi } from "viem";
 
-type Status = "Pending" | "Approved" | "Rejected" | "Finalized" | "Canceled" | "Paused";
+import { ABI, ADDR, EXPLORER_URL } from "@/lib/contracts";
+import { useToasts } from "@/lib/ui/toast";
+import { timeAgo as sharedTimeAgo } from "@/lib/formatTime";
+import {
+  resolveLifecycle,
+  toClaimSection,
+  type LifecycleInput,
+  type ClaimSection as ClaimSectionType,
+  type ResolvedLifecycle,
+} from "@/lib/challenges/lifecycle";
+
+/* ── Constants ───────────────────────────────────────────────────────────── */
+const ZERO = "0x0000000000000000000000000000000000000000" as const;
+const CP = ADDR.ChallengePay;
+const TREAS = ADDR.Treasury;
+
+/* ── Types ───────────────────────────────────────────────────────────────── */
+import type { Status } from "@/lib/types/status";
 
 type ApiOut = {
   id: string;
@@ -38,18 +51,525 @@ type ApiOut = {
   }[];
 };
 
+type RewardRow = {
+  challenge_id: string;
+  challenge_status: string | null;
+  verdict_pass: boolean | null;
+  verdict_updated_at: string | null;
+  has_evidence: boolean;
+  endsAt?: number | null;
+  proofDeadline?: number | null;
+  aivm_verification_status?: string | null;
+  joined_at?: string | null;
+  chain_outcome?: number | null;
+  title?: string;
+  description?: string;
+};
+
+type RewardItem = { row: RewardRow; lc: ResolvedLifecycle };
+
+/* ── Helpers ─────────────────────────────────────────────────────────────── */
+function short(a: string) { return `${a.slice(0, 6)}…${a.slice(-4)}`; }
+const timeAgo = sharedTimeAgo;
+function chipClassForStatus(s: Status) {
+  switch (s) {
+    case "Active":    return "chip--ok";
+    case "Finalized": return "chip--info";
+    case "Canceled":  return "chip--warn";
+    default:          return "";
+  }
+}
+
+function toInput(r: RewardRow): LifecycleInput {
+  return {
+    challenge_id: r.challenge_id,
+    challenge_status: r.challenge_status,
+    endsAt: r.endsAt,
+    proofDeadline: r.proofDeadline,
+    has_evidence: r.has_evidence,
+    verdict_pass: r.verdict_pass,
+    aivm_verification_status: r.aivm_verification_status,
+    chainOutcome: r.chain_outcome ?? null,
+  };
+}
+
+/* ── Claim execution hook ─────────────────────────────────────────────────── */
+type ClaimCfg = {
+  abi: Abi;
+  address: `0x${string}`;
+  functionName: string;
+  args: unknown[];
+};
+
+function useClaimExecution() {
+  const pc = usePublicClient();
+  const { address } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+  const toast = useToasts((s) => s.push);
+
+  const findClaimables = useCallback(
+    async (challengeId: bigint): Promise<ClaimCfg[]> => {
+      if (!pc || !address) return [];
+      const base = { abi: ABI.ChallengePay as unknown as Abi, address: CP } as const;
+      const candidates: ClaimCfg[] = [
+        { ...base, functionName: "claimWinner", args: [challengeId] },
+        { ...base, functionName: "claimLoser", args: [challengeId] },
+        { ...base, functionName: "claimRefund", args: [challengeId] },
+      ];
+      const checks = await Promise.all(
+        candidates.map(async (cfg) => {
+          try {
+            await pc.simulateContract({ ...(cfg as any), account: address as `0x${string}` });
+            return cfg;
+          } catch { return null; }
+        }),
+      );
+      const ok = checks.filter(Boolean) as ClaimCfg[];
+      if (TREAS !== ZERO) {
+        try {
+          const raw = await pc.readContract({
+            address: TREAS, abi: ABI.Treasury as Abi,
+            functionName: "ethAllowanceOf", args: [challengeId, address as `0x${string}`],
+          });
+          const allowance = typeof raw === "bigint" ? raw : BigInt(String(raw ?? 0));
+          if (allowance > 0n) {
+            ok.push({ abi: ABI.Treasury as unknown as Abi, address: TREAS, functionName: "claimETH", args: [challengeId, allowance] });
+          }
+        } catch { /* skip */ }
+      }
+      return ok;
+    },
+    [pc, address],
+  );
+
+  const executeClaim = useCallback(
+    async (challengeId: string): Promise<{ success: boolean; txHash?: string; error?: string }> => {
+      if (!pc || !address) return { success: false, error: "Wallet not connected" };
+      const cid = BigInt(challengeId);
+      try {
+        await pc.simulateContract({
+          abi: ABI.ChallengePay as unknown as Abi, address: CP,
+          functionName: "finalize", args: [cid], account: address as `0x${string}`,
+        });
+        const fHash = await writeContractAsync({
+          abi: ABI.ChallengePay as unknown as Abi, address: CP,
+          functionName: "finalize", args: [cid],
+        });
+        await pc.waitForTransactionReceipt({ hash: fHash });
+      } catch { /* already finalized */ }
+
+      const list = await findClaimables(cid);
+      if (list.length === 0) return { success: false, error: "No claimable rewards found on-chain." };
+
+      const CLAIM_FN_TO_TYPE: Record<string, string> = {
+        claimWinner: "winner", claimLoser: "loser", claimRefund: "refund",
+        claimETH: "treasury_eth",
+      };
+      let lastHash: string | undefined;
+      for (const cfg of list) {
+        try {
+          const hash = await writeContractAsync(cfg as any);
+          toast(`Confirming ${cfg.functionName}…`, 3000, "info");
+          const rc = await pc.waitForTransactionReceipt({ hash });
+          if (rc.status === "success") {
+            lastHash = hash;
+            const claimType = CLAIM_FN_TO_TYPE[cfg.functionName] ?? cfg.functionName;
+            fetch("/api/me/claims", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ challengeId, subject: address, claimType, txHash: hash,
+                blockNumber: rc.blockNumber ? Number(rc.blockNumber) : undefined }),
+            }).catch(() => {});
+          } else {
+            return { success: false, error: `${cfg.functionName} reverted.`, txHash: hash };
+          }
+        } catch (e: any) {
+          return { success: false, error: e?.shortMessage || e?.message || `${cfg.functionName} failed`, txHash: lastHash };
+        }
+      }
+      return { success: true, txHash: lastHash };
+    },
+    [pc, address, writeContractAsync, findClaimables, toast],
+  );
+
+  return { executeClaim };
+}
+
+/* ── Reward board (wallet-aware) ─────────────────────────────────────────── */
+function RewardBoard({ address }: { address: string }) {
+  const [rows, setRows] = useState<RewardRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [claimingId, setClaimingId] = useState<string | null>(null);
+  const [claimResult, setClaimResult] = useState<{ kind: "ok" | "err"; challengeId: string; txHash?: string; error?: string } | null>(null);
+  const [activeSection, setActiveSection] = useState<ClaimSectionType | null>(null);
+  const claimingRef = useRef(false);
+  const { executeClaim } = useClaimExecution();
+  const toast = useToasts((s) => s.push);
+
+  useEffect(() => {
+    if (!address) return;
+    setLoading(true);
+    fetch(`/api/me/challenges?subject=${encodeURIComponent(address)}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then(async (d) => {
+        if (!d?.ok) return;
+        const challenges: any[] = d.challenges ?? [];
+        const enriched = await Promise.all(
+          challenges.map(async (c) => {
+            try {
+              const r = await fetch(`/api/challenges/meta/${c.challenge_id}`, { cache: "no-store" });
+              const meta = r.ok ? await r.json() : {};
+              return {
+                ...c,
+                title: meta?.title ?? undefined,
+                description: typeof meta?.description === "string" && meta.description ? meta.description : undefined,
+                endsAt: typeof meta?.endsAt === "number" ? meta.endsAt : undefined,
+                proofDeadline: typeof meta?.proofDeadline === "number" ? meta.proofDeadline : undefined,
+              };
+            } catch { return c; }
+          })
+        );
+        setRows(enriched);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [address]);
+
+  // Resolve lifecycle and categorize
+  const allItems: RewardItem[] = rows.map((row) => ({ row, lc: resolveLifecycle(toInput(row)) }));
+
+  const claimable: RewardItem[] = [];
+  const pending: RewardItem[] = [];
+  const lost: RewardItem[] = [];
+  const won: RewardItem[] = [];
+
+  for (const item of allItems) {
+    const section = toClaimSection(item.lc);
+    if (section === "claimable") claimable.push(item);
+    else if (section === "pending") pending.push(item);
+    else if (section === "lost") lost.push(item);
+    else if (section === "won") won.push(item);
+  }
+
+  const handleClaim = useCallback(async (challengeId: string) => {
+    if (claimingRef.current) return;
+    claimingRef.current = true;
+    setClaimingId(challengeId);
+    setClaimResult(null);
+    try {
+      const result = await executeClaim(challengeId);
+      if (result.success) {
+        toast("Reward claimed successfully!", 4000, "success");
+        setClaimResult({ kind: "ok", challengeId, txHash: result.txHash });
+        // Refresh rows
+        setLoading(true);
+        const r = await fetch(`/api/me/challenges?subject=${encodeURIComponent(address)}`, { cache: "no-store" });
+        const d = await r.json();
+        if (d?.ok) {
+          const challenges: any[] = d.challenges ?? [];
+          const enriched = await Promise.all(
+            challenges.map(async (c) => {
+              try {
+                const mr = await fetch(`/api/challenges/meta/${c.challenge_id}`, { cache: "no-store" });
+                const meta = mr.ok ? await mr.json() : {};
+                return { ...c, title: meta?.title ?? undefined,
+                  description: typeof meta?.description === "string" && meta.description ? meta.description : undefined,
+                  endsAt: typeof meta?.endsAt === "number" ? meta.endsAt : undefined,
+                  proofDeadline: typeof meta?.proofDeadline === "number" ? meta.proofDeadline : undefined };
+              } catch { return c; }
+            })
+          );
+          setRows(enriched);
+        }
+        setLoading(false);
+      } else {
+        setClaimResult({ kind: "err", challengeId, error: result.error, txHash: result.txHash });
+      }
+    } catch (e: any) {
+      setClaimResult({ kind: "err", challengeId, error: e?.shortMessage || e?.message || "Unknown error" });
+    } finally {
+      setClaimingId(null);
+      claimingRef.current = false;
+    }
+  }, [executeClaim, address, toast]);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="panel grid grid-cols-2 sm:grid-cols-4 divide-x" style={{ "--tw-divide-opacity": 1 } as React.CSSProperties}>
+          {["Claimable", "Pending", "Lost", "Claimed"].map((s) => (
+            <div key={s} className="metric text-center py-4 animate-pulse">
+              <div className="text-2xl font-bold tabular-nums">…</div>
+              <div className="text-xs font-semibold uppercase tracking-widest mt-1">{s}</div>
+            </div>
+          ))}
+        </div>
+        <div className="panel p-4 text-sm text-(--text-muted) animate-pulse">Loading rewards…</div>
+      </div>
+    );
+  }
+
+  const totalParticipated = rows.length;
+
+  if (totalParticipated === 0) {
+    return (
+      <div className="panel p-8 text-center">
+        <div className="text-lg font-semibold mb-2">No rewards yet</div>
+        <p className="text-sm text-(--text-muted) max-w-sm mx-auto">
+          Join challenges and win to earn rewards. Passed challenges appear here once finalized.
+        </p>
+        <div className="mt-5 flex flex-wrap gap-3 justify-center">
+          <Link href="/explore" className="btn btn-primary">Browse challenges</Link>
+          <Link href="/me/challenges" className="btn btn-ghost">My challenges</Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Which sections to show given activeSection filter
+  const showSection = (s: ClaimSectionType) => activeSection === null || activeSection === s;
+
+  const metricBtn = (section: ClaimSectionType, count: number, label: string, sub: string, highlight?: boolean) => {
+    const isActive = activeSection === section;
+    return (
+      <button
+        key={label}
+        className={[
+          "metric text-center py-4 transition-colors cursor-pointer",
+          isActive ? "bg-(--glass-hover)" : "hover:bg-(--glass)",
+        ].join(" ")}
+        onClick={() => setActiveSection(isActive ? null : section)}
+        aria-pressed={isActive}
+        title={`Filter by ${label}`}
+      >
+        <div
+          className="text-2xl font-bold tabular-nums transition-colors"
+          style={{ color: highlight && count > 0 ? "var(--status-claim)" : undefined }}
+        >
+          {count}
+        </div>
+        <div className="text-xs font-semibold uppercase tracking-widest mt-1">{label}</div>
+        <div className="text-[11px] text-(--text-muted) mt-0.5">{sub}</div>
+        {isActive && <div className="mt-1 text-[10px] text-(--text-muted) italic">click to clear</div>}
+      </button>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Claim result banner */}
+      {claimResult && (
+        <div className={`panel p-4 flex items-center justify-between gap-3 ${claimResult.kind === "ok" ? "border-(--status-claim)/30" : "border-(--status-done-bad)/30"}`}>
+          <div className="text-sm">
+            {claimResult.kind === "ok" ? (
+              <span className="font-semibold text-(--status-claim)">✓ Reward claimed successfully</span>
+            ) : (
+              <span className="font-semibold text-(--danger)">Claim failed — {claimResult.error}</span>
+            )}
+            {claimResult.txHash && (
+              <a href={`${EXPLORER_URL}/tx/${claimResult.txHash}`} target="_blank" rel="noopener noreferrer"
+                className="ml-3 text-(--text-muted) underline underline-offset-2 text-xs">
+                View tx →
+              </a>
+            )}
+          </div>
+          <button className="text-(--text-muted) hover:text-(--text) text-xs" onClick={() => setClaimResult(null)}>Dismiss</button>
+        </div>
+      )}
+
+      {/* Summary stats — clickable filters */}
+      <div className="panel grid grid-cols-2 sm:grid-cols-4 divide-x overflow-hidden" style={{ "--tw-divide-opacity": 1 } as React.CSSProperties}>
+        {metricBtn("claimable", claimable.length, "Claimable", "Ready now", true)}
+        {metricBtn("pending", pending.length, "Pending", "Awaiting finalization")}
+        {metricBtn("lost", lost.length, "Lost", "Did not pass")}
+        {metricBtn("won", won.length, "Claimed", `${claimable.length + won.length} won all time`)}
+      </div>
+
+      {activeSection && (
+        <div className="text-xs text-(--text-muted) -mt-2">
+          Showing <span className="font-semibold text-(--text)">{activeSection}</span> — click metric to clear filter
+        </div>
+      )}
+
+      {/* Claimable rewards */}
+      {showSection("claimable") && claimable.length > 0 && (
+        <RewardSection
+          title="Claimable now"
+          subtitle="Finalized challenges you won — claim your stake and winnings"
+          items={claimable}
+          section="claimable"
+          onClaim={handleClaim}
+          claimingId={claimingId}
+        />
+      )}
+
+      {/* Pending finalization */}
+      {showSection("pending") && pending.length > 0 && (
+        <RewardSection
+          title="Awaiting finalization"
+          subtitle="You passed — waiting for on-chain finalization before you can claim"
+          items={pending}
+          section="pending"
+          onClaim={handleClaim}
+          claimingId={claimingId}
+        />
+      )}
+
+      {/* Lost / failed / no-payout */}
+      {showSection("lost") && lost.length > 0 && (
+        <RewardSection
+          title="Did not pass"
+          subtitle="These challenges were not met or resulted in no payout"
+          items={lost}
+          section="lost"
+          onClaim={handleClaim}
+          claimingId={claimingId}
+        />
+      )}
+
+      {/* Previously claimed */}
+      {showSection("won") && won.length > 0 && (
+        <RewardSection
+          title="Previously claimed"
+          subtitle="Rewards already collected"
+          items={won}
+          section="won"
+          onClaim={handleClaim}
+          claimingId={claimingId}
+        />
+      )}
+
+      {claimable.length === 0 && pending.length === 0 && lost.length === 0 && won.length === 0 && (
+        <div className="panel p-6 text-center">
+          <div className="text-base font-semibold mb-1">No reward activity yet</div>
+          <p className="text-sm text-(--text-muted)">
+            Your challenges haven&apos;t been evaluated yet.{" "}
+            <Link href="/me/challenges" className="underline underline-offset-2">Check status</Link>
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Reward section component ────────────────────────────────────────────── */
+function RewardSection({
+  title,
+  subtitle,
+  items,
+  section,
+  onClaim,
+  claimingId,
+}: {
+  title: string;
+  subtitle: string;
+  items: RewardItem[];
+  section: ClaimSectionType;
+  onClaim: (challengeId: string) => void;
+  claimingId: string | null;
+}) {
+  const accentColor = section === "claimable" ? "text-(--accent)" : "text-(--text-muted)";
+  const dataStatus = section === "claimable" ? "claim"
+    : section === "pending" ? "approved"
+    : section === "won" ? "ok"
+    : "bad";
+
+  return (
+    <section>
+      <div className="flex items-baseline gap-2 mb-3">
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-(--text-muted)">{title}</h2>
+        <span className={`text-xs font-bold tabular-nums ${accentColor}`}>{items.length}</span>
+      </div>
+      <p className="text-xs text-(--text-muted) mb-3">{subtitle}</p>
+
+      <div className="space-y-2">
+        {items.map(({ row, lc }) => {
+          const displayTitle = row.title ?? `Challenge #${row.challenge_id}`;
+          const isClaiming = claimingId === row.challenge_id;
+
+          // Badge: use lifecycle as source of truth
+          const badgeClass = lc.badgeVariant === "claim" ? "chip--claim"
+            : lc.badgeVariant === "ok" ? "chip--ok"
+            : lc.badgeVariant === "bad" ? "chip--bad"
+            : lc.badgeVariant === "action" ? "chip--action"
+            : lc.badgeVariant === "soft" ? "chip--soft"
+            : "chip--info";
+
+          return (
+            <div
+              key={row.challenge_id}
+              className="challenge-card p-4 pl-5"
+              data-status={dataStatus}
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <Link
+                    href={`/challenge/${row.challenge_id}`}
+                    className="text-sm font-semibold hover:text-(--accent) transition-colors"
+                  >
+                    {displayTitle}
+                  </Link>
+                  {row.description && (
+                    <div className="text-xs text-(--text-muted) mt-0.5 line-clamp-2">{row.description}</div>
+                  )}
+                  {row.title && (
+                    <div className="text-xs text-(--text-muted) mt-0.5 opacity-60">#{row.challenge_id}</div>
+                  )}
+                  {lc.description && (
+                    <div className="text-xs text-(--text-muted) mt-1">{lc.description}</div>
+                  )}
+                  {row.verdict_updated_at && (
+                    <div className="text-xs text-(--text-muted) mt-0.5">
+                      Updated {timeAgo(new Date(row.verdict_updated_at).getTime())}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`chip ${badgeClass}`}>{lc.label}</span>
+
+                  {section === "claimable" && (
+                    <button
+                      className="next-step-cta cta-claim text-xs"
+                      onClick={() => onClaim(row.challenge_id)}
+                      disabled={isClaiming}
+                      aria-busy={isClaiming ? "true" : "false"}
+                    >
+                      {isClaiming ? "Claiming…" : "Claim Reward"}
+                    </button>
+                  )}
+
+                  {(section === "pending" || section === "lost" || section === "won") && (
+                    <Link href={`/challenge/${row.challenge_id}`} className="btn btn-ghost btn-sm text-xs">
+                      View →
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/* ── Main page ───────────────────────────────────────────────────────────── */
 export default function ClaimsPage() {
-  const chainId = useChainId();
+  const { address, isConnected } = useAccount();
   const [idInput, setIdInput] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [data, setData] = useState<ApiOut | null>(null);
+  const detailRef = useRef<HTMLElement>(null);
+  const fromUrl = useRef(false);
 
   // Load from ?id= if present
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     const qs = sp.get("id");
     if (qs && /^\d+$/.test(qs)) {
+      fromUrl.current = true;
       setIdInput(qs);
       void load(qs);
     }
@@ -66,11 +586,12 @@ export default function ClaimsPage() {
       const j = await res.json();
       if (!res.ok) throw new Error(j?.error || `API error ${res.status}`);
       setData(j as ApiOut);
-
-      // reflect in URL
       const url = new URL(window.location.href);
       url.searchParams.set("id", trimmed);
       window.history.replaceState({}, "", url.toString());
+      if (fromUrl.current) {
+        setTimeout(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+      }
     } catch (e: any) {
       setData(null);
       setErr(e?.message || String(e));
@@ -79,415 +600,125 @@ export default function ClaimsPage() {
     }
   }
 
-  const canFinalize = useMemo(() => {
-    if (!data) return false;
-    return data.status === "Approved" || data.status === "Paused";
-  }, [data]);
-
-  const canClaim = useMemo(() => data?.status === "Finalized", [data]);
-
-  // Proof panel auto-config
-  const verifier = data?.verifier as `0x${string}` | undefined;
-  const proofRequired = !!data?.proofRequired;
-  const requireZk = false;
-  const requireAivm =
-    proofRequired &&
-    !!ADDR.ChallengePayAivmPoiVerifier &&
-    equalAddr(verifier, ADDR.ChallengePayAivmPoiVerifier);
-
-  const headerSubtitle = useMemo(() => {
-    if (!data) return `ChainId: ${chainId ?? "…"}`;
-    const bits: string[] = [];
-    bits.push(`ChainId: ${chainId ?? "…"}`);
-    bits.push(`Challenge #${data.id}`);
-    if (data.category) bits.push(data.category);
-    return bits.join(" • ");
-  }, [chainId, data]);
-
-  const showActions = !!data && (canFinalize || canClaim || (proofRequired && verifier));
-
   return (
-    <div className="container-narrow mx-auto px-4 py-8 space-y-6">
-      {/* Page hero */}
-      <div className="section overflow-hidden">
-        <div className="page-hero" aria-hidden="true" />
-        <div className="section-lens" aria-hidden="true" />
-
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0">
-            <div className="text-xs tracking-wide text-[color:var(--text-muted)]">
-              LightChallenge
-            </div>
-            <h1 className="h1 mt-1">
-              Finalize <span className="text-[color:var(--text-muted)]">/</span> Claim
-            </h1>
-            <div className="mt-2 text-sm text-[color:var(--text-muted)]">
-              {headerSubtitle}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2 sm:justify-end">
-            {data?.id ? (
-              <>
-                <Link href={`/challenge/${data.id}`} className="btn btn-ghost btn-sm">
-                  View challenge
-                </Link>
-                <a
-                  className="btn btn-outline btn-sm"
-                  href={`/claims?id=${data.id}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    void load(String(data.id));
-                  }}
-                >
-                  Refresh
-                </a>
-              </>
-            ) : (
-              <span className="chip chip--soft">Paste an ID to load</span>
-            )}
-          </div>
-        </div>
+    <div className="container-narrow mx-auto px-4 py-8 space-y-8">
+      {/* Page header */}
+      <div>
+        <h1 className="h1 h-gradient">Claim Rewards</h1>
+        <p className="mt-1 text-sm text-(--text-muted)">
+          Your reward board — claimable winnings, pending finalization, and history.
+        </p>
       </div>
 
-      {/* Search / Load */}
-      <div className="panel">
-        <div className="panel-body">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="flex-1 flex flex-col sm:flex-row gap-3 sm:items-center">
+      {/* Reward board (wallet-aware) */}
+      {isConnected && address ? (
+        <RewardBoard address={address} />
+      ) : (
+        <div className="panel p-8 text-center">
+          <div className="text-lg font-semibold mb-2">Connect your wallet</div>
+          <p className="text-sm text-(--text-muted) max-w-sm mx-auto">
+            Connect to see your claimable rewards, pending finalization, and reward history automatically.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3 justify-center">
+            <Link href="/explore" className="btn btn-primary">Browse challenges</Link>
+            <Link href="/challenges/create" className="btn btn-ghost">Create one</Link>
+          </div>
+        </div>
+      )}
+
+      {/* Manual lookup */}
+      <section>
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-(--text-muted) mb-3">
+          Look up a challenge
+        </h2>
+
+        <div className="panel">
+          <div className="panel-body">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <input
-                className="input sm:max-w-[260px]"
+                className="input sm:max-w-[280px]"
                 placeholder="Challenge ID (e.g. 42)"
                 value={idInput}
                 onChange={(e) => setIdInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void load(idInput);
-                }}
+                onKeyDown={(e) => { if (e.key === "Enter") void load(idInput); }}
                 inputMode="numeric"
               />
-
               <button
                 className={`btn btn-primary ${loading ? "loading" : ""}`}
                 onClick={() => void load(idInput)}
                 disabled={loading}
                 aria-busy={loading ? "true" : "false"}
               >
-                {loading ? "Loading…" : "Load"}
+                {loading ? "Loading…" : "Load challenge"}
               </button>
-
-              <div className="hidden sm:block flex-1" />
-
-              <div className="flex flex-wrap gap-2">
+              {data && (
                 <button
                   className="btn btn-ghost btn-sm"
                   onClick={() => {
-                    setIdInput("");
-                    setErr(null);
-                    setData(null);
+                    setIdInput(""); setErr(null); setData(null);
                     const url = new URL(window.location.href);
                     url.searchParams.delete("id");
                     window.history.replaceState({}, "", url.toString());
                   }}
-                  disabled={loading}
                 >
                   Clear
                 </button>
-
-                <button
-                  className="btn btn-outline btn-sm"
-                  onClick={async () => {
-                    if (!navigator.clipboard) return;
-                    try {
-                      const t = (await navigator.clipboard.readText()).trim();
-                      if (/^\d+$/.test(t)) {
-                        setIdInput(t);
-                        void load(t);
-                      } else {
-                        setErr("Clipboard does not contain a numeric ID");
-                      }
-                    } catch {
-                      setErr("Clipboard read failed (browser permissions)");
-                    }
-                  }}
-                  disabled={loading}
-                >
-                  Paste ID
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {err && (
-            <div className="mt-3">
-              <div className="chip chip--bad">Error: {err}</div>
-            </div>
-          )}
-
-          {!data && !err && (
-            <div className="mt-3 text-sm text-[color:var(--text-muted)]">
-              Tip: You can share a direct link like{" "}
-              <code className="mono">/claims?id=42</code>.
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Loaded content */}
-      {(data || loading) && (
-        <div className="grid gap-3 grid-cols-1 lg:grid-cols-3">
-          {/* Summary */}
-          <div className="dark-card lg:col-span-2">
-            <div className="dark-sheen" aria-hidden />
-            <div className="dark-halo" aria-hidden />
-            <div className="space-y-3 relative">
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-sm text-[color:var(--text-muted)]">
-                    {loading ? "Loading challenge…" : `Challenge #${data?.id ?? "—"}`}
-                    {data?.title ? ` • ${data.title}` : ""}
-                  </div>
-                  {data?.description ? (
-                    <p className="mt-2 text-sm text-[color:var(--text-muted)] max-w-[78ch]">
-                      {data.description}
-                    </p>
-                  ) : (
-                    <p className="mt-2 text-sm text-[color:var(--text-muted)]">
-                      {loading ? "Fetching metadata, status, and timeline…" : "No description provided."}
-                    </p>
-                  )}
-                </div>
-
-                {data?.id ? (
-                  <div className="flex flex-wrap gap-2 sm:justify-end">
-                    <span className={`chip ${chipClassForStatus(data.status)}`}>{data.status}</span>
-
-                    {data.proofRequired && (
-                      <span className={`chip ${data.proofOk ? "chip--ok" : "chip--info"}`}>
-                        {data.proofOk ? "Proof OK" : "Proof required"}
-                      </span>
-                    )}
-
-                    {typeof data.winnersClaimed === "number" && (
-                      <span className="chip">Winners claimed: {data.winnersClaimed}</span>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2 sm:justify-end">
-                    <span className="chip chip--soft">…</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Key facts grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                <Row label="Creator">
-                  {data?.creator ? (
-                    <a className="link" target="_blank" rel="noreferrer" href={addressUrl(data.creator)}>
-                      {short(data.creator)}
-                    </a>
-                  ) : (
-                    "—"
-                  )}
-                </Row>
-
-                <Row label="Verifier">
-                  {verifier ? (
-                    <code className="mono break-all">{verifier}</code>
-                  ) : (
-                    "—"
-                  )}
-                </Row>
-
-                <Row label="Created block">
-                  {data?.createdBlock ? (
-                    <a className="link" target="_blank" rel="noreferrer" href={blockUrl(data.createdBlock)}>
-                      #{data.createdBlock}
-                    </a>
-                  ) : (
-                    "—"
-                  )}
-                </Row>
-
-                <Row label="Created tx">
-                  {data?.createdTx ? (
-                    <a className="link" target="_blank" rel="noreferrer" href={txUrl(data.createdTx)}>
-                      {data.createdTx.slice(0, 12)}…
-                    </a>
-                  ) : (
-                    "—"
-                  )}
-                </Row>
-              </div>
-
-              {/* Micro guidance */}
-              {data?.id && (
-                <div className="mt-1 text-xs text-[color:var(--text-muted)]">
-                  {canFinalize && "Finalize is available for Approved/Paused challenges."}
-                  {canClaim && "Claims are available after Finalized."}
-                  {!canFinalize && !canClaim && data.status !== "Finalized" && (
-                    <>Actions depend on status. Check timeline for the latest event.</>
-                  )}
-                </div>
               )}
             </div>
-          </div>
 
-          {/* Actions column */}
-          <div className="space-y-3">
-            {showActions ? (
-              <div className="lg:sticky lg:top-[calc(var(--navbar-top)+18px)] space-y-3">
-                {(canFinalize || canClaim) && data && (
-                  <div className="card p-3">
-                    <div className="text-sm font-semibold mb-2">Actions</div>
-                    <div className="space-y-3">
-                      {canFinalize && <ChallengeFinalize id={BigInt(data.id)} status={data.status} />}
-                      {canClaim && <ChallengeClaims id={BigInt(data.id)} status={data.status} />}
-                    </div>
-                  </div>
-                )}
-
-                {proofRequired && verifier && data && (
-                  <ProofPanel
-                    id={BigInt(data.id)}
-                    verifier={verifier}
-                    requireZk={requireZk}
-                    requireAivm={requireAivm}
-                    {...(data.kindKey && data.form ? { kindKey: data.kindKey as any, form: data.form as any } : {})}
-                  />
-                )}
-              </div>
-            ) : (
-              <div className="card p-3">
-                <div className="text-sm font-semibold mb-1">Actions</div>
-                <div className="text-sm text-[color:var(--text-muted)]">
-                  Load a challenge to see finalize / claim / proof options.
-                </div>
-              </div>
+            {err && (
+              <div className="mt-3 chip chip--bad">Error: {err}</div>
             )}
           </div>
         </div>
-      )}
+      </section>
 
-      {/* Timeline */}
+      {/* Loaded challenge detail */}
       {data && (
-        <div className="panel">
-          <div className="panel-header">
-            <div className="font-semibold text-lg">Timeline</div>
-            <div className="text-xs text-[color:var(--text-muted)]">
-              {data.timeline.length} event{data.timeline.length === 1 ? "" : "s"}
+        <section ref={detailRef}>
+          <div className="panel p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="text-base font-semibold">
+                  {data.title ?? `Challenge #${data.id}`}
+                </div>
+                {data.title && (
+                  <div className="text-xs text-(--text-muted) mt-0.5">#{data.id}</div>
+                )}
+                {data.description && (
+                  <p className="mt-2 text-sm text-(--text-muted) max-w-[78ch]">{data.description}</p>
+                )}
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-(--text-muted)">
+                  {data.creator && <span>Creator: {short(data.creator)}</span>}
+                  {typeof data.winnersClaimed === "number" && (
+                    <span>· {data.winnersClaimed} claimed</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 shrink-0 items-center">
+                <span className={`chip ${chipClassForStatus(data.status)}`}>{data.status}</span>
+                {data.proofRequired && (
+                  <span className={`chip ${data.proofOk ? "chip--ok" : "chip--info"}`}>
+                    {data.proofOk ? "Proof OK" : "Proof required"}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-(--glass-border) flex items-center gap-4">
+              <Link href={`/challenge/${data.id}`} className="next-step-cta">
+                {data.status === "Finalized" ? "View & claim rewards →" : "View challenge details →"}
+              </Link>
+              <span className="text-xs text-(--text-muted)">
+                {data.status === "Finalized"
+                  ? "Claim actions are available on the challenge page."
+                  : `Status: ${data.status}. Claims open after finalization.`}
+              </span>
             </div>
           </div>
-
-          <div className="panel-body">
-            {data.timeline.length === 0 ? (
-              <div className="subpanel">
-                <div className="subpanel__head">
-                  <div className="subpanel__title">
-                    <span className="subpanel__icon" aria-hidden="true">
-                      ⎯
-                    </span>
-                    <div className="min-w-0">
-                      <div className="font-semibold">No events yet</div>
-                      <div className="text-sm text-[color:var(--text-muted)]">
-                        This challenge has no recorded timeline entries.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="subpanel__body text-sm text-[color:var(--text-muted)]">
-                  Once a transaction happens (create/approve/finalize/claim), it will appear here with block + tx links.
-                </div>
-              </div>
-            ) : (
-              <div className="timeline">
-                <div className="timeline__spine" aria-hidden="true" />
-
-                {data.timeline.map((t) => {
-                  const when = t.timestamp ? timeAgo(t.timestamp * 1000) : null;
-
-                  return (
-                    <div key={`${t.tx}-${t.block}`} className="timeline__row">
-                      <div className="timeline__node" aria-hidden="true" />
-
-                      <div className="timeline__card">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="badge">{t.name}</span>
-                              <span className="font-semibold">{t.label}</span>
-                              {when && (
-                                <span className="chip chip--soft text-xs">
-                                  {when}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="timeline__meta text-sm flex flex-wrap items-center gap-2">
-                            <a className="link" target="_blank" rel="noreferrer" href={blockUrl(t.block)}>
-                              #{t.block}
-                            </a>
-                            <span>•</span>
-                            <a className="link" target="_blank" rel="noreferrer" href={txUrl(t.tx)}>
-                              {t.tx.slice(0, 12)}…
-                            </a>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
+        </section>
       )}
     </div>
   );
-}
-
-/* ── tiny presentational helpers ─────────────────────────────────────────── */
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex gap-2">
-      <div className="w-36 text-[color:var(--text-muted)]">{label}</div>
-      <div className="flex-1 break-words">{children}</div>
-    </div>
-  );
-}
-
-function short(a: string) {
-  return `${a.slice(0, 6)}…${a.slice(-4)}`;
-}
-
-function equalAddr(a?: string, b?: string) {
-  return !!a && !!b && a.toLowerCase() === b.toLowerCase();
-}
-
-function timeAgo(ms: number) {
-  const sec = Math.max(1, Math.floor((Date.now() - ms) / 1000));
-  if (sec < 60) return `${sec}s ago`;
-  const m = Math.floor(sec / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 48) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
-}
-
-function chipClassForStatus(s: Status) {
-  switch (s) {
-    case "Approved":
-      return "chip--ok";
-    case "Rejected":
-      return "chip--bad";
-    case "Finalized":
-      return "chip--info";
-    case "Canceled":
-      return "chip--warn";
-    case "Paused":
-      return "";
-    default:
-      return "";
-  }
 }

@@ -28,7 +28,7 @@ async function main() {
   info("Challenge", id.toString());
 
   const ch = await cp.getChallenge(id);
-  if (Number(ch.status) !== 1) throw new Error("Challenge is not Approved");
+  if (Number(ch.status) !== 0) throw new Error("Challenge is not Active");
   const latest = await ethers.provider.getBlock("latest");
   const now = Number(latest?.timestamp ?? Math.floor(Date.now() / 1000));
   if (now >= Number(ch.startTs)) throw new Error("Join window closed (>= startTs)");

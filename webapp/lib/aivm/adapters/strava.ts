@@ -1,13 +1,31 @@
-import { Adapter, AdapterContext, AdapterResult, CanonicalRecord, adapters } from "./index";
+import { Adapter, AdapterContext, AdapterResult, CanonicalRecord } from "./types";
 import { computeBind } from "@/lib/aivm/bind";
 
+/** Matches strava.distance_in_window@1 in models.json. */
 const STRAVA_DISTANCE_MODEL =
-  "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" as const;
+  "0xd3a933d7c65286991ffe453223bf2a153111795364835762b04dc6703e84211e" as const;
 
 /** EVM-friendly 0x-prefixed SHA-256 (keeps your original hashing choice) */
 function sha256hex(buf: Buffer | string): `0x${string}` {
   const { createHash } = require("node:crypto");
   return ("0x" + createHash("sha256").update(buf).digest("hex")) as `0x${string}`;
+}
+
+// ──────────────────────────────────────────────
+// Type normalization
+// ──────────────────────────────────────────────
+
+/**
+ * Map Strava activity type strings to canonical Activity["type"] values.
+ * Evaluators and metrics.evaluate() require these exact strings.
+ */
+function mapStravaType(t: string): "run" | "walk" | "cycle" | "swim" | "steps" {
+  const x = t.toLowerCase();
+  if (x.includes("run") || x === "virtualrun") return "run";
+  if (x.includes("ride") || x.includes("cycl") || x === "virtualride" || x === "ebikeride") return "cycle";
+  if (x.includes("swim")) return "swim";
+  if (x.includes("walk") || x.includes("hik")) return "walk";
+  return "walk"; // safe default for unknown types
 }
 
 // ──────────────────────────────────────────────
@@ -32,14 +50,14 @@ function parseJson(json: any, userIdHash: `0x${string}`): CanonicalRecord[] {
     const duration = Number(a.elapsed_time || 0);
     const end_ts = start_ts + duration;
     const distance_m = Number(a.distance || 0);
-    const type = String(a.type || "").toLowerCase();
+    const rawType = String(a.type || "").toLowerCase();
     const id = String(a.id ?? `json-${i}`);
 
     return {
       provider: "strava",
       user_id: userIdHash,
       activity_id: id,
-      type: type === "run" || type === "ride" || type === "walk" ? type : "other",
+      type: mapStravaType(rawType),
       start_ts,
       end_ts,
       duration_s: duration,
@@ -83,14 +101,14 @@ function parseCsv(csvText: string, userIdHash: `0x${string}`): CanonicalRecord[]
     const duration = toNum(safeGet(cols, iElapsed));
     const end_ts = start_ts + duration;
     const distance_m = toNum(safeGet(cols, iDist));
-    const type = safeGet(cols, iType).toLowerCase();
+    const rawType = safeGet(cols, iType).toLowerCase();
     const id = safeGet(cols, iId) || `csv-${i}`;
 
     return {
       provider: "strava",
       user_id: userIdHash,
       activity_id: id,
-      type: type === "run" || type === "ride" || type === "walk" ? type : "other",
+      type: mapStravaType(rawType),
       start_ts,
       end_ts,
       duration_s: duration,
@@ -162,6 +180,4 @@ export const stravaAdapter: Adapter = {
   },
 };
 
-// auto-register
-(adapters as any).push(stravaAdapter);
 export default stravaAdapter;

@@ -4,24 +4,18 @@
 import type { Address, PublicClient } from "viem";
 import { ADDR, ABI, ZERO_ADDR } from "@/lib/contracts";
 
+/**
+ * V1 chain policy hints — no AutoApprovalStrategy.
+ * Challenges are immediately Active when created.
+ */
 export type ChainPolicyHints = {
   chainNow: number;
   minLeadSec: number;
   maxLeadSec: number | null;
   maxDurSec: number | null;
   paused: boolean;
-
   allowlistEnabled: boolean;
   tokenAllowed: boolean | null;
-
-  autoApprovalSet: boolean;
-  strategyPaused: boolean | null;
-  strategyRequireCreatorAllowlist: boolean | null;
-  strategyCreatorAllowed: boolean | null;
-  strategyAllowNative: boolean | null;
-  strategyMinLeadSec: number | null;
-  strategyMaxDurSec: number | null;
-
   loadedAtMs: number;
 };
 
@@ -50,7 +44,7 @@ export async function loadChainPolicyHints(args: {
   token: Address | null;
   creator?: Address | null;
 }): Promise<ChainPolicyHints> {
-  const { pc, currencyType, token, creator } = args;
+  const { pc, currencyType, token } = args;
 
   if (!ADDR.ChallengePay || ADDR.ChallengePay === ZERO_ADDR) {
     throw new Error("ChallengePay address missing.");
@@ -123,84 +117,6 @@ export async function loadChainPolicyHints(args: {
 
   const maxDurSec = toNum(maxDurBn, 0) > 0 ? toNum(maxDurBn, 0) : null;
 
-  const autoApprovalSet = ADDR.AutoApprovalStrategy !== ZERO_ADDR;
-
-  let strategyPaused: boolean | null = null;
-  let strategyRequireCreatorAllowlist: boolean | null = null;
-  let strategyCreatorAllowed: boolean | null = null;
-  let strategyAllowNative: boolean | null = null;
-  let strategyMinLeadSec: number | null = null;
-  let strategyMaxDurSec: number | null = null;
-
-  if (autoApprovalSet) {
-    const [sp, reqAllow, allowNative, sMinLead, sMaxDur] = await Promise.all([
-      readOptional(
-        async () =>
-          (await pc.readContract({
-            abi: ABI.AutoApprovalStrategy,
-            address: ADDR.AutoApprovalStrategy,
-            functionName: "paused",
-          })) as boolean,
-        null
-      ),
-      readOptional(
-        async () =>
-          (await pc.readContract({
-            abi: ABI.AutoApprovalStrategy,
-            address: ADDR.AutoApprovalStrategy,
-            functionName: "requireCreatorAllowlist",
-          })) as boolean,
-        null
-      ),
-      readOptional(
-        async () =>
-          (await pc.readContract({
-            abi: ABI.AutoApprovalStrategy,
-            address: ADDR.AutoApprovalStrategy,
-            functionName: "allowNative",
-          })) as boolean,
-        null
-      ),
-      readOptional(
-        async () =>
-          (await pc.readContract({
-            abi: ABI.AutoApprovalStrategy,
-            address: ADDR.AutoApprovalStrategy,
-            functionName: "minLeadTime",
-          })) as bigint,
-        null as bigint | null
-      ),
-      readOptional(
-        async () =>
-          (await pc.readContract({
-            abi: ABI.AutoApprovalStrategy,
-            address: ADDR.AutoApprovalStrategy,
-            functionName: "maxDuration",
-          })) as bigint,
-        null as bigint | null
-      ),
-    ]);
-
-    strategyPaused = sp;
-    strategyRequireCreatorAllowlist = reqAllow;
-    strategyAllowNative = allowNative;
-    strategyMinLeadSec = sMinLead == null ? null : toNum(sMinLead, 0);
-    strategyMaxDurSec = sMaxDur == null ? null : toNum(sMaxDur, 0);
-
-    if (creator && reqAllow) {
-      strategyCreatorAllowed = await readOptional(
-        async () =>
-          (await pc.readContract({
-            abi: ABI.AutoApprovalStrategy,
-            address: ADDR.AutoApprovalStrategy,
-            functionName: "creatorAllowed",
-            args: [creator],
-          })) as boolean,
-        null
-      );
-    }
-  }
-
   return {
     chainNow,
     minLeadSec,
@@ -209,13 +125,6 @@ export async function loadChainPolicyHints(args: {
     paused: !!paused,
     allowlistEnabled: !!allowlistEnabled,
     tokenAllowed,
-    autoApprovalSet,
-    strategyPaused,
-    strategyRequireCreatorAllowlist,
-    strategyCreatorAllowed,
-    strategyAllowNative,
-    strategyMinLeadSec,
-    strategyMaxDurSec,
     loadedAtMs: Date.now(),
   };
 }

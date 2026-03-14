@@ -1,8 +1,8 @@
-import { Adapter, AdapterContext, AdapterResult, CanonicalRecord, adapters } from "./index";
+import { Adapter, AdapterContext, AdapterResult, CanonicalRecord } from "./types";
 import { computeBind } from "@/lib/aivm/bind";
 
-const GFIT_STEPS_DAY_MODEL       = "0x1111111111111111111111111111111111111111111111111111111111111111" as const;
-const GFIT_DISTANCE_WINDOW_MODEL = "0x2222222222222222222222222222222222222222222222222222222222222222" as const;
+const GFIT_STEPS_DAY_MODEL       = "0xe63ac4325bc9b06404dabf113dbee540064bb36aac31f54dd9ae3dad706b9484" as const;
+const GFIT_DISTANCE_WINDOW_MODEL = "0x396b3817947618e5e3277256c54eae4c10def805bb207513deaa9bb30b19dd2e" as const;
 
 function sha256hex(buf: Buffer | string): `0x${string}` {
   const { createHash } = require("node:crypto");
@@ -162,5 +162,4 @@ export const googleFitAdapter: Adapter = {
   }
 };
 
-(adapters as any).push(googleFitAdapter);
 export default googleFitAdapter;

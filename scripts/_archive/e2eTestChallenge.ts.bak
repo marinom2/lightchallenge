@@ -1,0 +1,438 @@
+/**
+ * scripts/e2eTestChallenge.ts
+ *
+ * End-to-end test: create challenge → seed evidence+verdict → submit AIVM request.
+ * Uses AutoApprovalStrategy so the challenge is instantly approved on-chain.
+ *
+ * Usage:
+ *   npx tsx scripts/e2eTestChallenge.ts
+ *
+ * Required env (loaded from webapp/.env.local):
+ *   NEXT_PUBLIC_RPC_URL, LCAI_WORKER_PK, DATABASE_URL, AIVM_INFERENCE_V2_ADDRESS,
+ *   CHALLENGE_TASK_REGISTRY_ADDRESS
+ */
+
+import path from "path";
+import dotenv from "dotenv";
+import { readFileSync } from "fs";
+
+dotenv.config({ path: path.resolve(process.cwd(), "webapp/.env.local") });
+
+import { Pool } from "pg";
+import {
+  createPublicClient,
+  createWalletClient,
+  http,
+  defineChain,
+  keccak256,
+  toHex,
+  decodeEventLog,
+  type Address,
+  type Hex,
+} from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { runChallengePayAivmJob } from "../offchain/runners/runChallengePayAivmJob";
+
+// ── Config ────────────────────────────────────────────────────────────────────
+
+const RPC = process.env.NEXT_PUBLIC_RPC_URL!;
+const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID || 504);
+const PK = (process.env.LCAI_WORKER_PK || process.env.PRIVATE_KEY)! as Hex;
+const DATABASE_URL = process.env.DATABASE_URL!;
+
+if (!RPC) throw new Error("NEXT_PUBLIC_RPC_URL missing");
+if (!PK) throw new Error("LCAI_WORKER_PK / PRIVATE_KEY missing");
+if (!DATABASE_URL) throw new Error("DATABASE_URL missing");
+
+const CHALLENGE_PAY = (
+  process.env.NEXT_PUBLIC_CHALLENGEPAY_ADDR ||
+  process.env.CHALLENGEPAY_ADDR ||
+  "0xEF52411a2f13DbE3BBB60A8474808D4d4F7F4CA2"
+) as Address;
+
+const AUTO_APPROVAL_STRATEGY = (
+  process.env.AUTO_APPROVAL_STRATEGY_ADDRESS || "0x7ab646195C4a1be878Da2eDe1929E42BFAD0c1DE"
+) as Address;
+
+// Model: apple_health.steps@1 — simplest test adapter
+const MODEL_HASH =
+  "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" as Hex;
+const MODEL_ID = "apple_health.steps@1";
+
+// Read verifier from deployments JSON
+function getVerifier(): Address {
+  const dep = JSON.parse(
+    readFileSync(
+      path.resolve(process.cwd(), "webapp/public/deployments/lightchain.json"),
+      "utf8"
+    )
+  );
+  const v = dep.contracts?.ChallengePayAivmPoiVerifier;
+  if (!v) throw new Error("ChallengePayAivmPoiVerifier not in deployments");
+  return v as Address;
+}
+
+// ── Chain + clients ───────────────────────────────────────────────────────────
+
+const chain = defineChain({
+  id: CHAIN_ID,
+  name: "lightchain-testnet",
+  nativeCurrency: { name: "LCAI", symbol: "LCAI", decimals: 18 },
+  rpcUrls: { default: { http: [RPC] }, public: { http: [RPC] } },
+});
+
+const account = privateKeyToAccount(PK);
+const publicClient = createPublicClient({ chain, transport: http(RPC) });
+const walletClient = createWalletClient({ chain, transport: http(RPC), account });
+
+const CHALLENGEPAY_ABI = [
+  {
+    type: "function",
+    name: "createChallenge",
+    stateMutability: "payable",
+    inputs: [
+      {
+        name: "p",
+        type: "tuple",
+        components: [
+          { name: "kind", type: "uint8" },
+          { name: "currency", type: "uint8" },
+          { name: "token", type: "address" },
+          { name: "stakeAmount", type: "uint256" },
+          { name: "proposalBond", type: "uint256" },
+          { name: "approvalDeadline", type: "uint256" },
+          { name: "startTs", type: "uint256" },
+          { name: "duration", type: "uint256" },
+          { name: "maxParticipants", type: "uint256" },
+          { name: "peers", type: "address[]" },
+          { name: "peerApprovalsNeeded", type: "uint8" },
+          { name: "peerDeadlineTs", type: "uint256" },
+          { name: "charityBps", type: "uint16" },
+          { name: "charity", type: "address" },
+          { name: "verifier", type: "address" },
+          { name: "proofDeadlineTs", type: "uint256" },
+          { name: "externalId", type: "bytes32" },
+          { name: "leadTime", type: "uint256" },
+          { name: "fastTrackData", type: "bytes" },
+          { name: "strategy", type: "address" },
+          { name: "strategyData", type: "bytes" },
+        ],
+      },
+    ],
+    outputs: [{ name: "id", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "joinChallengeNative",
+    stateMutability: "payable",
+    inputs: [{ name: "id", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    type: "event",
+    name: "ChallengeCreated",
+    inputs: [
+      { name: "id", type: "uint256", indexed: true },
+      { name: "challenger", type: "address", indexed: true },
+      { name: "kind", type: "uint8", indexed: false },
+      { name: "currency", type: "uint8", indexed: false },
+      { name: "token", type: "address", indexed: false },
+      { name: "startTs", type: "uint256", indexed: false },
+      { name: "externalId", type: "bytes32", indexed: false },
+      { name: "fastTracked", type: "bool", indexed: false },
+    ],
+  },
+] as const;
+
+const pool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+
+async function main() {
+  const walletAddr = account.address;
+  const verifierAddr = getVerifier();
+
+  console.log("\n[e2e] ═══════════════════════════════════════════════════════");
+  console.log("[e2e] Fresh challenge E2E test");
+  console.log("[e2e] wallet:   ", walletAddr);
+  console.log("[e2e] verifier: ", verifierAddr);
+  console.log("[e2e] ChallengePay:", CHALLENGE_PAY);
+
+  const now = BigInt(Math.floor(Date.now() / 1000));
+  const leadTime = 150n; // 2.5 min (above 2min minimum)
+  const startTs = now + leadTime + 20n;
+  const duration = 3600n; // 1 hour
+  const endTs = startTs + duration;
+  const approvalDeadline = startTs - 5n;
+  const proofDeadlineTs = endTs + 7200n; // 2h after end
+
+  const stakeAmount = 10n ** 15n; // 0.001 LCAI (minimal)
+
+  const paramsHash = keccak256(toHex(`params-${Date.now()}`)) as Hex;
+  const benchmarkHash = keccak256(toHex(`benchmark-${Date.now()}`)) as Hex;
+  const externalId = keccak256(toHex(`e2e-test-${Date.now()}`)) as Hex;
+
+  // ── 1. Create challenge on-chain ──────────────────────────────────────────
+  console.log("\n[e2e] [1/7] Creating challenge on-chain...");
+  const createHash = await walletClient.writeContract({
+    address: CHALLENGE_PAY,
+    abi: CHALLENGEPAY_ABI,
+    functionName: "createChallenge",
+    args: [
+      {
+        kind: 0,
+        currency: 0, // native LCAI
+        token: "0x0000000000000000000000000000000000000000" as Address,
+        stakeAmount,
+        proposalBond: 0n,
+        approvalDeadline,
+        startTs,
+        duration,
+        maxParticipants: 10n,
+        peers: [],
+        peerApprovalsNeeded: 0,
+        peerDeadlineTs: 0n,
+        charityBps: 0,
+        charity: "0x0000000000000000000000000000000000000000" as Address,
+        verifier: verifierAddr,
+        proofDeadlineTs,
+        externalId,
+        leadTime,
+        fastTrackData: "0x" as Hex,
+        strategy: AUTO_APPROVAL_STRATEGY,
+        strategyData: "0x" as Hex,
+      },
+    ],
+    value: stakeAmount,
+  });
+  console.log("[e2e]   tx:", createHash);
+
+  const createReceipt = await publicClient.waitForTransactionReceipt({ hash: createHash });
+  console.log("[e2e]   mined in block:", createReceipt.blockNumber.toString());
+
+  // Parse challengeId from ChallengeCreated event
+  let challengeId: bigint | undefined;
+  for (const log_ of createReceipt.logs) {
+    try {
+      const decoded = decodeEventLog({ abi: CHALLENGEPAY_ABI, data: log_.data, topics: log_.topics });
+      if (decoded.eventName === "ChallengeCreated") {
+        challengeId = (decoded.args as any).id as bigint;
+        break;
+      }
+    } catch { /* skip */ }
+  }
+
+  if (!challengeId) {
+    // Fallback: getLogs for same block
+    const events = await publicClient.getLogs({
+      address: CHALLENGE_PAY,
+      event: { type: "event", name: "ChallengeCreated", inputs: [{ name: "id", type: "uint256", indexed: true }, { name: "creator", type: "address", indexed: true }] } as any,
+      fromBlock: createReceipt.blockNumber,
+      toBlock: createReceipt.blockNumber,
+    });
+    if (events.length > 0) challengeId = (events[0].args as any).id as bigint;
+  }
+
+  if (!challengeId) throw new Error("Could not determine challengeId");
+  console.log("[e2e]   challengeId:", challengeId.toString());
+
+  // ── 2. Join the challenge ─────────────────────────────────────────────────
+  console.log("\n[e2e] [2/7] Joining challenge...");
+  const joinHash = await walletClient.writeContract({
+    address: CHALLENGE_PAY,
+    abi: CHALLENGEPAY_ABI,
+    functionName: "joinChallengeNative",
+    args: [challengeId],
+    value: stakeAmount,
+  });
+  console.log("[e2e]   tx:", joinHash);
+  const joinReceipt = await publicClient.waitForTransactionReceipt({ hash: joinHash });
+  console.log("[e2e]   mined in block:", joinReceipt.blockNumber.toString());
+
+  // ── 3. Upsert challenge into DB ────────────────────────────────────────────
+  console.log("\n[e2e] [3/7] Upserting challenge into public.challenges...");
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  await pool.query(
+    `
+    insert into public.challenges (
+      id, title, description, subject, tx_hash,
+      model_id, model_hash,
+      params, proof, timeline, funds, options,
+      status, created_at, updated_at
+    )
+    values (
+      $1::bigint, $2, $3, $4, $5,
+      $6, $7,
+      $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12::jsonb,
+      $13, to_timestamp($14), now()
+    )
+    on conflict (id) do update set
+      subject = excluded.subject,
+      tx_hash = excluded.tx_hash,
+      model_id = excluded.model_id,
+      model_hash = excluded.model_hash,
+      params = excluded.params,
+      proof = excluded.proof,
+      timeline = excluded.timeline,
+      funds = excluded.funds,
+      status = excluded.status,
+      updated_at = now()
+    `,
+    [
+      challengeId.toString(),
+      `[e2e] Steps test challenge #${challengeId}`,
+      "Automated E2E test challenge — apple_health.steps@1",
+      walletAddr,
+      createHash,
+      MODEL_ID,
+      MODEL_HASH,
+      JSON.stringify({ rule: { adapter: "apple_health", minSteps: 1 } }),
+      JSON.stringify({
+        modelId: MODEL_ID,
+        paramsHash,
+        benchmarkHash,
+        verifier: verifierAddr,
+      }),
+      JSON.stringify({
+        start: Number(startTs),
+        end: Number(endTs),
+        proofDeadline: Number(proofDeadlineTs),
+        approvalDeadline: Number(approvalDeadline),
+        leadTime: Number(leadTime),
+      }),
+      JSON.stringify({ stake: stakeAmount.toString(), currency: "native" }),
+      JSON.stringify({ category: "fitness", templateId: "apple_health.steps@1" }),
+      "Active",
+      nowSec,
+    ]
+  );
+  console.log("[e2e]   challenge row upserted");
+
+  // ── 4. Seed participant row ────────────────────────────────────────────────
+  console.log("\n[e2e] [4/7] Seeding participant...");
+  // Check if participant already exists
+  const existingPart = await pool.query(
+    `SELECT id FROM public.participants WHERE challenge_id = $1::bigint AND lower(subject) = lower($2) LIMIT 1`,
+    [challengeId.toString(), walletAddr]
+  );
+  if (existingPart.rows.length === 0) {
+    await pool.query(
+      `INSERT INTO public.participants (challenge_id, subject, tx_hash, joined_at, created_at, updated_at)
+       VALUES ($1::bigint, $2, $3, now(), now(), now())`,
+      [challengeId.toString(), walletAddr, joinHash]
+    );
+    console.log("[e2e]   participant row inserted");
+  } else {
+    console.log("[e2e]   participant already exists, skipping");
+  }
+
+  // ── 5. Seed evidence + verdict ────────────────────────────────────────────
+  console.log("\n[e2e] [5/7] Seeding evidence + verdict...");
+
+  const evidenceHash = keccak256(toHex(`e2e-evidence-${challengeId}-${walletAddr}-${Date.now()}`));
+
+  // evidence: no unique constraint on (challenge_id, subject) — plain insert
+  await pool.query(
+    `INSERT INTO public.evidence (challenge_id, subject, provider, data, evidence_hash, created_at, updated_at)
+     VALUES ($1::bigint, $2, $3, $4::jsonb, $5, now(), now())`,
+    [
+      challengeId.toString(),
+      walletAddr,
+      "apple_health",
+      JSON.stringify({ steps: 5000, date: new Date().toISOString().slice(0, 10), source: "e2e-test" }),
+      evidenceHash,
+    ]
+  );
+  console.log("[e2e]   evidence row inserted");
+
+  // verdict: UNIQUE on (challenge_id, subject) — upsert via constraint name
+  await pool.query(
+    `INSERT INTO public.verdicts (challenge_id, subject, pass, reasons, evidence_hash, evaluator, created_at, updated_at)
+     VALUES ($1::bigint, $2, true, $3::text[], $4, $5, now(), now())
+     ON CONFLICT ON CONSTRAINT verdicts_challenge_subject_uq DO UPDATE SET
+       pass = excluded.pass,
+       reasons = excluded.reasons,
+       evidence_hash = excluded.evidence_hash,
+       evaluator = excluded.evaluator,
+       updated_at = now()`,
+    [
+      challengeId.toString(),
+      walletAddr,
+      ["E2E synthetic: 5000 steps ≥ 1 step threshold"],
+      evidenceHash,
+      "fitnessEvaluator",
+    ]
+  );
+  console.log("[e2e]   verdict row upserted (pass=true)");
+
+  // ── 6. Ensure aivm_jobs row ────────────────────────────────────────────────
+  console.log("\n[e2e] [6/7] Ensuring aivm_jobs row...");
+  await pool.query(
+    `INSERT INTO public.aivm_jobs (challenge_id, status, created_at, updated_at)
+     VALUES ($1::bigint, 'pending', now(), now())
+     ON CONFLICT ON CONSTRAINT aivm_jobs_challenge_id_key DO NOTHING`,
+    [challengeId.toString()]
+  );
+  console.log("[e2e]   aivm_jobs row ensured");
+
+  // ── 7. Submit AIVM request ────────────────────────────────────────────────
+  console.log("\n[e2e] [7/7] Submitting AIVM inference request...");
+  let result: any;
+  try {
+    result = await runChallengePayAivmJob(challengeId.toString());
+  } catch (e: any) {
+    console.error("[e2e]   AIVM job FAILED:", e?.message || e);
+    result = null;
+  }
+
+  // ── Verify DB state ───────────────────────────────────────────────────────
+  console.log("\n[e2e] ── Verifying DB state ──────────────────────────────────");
+
+  const [cRow, pRow, eRow, vRow, jRow] = await Promise.all([
+    pool.query(`SELECT id, status, model_id, model_hash, proof->>'verificationStatus' as vstatus FROM public.challenges WHERE id = $1::bigint`, [challengeId.toString()]),
+    pool.query(`SELECT id, subject FROM public.participants WHERE challenge_id = $1::bigint AND lower(subject) = lower($2)`, [challengeId.toString(), walletAddr]),
+    pool.query(`SELECT id, provider, evidence_hash FROM public.evidence WHERE challenge_id = $1::bigint AND lower(subject) = lower($2) ORDER BY id DESC LIMIT 1`, [challengeId.toString(), walletAddr]),
+    pool.query(`SELECT id, pass, evaluator, evidence_hash FROM public.verdicts WHERE challenge_id = $1::bigint AND lower(subject) = lower($2)`, [challengeId.toString(), walletAddr]),
+    pool.query(`SELECT id, status, task_id FROM public.aivm_jobs WHERE challenge_id = $1::bigint`, [challengeId.toString()]),
+  ]);
+
+  console.log("[e2e]   challenge:", cRow.rows[0] || "NOT FOUND");
+  console.log("[e2e]   participant:", pRow.rows[0] || "NOT FOUND");
+  console.log("[e2e]   evidence:", eRow.rows[0] || "NOT FOUND");
+  console.log("[e2e]   verdict:", vRow.rows[0] || "NOT FOUND");
+  console.log("[e2e]   aivm_jobs:", jRow.rows[0] || "NOT FOUND");
+
+  if (result) {
+    console.log("[e2e]   AIVM result:", {
+      requestId: result.requestId?.toString(),
+      taskId: result.taskId,
+      bindTxHash: result.bindTxHash,
+    });
+  }
+
+  // ── Summary ───────────────────────────────────────────────────────────────
+  console.log(`
+[e2e] ═══════════════════════════════════════════════════════
+[e2e] SUMMARY
+[e2e] ═══════════════════════════════════════════════════════
+[e2e]   challengeId:  ${challengeId}
+[e2e]   wallet:       ${walletAddr}
+[e2e]   verifier:     ${verifierAddr}
+[e2e]   model:        ${MODEL_ID}
+[e2e]   createTx:     ${createHash}
+[e2e]   joinTx:       ${joinHash}
+[e2e]   AIVM:         ${result ? `requestId=${result.requestId} taskId=${result.taskId}` : "FAILED or skipped"}
+[e2e] ═══════════════════════════════════════════════════════
+[e2e] NEXT: Run aivmIndexer and watch for Lightchain network events
+[e2e]   npx tsx offchain/indexers/aivmIndexer.ts
+[e2e] ═══════════════════════════════════════════════════════
+`);
+
+  await pool.end();
+}
+
+main().catch((e) => {
+  console.error("[e2e] FATAL:", e?.message || e);
+  process.exit(1);
+});

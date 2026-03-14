@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
-import { mergeDeployments } from "./_deployments"; // <-- adjust import path to where your helper lives
+import { mergeDeployments } from "../deploy-utils/_shared";
 
 function readAddr(file: string): string | null {
   if (!existsSync(file)) return null;
@@ -17,14 +17,10 @@ async function main() {
   const mapping: Record<string, string> = {
     ChallengePay: "ChallengePay.json",
     Treasury: "Treasury.json",
-    AivmProofVerifier: "AivmProofVerifier.json",
-    ZkProofVerifier: "ZkProofVerifier.json",
-    MultiSigProofVerifier: "MultiSigProofVerifier.json",
-    AutoApprovalStrategy: "AutoApprovalStrategy.json",
     MetadataRegistry: "MetadataRegistry.json",
-    PlonkVerifier: "PlonkVerifier.json",
-    PlonkProofVerifierAdapter: "PlonkProofVerifierAdapter.json",
-    EventChallengeRouter: "EventChallengeRouter.json", // optional
+    EventChallengeRouter: "EventChallengeRouter.json",
+    ChallengeTaskRegistry: "ChallengeTaskRegistry.json",
+    ChallengePayAivmPoiVerifier: "ChallengePayAivmPoiVerifier.json",
   };
 
   for (const [key, filename] of Object.entries(mapping)) {

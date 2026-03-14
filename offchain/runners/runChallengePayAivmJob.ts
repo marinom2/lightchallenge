@@ -1,8 +1,17 @@
 import path from "path";
 import dotenv from "dotenv";
 import { Pool } from "pg";
+import { sslConfig } from "../db/sslConfig";
 import type { Address, Hex } from "viem";
 import { runChallengePayAivmJob as orchestrator } from "../orchestrators/challengePayAivmJob";
+import { getVerdict } from "../db/verdicts";
+import {
+  buildPromptId,
+  buildPromptPayload,
+  buildPromptHash,
+  ensureBytes32,
+  toEpochSeconds,
+} from "../lib/aivmProof";
 
 dotenv.config({
   path: path.resolve(process.cwd(), "webapp/.env.local"),
@@ -25,9 +34,7 @@ if (!DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl: sslConfig(),
 });
 
 function isAddress(value: unknown): value is Address {
@@ -127,43 +134,27 @@ async function updateChallengeAfterRun(args: {
 }) {
   const { challengeId, result } = args;
 
+  // Persist the bind tx hash into the proof JSON.
+  // requestTxHash was already saved in persistRequestBindingEarly (via onRequestMined).
+  // Commit/reveal/PoI tx hashes come from the Lightchain network and are indexed
+  // by aivmIndexer as the network processes them.
   await pool.query(
     `
     update public.challenges
     set
       proof = jsonb_set(
         jsonb_set(
-          jsonb_set(
-            jsonb_set(
-              jsonb_set(
-                jsonb_set(
-                  coalesce(proof, '{}'::jsonb),
-                  '{taskBinding}',
-                  jsonb_build_object(
-                    'requestId', $2::text,
-                    'taskId', $3::text,
-                    'schemaVersion', 1
-                  ),
-                  true
-                ),
-                '{requestTxHash}',
-                to_jsonb($4::text),
-                true
-              ),
-              '{bindTxHash}',
-              to_jsonb($5::text),
-              true
-            ),
-            '{commitTxHash}',
-            to_jsonb($6::text),
-            true
+          coalesce(proof, '{}'::jsonb),
+          '{taskBinding}',
+          jsonb_build_object(
+            'requestId', $2::text,
+            'taskId', $3::text,
+            'schemaVersion', 1
           ),
-          '{revealTxHash}',
-          to_jsonb($7::text),
           true
         ),
-        '{poiTxHash}',
-        to_jsonb($8::text),
+        '{bindTxHash}',
+        to_jsonb($4::text),
         true
       ),
       updated_at = now()
@@ -173,11 +164,7 @@ async function updateChallengeAfterRun(args: {
       challengeId,
       result.requestId.toString(),
       result.taskId,
-      result.requestTxHash,
       result.bindTxHash,
-      result.commitTxHash,
-      result.revealTxHash,
-      result.poiTxHash,
     ]
   );
 
@@ -236,6 +223,29 @@ export async function runChallengePayAivmJob(challengeId: string) {
     throw new Error("Challenge proof.benchmarkHash is missing or invalid.");
   }
 
+  // ── Load verdict from DB ──────────────────────────────────────────────────
+  // The verdict must exist before the AIVM job runs. If it is missing the job
+  // fails here and the worker will retry. This is intentional: the evidence
+  // pipeline must complete before submission to Lightchain AIVM.
+  const verdict = await getVerdict(challengeId, challenge.subject, pool);
+
+  if (!verdict) {
+    throw new Error(
+      `[runner] No verdict found for challenge ${challengeId} subject ${challenge.subject}. ` +
+        `Evidence pipeline must complete before the AIVM job can run.`
+    );
+  }
+
+  console.log("[runner] verdict loaded", {
+    challengeId,
+    subject: verdict.subject,
+    pass: verdict.pass,
+    evaluator: verdict.evaluator,
+    evidenceHash: verdict.evidence_hash,
+  });
+
+  // ── Build orchestrator input ──────────────────────────────────────────────
+
   const rpcUrl = requireEnv("LCAI_RPC", process.env.NEXT_PUBLIC_RPC_URL);
   const chainId = Number(
     process.env.LCAI_CHAIN_ID || process.env.NEXT_PUBLIC_CHAIN_ID || 504
@@ -248,7 +258,35 @@ export async function runChallengePayAivmJob(challengeId: string) {
   ) as Address;
 
   const privateKey = requireEnv("LCAI_WORKER_PK") as Hex;
-  const secret = requireEnv("AIVM_SECRET") as Hex;
+
+  // ── Build deterministic prompt ─────────────────────────────────────────────
+  // promptId: stable per (challengeId, subject), does not depend on verdict
+  // promptHash: derived from the full evaluation payload including the verdict,
+  //   so each re-evaluation with different outcome produces a distinct request
+  const challengeIdBigInt = BigInt(challengeId);
+  const evaluatedAt = toEpochSeconds(verdict.updated_at ?? new Date());
+
+  const promptPayload = buildPromptPayload({
+    challengeId: challengeIdBigInt,
+    subject: challenge.subject,
+    modelId,
+    modelDigest,
+    paramsHash,
+    benchmarkHash,
+    verdictPass: verdict.pass,
+    evidenceHash: ensureBytes32(verdict.evidence_hash),
+    evaluatedAt,
+  });
+
+  const promptHash = buildPromptHash(promptPayload);
+  const promptId = buildPromptId(challengeIdBigInt, challenge.subject);
+
+  console.log("[runner] prompt constructed", {
+    promptId,
+    promptHash,
+    evaluatedAt: evaluatedAt.toString(),
+    verdictPass: verdict.pass,
+  });
 
   const input = {
     rpcUrl,
@@ -257,7 +295,7 @@ export async function runChallengePayAivmJob(challengeId: string) {
     registryAddress,
     privateKey,
 
-    challengeId: BigInt(challengeId),
+    challengeId: challengeIdBigInt,
     subject: challenge.subject,
 
     modelId,
@@ -266,20 +304,12 @@ export async function runChallengePayAivmJob(challengeId: string) {
     paramsHash,
     benchmarkHash,
 
-    promptHash: paramsHash,
-    promptId: paramsHash,
+    promptHash,
+    promptId,
 
     requestFeeWei: BigInt(
       process.env.AIVM_REQUEST_FEE_WEI || "1000000000000000"
     ),
-    workerBondWei: BigInt(process.env.AIVM_WORKER_BOND_WEI || "0"),
-
-    response: JSON.stringify({
-      challengeId: String(challengeId),
-      verified: true,
-    }),
-
-    secret,
 
     onRequestMined: async ({
       requestId,
@@ -302,7 +332,7 @@ export async function runChallengePayAivmJob(challengeId: string) {
     },
   };
 
-  console.log("[runner] Running AIVM job for challenge", challengeId);
+  console.log("[runner] submitting AIVM request for challenge", challengeId);
 
   const result = await orchestrator(input);
 
@@ -311,10 +341,11 @@ export async function runChallengePayAivmJob(challengeId: string) {
     result,
   });
 
-  console.log("[runner] AIVM job complete", {
+  console.log("[runner] AIVM request submitted — awaiting Lightchain network", {
     challengeId,
     requestId: result.requestId.toString(),
     taskId: result.taskId,
+    note: "Job is now in 'submitted' status. aivmIndexer will advance it as the network processes the task.",
   });
 
   return result;
@@ -339,7 +370,7 @@ if (process.argv[1]?.endsWith("runChallengePayAivmJob.ts")) {
   } else {
     runChallengePayAivmJob(challengeId)
       .then((result) => {
-        console.log(JSON.stringify(result, null, 2));
+        console.log(JSON.stringify(result, (_k, v) => (typeof v === "bigint" ? v.toString() : v), 2));
         void shutdown(0);
       })
       .catch((err) => {

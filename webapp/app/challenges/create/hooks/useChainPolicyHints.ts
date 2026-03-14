@@ -22,13 +22,6 @@ function makeEmptyHints(): ChainPolicyHints {
     paused: false,
     allowlistEnabled: false,
     tokenAllowed: null,
-    autoApprovalSet: false,
-    strategyPaused: null,
-    strategyRequireCreatorAllowlist: null,
-    strategyCreatorAllowed: null,
-    strategyAllowNative: null,
-    strategyMinLeadSec: null,
-    strategyMaxDurSec: null,
     loadedAtMs: 0,
   };
 }

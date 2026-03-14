@@ -26,7 +26,8 @@
     "next-env.d.ts",
     ".next/types/**/*.ts",
     "app/challenges/create/components/LightChallengeCalendar.tsx",
-    "types/**/*.d.ts"
+    "types/**/*.d.ts",
+    "../offchain/**/*.ts"
   ],
   "exclude": [
     "node_modules",
@@ -35,7 +36,6 @@
     "scripts",
     "tasks",
     "test",
-    "typechain-types",
-    "offchain"
+    "typechain-types"
   ]
 }

@@ -30,6 +30,8 @@ export type TemplateRegistryEntry = {
    * Runtime/admin templates may omit this until you decide how to version/build params dynamically.
    */
   paramsBuilder?: Template["paramsBuilder"];
+  /** Produces the evaluator Rule/GamingRule stored as proof.params.rule at challenge creation. */
+  ruleBuilder?: Template["ruleBuilder"];
   source: "static" | "runtime" | "merged";
 };
 
@@ -66,6 +68,7 @@ function normalizeStaticTemplate(t: Template): TemplateRegistryEntry {
     modelId: t.modelId,
     fields: t.fields,
     paramsBuilder: t.paramsBuilder,
+    ruleBuilder: t.ruleBuilder,
     source: "static",
   };
 }
@@ -86,6 +89,7 @@ function mergeTemplateEntries(
     modelId: runtimeTpl!.modelId || staticTpl!.modelId,
     fields: runtimeTpl!.fields?.length ? runtimeTpl!.fields : staticTpl!.fields,
     paramsBuilder: staticTpl!.paramsBuilder,
+    ruleBuilder: staticTpl!.ruleBuilder,
     source: "merged",
   };
 }

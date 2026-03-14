@@ -7,11 +7,6 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
 import {IProofVerifier} from "./verifiers/IProofVerifier.sol";
-import {IApprovalStrategy} from "./strategies/IApprovalStrategy.sol";
-
-interface IFastTrackVerifier {
-  function verify(bytes calldata attestation, address challenger, bytes32 externalId) external view returns (bool ok);
-}
 
 interface ITreasury {
   function depositETH(uint256 bucketId) external payable;
@@ -29,11 +24,20 @@ interface ITreasury {
   function grantERC20(uint256 bucketId, address token, address to, uint256 amount) external;
 }
 
+/**
+ * @title ChallengePay — LightChallenge V1 (Final Pre-Production)
+ *
+ * Challenge dapp where users create challenges, join, get verified through
+ * Lightchain AIVM + PoI, finalize outcomes, and get paid safely.
+ *
+ * All funds are held in Treasury buckets (ChallengePay holds zero funds).
+ * Claims are pull-based via Treasury allowances.
+ *
+ * Status lifecycle: Active → Finalized | Canceled
+ * Outcome model: None | Success | Fail
+ */
 contract ChallengePay is ReentrancyGuard {
   using SafeERC20 for IERC20;
-
-  // Validator-stake bucket (separate from any challenge bucket)
-  uint256 public constant VALIDATOR_BUCKET = 1;
 
   // ────────────────────────────────────────────────────────────────────────────
   // Errors
@@ -42,55 +46,37 @@ contract ChallengePay is ReentrancyGuard {
   error AmountZero();
   error WrongMsgValue();
   error ChallengePaused();
-error NotAdmin();
+  error NotAdmin();
   error NotPendingAdmin();
-
   error InvalidBounds();
   error LeadTimeOutOfBounds();
   error StartTooSoon();
-  error ApprovalWindowTooShort();
-  error ApprovalDeadlineAfterStart();
   error DeadlineRequired();
   error ProofDeadlineBeforeEnd();
-  error PeerDeadlineBeforeEnd();
-  error PeerQuorumInvalid();
+  error JoinClosesAfterStart();
   error TokenNotAllowed();
   error ExternalIdAlreadyUsed();
-  error FastTrackInvalid();
-  error StrategyRejected();
-
   error NotCreatorOrAdmin();
-  error NotCreatorOnly();
-
-  error NotPending();
-  error NotApproved();
+  error NotActive();
   error AlreadyCanceled();
   error JoinWindowClosed();
   error MaxParticipantsReached();
-
-  error NotValidator();
-  error MinStakeNotMet();
-  error HasOpenVoteLocks();
-  error CooldownNotElapsed();
-  error AlreadyVoted();
-  error AfterDeadline();
-  error BeforeDeadline();
-  error QuorumOrThresholdInvalid();
-  error VoterCapTooSmall();
-  error MaxVotersReached();
-
-  error NotPeer();
   error ProofNotOpen();
   error ProofWindowClosed();
   error NotEligible();
   error AlreadyWinner();
-
   error AlreadyFinalized();
-  error RejectNotStaged();
-
+  error BeforeDeadline();
   error TightenOnlyViolation();
-  error CharityTooHigh();
-  error CharityAddressRequired();
+  error GlobalPausedError();
+  error ChallengeNotFinalized();
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Enums
+  // ────────────────────────────────────────────────────────────────────────────
+  enum Status   { Active, Finalized, Canceled }
+  enum Outcome  { None, Success, Fail }
+  enum Currency { NATIVE, ERC20 }
 
   // ────────────────────────────────────────────────────────────────────────────
   // Immutables
@@ -99,7 +85,7 @@ error NotAdmin();
   address public immutable protocol;
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Admin (2-step)
+  // Admin (2-step transfer)
   // ────────────────────────────────────────────────────────────────────────────
   address public admin;
   address public pendingAdmin;
@@ -110,14 +96,13 @@ error NotAdmin();
   event AdminTransferAccepted(address indexed oldAdmin, address indexed newAdmin);
 
   modifier onlyAdmin() {
-    // Important: admin gating MUST use msg.sender (never forwarded).
     if (msg.sender != admin) revert NotAdmin();
     _;
   }
 
   modifier notPaused() {
-    if (globalPaused) revert ChallengePaused();
-_;
+    if (globalPaused) revert GlobalPausedError();
+    _;
   }
 
   function transferAdmin(address newPendingAdmin) external onlyAdmin {
@@ -128,10 +113,9 @@ _;
 
   function acceptAdmin() external {
     if (msg.sender != pendingAdmin) revert NotPendingAdmin();
-    address old = admin;
-    admin = pendingAdmin;
+    emit AdminTransferAccepted(admin, msg.sender);
+    admin = msg.sender;
     pendingAdmin = address(0);
-    emit AdminTransferAccepted(old, admin);
   }
 
   function pauseAll(bool paused) external onlyAdmin {
@@ -140,13 +124,12 @@ _;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // EIP-2771 (TrustedForwarder) — optional
+  // EIP-2771 trusted forwarder
   // ────────────────────────────────────────────────────────────────────────────
   address public trustedForwarder;
   event TrustedForwarderSet(address indexed forwarder);
 
   function setTrustedForwarder(address fwd) external onlyAdmin {
-    if (fwd == address(0)) revert ZeroAddress();
     trustedForwarder = fwd;
     emit TrustedForwarderSet(fwd);
   }
@@ -155,46 +138,33 @@ _;
     return fwd != address(0) && fwd == trustedForwarder;
   }
 
-  /**
-   * @dev ERC-2771 sender extractor:
-   * If called through trustedForwarder, last 20 bytes of calldata is original sender.
-   */
   function _msgSender2771() internal view returns (address sender) {
-    if (msg.sender == trustedForwarder && msg.data.length >= 20) {
-      assembly {
-        sender := shr(96, calldataload(sub(calldatasize(), 20)))
-      }
+    if (isTrustedForwarder(msg.sender) && msg.data.length >= 20) {
+      assembly { sender := shr(96, calldataload(sub(calldatasize(), 20))) }
     } else {
       sender = msg.sender;
     }
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Globals
+  // Global config
   // ────────────────────────────────────────────────────────────────────────────
-  uint32 public maxVotersPerChallenge = 5000;
-
   mapping(address => bool) public allowedToken;
   bool public useTokenAllowlist;
+  uint256 public minLeadTime;
+  uint256 public maxLeadTime;
+  bool public proofTightenOnly;
 
-  uint256 public minLeadTime = 2 minutes;
-  uint256 public maxLeadTime = 30 days;
+  // Creator allowlist (optional gate for who can create challenges)
+  mapping(address => bool) public creatorAllowed;
+  bool public useCreatorAllowlist;
 
-  bool public proofTightenOnly = true;
-  IFastTrackVerifier public fastTrackVerifier;
-
-  event MaxVotersPerChallengeSet(uint32 cap);
   event TokenAllowlistSet(bool enabled);
   event TokenAllowed(address indexed token, bool allowed);
   event LeadTimeBoundsSet(uint256 minLeadTime, uint256 maxLeadTime);
   event ProofTightenOnlySet(bool enabled);
-  event FastTrackVerifierSet(address indexed verifier);
-
-  function setMaxVotersPerChallenge(uint32 cap) external onlyAdmin {
-    if (cap < 10) revert VoterCapTooSmall();
-    maxVotersPerChallenge = cap;
-    emit MaxVotersPerChallengeSet(cap);
-  }
+  event CreatorAllowlistSet(bool enabled);
+  event CreatorAllowed(address indexed creator, bool allowed);
 
   function setUseTokenAllowlist(bool enabled) external onlyAdmin {
     useTokenAllowlist = enabled;
@@ -208,7 +178,7 @@ _;
   }
 
   function setLeadTimeBounds(uint256 minSec, uint256 maxSec) external onlyAdmin {
-    if (minSec == 0 || maxSec < minSec) revert InvalidBounds();
+    if (minSec > maxSec) revert InvalidBounds();
     minLeadTime = minSec;
     maxLeadTime = maxSec;
     emit LeadTimeBoundsSet(minSec, maxSec);
@@ -219,365 +189,235 @@ _;
     emit ProofTightenOnlySet(enabled);
   }
 
-  function setFastTrackVerifier(address verifier) external onlyAdmin {
-    fastTrackVerifier = IFastTrackVerifier(verifier);
-    emit FastTrackVerifierSet(verifier);
+  function setUseCreatorAllowlist(bool enabled) external onlyAdmin {
+    useCreatorAllowlist = enabled;
+    emit CreatorAllowlistSet(enabled);
+  }
+
+  function setCreatorAllowed(address creator, bool allowed) external onlyAdmin {
+    if (creator == address(0)) revert ZeroAddress();
+    creatorAllowed[creator] = allowed;
+    emit CreatorAllowed(creator, allowed);
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Validators (Treasury-held stake)
-  // ────────────────────────────────────────────────────────────────────────────
-  uint256 public totalValidatorStake;             // accounting mirror
-  uint256 public minValidatorStake = 5e13;        // example
-  uint256 public approvalThresholdBps = 5000;     // 50% of total stake
-  uint256 public quorumBps = 300;                 // 3%
-  uint256 public unstakeCooldownSec = 3 days;
-
-  mapping(address => uint256) public validatorStake;  // accounting mirror (Treasury holds funds)
-  mapping(address => uint256) public pendingUnstake;
-  mapping(address => uint256) public pendingUnstakeUnlockAt;
-
-  mapping(address => uint256) public voteLocks;
-  mapping(uint256 => mapping(address => bool)) public voteLockedFor;
-
-  event ValidatorStaked(address indexed validator, uint256 amount);
-  event ValidatorUnstakeRequested(address indexed validator, uint256 amount, uint256 unlockAt);
-  event ValidatorUnstakedGranted(address indexed validator, uint256 amount);
-  event ValidatorParamsSet(uint256 minStake, uint256 thresholdBps, uint256 quorumBps, uint256 cooldownSec);
-  event VoteLockCleared(uint256 indexed id, address indexed validator);
-
-  function setValidatorParams(
-    uint256 _minStake,
-    uint256 _thresholdBps,
-    uint256 _quorumBps,
-    uint256 _cooldownSec
-  ) external onlyAdmin {
-    if (_thresholdBps == 0 || _thresholdBps > 10_000 || _quorumBps > 10_000) revert QuorumOrThresholdInvalid();
-    minValidatorStake = _minStake;
-    approvalThresholdBps = _thresholdBps;
-    quorumBps = _quorumBps;
-    unstakeCooldownSec = _cooldownSec;
-    emit ValidatorParamsSet(_minStake, _thresholdBps, _quorumBps, _cooldownSec);
-  }
-
-  /**
-   * Stake as validator:
-   * - deposits ETH into Treasury VALIDATOR_BUCKET
-   * - updates local accounting mirrors
-   * - DOES NOT hold ETH here
-   */
-  function stakeValidator() external payable nonReentrant notPaused {
-    address sender = _msgSender2771();
-    if (msg.value == 0) revert AmountZero();
-
-    // custody -> Treasury
-    ITreasury(treasury).depositETH{value: msg.value}(VALIDATOR_BUCKET);
-
-    uint256 newStake = validatorStake[sender] + msg.value;
-    validatorStake[sender] = newStake;
-    totalValidatorStake += msg.value;
-
-    if (newStake < minValidatorStake) revert MinStakeNotMet();
-    emit ValidatorStaked(sender, msg.value);
-  }
-
-  /**
-   * Request unstake:
-   * - reduces accounting mirrors immediately (prevents vote weight abuse)
-   * - after cooldown, user calls withdrawUnstaked() which grants Treasury allowance
-   */
-  function requestUnstake(uint256 amount) external nonReentrant notPaused {
-    address sender = _msgSender2771();
-    if (amount == 0) revert AmountZero();
-    if (voteLocks[sender] > 0) revert HasOpenVoteLocks();
-
-    uint256 currentStake = validatorStake[sender];
-    if (currentStake < amount) revert NotEligible();
-
-    validatorStake[sender] = currentStake - amount;
-    totalValidatorStake -= amount;
-
-    pendingUnstake[sender] += amount;
-    pendingUnstakeUnlockAt[sender] = block.timestamp + unstakeCooldownSec;
-
-    emit ValidatorUnstakeRequested(sender, amount, pendingUnstakeUnlockAt[sender]);
-  }
-
-  /**
-   * Finalize unstake:
-   * - grants the user an ETH allowance from VALIDATOR_BUCKET in Treasury
-   * - user then claims directly from Treasury (or claimETHTo)
-   */
-  function withdrawUnstaked() external nonReentrant {
-    address sender = _msgSender2771();
-    uint256 amount = pendingUnstake[sender];
-    if (amount == 0) revert AmountZero();
-    if (block.timestamp < pendingUnstakeUnlockAt[sender]) revert CooldownNotElapsed();
-
-    pendingUnstake[sender] = 0;
-    pendingUnstakeUnlockAt[sender] = 0;
-
-    // grant claimable funds from stake bucket
-    ITreasury(treasury).grantETH(VALIDATOR_BUCKET, sender, amount);
-    emit ValidatorUnstakedGranted(sender, amount);
-  }
-
-  function clearMyVoteLock(uint256 id) external {
-    address sender = _msgSender2771();
-    Challenge storage c = challenges[id];
-    if (c.status == Status.Pending && !c.canceled) revert NotPending();
-    if (!voteLockedFor[id][sender]) return;
-
-    voteLockedFor[id][sender] = false;
-    if (voteLocks[sender] > 0) voteLocks[sender] -= 1;
-    emit VoteLockCleared(id, sender);
-  }
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // Fees (snapshotted per challenge)
+  // Fee config (admin-level, snapshotted per-challenge at creation)
   // ────────────────────────────────────────────────────────────────────────────
   struct FeeCaps {
     uint16 forfeitFeeMaxBps;
-    uint16 charityMaxBps;
     uint16 cashbackMaxBps;
   }
 
   struct FeeConfig {
-    uint16 forfeitFeeBps;        // total forfeiture fee on losersAfterCashback
-    uint16 protocolBps;
-    uint16 creatorBps;
-    uint16 validatorsBps;
-
-    uint16 rejectFeeBps;
-    uint16 rejectValidatorsBps;
-
-    uint16 cashbackBps;
+    uint16 forfeitFeeBps;   // total fee taken from losers' forfeited pool
+    uint16 protocolBps;     // protocol's share of forfeited pool
+    uint16 creatorBps;      // creator's share of forfeited pool
+    uint16 cashbackBps;     // cashback to losers (taken before fees)
   }
 
-  FeeCaps public feeCaps = FeeCaps({forfeitFeeMaxBps: 1000, charityMaxBps: 500, cashbackMaxBps: 200});
-  FeeConfig public feeConfig = FeeConfig({
-    forfeitFeeBps: 600,
-    protocolBps: 200,
-    creatorBps: 200,
-    validatorsBps: 200,
-    rejectFeeBps: 200,
-    rejectValidatorsBps: 200,
-    cashbackBps: 100
-  });
+  FeeCaps public feeCaps;
+  FeeConfig public feeConfig;
 
-  event FeeCapsSet(uint16 forfeitFeeMaxBps, uint16 charityMaxBps, uint16 cashbackMaxBps);
-  event FeeConfigSet(
-    uint16 forfeitFeeBps, uint16 protocolBps, uint16 creatorBps, uint16 validatorsBps,
-    uint16 rejectFeeBps, uint16 rejectValidatorsBps, uint16 cashbackBps
-  );
+  event FeeCapsSet(uint16 forfeitFeeMaxBps, uint16 cashbackMaxBps);
+  event FeeConfigSet(uint16 forfeitFeeBps, uint16 protocolBps, uint16 creatorBps, uint16 cashbackBps);
 
   function setFeeCaps(FeeCaps calldata caps) external onlyAdmin {
-    if (caps.forfeitFeeMaxBps > 10_000 || caps.charityMaxBps > 10_000 || caps.cashbackMaxBps > 10_000) revert InvalidBounds();
+    if (caps.forfeitFeeMaxBps > 10_000) revert InvalidBounds();
+    if (caps.cashbackMaxBps > 10_000) revert InvalidBounds();
     feeCaps = caps;
-    emit FeeCapsSet(caps.forfeitFeeMaxBps, caps.charityMaxBps, caps.cashbackMaxBps);
+    emit FeeCapsSet(caps.forfeitFeeMaxBps, caps.cashbackMaxBps);
   }
 
   function setFeeConfig(FeeConfig calldata f) external onlyAdmin {
-    if (f.forfeitFeeBps > feeCaps.forfeitFeeMaxBps) revert InvalidBounds();
-    if (uint256(f.protocolBps) + f.creatorBps + f.validatorsBps != f.forfeitFeeBps) revert InvalidBounds();
-    if (f.rejectFeeBps > 10_000 || f.rejectValidatorsBps > f.rejectFeeBps) revert InvalidBounds();
-    if (f.cashbackBps > feeCaps.cashbackMaxBps) revert InvalidBounds();
-
+    if (f.forfeitFeeBps > 10_000) revert InvalidBounds();
+    if (f.cashbackBps > 10_000) revert InvalidBounds();
+    if (uint256(f.protocolBps) + f.creatorBps > f.forfeitFeeBps) revert InvalidBounds();
+    if (feeCaps.forfeitFeeMaxBps > 0 && f.forfeitFeeBps > feeCaps.forfeitFeeMaxBps) revert InvalidBounds();
+    if (feeCaps.cashbackMaxBps > 0 && f.cashbackBps > feeCaps.cashbackMaxBps) revert InvalidBounds();
     feeConfig = f;
-    emit FeeConfigSet(
-      f.forfeitFeeBps, f.protocolBps, f.creatorBps, f.validatorsBps,
-      f.rejectFeeBps, f.rejectValidatorsBps, f.cashbackBps
-    );
+    emit FeeConfigSet(f.forfeitFeeBps, f.protocolBps, f.creatorBps, f.cashbackBps);
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // External IDs
+  // Dispatchers (authorized callers for submitProofFor / submitProofForBatch)
+  // ────────────────────────────────────────────────────────────────────────────
+  mapping(address => bool) public dispatchers;
+
+  event DispatcherSet(address indexed addr, bool enabled);
+
+  function setDispatcher(address addr, bool enabled) external {
+    if (msg.sender != admin) revert NotAdmin();
+    dispatchers[addr] = enabled;
+    emit DispatcherSet(addr, enabled);
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Minimum stake
+  // ────────────────────────────────────────────────────────────────────────────
+  uint256 public minStake;
+
+  event MinStakeSet(uint256 minStake);
+
+  function setMinStake(uint256 _minStake) external {
+    if (msg.sender != admin) revert NotAdmin();
+    minStake = _minStake;
+    emit MinStakeSet(_minStake);
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // External ID tracking
   // ────────────────────────────────────────────────────────────────────────────
   mapping(bytes32 => bool) public externalIdUsed;
   mapping(uint256 => bytes32) public externalIdOf;
   mapping(bytes32 => uint256) public idByExternalId;
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Types
+  // Challenge struct
   // ────────────────────────────────────────────────────────────────────────────
-  enum Currency { NATIVE, ERC20 }
-  enum Status   { Pending, Approved, Rejected, Finalized }
-  enum Outcome  { None, Success, Fail }
-
   struct Challenge {
     uint256 id;
     uint8 kind;
-
     Status status;
     Outcome outcome;
 
-    address challenger;
+    address creator;
     Currency currency;
-    address token; // zero if native
-
+    address token;
     uint256 stake;
-    uint256 proposalBond;
 
-    uint256 approvalDeadline;
+    uint256 joinClosesTs;
     uint256 startTs;
     uint256 duration;
-    uint256 maxParticipants; // 0 = unlimited
+    uint256 maxParticipants;
 
-    // validator voting
-    uint256 yesWeight;
-    uint256 noWeight;
-    uint256 partWeight;
-    mapping(address => bool) voted;
-    mapping(address => bool) votedYes;
-    address[] voters;
-    uint32 votersYesCount;
-    uint32 votersNoCount;
-
-    // peers (optional)
-    address[] peers;
-    mapping(address => bool) isPeer;
-    uint8 peerApprovalsNeeded;
-    mapping(address => bool) peerVoted;
-    uint256 peerApprovals;
-    uint256 peerRejections;
-    uint256 peerDeadlineTs;
-
-    // charity
-    uint16 charityBps;
-    address charity;
-
-    // pool + participants
     uint256 pool;
-    mapping(address => uint256) contrib;
-    mapping(address => bool) participantSeen;
     uint256 participantsCount;
 
-    // proof
     IProofVerifier verifier;
     uint256 proofDeadlineTs;
 
-    // winners
-    mapping(address => bool) winner;
     uint32 winnersCount;
     uint256 winnersPool;
 
-    // flags
     bool paused;
     bool canceled;
     bool payoutsDone;
 
-    // snapshotted fees
+    // Fee snapshot (creation-time)
     uint16 fee_forfeitFeeBps;
     uint16 fee_protocolBps;
     uint16 fee_creatorBps;
-    uint16 fee_validatorsBps;
     uint16 fee_cashbackBps;
-    uint16 fee_rejectFeeBps;
-    uint16 fee_rejectValidatorsBps;
 
-    // optional strategy
-    IApprovalStrategy strategy;
-    bytes strategyData;
+    // Mappings (not exposed in view)
+    mapping(address => uint256) contrib;
+    mapping(address => bool) participantSeen;
+    mapping(address => bool) winner;
   }
 
-  uint256 public nextChallengeId = 2; // bucketId=1 reserved for VALIDATOR_BUCKET
-  mapping(uint256 => Challenge) private challenges;
-
   // ────────────────────────────────────────────────────────────────────────────
-  // Snapshot for claims
+  // Snapshot (created during finalize)
   // ────────────────────────────────────────────────────────────────────────────
   struct Snapshot {
     bool set;
     bool success;
-    uint32 eligibleValidators;
 
-    uint256 committedPool;
-    uint256 forfeitedPool;
+    uint256 committedPool;          // winners' total contributions
+    uint256 forfeitedPool;          // losers' total contributions
 
     uint256 cashback;
     uint256 forfeitedAfterCashback;
 
-    uint256 charityAmt;
     uint256 protocolAmt;
     uint256 creatorAmt;
-    uint256 validatorsAmt;
 
-    uint256 perCommittedBonusX; // 1e18
-    uint256 perCashbackX;       // 1e18
-    uint256 perValidatorAmt;
+    uint256 perCommittedBonusX;     // scaled (1e18) per-winner bonus
+    uint256 perCashbackX;           // scaled (1e18) per-loser cashback
 
-    mapping(address => bool) committedClaimed;
-    mapping(address => bool) cashbackClaimed;
-    mapping(address => bool) validatorClaimed;
+    // Claim tracking
+    mapping(address => bool) winnerClaimed;
+    mapping(address => bool) loserClaimed;
   }
 
-  mapping(uint256 => Snapshot) private snapshots;
+  // ────────────────────────────────────────────────────────────────────────────
+  // Storage
+  // ────────────────────────────────────────────────────────────────────────────
+  uint256 public nextChallengeId;
+  mapping(uint256 => Challenge) internal challenges;
+  mapping(uint256 => Snapshot) internal snapshots;
 
-  // Reject path
-  mapping(uint256 => uint256) private rejectPerValidatorAmt;
-  mapping(uint256 => mapping(address => bool)) private rejectValidatorClaimed;
-  mapping(uint256 => bool) private rejectSet;
-  mapping(uint256 => bool) private rejectCreatorClaimed;
-  mapping(uint256 => mapping(address => bool)) private rejectContributorClaimed;
+  // Cancel/refund tracking
+  mapping(uint256 => bool) public cancelRefundStaged;
+  mapping(uint256 => mapping(address => bool)) public refundClaimed;
 
   // ────────────────────────────────────────────────────────────────────────────
   // Events
   // ────────────────────────────────────────────────────────────────────────────
   event ChallengeCreated(
     uint256 indexed id,
-    address indexed challenger,
+    address indexed creator,
     uint8 kind,
     uint8 currency,
     address token,
     uint256 startTs,
-    bytes32 externalId,
-    bool fastTracked
+    bytes32 externalId
   );
-
-  event StrategySet(uint256 indexed id, address indexed strategy);
-
-  event ChallengeVoted(uint256 indexed id, address indexed by, bool yes, uint256 weight, uint256 yesWeight, uint256 noWeight, uint256 partWeight);
-  event StatusBecameApproved(uint256 indexed id);
-  event StatusBecameRejected(uint256 indexed id);
-
-  event PeerAssigned(uint256 indexed id, address[] peers, uint8 approvalsNeeded);
-  event PeerVoted(uint256 indexed id, address indexed peer, bool pass);
 
   event Joined(uint256 indexed id, address indexed user, uint256 amount);
 
-  event ParticipantProofSubmitted(uint256 indexed id, address indexed participant, address indexed verifier, bool ok);
-  event WinnerMarked(uint256 indexed id, address indexed participant, uint256 contrib, uint256 winnersPool, uint32 winnersCount);
+  event ParticipantProofSubmitted(
+    uint256 indexed id,
+    address indexed participant,
+    address indexed verifier,
+    bool ok
+  );
+  event WinnerMarked(
+    uint256 indexed id,
+    address indexed participant,
+    uint256 contrib,
+    uint256 winnersPool,
+    uint32 winnersCount
+  );
 
-  event VerificationConfigUpdated(uint256 indexed id, address verifier, uint256 proofDeadlineTs, uint256 peerDeadlineTs);
+  event VerificationConfigUpdated(
+    uint256 indexed id,
+    address verifier,
+    uint256 proofDeadlineTs
+  );
 
   event Finalized(uint256 indexed id, uint8 status, uint8 outcome);
   event Paused(uint256 indexed id, bool paused);
   event Canceled(uint256 indexed id);
 
-  event FeesBooked(uint256 indexed id, uint256 protocolAmt, uint256 creatorAmt, uint256 validatorsAmt, uint256 charityAmt, uint256 cashback);
-  event SnapshotSet(uint256 indexed id, bool success, uint32 eligibleValidators);
+  event FeesBooked(
+    uint256 indexed id,
+    uint256 protocolAmt,
+    uint256 creatorAmt,
+    uint256 cashback
+  );
+  event SnapshotSet(uint256 indexed id, bool success);
 
-  event PrincipalClaimed(uint256 indexed id, address indexed user, uint256 amount);
-  event CashbackClaimed(uint256 indexed id, address indexed user, uint256 amount);
-  event ValidatorClaimed(uint256 indexed id, address indexed validator, uint256 amount);
-
-  event RejectStaged(uint256 indexed id, uint256 perValidatorAmount);
-  event RejectContributionClaimed(uint256 indexed id, address indexed user, uint256 amount);
-  event RejectCreatorClaimed(uint256 indexed id, address indexed creator, uint256 amount);
-  event ValidatorRejectClaimed(uint256 indexed id, address indexed validator, uint256 amount);
+  event WinnerClaimed(uint256 indexed id, address indexed user, uint256 amount);
+  event LoserClaimed(uint256 indexed id, address indexed user, uint256 amount);
+  event RefundClaimed(uint256 indexed id, address indexed user, uint256 amount);
 
   // ────────────────────────────────────────────────────────────────────────────
   // Constructor
   // ────────────────────────────────────────────────────────────────────────────
   constructor(address _treasury, address _protocol) {
     if (_treasury == address(0) || _protocol == address(0)) revert ZeroAddress();
-    admin = msg.sender;
     treasury = _treasury;
     protocol = _protocol;
+    admin = msg.sender;
+
+    // Sensible defaults
+    minLeadTime = 60;         // 1 minute minimum
+    maxLeadTime = 365 days;
+    nextChallengeId = 2;      // reserve 0 and 1
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Challenge views (minimal)
+  // Views
   // ────────────────────────────────────────────────────────────────────────────
   struct ChallengeView {
     uint256 id;
@@ -585,30 +425,15 @@ _;
     uint8 status;
     uint8 outcome;
 
-    address challenger;
+    address creator;
     uint8 currency;
     address token;
-
     uint256 stake;
-    uint256 proposalBond;
 
-    uint256 approvalDeadline;
+    uint256 joinClosesTs;
     uint256 startTs;
     uint256 duration;
     uint256 maxParticipants;
-
-    uint256 yesWeight;
-    uint256 noWeight;
-    uint256 partWeight;
-
-    address[] peers;
-    uint8 peerApprovalsNeeded;
-    uint256 peerApprovals;
-    uint256 peerRejections;
-    uint256 peerDeadlineTs;
-
-    uint16 charityBps;
-    address charity;
 
     uint256 pool;
     uint256 participantsCount;
@@ -618,6 +443,10 @@ _;
 
     uint32 winnersCount;
     uint256 winnersPool;
+
+    bool paused;
+    bool canceled;
+    bool payoutsDone;
   }
 
   function getChallenge(uint256 id) external view returns (ChallengeView memory out) {
@@ -627,50 +456,74 @@ _;
       kind: c.kind,
       status: uint8(c.status),
       outcome: uint8(c.outcome),
-
-      challenger: c.challenger,
+      creator: c.creator,
       currency: uint8(c.currency),
       token: c.token,
-
       stake: c.stake,
-      proposalBond: c.proposalBond,
-
-      approvalDeadline: c.approvalDeadline,
+      joinClosesTs: c.joinClosesTs,
       startTs: c.startTs,
       duration: c.duration,
       maxParticipants: c.maxParticipants,
-
-      yesWeight: c.yesWeight,
-      noWeight: c.noWeight,
-      partWeight: c.partWeight,
-
-      peers: c.peers,
-      peerApprovalsNeeded: c.peerApprovalsNeeded,
-      peerApprovals: c.peerApprovals,
-      peerRejections: c.peerRejections,
-      peerDeadlineTs: c.peerDeadlineTs,
-
-      charityBps: c.charityBps,
-      charity: c.charity,
-
       pool: c.pool,
       participantsCount: c.participantsCount,
-
       verifier: address(c.verifier),
       proofDeadlineTs: c.proofDeadlineTs,
-
       winnersCount: c.winnersCount,
-      winnersPool: c.winnersPool
+      winnersPool: c.winnersPool,
+      paused: c.paused,
+      canceled: c.canceled,
+      payoutsDone: c.payoutsDone
     });
   }
 
+  struct SnapshotView {
+    bool set;
+    bool success;
+
+    uint256 committedPool;
+    uint256 forfeitedPool;
+
+    uint256 cashback;
+    uint256 forfeitedAfterCashback;
+
+    uint256 protocolAmt;
+    uint256 creatorAmt;
+
+    uint256 perCommittedBonusX;
+    uint256 perCashbackX;
+  }
+
+  function getSnapshot(uint256 id) external view returns (SnapshotView memory out) {
+    Snapshot storage s = snapshots[id];
+    out = SnapshotView({
+      set: s.set,
+      success: s.success,
+      committedPool: s.committedPool,
+      forfeitedPool: s.forfeitedPool,
+      cashback: s.cashback,
+      forfeitedAfterCashback: s.forfeitedAfterCashback,
+      protocolAmt: s.protocolAmt,
+      creatorAmt: s.creatorAmt,
+      perCommittedBonusX: s.perCommittedBonusX,
+      perCashbackX: s.perCashbackX
+    });
+  }
+
+  /// @notice Read a participant's contribution for a challenge.
+  function contribOf(uint256 id, address user) external view returns (uint256) {
+    return challenges[id].contrib[user];
+  }
+
+  /// @notice Check if a participant is a winner.
+  function isWinner(uint256 id, address user) external view returns (bool) {
+    return challenges[id].winner[user];
+  }
+
   // ────────────────────────────────────────────────────────────────────────────
-  // Per-challenge pause/cancel
+  // Challenge management (admin)
   // ────────────────────────────────────────────────────────────────────────────
   function pauseChallenge(uint256 id, bool paused_) external onlyAdmin {
     Challenge storage c = challenges[id];
-    // allow pausing only while still in Pending/Approved zone
-    if (uint8(c.status) > uint8(Status.Approved)) revert NotPending();
     c.paused = paused_;
     emit Paused(id, paused_);
   }
@@ -678,53 +531,44 @@ _;
   function cancelChallenge(uint256 id) external nonReentrant notPaused {
     address sender = _msgSender2771();
     Challenge storage c = challenges[id];
-    if (sender != c.challenger && sender != admin) revert NotCreatorOrAdmin();
-    if (c.status != Status.Pending) revert NotPending();
+
     if (c.canceled) revert AlreadyCanceled();
+    if (sender != c.creator && sender != admin) revert NotCreatorOrAdmin();
+    if (c.status != Status.Active) revert NotActive();
+    if (c.winnersCount > 0) revert AlreadyFinalized();
 
     c.canceled = true;
-    c.status = Status.Rejected;
+    c.status = Status.Canceled;
     c.outcome = Outcome.None;
 
-    _stageReject(c);
     emit Canceled(id);
   }
 
-  // Tighten-only verification config
+  /**
+   * @notice Update verifier and/or proof deadline for an active challenge.
+   * If proofTightenOnly is enabled, the new deadline must be <= current.
+   */
   function setVerificationConfig(
     uint256 id,
     address verifier,
-    uint256 proofDeadlineTs,
-    uint256 peerDeadlineTs
+    uint256 proofDeadlineTs
   ) external onlyAdmin {
     Challenge storage c = challenges[id];
+    if (c.status != Status.Active) revert NotActive();
 
-    if (verifier == address(0)) revert ZeroAddress();
-    if (proofDeadlineTs == 0) revert DeadlineRequired();
-
-    uint256 endTime = c.startTs + c.duration;
-    if (proofDeadlineTs < endTime) revert ProofDeadlineBeforeEnd();
-
-    if (c.peerApprovalsNeeded > 0) {
-      if (peerDeadlineTs == 0) revert DeadlineRequired();
-      if (peerDeadlineTs < endTime) revert PeerDeadlineBeforeEnd();
+    if (verifier != address(0)) {
+      if (c.participantsCount > 0) revert InvalidBounds();
+      c.verifier = IProofVerifier(verifier);
     }
 
-    if (proofTightenOnly) {
-      address prevV = address(c.verifier);
-      uint256 prevPD = c.proofDeadlineTs;
-      uint256 prevPeerD = c.peerDeadlineTs;
-
-      if (prevV != address(0) && verifier != prevV) revert TightenOnlyViolation();
-      if (prevPD != 0 && proofDeadlineTs > prevPD) revert TightenOnlyViolation();
-      if (prevPeerD != 0 && peerDeadlineTs > prevPeerD) revert TightenOnlyViolation();
+    if (proofDeadlineTs != 0) {
+      if (proofTightenOnly && proofDeadlineTs > c.proofDeadlineTs) revert TightenOnlyViolation();
+      uint256 endTime = c.startTs + c.duration;
+      if (proofDeadlineTs < endTime) revert ProofDeadlineBeforeEnd();
+      c.proofDeadlineTs = proofDeadlineTs;
     }
 
-    c.verifier = IProofVerifier(verifier);
-    c.proofDeadlineTs = proofDeadlineTs;
-    c.peerDeadlineTs = peerDeadlineTs;
-
-    emit VerificationConfigUpdated(id, verifier, proofDeadlineTs, peerDeadlineTs);
+    emit VerificationConfigUpdated(id, address(c.verifier), c.proofDeadlineTs);
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -732,35 +576,16 @@ _;
   // ────────────────────────────────────────────────────────────────────────────
   struct CreateParams {
     uint8 kind;
-
     Currency currency;
     address token;
-
     uint256 stakeAmount;
-    uint256 proposalBond;
-
-    uint256 approvalDeadline;
+    uint256 joinClosesTs;     // 0 = defaults to startTs
     uint256 startTs;
     uint256 duration;
-
-    uint256 maxParticipants;
-
-    address[] peers;
-    uint8 peerApprovalsNeeded;
-    uint256 peerDeadlineTs;
-
-    uint16 charityBps;
-    address charity;
-
+    uint256 maxParticipants;  // 0 = unlimited
     address verifier;
     uint256 proofDeadlineTs;
-
-    bytes32 externalId;
-    uint256 leadTime;
-    bytes fastTrackData;
-
-    address strategy;
-    bytes strategyData;
+    bytes32 externalId;       // 0 = none
   }
 
   function createChallenge(CreateParams calldata p)
@@ -772,67 +597,63 @@ _;
   {
     address sender = _msgSender2771();
 
-    if (p.charityBps > feeCaps.charityMaxBps) revert CharityTooHigh();
-    if (p.charityBps > 0 && p.charity == address(0)) revert CharityAddressRequired();
+    // Creator allowlist gate
+    if (useCreatorAllowlist && !creatorAllowed[sender]) revert NotEligible();
 
-    if (p.peerApprovalsNeeded > p.peers.length) revert PeerQuorumInvalid();
+    // Minimum stake
+    if (minStake > 0 && msg.value < minStake) revert InvalidBounds();
 
-    if (p.approvalDeadline <= block.timestamp) revert ApprovalWindowTooShort();
+    // Timing validation
     if (p.startTs <= block.timestamp) revert StartTooSoon();
-
-    if (p.leadTime < minLeadTime || p.leadTime > maxLeadTime) revert LeadTimeOutOfBounds();
-    if (p.startTs < block.timestamp + p.leadTime) revert StartTooSoon();
-    if (p.approvalDeadline >= p.startTs) revert ApprovalDeadlineAfterStart();
     if (p.duration == 0) revert InvalidBounds();
 
-    if (p.verifier == address(0)) revert ZeroAddress();
-    if (p.proofDeadlineTs == 0) revert DeadlineRequired();
+    uint256 leadTime = p.startTs - block.timestamp;
+    if (leadTime < minLeadTime) revert LeadTimeOutOfBounds();
+    if (maxLeadTime > 0 && leadTime > maxLeadTime) revert LeadTimeOutOfBounds();
 
+    // joinClosesTs: default to startTs, must be <= startTs
+    uint256 joinClosesTs = p.joinClosesTs == 0 ? p.startTs : p.joinClosesTs;
+    if (joinClosesTs > p.startTs) revert JoinClosesAfterStart();
+    if (joinClosesTs <= block.timestamp) revert InvalidBounds();
+
+    // Verifier
+    if (p.verifier == address(0)) revert ZeroAddress();
+
+    // Proof deadline
+    if (p.proofDeadlineTs == 0) revert DeadlineRequired();
     uint256 endTime = p.startTs + p.duration;
     if (p.proofDeadlineTs < endTime) revert ProofDeadlineBeforeEnd();
-    if (p.peerApprovalsNeeded > 0) {
-      if (p.peerDeadlineTs == 0) revert DeadlineRequired();
-      if (p.peerDeadlineTs < endTime) revert PeerDeadlineBeforeEnd();
-    }
 
+    // Token validation
     if (p.currency == Currency.ERC20) {
       if (p.token == address(0)) revert ZeroAddress();
       if (useTokenAllowlist && !allowedToken[p.token]) revert TokenNotAllowed();
     }
 
+    // External ID uniqueness
     if (p.externalId != bytes32(0)) {
       if (externalIdUsed[p.externalId]) revert ExternalIdAlreadyUsed();
       externalIdUsed[p.externalId] = true;
     }
 
+    // Allocate
     id = nextChallengeId++;
     Challenge storage c = challenges[id];
 
     c.id = id;
     c.kind = p.kind;
-
-    c.status = Status.Pending;
+    c.status = Status.Active;
     c.outcome = Outcome.None;
 
-    c.challenger = sender;
+    c.creator = sender;
     c.currency = p.currency;
     c.token = (p.currency == Currency.ERC20) ? p.token : address(0);
-
     c.stake = p.stakeAmount;
-    c.proposalBond = p.proposalBond;
 
-    c.approvalDeadline = p.approvalDeadline;
+    c.joinClosesTs = joinClosesTs;
     c.startTs = p.startTs;
     c.duration = p.duration;
     c.maxParticipants = p.maxParticipants;
-
-    c.peers = p.peers;
-    c.peerApprovalsNeeded = p.peerApprovalsNeeded;
-    c.peerDeadlineTs = p.peerDeadlineTs;
-    for (uint256 i = 0; i < p.peers.length; i++) c.isPeer[p.peers[i]] = true;
-
-    c.charityBps = p.charityBps;
-    c.charity = p.charity;
 
     c.verifier = IProofVerifier(p.verifier);
     c.proofDeadlineTs = p.proofDeadlineTs;
@@ -841,136 +662,31 @@ _;
     c.fee_forfeitFeeBps = feeConfig.forfeitFeeBps;
     c.fee_protocolBps = feeConfig.protocolBps;
     c.fee_creatorBps = feeConfig.creatorBps;
-    c.fee_validatorsBps = feeConfig.validatorsBps;
     c.fee_cashbackBps = feeConfig.cashbackBps;
-    c.fee_rejectFeeBps = feeConfig.rejectFeeBps;
-    c.fee_rejectValidatorsBps = feeConfig.rejectValidatorsBps;
 
-    // Deposit stake + bond into Treasury bucket (bucketId = id)
-    uint256 base = p.stakeAmount + p.proposalBond;
+    // Deposit stake into Treasury bucket (bucketId = id)
     if (p.currency == Currency.NATIVE) {
-      if (msg.value != base) revert WrongMsgValue();
-      if (base > 0) ITreasury(treasury).depositETH{value: base}(id);
+      if (msg.value != p.stakeAmount) revert WrongMsgValue();
+      if (p.stakeAmount > 0) ITreasury(treasury).depositETH{value: p.stakeAmount}(id);
     } else {
       if (msg.value != 0) revert WrongMsgValue();
-      if (base > 0) ITreasury(treasury).depositERC20From(id, p.token, sender, base);
+      if (p.stakeAmount > 0) ITreasury(treasury).depositERC20From(id, p.token, sender, p.stakeAmount);
     }
 
-    // stakeAmount participates in pool/contrib
+    // Creator's stake counts as pool contribution
     if (p.stakeAmount > 0) {
       c.pool += p.stakeAmount;
       c.contrib[sender] += p.stakeAmount;
       _markParticipant(c, sender);
     }
 
-    // Optional strategy
-    if (p.strategy != address(0)) {
-      c.strategy = IApprovalStrategy(p.strategy);
-      c.strategyData = p.strategyData;
-      emit StrategySet(id, p.strategy);
-
-      (bool allow, bool autoApprove) = c.strategy.onCreate(
-        id,
-        sender,
-        c.token,
-        uint8(c.currency),
-        c.startTs,
-        c.duration,
-        p.strategyData
-      );
-      if (!allow) revert StrategyRejected();
-      if (autoApprove) c.status = Status.Approved;
-    }
-
-    bool fastTracked = false;
-    if (c.status == Status.Pending && p.fastTrackData.length > 0) {
-      IFastTrackVerifier ft = fastTrackVerifier;
-      if (address(ft) == address(0)) revert ZeroAddress();
-      if (p.externalId == bytes32(0)) revert FastTrackInvalid();
-      if (!ft.verify(p.fastTrackData, sender, p.externalId)) revert FastTrackInvalid();
-      c.status = Status.Approved;
-      fastTracked = true;
-    }
-
+    // External ID mapping
     if (p.externalId != bytes32(0)) {
       externalIdOf[id] = p.externalId;
       idByExternalId[p.externalId] = id;
     }
 
-    emit ChallengeCreated(id, sender, p.kind, uint8(p.currency), c.token, c.startTs, p.externalId, fastTracked);
-    if (p.peers.length > 0) emit PeerAssigned(id, p.peers, p.peerApprovalsNeeded);
-  }
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // Voting (weight derived from Treasury-held stake mirror)
-  // ────────────────────────────────────────────────────────────────────────────
-  function approveChallenge(uint256 id, bool yes) external notPaused {
-    address sender = _msgSender2771();
-    uint256 weight = validatorStake[sender];
-    if (weight < minValidatorStake) revert NotValidator();
-
-    Challenge storage c = challenges[id];
-    if (c.paused || c.canceled) revert ChallengePaused();
-if (c.status != Status.Pending) revert NotPending();
-    if (block.timestamp >= c.approvalDeadline) revert AfterDeadline();
-    if (c.voted[sender]) revert AlreadyVoted();
-    if (c.voters.length >= maxVotersPerChallenge) revert MaxVotersReached();
-
-    c.voted[sender] = true;
-    c.votedYes[sender] = yes;
-    c.voters.push(sender);
-
-    if (!voteLockedFor[id][sender]) {
-      voteLockedFor[id][sender] = true;
-      voteLocks[sender]++;
-    }
-
-    c.partWeight += weight;
-    if (yes) {
-      c.yesWeight += weight;
-      c.votersYesCount++;
-    } else {
-      c.noWeight += weight;
-      c.votersNoCount++;
-    }
-
-    emit ChallengeVoted(id, sender, yes, weight, c.yesWeight, c.noWeight, c.partWeight);
-
-    if (totalValidatorStake == 0) return;
-
-    bool hasQuorum = (c.partWeight * 10_000 / totalValidatorStake) >= quorumBps;
-    if (!hasQuorum) return;
-
-    uint256 yesPct = c.yesWeight * 10_000 / totalValidatorStake;
-    uint256 noPct  = c.noWeight  * 10_000 / totalValidatorStake;
-
-    if (yesPct >= approvalThresholdBps) {
-      c.status = Status.Approved;
-      emit StatusBecameApproved(id);
-    } else if (noPct >= approvalThresholdBps) {
-      c.status = Status.Rejected;
-      emit StatusBecameRejected(id);
-      _stageReject(c);
-    }
-  }
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // Peer voting
-  // ────────────────────────────────────────────────────────────────────────────
-  function peerVote(uint256 id, bool pass) external notPaused {
-    address sender = _msgSender2771();
-    Challenge storage c = challenges[id];
-    if (c.paused || c.canceled) revert ChallengePaused();
-if (c.status != Status.Approved) revert NotApproved();
-    if (block.timestamp < c.startTs) revert BeforeDeadline();
-    if (!c.isPeer[sender]) revert NotPeer();
-    if (c.peerVoted[sender]) revert AlreadyVoted();
-
-    c.peerVoted[sender] = true;
-    if (pass) c.peerApprovals++;
-    else c.peerRejections++;
-
-    emit PeerVoted(id, sender, pass);
+    emit ChallengeCreated(id, sender, p.kind, uint8(p.currency), c.token, c.startTs, p.externalId);
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -981,9 +697,7 @@ if (c.status != Status.Approved) revert NotApproved();
     if (msg.value == 0) revert AmountZero();
 
     Challenge storage c = challenges[id];
-    if (c.paused || c.canceled) revert ChallengePaused();
-if (c.status != Status.Approved) revert NotApproved();
-    if (block.timestamp >= c.startTs) revert JoinWindowClosed();
+    _requireJoinable(c);
     if (c.currency != Currency.NATIVE) revert TokenNotAllowed();
 
     _enforceParticipantCap(c, sender);
@@ -1001,11 +715,8 @@ if (c.status != Status.Approved) revert NotApproved();
     if (amount == 0) revert AmountZero();
 
     Challenge storage c = challenges[id];
-    if (c.paused || c.canceled) revert ChallengePaused();
-if (c.status != Status.Approved) revert NotApproved();
-    if (block.timestamp >= c.startTs) revert JoinWindowClosed();
+    _requireJoinable(c);
     if (c.currency != Currency.ERC20) revert TokenNotAllowed();
-    if (useTokenAllowlist && !allowedToken[c.token]) revert TokenNotAllowed();
 
     _enforceParticipantCap(c, sender);
 
@@ -1029,11 +740,8 @@ if (c.status != Status.Approved) revert NotApproved();
     if (amount == 0) revert AmountZero();
 
     Challenge storage c = challenges[id];
-    if (c.paused || c.canceled) revert ChallengePaused();
-if (c.status != Status.Approved) revert NotApproved();
-    if (block.timestamp >= c.startTs) revert JoinWindowClosed();
+    _requireJoinable(c);
     if (c.currency != Currency.ERC20) revert TokenNotAllowed();
-    if (useTokenAllowlist && !allowedToken[c.token]) revert TokenNotAllowed();
 
     _enforceParticipantCap(c, sender);
 
@@ -1045,22 +753,21 @@ if (c.status != Status.Approved) revert NotApproved();
     emit Joined(id, sender, amount);
   }
 
+  function _requireJoinable(Challenge storage c) internal view {
+    if (c.paused || c.canceled) revert ChallengePaused();
+    if (c.status != Status.Active) revert NotActive();
+    if (block.timestamp >= c.joinClosesTs) revert JoinWindowClosed();
+  }
+
   // ────────────────────────────────────────────────────────────────────────────
   // Proof submission
   // ────────────────────────────────────────────────────────────────────────────
 
-  /**
-   * Standard "self proof" entry point (works for both normal tx and meta-tx).
-   */
   function submitMyProof(uint256 id, bytes calldata proof) external nonReentrant notPaused {
     address sender = _msgSender2771();
     _submitProofInternal(id, sender, proof);
   }
 
-  /**
-   * Convenience selector for meta-tx flows (some UIs prefer dedicated method name).
-   * Behavior is identical to submitMyProof().
-   */
   function submitMyProofMeta(uint256 id, bytes calldata proof) external nonReentrant notPaused {
     address sender = _msgSender2771();
     _submitProofInternal(id, sender, proof);
@@ -1071,6 +778,7 @@ if (c.status != Status.Approved) revert NotApproved();
     nonReentrant
     notPaused
   {
+    if (!dispatchers[msg.sender] && msg.sender != admin) revert NotAdmin();
     if (participant == address(0)) revert ZeroAddress();
     _submitProofInternal(id, participant, proof);
   }
@@ -1080,6 +788,7 @@ if (c.status != Status.Approved) revert NotApproved();
     nonReentrant
     notPaused
   {
+    if (!dispatchers[msg.sender] && msg.sender != admin) revert NotAdmin();
     if (participants.length != proofs.length) revert InvalidBounds();
     for (uint256 i = 0; i < participants.length; i++) {
       address p = participants[i];
@@ -1091,7 +800,7 @@ if (c.status != Status.Approved) revert NotApproved();
   function _submitProofInternal(uint256 id, address participant, bytes calldata proof) internal {
     Challenge storage c = challenges[id];
     if (c.paused || c.canceled) revert ChallengePaused();
-if (c.status != Status.Approved) revert NotApproved();
+    if (c.status != Status.Active) revert NotActive();
     if (c.payoutsDone) revert AlreadyFinalized();
 
     if (block.timestamp < c.startTs) revert ProofNotOpen();
@@ -1120,103 +829,44 @@ if (c.status != Status.Approved) revert NotApproved();
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Finalize + snapshot + book (grants from bucketId=id)
+  // Finalize + snapshot + book
   // ────────────────────────────────────────────────────────────────────────────
   function finalize(uint256 id) external nonReentrant notPaused {
     Challenge storage c = challenges[id];
     if (c.payoutsDone) revert AlreadyFinalized();
-
-    if (c.status == Status.Pending) {
-      if (block.timestamp <= c.approvalDeadline) revert BeforeDeadline();
-      c.status = Status.Rejected;
-      c.outcome = Outcome.None;
-      _stageReject(c);
-      emit Finalized(id, uint8(c.status), uint8(c.outcome));
-      return;
-    }
-
-    if (c.status == Status.Rejected) {
-      _stageReject(c);
-      emit Finalized(id, uint8(c.status), uint8(c.outcome));
-      return;
-    }
-
-    if (c.status != Status.Approved) revert NotApproved();
+    if (c.status != Status.Active) revert NotActive();
 
     uint256 endTime = c.startTs + c.duration;
     if (block.timestamp < endTime) revert BeforeDeadline();
-    if (block.timestamp < c.proofDeadlineTs) revert BeforeDeadline(); // proof window must close
-
-    bool peerGateFailed = false;
-    if (c.peerApprovalsNeeded > 0) {
-      if (block.timestamp > c.peerDeadlineTs && c.peerApprovals < c.peerApprovalsNeeded) {
-        peerGateFailed = true;
-      } else if (block.timestamp <= c.peerDeadlineTs && c.peerApprovals < c.peerApprovalsNeeded) {
-        revert NotEligible();
-      }
-    }
+    if (block.timestamp < c.proofDeadlineTs) revert BeforeDeadline();
 
     c.status = Status.Finalized;
-    c.outcome = (!peerGateFailed && c.winnersPool > 0) ? Outcome.Success : Outcome.Fail;
+    c.outcome = (c.winnersPool > 0) ? Outcome.Success : Outcome.Fail;
 
-    _snapshotAndBook(c, peerGateFailed);
+    _snapshotAndBook(c);
     emit Finalized(id, uint8(c.status), uint8(c.outcome));
   }
 
-  struct SnapshotView {
-    bool set;
-    bool success;
-    uint32 eligibleValidators;
-
-    uint256 committedPool;
-    uint256 forfeitedPool;
-
-    uint256 cashback;
-    uint256 forfeitedAfterCashback;
-
-    uint256 charityAmt;
-    uint256 protocolAmt;
-    uint256 creatorAmt;
-    uint256 validatorsAmt;
-
-    uint256 perCommittedBonusX;
-    uint256 perCashbackX;
-    uint256 perValidatorAmt;
-  }
-
-  function getSnapshot(uint256 id) external view returns (SnapshotView memory out) {
-    Snapshot storage s = snapshots[id];
-    out = SnapshotView({
-      set: s.set,
-      success: s.success,
-      eligibleValidators: s.eligibleValidators,
-      committedPool: s.committedPool,
-      forfeitedPool: s.forfeitedPool,
-      cashback: s.cashback,
-      forfeitedAfterCashback: s.forfeitedAfterCashback,
-      charityAmt: s.charityAmt,
-      protocolAmt: s.protocolAmt,
-      creatorAmt: s.creatorAmt,
-      validatorsAmt: s.validatorsAmt,
-      perCommittedBonusX: s.perCommittedBonusX,
-      perCashbackX: s.perCashbackX,
-      perValidatorAmt: s.perValidatorAmt
-    });
-  }
-
-  function _snapshotAndBook(Challenge storage c, bool peerGateFailed) internal {
+  /**
+   * @dev Snapshot final state and book payouts via Treasury grants.
+   *
+   * Dust handling: Integer division in fee splits and per-winner bonus
+   * calculation may produce small rounding remainders (< participantsCount wei
+   * per challenge). Fee-split dust is assigned to protocol (line: dust = ...).
+   * Per-claim bonus dust stays in the Treasury bucket and is recoverable by
+   * the SWEEPER_ROLE via Treasury.sweep() after all claims are processed.
+   * This is safe because sweep only touches truly free funds
+   * (balance - outstanding - bucketBalances).
+   */
+  function _snapshotAndBook(Challenge storage c) internal {
     c.payoutsDone = true;
 
     Snapshot storage s = snapshots[c.id];
     s.set = true;
 
-    uint32 eligibleValidators = c.votersYesCount;
-    s.eligibleValidators = eligibleValidators;
-
     uint256 totalPool = c.pool;
-
-    uint256 winnersPool = (!peerGateFailed) ? c.winnersPool : 0;
-    uint256 losersPool  = (totalPool > winnersPool) ? (totalPool - winnersPool) : 0;
+    uint256 winnersPool = c.winnersPool;
+    uint256 losersPool = (totalPool > winnersPool) ? (totalPool - winnersPool) : 0;
 
     s.committedPool = winnersPool;
     s.forfeitedPool = losersPool;
@@ -1226,67 +876,61 @@ if (c.status != Status.Approved) revert NotApproved();
 
     c.pool = 0;
 
+    // Fee calculation from losers' forfeited pool
     uint16 forfeitFeeBps = c.fee_forfeitFeeBps;
     uint16 protocolBps   = c.fee_protocolBps;
     uint16 creatorBps    = c.fee_creatorBps;
-    uint16 validatorsBps = c.fee_validatorsBps;
     uint16 cashbackBps   = c.fee_cashbackBps;
 
     uint256 cashback = (losersPool * cashbackBps) / 10_000;
     uint256 losersAfterCashback = losersPool - cashback;
 
-    uint256 charityAmt = (losersAfterCashback * c.charityBps) / 10_000;
     uint256 feeGross   = (losersAfterCashback * forfeitFeeBps) / 10_000;
+    uint256 protocolAmt = (losersAfterCashback * protocolBps) / 10_000;
+    uint256 creatorAmt  = (losersAfterCashback * creatorBps) / 10_000;
 
-    uint256 protocolAmt   = (losersAfterCashback * protocolBps) / 10_000;
-    uint256 creatorAmt    = (losersAfterCashback * creatorBps) / 10_000;
-    uint256 validatorsAmt = (losersAfterCashback * validatorsBps) / 10_000;
-
-    if (eligibleValidators == 0 && validatorsAmt > 0) {
-      protocolAmt += validatorsAmt;
-      validatorsAmt = 0;
-    }
-
-    uint256 dust = feeGross - (protocolAmt + creatorAmt + validatorsAmt);
+    // Dust from rounding goes to protocol
+    uint256 dust = feeGross - (protocolAmt + creatorAmt);
     protocolAmt += dust;
 
-    uint256 distributable = losersAfterCashback - feeGross - charityAmt;
+    uint256 distributable = losersAfterCashback - feeGross;
 
     s.cashback = cashback;
     s.forfeitedAfterCashback = losersAfterCashback;
-
-    s.charityAmt = charityAmt;
     s.protocolAmt = protocolAmt;
     s.creatorAmt = creatorAmt;
-    s.validatorsAmt = validatorsAmt;
 
+    // Per-winner bonus (scaled by 1e18)
     if (winnersPool > 0 && distributable > 0) {
       s.perCommittedBonusX = (distributable * 1e18) / winnersPool;
-    } else {
-      s.perCommittedBonusX = 0;
     }
 
+    // Per-loser cashback (scaled by 1e18)
     s.perCashbackX = (losersPool > 0 && cashback > 0) ? (cashback * 1e18) / losersPool : 0;
-    s.perValidatorAmt = (eligibleValidators > 0) ? (validatorsAmt / eligibleValidators) : 0;
 
     // If no winners, route distributable to protocol to prevent stuck funds
     if (distributable > 0 && winnersPool == 0) {
       _grantFromBucket(c.id, protocol, distributable, c.currency, c.token);
-      s.perCommittedBonusX = 0;
     }
 
     if (protocolAmt > 0) _grantFromBucket(c.id, protocol, protocolAmt, c.currency, c.token);
-    if (creatorAmt  > 0) _grantFromBucket(c.id, c.challenger, creatorAmt, c.currency, c.token);
-    if (charityAmt  > 0 && c.charity != address(0)) _grantFromBucket(c.id, c.charity, charityAmt, c.currency, c.token);
+    if (creatorAmt  > 0) _grantFromBucket(c.id, c.creator, creatorAmt, c.currency, c.token);
 
-    emit FeesBooked(c.id, protocolAmt, creatorAmt, validatorsAmt, charityAmt, cashback);
-    emit SnapshotSet(c.id, hasWinners, eligibleValidators);
+    emit FeesBooked(c.id, protocolAmt, creatorAmt, cashback);
+    emit SnapshotSet(c.id, hasWinners);
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Claims (Treasury allowances FROM the challenge bucket)
+  // Claims
   // ────────────────────────────────────────────────────────────────────────────
-  function claimPrincipal(uint256 id) external nonReentrant notPaused {
+
+  /**
+   * @notice Winners claim: original contribution + pro-rata share of distributable pool.
+   * @dev Per-winner bonus uses fixed-point scaling (1e18). The last claimant may receive
+   * slightly less than their exact share due to integer truncation. Maximum loss per
+   * participant is 1 wei. Accumulated dust is recoverable via Treasury.sweep().
+   */
+  function claimWinner(uint256 id) external nonReentrant notPaused {
     address sender = _msgSender2771();
 
     Snapshot storage s = snapshots[id];
@@ -1297,17 +941,22 @@ if (c.status != Status.Approved) revert NotApproved();
 
     uint256 principal = c.contrib[sender];
     if (principal == 0) revert NotEligible();
-    if (s.committedClaimed[sender]) revert NotEligible();
-    s.committedClaimed[sender] = true;
+    if (s.winnerClaimed[sender]) revert NotEligible();
+    s.winnerClaimed[sender] = true;
 
     uint256 amount = principal;
-    if (s.perCommittedBonusX > 0) amount = principal + (principal * s.perCommittedBonusX / 1e18);
+    if (s.perCommittedBonusX > 0) {
+      amount = principal + (principal * s.perCommittedBonusX / 1e18);
+    }
 
     _grantFromBucket(id, sender, amount, c.currency, c.token);
-    emit PrincipalClaimed(id, sender, amount);
+    emit WinnerClaimed(id, sender, amount);
   }
 
-  function claimCashback(uint256 id) external nonReentrant notPaused {
+  /**
+   * @notice Losers claim: cashback portion of their contribution.
+   */
+  function claimLoser(uint256 id) external nonReentrant notPaused {
     address sender = _msgSender2771();
 
     Snapshot storage s = snapshots[id];
@@ -1318,120 +967,30 @@ if (c.status != Status.Approved) revert NotApproved();
 
     uint256 principal = c.contrib[sender];
     if (principal == 0) revert NotEligible();
-    if (s.cashbackClaimed[sender]) revert NotEligible();
-    s.cashbackClaimed[sender] = true;
+    if (s.loserClaimed[sender]) revert NotEligible();
+    s.loserClaimed[sender] = true;
 
     uint256 amount = principal * s.perCashbackX / 1e18;
     if (amount > 0) _grantFromBucket(id, sender, amount, c.currency, c.token);
-    emit CashbackClaimed(id, sender, amount);
+    emit LoserClaimed(id, sender, amount);
   }
 
-  function claimValidatorReward(uint256 id) external nonReentrant notPaused {
-    address sender = _msgSender2771();
-
-    Snapshot storage s = snapshots[id];
-    if (!s.set || s.perValidatorAmt == 0) revert NotEligible();
-
-    Challenge storage c = challenges[id];
-    if (!c.voted[sender]) revert NotEligible();
-    if (!c.votedYes[sender]) revert NotEligible();
-    if (s.validatorClaimed[sender]) revert NotEligible();
-
-    s.validatorClaimed[sender] = true;
-    _grantFromBucket(id, sender, s.perValidatorAmt, c.currency, c.token);
-    emit ValidatorClaimed(id, sender, s.perValidatorAmt);
-  }
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // Reject path staging + claims
-  // ────────────────────────────────────────────────────────────────────────────
-  function claimRejectContribution(uint256 id) external nonReentrant notPaused {
+  /**
+   * @notice Refund claim: full contribution back when challenge is canceled.
+   */
+  function claimRefund(uint256 id) external nonReentrant notPaused {
     address sender = _msgSender2771();
 
     Challenge storage c = challenges[id];
-    if (c.status != Status.Rejected) revert NotPending();
-    if (!rejectSet[id]) revert RejectNotStaged();
-
-    if (sender == c.challenger) revert NotEligible();
-    if (rejectContributorClaimed[id][sender]) revert NotEligible();
+    if (c.status != Status.Canceled) revert ChallengeNotFinalized();
 
     uint256 amount = c.contrib[sender];
     if (amount == 0) revert NotEligible();
+    if (refundClaimed[id][sender]) revert NotEligible();
 
-    rejectContributorClaimed[id][sender] = true;
+    refundClaimed[id][sender] = true;
     _grantFromBucket(id, sender, amount, c.currency, c.token);
-    emit RejectContributionClaimed(id, sender, amount);
-  }
-
-  function claimRejectCreator(uint256 id) external nonReentrant notPaused {
-    address sender = _msgSender2771();
-
-    Challenge storage c = challenges[id];
-    if (c.status != Status.Rejected) revert NotPending();
-    if (!rejectSet[id]) revert RejectNotStaged();
-    if (sender != c.challenger) revert NotCreatorOnly();
-    if (rejectCreatorClaimed[id]) revert NotEligible();
-
-    uint256 base = c.stake + c.proposalBond;
-    uint256 fee  = (base * c.fee_rejectFeeBps) / 10_000;
-
-    uint256 creatorContrib = c.contrib[c.challenger];
-    uint256 owed = creatorContrib + c.proposalBond;
-    if (fee > owed) fee = owed;
-    owed -= fee;
-
-    rejectCreatorClaimed[id] = true;
-    _grantFromBucket(id, c.challenger, owed, c.currency, c.token);
-    emit RejectCreatorClaimed(id, c.challenger, owed);
-  }
-
-  function claimValidatorReject(uint256 id) external nonReentrant notPaused {
-    address sender = _msgSender2771();
-
-    uint256 per = rejectPerValidatorAmt[id];
-    if (per == 0) revert NotEligible();
-
-    Challenge storage c = challenges[id];
-    if (c.status != Status.Rejected) revert NotPending();
-
-    if (!c.voted[sender]) revert NotEligible();
-    if (c.votedYes[sender]) revert NotEligible();
-    if (rejectValidatorClaimed[id][sender]) revert NotEligible();
-
-    rejectValidatorClaimed[id][sender] = true;
-    _grantFromBucket(id, sender, per, c.currency, c.token);
-    emit ValidatorRejectClaimed(id, sender, per);
-  }
-
-  function _stageReject(Challenge storage c) internal {
-    if (rejectSet[c.id]) return;
-    rejectSet[c.id] = true;
-
-    if (c.payoutsDone) return;
-    c.payoutsDone = true;
-
-    uint256 base = c.stake + c.proposalBond;
-    uint256 fee = (base * c.fee_rejectFeeBps) / 10_000;
-    uint256 validatorsShare = (base * c.fee_rejectValidatorsBps) / 10_000;
-    if (validatorsShare > fee) validatorsShare = fee;
-
-    uint256 eligible = uint256(c.votersNoCount);
-
-    if (validatorsShare > 0) {
-      if (eligible == 0) {
-        _grantFromBucket(c.id, protocol, validatorsShare, c.currency, c.token);
-      } else {
-        uint256 per = validatorsShare / eligible;
-        uint256 remainder = validatorsShare % eligible;
-        if (per > 0) rejectPerValidatorAmt[c.id] = per;
-        if (remainder > 0) _grantFromBucket(c.id, protocol, remainder, c.currency, c.token);
-      }
-    }
-
-    uint256 protocolShare = fee - validatorsShare;
-    if (protocolShare > 0) _grantFromBucket(c.id, protocol, protocolShare, c.currency, c.token);
-
-    emit RejectStaged(c.id, rejectPerValidatorAmt[c.id]);
+    emit RefundClaimed(id, sender, amount);
   }
 
   // ────────────────────────────────────────────────────────────────────────────

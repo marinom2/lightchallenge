@@ -5,14 +5,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "../interfaces/IAivmInferenceV2.sol";
 import "../registry/ChallengeTaskRegistry.sol";
-
-interface IProofVerifier {
-    function verify(
-        uint256 challengeId,
-        address subject,
-        bytes calldata proof
-    ) external view returns (bool);
-}
+import {IProofVerifier} from "./IProofVerifier.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 contract ChallengePayAivmPoiVerifier is Ownable, IProofVerifier {
     using Strings for uint256;
@@ -157,31 +151,18 @@ contract ChallengePayAivmPoiVerifier is Ownable, IProofVerifier {
     function _buildCanonicalResultString(
         AivmPoiProofV1 memory p
     ) internal pure returns (string memory) {
+        // Lightchain testnet workers produce: {"challengeId":"N","verified":true}
         return string(
             abi.encodePacked(
-                "CP-AIVM-POI-V1",
-                "|schemaVersion=", uint256(p.schemaVersion).toString(),
-                "|requestId=", p.requestId.toString(),
-                "|taskId=", _bytes32ToHex(p.taskId),
-                "|challengeId=", p.challengeId.toString(),
-                "|subject=", _addressToHex(p.subject),
-                "|passed=", p.passed ? "1" : "0",
-                "|score=", p.score.toString(),
-                "|evidenceHash=", _bytes32ToHex(p.evidenceHash),
-                "|benchmarkHash=", _bytes32ToHex(p.benchmarkHash),
-                "|metricHash=", _bytes32ToHex(p.metricHash),
-                "|evaluatedAt=", uint256(p.evaluatedAt).toString(),
-                "|modelDigest=", _bytes32ToHex(p.modelDigest),
-                "|paramsHash=", _bytes32ToHex(p.paramsHash)
+                '{"challengeId":"',
+                p.challengeId.toString(),
+                '","verified":true}'
             )
         );
     }
 
-    function _addressToHex(address a) internal pure returns (string memory) {
-        return Strings.toHexString(uint256(uint160(a)), 20);
-    }
-
-    function _bytes32ToHex(bytes32 v) internal pure returns (string memory) {
-        return Strings.toHexString(uint256(v), 32);
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        return interfaceId == type(IProofVerifier).interfaceId
+            || interfaceId == type(IERC165).interfaceId;
     }
 }

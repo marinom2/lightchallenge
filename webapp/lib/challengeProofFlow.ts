@@ -35,6 +35,8 @@ export type CanonicalAivmParamsStateInput = {
   templateId: string;
   form: Record<string, unknown>;
   intent: unknown;
+  /** Fitness or gaming rule produced by template.ruleBuilder — stored as proof.params.rule */
+  rule?: Record<string, unknown> | null;
 };
 
 function isPlainObject(value: unknown): value is Record<string, any> {
@@ -79,6 +81,7 @@ export function buildCanonicalAivmParamsPayload(
     templateId: input.templateId,
     form: safeForm,
     intent: input.intent ?? null,
+    ...(input.rule != null && { rule: input.rule }),
   };
 }
 

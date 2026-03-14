@@ -1,6 +1,7 @@
 import path from "path";
 import dotenv from "dotenv";
 import { Pool } from "pg";
+import { sslConfig } from "../db/sslConfig";
 import { runChallengePayAivmJob } from "../runners/runChallengePayAivmJob";
 
 dotenv.config({
@@ -14,7 +15,7 @@ if (!DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  ssl: sslConfig(),
   max: 10,
 });
 
@@ -36,13 +37,19 @@ async function claimNextJobs(limit: number): Promise<JobRow[]> {
   const res = await pool.query<JobRow>(
     `
     with picked as (
-      select id
-      from public.aivm_jobs
-      where status in ('queued', 'failed')
-        and coalesce(attempts, 0) < $1
-      order by created_at asc
+      select j.id
+      from public.aivm_jobs j
+      -- Safety net: skip jobs for challenges already in a terminal state.
+      -- The dispatcher's cancelTerminalJobs() handles this proactively,
+      -- but this guard prevents races where a challenge is finalized between
+      -- the dispatcher scan and worker claim.
+      join public.challenges c on c.id = j.challenge_id
+      where j.status in ('queued', 'failed')
+        and coalesce(j.attempts, 0) < $1
+        and lower(coalesce(c.status, '')) not in ('finalized', 'rejected', 'canceled')
+      order by j.created_at asc
       limit $2
-      for update skip locked
+      for update of j skip locked
     )
     update public.aivm_jobs j
     set
@@ -100,13 +107,20 @@ async function runSingleJob(challengeId: string) {
     const result = await runChallengePayAivmJob(challengeId);
 
     if (result === null) {
+      // Challenge was already bound — mark done to clear the queue entry.
       await markJobDone(challengeId);
-      console.log("[challengeWorker] no-op/done", challengeId);
+      console.log("[challengeWorker] no-op/done (already bound)", challengeId);
       return;
     }
 
-    await markJobDone(challengeId);
-    console.log("[challengeWorker] completed", challengeId);
+    // AIVM request submitted successfully. Job is now in 'submitted' status
+    // (set by persistRequestBindingEarly inside the runner). The aivmIndexer
+    // will advance it through committed → revealed → done as the Lightchain
+    // network processes the task. Do NOT mark done here.
+    console.log("[challengeWorker] AIVM request submitted", challengeId, {
+      requestId: result.requestId.toString(),
+      taskId: result.taskId,
+    });
   } catch (err: any) {
     const msg = err?.message || String(err);
     console.error("[challengeWorker] job failed", challengeId, msg);

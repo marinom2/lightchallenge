@@ -41,11 +41,13 @@ export async function getLolMatchNormalized(args: {
   const API_KEY = process.env.RIOT_API_KEY!;
   if (!API_KEY) throw new Error("Missing RIOT_API_KEY");
 
-  const enriched = args.puuids.map(p => {
-    const b = lookup(p.wallet, "riot");
-    if (!b) throw new Error(`No identity binding for ${p.wallet} on Riot`);
-    return { wallet: p.wallet, platformId: b.platformId, handle: b.handle };
-  });
+  const enriched = await Promise.all(
+    args.puuids.map(async (p) => {
+      const b = await lookup(p.wallet, "riot");
+      if (!b) throw new Error(`No identity binding for ${p.wallet} on Riot`);
+      return { wallet: p.wallet, platformId: b.platformId, handle: b.handle };
+    }),
+  );
 
   const any = enriched[0];
   const region = regionForPUUID(any.platformId);

@@ -2,32 +2,34 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Users, Coins, Clock3, ShieldCheck, Zap } from "lucide-react";
-import type { Address } from "viem";
+import { Users, Coins, Clock3 } from "lucide-react";
 import { useAccount } from "wagmi";
+import { formatLCAIShort } from "@/lib/formatLCAI";
+import type { Status } from "@/lib/types/status";
 import GameIcon from "./GameIcon";
 
-type Status = "Pending" | "Approved" | "Rejected" | "Finalized" | "Canceled" | "Paused";
-
 const statusChipClass = (s: Status) =>
-  s === "Approved" ? "chip chip--ok"
-  : s === "Rejected" ? "chip chip--bad"
+  s === "Active" ? "chip chip--ok"
   : s === "Finalized" ? "chip chip--info"
   : s === "Canceled" ? "chip chip--warn"
   : "chip";
 
-/** LCAI short (wei → x.xx) */
-function fmtLCAIShort(wei?: string | null) {
-  if (!wei) return "—";
-  try {
-    const x = BigInt(wei);
-    const s = x.toString().padStart(19, "0");
-    const head = s.slice(0, -18).replace(/^0+/, "") || "0";
-    const tail = s.slice(-18, -16);
-    return `${head}.${tail}`;
-  } catch {
-    return "—";
-  }
+/** Skeleton shimmer for loading state */
+function Shimmer({ className }: { className?: string }) {
+  return (
+    <span
+      className={className}
+      style={{
+        display: "inline-block",
+        borderRadius: 6,
+        background:
+          "linear-gradient(90deg, rgba(255,255,255,.06) 25%, rgba(255,255,255,.13) 50%, rgba(255,255,255,.06) 75%)",
+        backgroundSize: "200% 100%",
+        animation: "shimmer 1.4s ease-in-out infinite",
+      }}
+      aria-hidden
+    />
+  );
 }
 
 export default function ChallengeCard({
@@ -48,7 +50,7 @@ export default function ChallengeCard({
   description?: string;
   status: Status;
   startTs?: bigint; // seconds since epoch (on-chain)
-  badges: { fast?: boolean; auto?: boolean; strategy?: Address | string | null };
+  badges?: Record<string, unknown>;
   game?: string | null;
   mode?: string | null;
   isFavorite?: boolean;
@@ -62,16 +64,19 @@ export default function ChallengeCard({
   // startTs prop is seconds; keep it in seconds internally
   const startSec = typeof startTs === "bigint" ? Number(startTs) : null;
 
-  // quick API hydrate: title/desc (fallback), participants, pool, join closes, starts, ends, youJoined
-  const [stats, setStats] = React.useState<{
-    participants?: number;
-    pool?: string | null;
-    joinClosesTs?: number | null; // seconds
-    startTs?: number | null;      // seconds
-    endTs?: number | null;        // seconds
-    youJoined?: boolean;
-    t?: { title?: string; description?: string };
-  }>({});
+  // Stats from the API: participants, pool, timestamps, youJoined.
+  // title/description are NOT fetched — they come from props (DB meta, fast).
+  const [statsState, setStatsState] = React.useState<
+    | "loading"
+    | {
+        participants: number | null;
+        pool: string | null;
+        joinClosesTs: number | null;
+        startTs: number | null;
+        endTs: number | null;
+        youJoined: boolean;
+      }
+  >("loading");
 
   React.useEffect(() => {
     let dead = false;
@@ -87,21 +92,30 @@ export default function ChallengeCard({
 
         const participants = Array.isArray(j?.timeline)
           ? j.timeline.filter((x: any) => x?.name === "Joined").length
-          : undefined;
+          : null;
 
         const pool = j?.snapshot?.committedPool ?? j?.pool?.committedWei ?? null;
 
-        setStats({
+        setStatsState({
           participants,
           pool,
-          joinClosesTs: j?.joinClosesTs ? Number(j.joinClosesTs) : null, // seconds
-          startTs: j?.startTs ? Number(j.startTs) : startSec,             // seconds
-          endTs: j?.endTs ? Number(j.endTs) : null,                       // seconds
+          joinClosesTs: j?.joinClosesTs ? Number(j.joinClosesTs) : null,
+          startTs: j?.startTs ? Number(j.startTs) : startSec,
+          endTs: j?.endTs ? Number(j.endTs) : null,
           youJoined: !!(j?.youJoined || j?.youAlreadyJoined),
-          t: { title: j?.title, description: j?.description },
         });
       } catch {
-        // best-effort; keep card rendering
+        // best-effort; show dashes on error
+        if (!dead) {
+          setStatsState({
+            participants: null,
+            pool: null,
+            joinClosesTs: null,
+            startTs: startSec,
+            endTs: null,
+            youJoined: false,
+          });
+        }
       }
     })();
 
@@ -116,8 +130,12 @@ export default function ChallengeCard({
     else router.push(`/challenge/${idStr}`);
   }
 
-  const effectiveTitle = (title || stats.t?.title) ?? `Challenge #${idStr}`;
-  const effectiveDesc = description || stats.t?.description || "";
+  const loading = statsState === "loading";
+  const stats = loading ? null : statsState;
+
+  // Title comes from props immediately — no fallback fetch needed.
+  // If the DB meta hasn't arrived yet the parent will re-render with it.
+  const displayTitle = title ?? `Challenge #${idStr}`;
 
   return (
     <article
@@ -142,7 +160,7 @@ export default function ChallengeCard({
       <header className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div
-            className="w-10 h-10 rounded-full grid place-items-center font-extrabold text-sm"
+            className="w-10 h-10 rounded-full grid place-items-center font-extrabold text-sm shrink-0"
             style={{
               background: "color-mix(in oklab, #fff 18%, transparent)",
               color: "#fff",
@@ -153,24 +171,13 @@ export default function ChallengeCard({
             {idStr}
           </div>
           <GameIcon name={game} className="w-6 h-6 shrink-0" />
-          <div className="min-w-0">
-            <h3 className="text-[16px] sm:text-[18px] font-extrabold tracking-[-.01em] truncate">
-              {effectiveTitle}
+          <div className="min-w-0 flex-1">
+            <h3 className="text-[16px] sm:text-[18px] font-extrabold tracking-[-.01em] truncate leading-tight">
+              {displayTitle}
             </h3>
-            <div className="flex items-center gap-2 text-[12px] text-[color:var(--text-muted)]">
-              <span>{[game, mode].filter(Boolean).join(" • ") || "—"}</span>
-              <div className="flex items-center gap-1 ml-1">
-                {badges?.auto && (
-                  <span className="chip chip--info" title="Auto-Approved">
-                    <ShieldCheck size={12} /> Auto
-                  </span>
-                )}
-                {badges?.fast && (
-                  <span className="chip" title="Fast-Track">
-                    <Zap size={12} /> Fast
-                  </span>
-                )}
-              </div>
+            <div className="flex items-center gap-2 text-[12px] text-(--text-muted) mt-0.5">
+              <span className="truncate">{[game, mode].filter(Boolean).join(" • ") || "—"}</span>
+              <div className="flex items-center gap-1 shrink-0" />
             </div>
           </div>
         </div>
@@ -178,39 +185,70 @@ export default function ChallengeCard({
         <span className={statusChipClass(status)}>{status}</span>
       </header>
 
-      {/* Description */}
-      {effectiveDesc && (
-        <p className="mt-2 text-[13px] leading-5 text-[color:var(--text-muted)] line-clamp-2">
-          {effectiveDesc}
+      {/* Description — shown immediately from props, 2-line clamp */}
+      {description ? (
+        <p className="mt-2.5 text-[13px] leading-[1.45] text-(--text-muted) line-clamp-2">
+          {description}
         </p>
+      ) : (
+        /* Reserve space so cards with/without descriptions align better */
+        <div className="mt-2.5 h-[38px]" aria-hidden />
       )}
 
-      {/* Stats row */}
+      {/* Stats row — skeleton while loading */}
       <div className="grid grid-cols-2 gap-2 mt-3">
-        <StatPill icon={<Users size={12} />} label="Joined" value={stats.participants ?? "—"} />
-        <StatPill icon={<Coins size={12} />} label="Treasury" value={fmtLCAIShort(stats.pool)} suffix=" LCAI" />
+        <StatPill
+          icon={<Users size={12} />}
+          label="Joined"
+          value={
+            loading ? (
+              <Shimmer className="w-6 h-3.5 rounded" />
+            ) : stats!.participants !== null ? (
+              String(stats!.participants)
+            ) : (
+              "—"
+            )
+          }
+        />
+        <StatPill
+          icon={<Coins size={12} />}
+          label="Treasury"
+          value={
+            loading ? (
+              <Shimmer className="w-10 h-3.5 rounded" />
+            ) : formatLCAIShort(stats!.pool) !== null ? (
+              formatLCAIShort(stats!.pool)!
+            ) : (
+              "—"
+            )
+          }
+          suffix={!loading && formatLCAIShort(stats!.pool) !== null ? " LCAI" : undefined}
+        />
       </div>
 
-      {/* Timelines (API returns seconds → multiply by 1000 for Date) */}
-      <div className="mt-3 text-[12px] text-[color:var(--text-muted)] flex flex-wrap gap-x-3 gap-y-1">
-        {typeof stats.joinClosesTs === "number" && (
-          <span className="inline-flex items-center gap-1">
-            <Clock3 size={12} /> Join closes {new Date(stats.joinClosesTs * 1000).toLocaleString()}
-          </span>
-        )}
-        {typeof stats.startTs === "number" && (
-          <span className="inline-flex items-center gap-1">
-            <Clock3 size={12} /> Starts {new Date(stats.startTs * 1000).toLocaleString()}
-          </span>
-        )}
-        {typeof stats.endTs === "number" && (
-          <span className="inline-flex items-center gap-1">
-            <Clock3 size={12} /> Ends {new Date(stats.endTs * 1000).toLocaleString()}
-          </span>
-        )}
-      </div>
+      {/* Timelines — only shown once stats are loaded (API returns seconds → *1000 for Date) */}
+      {!loading && (
+        <div className="mt-3 text-[12px] text-(--text-muted) flex flex-wrap gap-x-3 gap-y-1">
+          {typeof stats!.joinClosesTs === "number" && (
+            <span className="inline-flex items-center gap-1">
+              <Clock3 size={12} /> Join closes {new Date(stats!.joinClosesTs * 1000).toLocaleString()}
+            </span>
+          )}
+          {typeof stats!.startTs === "number" && (
+            <span className="inline-flex items-center gap-1">
+              <Clock3 size={12} /> Starts {new Date(stats!.startTs * 1000).toLocaleString()}
+            </span>
+          )}
+          {typeof stats!.endTs === "number" && (
+            <span className="inline-flex items-center gap-1">
+              <Clock3 size={12} /> Ends {new Date(stats!.endTs * 1000).toLocaleString()}
+            </span>
+          )}
+        </div>
+      )}
+      {loading && <div className="mt-3 h-4" aria-hidden />}
 
-      {/* Footer: favorite only (NO dots menu, NO View/Join) */}
+      {/* Footer: favorite + youJoined badge */}
       <div className="mt-4 flex items-center gap-2">
         {onToggleFavorite && (
           <button
@@ -225,7 +263,9 @@ export default function ChallengeCard({
             ★
           </button>
         )}
-        {stats.youJoined && <span className="chip chip--ok ml-auto">You joined</span>}
+        {!loading && stats!.youJoined && (
+          <span className="chip chip--ok ml-auto">You joined</span>
+        )}
       </div>
     </article>
   );
@@ -253,9 +293,9 @@ function StatPill({
       }}
     >
       {icon} <span>{label}</span>
-      <span className="ml-auto font-semibold text-[color:var(--text)]">
+      <span className="ml-auto font-semibold text-(--text) flex items-center gap-0.5">
         {value}
-        {suffix ? <span className="opacity-70"> {suffix}</span> : null}
+        {suffix ? <span className="opacity-70">{suffix}</span> : null}
       </span>
     </div>
   );

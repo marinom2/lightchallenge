@@ -1,8 +1,8 @@
-import { adapters, type Adapter, type AdapterContext, type AdapterResult, type CanonicalRecord } from "./index";
+import { type Adapter, type AdapterContext, type AdapterResult, type CanonicalRecord } from "./types";
 import { computeBind } from "@/lib/aivm/bind";
 
-// one concrete model hash (update to your real one)
-const DOTA_MATCH_MODEL = "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" as const;
+/** Matches dota.private_match_1v1@1 in models.json. */
+const DOTA_MATCH_MODEL = "0xe8fe0f3dccfa30d73e362ae12070b18b4ce623d836a7bca392429212ecb14def" as const;
 
 // helpers
 function sha256hex(buf: Buffer | string): `0x${string}` {
@@ -128,5 +128,4 @@ export const dotaAdapter: Adapter = {
   },
 };
 
-(adapters as any).push(dotaAdapter);
 export default dotaAdapter;

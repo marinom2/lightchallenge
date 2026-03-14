@@ -35,34 +35,26 @@ import {
 } from "@/lib/challengeProofFlow";
 import {
   saveLocalMeta,
-  setRegistryUriHttp,
   triggerAivmPipeline,
 } from "../lib/afterCreate";
 
 const TX_FEE_CAP_WEI = parseEther("0.95");
 
+/**
+ * V1 CreateParams — matches ChallengePay.sol struct exactly.
+ */
 type CreatePayload = {
   kind: number;
   currency: 0 | 1;
   token: Address;
   stakeAmount: bigint;
-  proposalBond: bigint;
-  approvalDeadline: bigint;
+  joinClosesTs: bigint;
   startTs: bigint;
   duration: bigint;
   maxParticipants: bigint;
-  peers: Address[];
-  peerApprovalsNeeded: number;
-  peerDeadlineTs: bigint;
-  charityBps: number;
-  charity: Address;
   verifier: Address;
   proofDeadlineTs: bigint;
   externalId: Hex;
-  leadTime: bigint;
-  fastTrackData: Hex;
-  strategy: Address;
-  strategyData: Hex;
 };
 
 const initialUi = (): UiState => ({
@@ -73,7 +65,6 @@ const initialUi = (): UiState => ({
   success: false,
   txHash: null,
   challengeId: undefined,
-  wasAutoApproved: undefined,
 });
 
 const toUnixSec = (d?: Date | null) => (d ? Math.floor(d.getTime() / 1000) : 0);
@@ -82,15 +73,21 @@ function kindId(state: ChallengeFormState): number {
   let key: ChallengeKindKey;
 
   if (state.intent.type === "FITNESS") {
-    if (state.intent.fitnessKind === "running") {
-      key = "running";
-    } else {
-      key = "steps";
-    }
-  } else if (state.intent.type === "GAMING" && state.intent.gameId === "dota") {
-    key = "dota";
+    const fk = state.intent.fitnessKind;
+    if (fk === "running") key = "running";
+    else if (fk === "cycling") key = "cycling";
+    else if (fk === "hiking") key = "hiking";
+    else if (fk === "swimming") key = "swimming";
+    else if (fk === "steps") key = "steps";
+    else key = "fitness_general";
+  } else if (state.intent.type === "GAMING") {
+    const gid = state.intent.gameId;
+    if (gid === "dota") key = "dota";
+    else if (gid === "lol") key = "lol";
+    else if (gid === "cs") key = "cs";
+    else key = "gaming_general";
   } else {
-    throw new Error("Unsupported challenge type.");
+    key = "fitness_general";
   }
 
   return getKind(key).kindId;
@@ -146,7 +143,7 @@ function decodeError(err: unknown): string | null {
 
   if (!data) return null;
 
-  for (const abi of [ABI.ChallengePay, ABI.AutoApprovalStrategy]) {
+  for (const abi of [ABI.ChallengePay]) {
     try {
       const d = decodeErrorResult({ abi, data });
       return d.errorName;
@@ -187,16 +184,20 @@ async function buildAivmCreateMeta(state: ChallengeFormState) {
     throw new Error("Template is missing paramsBuilder.");
   }
 
+  const rule = template.ruleBuilder ? template.ruleBuilder({ state }) : null;
+
   const params = buildCanonicalAivmParamsPayload({
     templateId,
     form: state.aivmForm ?? {},
     intent: state.intent,
+    rule: rule ?? undefined,
   });
-  
+
   const paramsHash = buildCanonicalAivmParamsHash({
     templateId,
     form: state.aivmForm ?? {},
     intent: state.intent,
+    rule: rule ?? undefined,
   });
   const model = await getModelFromRegistry(template.modelId);
 
@@ -268,7 +269,6 @@ export function useCreateChallenge() {
       txHash: null,
       success: false,
       challengeId: undefined,
-      wasAutoApproved: undefined,
     }));
 
     try {
@@ -313,43 +313,26 @@ export function useCreateChallenge() {
       }
 
       const stakeAmount = amount(state, state.money.stake || "0");
-      const proposalBond = amount(state, state.money.bond || "0");
 
       const payload: CreatePayload = {
         kind: kindId(state),
         currency: state.money.currency.type === "ERC20" ? 1 : 0,
         token: tokenAddr(state),
         stakeAmount,
-        proposalBond,
-        approvalDeadline: BigInt(toUnixSec(state.timeline.joinCloses)),
+        joinClosesTs: BigInt(toUnixSec(state.timeline.joinCloses)),
         startTs: BigInt(toUnixSec(state.timeline.starts)),
         duration: BigInt(
           toUnixSec(state.timeline.ends) - toUnixSec(state.timeline.starts)
         ),
         maxParticipants: BigInt(Number(state.options.participantCap || 0)),
-        peers: [],
-        peerApprovalsNeeded: 0,
-        peerDeadlineTs: 0n,
-        charityBps: 0,
-        charity: ZERO_ADDR,
         verifier: verifierAddr(state),
         proofDeadlineTs: BigInt(toUnixSec(state.timeline.proofDeadline)),
         externalId: externalId(state.options.externalId),
-        leadTime: BigInt(
-          Math.max(
-            hints.minLeadSec,
-            hints.strategyMinLeadSec ?? 0,
-            SAFE_MIN_LEAD_SEC
-          )
-        ),
-        fastTrackData: "0x",
-        strategy: ADDR.AutoApprovalStrategy,
-        strategyData: "0x",
       };
 
       const value =
         state.money.currency.type === "NATIVE"
-          ? stakeAmount + proposalBond
+          ? stakeAmount
           : 0n;
 
       await pc.simulateContract({
@@ -390,7 +373,6 @@ export function useCreateChallenge() {
       }
 
       let challengeId: number | undefined;
-      let wasAutoApproved: boolean | undefined;
 
       try {
         const logs = parseEventLogs({
@@ -401,13 +383,10 @@ export function useCreateChallenge() {
 
         const evt = logs[0];
         const args = evt?.args as
-          | { id?: bigint; fastTracked?: boolean }
+          | { id?: bigint }
           | undefined;
 
         if (args?.id != null) challengeId = Number(args.id);
-        if (args?.fastTracked != null) {
-          wasAutoApproved = Boolean(args.fastTracked);
-        }
       } catch {}
 
       if (challengeId != null && aivmMeta) {
@@ -432,7 +411,7 @@ export function useCreateChallenge() {
           subject: address as Hex,
           txHash: hash,
           externalId: state.options.externalId,
-          status: wasAutoApproved ? "Approved" : "Pending",
+          status: "Active",
           modelId: binding.modelId,
           modelKind: "aivm",
           verificationBackend: "lightchain_poi",
@@ -449,7 +428,6 @@ export function useCreateChallenge() {
           },
           funds: {
             stake: state.money.stake,
-            bond: state.money.bond,
             currency:
               state.money.currency.type === "ERC20"
                 ? {
@@ -467,8 +445,6 @@ export function useCreateChallenge() {
             participantCap: state.options.participantCap,
             externalId: state.options.externalId,
           },
-          peers: [],
-          peerApprovalsNeeded: 0,
           proofSource: "API",
           invites: {
             roster: (state.invites?.roster ?? []).map((item, index) => ({
@@ -492,11 +468,6 @@ export function useCreateChallenge() {
           },
         });
 
-        await setRegistryUriHttp({
-          id: BigInt(challengeId),
-          account: address,
-        });
-
         await triggerAivmPipeline(String(challengeId));
       }
 
@@ -505,7 +476,6 @@ export function useCreateChallenge() {
         txHash: hash,
         success: true,
         challengeId,
-        wasAutoApproved,
       }));
 
       push(

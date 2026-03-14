@@ -8,11 +8,12 @@ export const runtime = "nodejs";
 export const revalidate = 0;
 export const dynamic = "force-dynamic";
 
-type Status = "Pending" | "Approved" | "Rejected" | "Finalized" | "Canceled" | "Paused";
-const STATUS_MAP: Status[] = ["Pending", "Approved", "Rejected", "Finalized", "Canceled", "Paused"];
+// V1 on-chain enum: Active=0, Finalized=1, Canceled=2
+type Status = "Active" | "Finalized" | "Canceled";
+const STATUS_MAP: Status[] = ["Active", "Finalized", "Canceled"];
 
 function toStatus(n: number): Status {
-  return STATUS_MAP[n] ?? "Pending";
+  return STATUS_MAP[n] ?? "Active";
 }
 
 function parseIdsParam(val: string): bigint[] {
@@ -45,8 +46,8 @@ async function readStatusViaCall(client: ReturnType<typeof createPublicClient>, 
     const idx = extractStatusIndex(r);
     return { id: id.toString(), statusNum: idx, status: toStatus(idx) };
   } catch {
-    // If the challenge doesn't exist yet or RPC hiccups, we can't guess — default to 0
-    return { id: id.toString(), statusNum: 0, status: "Pending" as Status };
+    // If the challenge doesn't exist yet or RPC hiccups — default to Active (index 0)
+    return { id: id.toString(), statusNum: 0, status: "Active" as Status };
   }
 }
 
@@ -111,6 +112,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ items }, { headers: { "Cache-Control": "public, max-age=3" } });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || String(e) }, { status: 500 });
+    console.error("[status]", e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

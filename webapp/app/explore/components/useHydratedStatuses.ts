@@ -6,22 +6,13 @@ import type { Address, Abi } from "viem";
 import { usePublicClient } from "wagmi";
 import { ABI, ADDR } from "@/lib/contracts";
 
-type Status =
-  | "Pending"
-  | "Approved"
-  | "Rejected"
-  | "Finalized"
-  | "Canceled"
-  | "Paused";
+// ChallengePay V1: Active=0, Finalized=1, Canceled=2
+type Status = "Active" | "Finalized" | "Canceled";
 
-// on-chain enum mapping (index -> UI label)
 const STATUS_LABEL = [
-  "Pending",
-  "Approved",
-  "Rejected",
+  "Active",
   "Finalized",
   "Canceled",
-  "Paused",
 ] as const;
 
 export function useHydratedStatuses(ids: bigint[] | undefined) {
@@ -53,13 +44,13 @@ export function useHydratedStatuses(ids: bigint[] | undefined) {
         res.forEach((r, idx) => {
           const key = uniqIds[idx];
           if (r.status !== "success" || !Array.isArray(r.result)) {
-            next.set(key, "Pending");
+            next.set(key, "Active");
             return;
           }
           // viem tuple: status usually at index 2 (or named .status depending on ABI coder)
           const raw = (r.result as any).status ?? (r.result as any)[2];
           const n = Number(raw);
-          const label = (STATUS_LABEL[n] ?? "Pending") as Status;
+          const label = (STATUS_LABEL[n] ?? "Active") as Status;
           next.set(key, label);
         });
 

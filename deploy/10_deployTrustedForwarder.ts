@@ -46,7 +46,10 @@ async function main() {
   console.log(`✅ Saved deployments + ABI for TrustedForwarder`);
 }
 
-main().catch((e) => {
-  console.error("\nERROR:", e?.shortMessage ?? e?.message ?? e);
-  process.exit(1);
-});
+// Only run when invoked directly (not when hardhat-deploy scans the deploy/ directory)
+if (require.main === module) {
+  main().catch((e) => {
+    console.error("\nERROR:", e?.shortMessage ?? e?.message ?? e);
+    process.exit(1);
+  });
+}

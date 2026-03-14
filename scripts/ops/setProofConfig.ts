@@ -10,7 +10,7 @@ import path from "node:path";
  *   HARDHAT_NETWORK   = <your network>
  *   CH_ID             = <challenge id>
  *   CHALLENGEPAY      = 0x... (optional; else read from deployments/<net>.json)
- *   VERIFIER          = 0x... (ZkProofVerifier or MultiSigProofVerifier)
+ *   VERIFIER          = 0x... (e.g. ChallengePayAivmPoiVerifier)
  *   REQUIRED          = true|false  (default: true)
  */
 
@@ -38,7 +38,7 @@ async function main() {
   const id = BigInt(idStr);
 
   const verifier = process.env.VERIFIER as `0x${string}`;
-  if (!verifier) throw new Error("VERIFIER env is required (address of ZkProofVerifier or MultiSigProofVerifier)");
+  if (!verifier) throw new Error("VERIFIER env is required (e.g. ChallengePayAivmPoiVerifier address)");
 
   const required = (process.env.REQUIRED || "true").toLowerCase() === "true";
 

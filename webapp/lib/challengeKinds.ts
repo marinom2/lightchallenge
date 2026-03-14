@@ -1,44 +1,42 @@
 // webapp/lib/challengeKinds.ts
-export type ChallengeKindKey = "steps" | "running" | "dota";
+//
+// On-chain "kind" is a uint8 metadata tag on ChallengePay. It has no functional
+// impact on settlement — it's purely for indexing/discovery. We assign a unique
+// ID per logical category so the contract emits a meaningful ChallengeCreated event.
+
+export type ChallengeKindKey =
+  | "steps"
+  | "running"
+  | "dota"
+  | "cycling"
+  | "hiking"
+  | "swimming"
+  | "lol"
+  | "cs"
+  | "fitness_general"
+  | "gaming_general";
+
 export type ChallengeKind = {
   key: ChallengeKindKey;
   label: string;
-  kindId: number; // on-chain "kind"
-  fields: { name: string; label: string; placeholder?: string; type?: "text" | "number" }[];
+  kindId: number; // on-chain "kind" uint8
 };
 
 export const CHALLENGE_KINDS: ChallengeKind[] = [
-  {
-    key: "steps",
-    label: "Steps (per day)",
-    kindId: 1,
-    fields: [
-      { name: "minSteps", label: "Min steps per day", placeholder: "5000", type: "number" },
-      { name: "days", label: "Consecutive days", placeholder: "5", type: "number" },
-    ],
-  },
-  {
-    key: "running",
-    label: "Running (distance)",
-    kindId: 2,
-    fields: [
-      { name: "distanceKm", label: "Distance (km)", placeholder: "10", type: "number" },
-      { name: "deadlineDays", label: "Complete within (days)", placeholder: "7", type: "number" },
-    ],
-  },
-  {
-    key: "dota",
-    label: "Dota (hero kills)",
-    kindId: 3,
-    fields: [
-      { name: "hero", label: "Hero (exact name)", placeholder: "Anti-Mage" },
-      { name: "kills", label: "Required kills", placeholder: "100", type: "number" },
-      { name: "account", label: "Game account / ID", placeholder: "Your Steam32/Matchmaking ID" },
-    ],
-  },
+  { key: "steps", label: "Steps", kindId: 1 },
+  { key: "running", label: "Running", kindId: 2 },
+  { key: "dota", label: "Dota 2", kindId: 3 },
+  { key: "cycling", label: "Cycling", kindId: 4 },
+  { key: "hiking", label: "Hiking", kindId: 5 },
+  { key: "swimming", label: "Swimming", kindId: 6 },
+  { key: "lol", label: "League of Legends", kindId: 7 },
+  { key: "cs", label: "CS2 / FACEIT", kindId: 8 },
+  { key: "fitness_general", label: "Fitness", kindId: 9 },
+  { key: "gaming_general", label: "Gaming", kindId: 10 },
 ];
 
-// Helper to get config by key
-export function getKind(key: ChallengeKindKey) {
-  return CHALLENGE_KINDS.find(k => k.key === key)!;
+export function getKind(key: ChallengeKindKey): ChallengeKind {
+  const found = CHALLENGE_KINDS.find((k) => k.key === key);
+  if (!found) throw new Error(`Unknown challenge kind: ${key}`);
+  return found;
 }

@@ -160,8 +160,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, files }, { status: 200, headers: corsHeaders() as any });
   } catch (e: any) {
+    console.error("[uploads]", e);
     return NextResponse.json(
-      { ok: false, error: e?.message || String(e) },
+      { ok: false, error: "Internal error" },
       { status: 500, headers: corsHeaders() as any }
     );
   }

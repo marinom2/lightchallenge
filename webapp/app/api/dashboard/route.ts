@@ -15,8 +15,9 @@ import { ABI, ADDR } from "@/lib/contracts";
 /* ────────────────────────────────────────────────────────────────────────────
  * Types (client-visible)
  * ──────────────────────────────────────────────────────────────────────────── */
-type Status = "Pending" | "Approved" | "Rejected" | "Finalized" | "Canceled" | "Paused";
-const STATUS_LUT: Status[] = ["Pending", "Approved", "Rejected", "Finalized", "Canceled", "Paused"];
+// ChallengePay V1: Active=0, Finalized=1, Canceled=2
+type Status = "Active" | "Finalized" | "Canceled";
+const STATUS_LUT: Status[] = ["Active", "Finalized", "Canceled"];
 
 type Row = {
   id: string;
@@ -29,11 +30,10 @@ type Row = {
 };
 
 type Kpis = {
-  pending: number;
   active: number;
   unclaimed: number;
-  approved: number;
   finalized: number;
+  canceled: number;
 };
 
 type ApiOut = {
@@ -61,7 +61,7 @@ function ev(name: string): AbiEvent | undefined {
 
 function toStatus(n: number | bigint | undefined): Status {
   const idx = typeof n === "bigint" ? Number(n) : Number(n ?? 0);
-  return STATUS_LUT[idx] ?? "Pending";
+  return STATUS_LUT[idx] ?? "Active";
 }
 
 function asAddr<T extends `0x${string}`>(x: unknown): T | undefined {
@@ -126,7 +126,7 @@ export async function GET(req: Request) {
   // Early tolerant exit (keep UI alive)
   if (!RPC_URL || !contractAddr) {
     const empty: ApiOut = {
-      kpis: { pending: 0, active: 0, unclaimed: 0, approved: 0, finalized: 0 },
+      kpis: { active: 0, unclaimed: 0, finalized: 0, canceled: 0 },
       items: [],
       fromBlock: "0",
       toBlock: "0",
@@ -145,46 +145,31 @@ export async function GET(req: Request) {
     const toBlock = toBlockParam ? BigInt(toBlockParam) : latest;
     const fromBlock = toBlock > span ? toBlock - span : 0n;
 
-    // Events we use
+    // Events we use (ChallengePay V1)
     const createdEv = ev("ChallengeCreated");
-    const approvedEv = ev("StatusBecameApproved");
-    const rejectedEv = ev("StatusBecameRejected");
     const finalizedEv = ev("Finalized");
     const canceledEv = ev("Canceled");
-    const pausedEv = ev("Paused");
 
-    // Claim-ish events (for KPI “unclaimed” heuristic)
+    // V1 claim events (for KPI "unclaimed" heuristic)
     const winnerClaimedEv = ev("WinnerClaimed");
-    const principalClaimedEv = ev("PrincipalClaimed");
-    const validatorClaimedEv = ev("ValidatorClaimed");
-    const rejectCreatorClaimedEv = ev("RejectCreatorClaimed");
-    const rejectContributionClaimedEv = ev("RejectContributionClaimed");
+    const loserClaimedEv = ev("LoserClaimed");
+    const refundClaimedEv = ev("RefundClaimed");
 
     // Fetch logs in window
     const [
       createdLogs,
-      approvedLogs,
-      rejectedLogs,
       finalizedLogs,
       canceledLogs,
-      pausedLogs,
       winnerLogs,
-      principalLogs,
-      validatorLogs,
-      rejectCreatorLogs,
-      rejectContributionLogs,
+      loserLogs,
+      refundLogs,
     ] = await Promise.all([
       safeLogs(client, { address: contractAddr, event: createdEv, fromBlock, toBlock }),
-      safeLogs(client, { address: contractAddr, event: approvedEv, fromBlock, toBlock }),
-      safeLogs(client, { address: contractAddr, event: rejectedEv, fromBlock, toBlock }),
       safeLogs(client, { address: contractAddr, event: finalizedEv, fromBlock, toBlock }),
       safeLogs(client, { address: contractAddr, event: canceledEv, fromBlock, toBlock }),
-      safeLogs(client, { address: contractAddr, event: pausedEv, fromBlock, toBlock }),
       safeLogs(client, { address: contractAddr, event: winnerClaimedEv, fromBlock, toBlock }),
-      safeLogs(client, { address: contractAddr, event: principalClaimedEv, fromBlock, toBlock }),
-      safeLogs(client, { address: contractAddr, event: validatorClaimedEv, fromBlock, toBlock }),
-      safeLogs(client, { address: contractAddr, event: rejectCreatorClaimedEv, fromBlock, toBlock }),
-      safeLogs(client, { address: contractAddr, event: rejectContributionClaimedEv, fromBlock, toBlock }),
+      safeLogs(client, { address: contractAddr, event: loserClaimedEv, fromBlock, toBlock }),
+      safeLogs(client, { address: contractAddr, event: refundClaimedEv, fromBlock, toBlock }),
     ]);
 
     type State = {
@@ -194,12 +179,9 @@ export async function GET(req: Request) {
       createdBlock?: bigint;
       createdTx?: `0x${string}`;
       status?: Status;
-      approved?: boolean;
-      rejected?: boolean;
       finalized?: boolean;
       canceled?: boolean;
-      paused?: boolean;
-      winnersClaimed?: number;
+      claimCount?: number;
       lastBlock?: bigint;
     };
     const byId = new Map<bigint, State>();
@@ -210,14 +192,14 @@ export async function GET(req: Request) {
         const dec = decodeEventLog({ abi, data: l.data, topics: l.topics }) as any;
         const id = BigInt(dec.args?.id ?? dec.args?.challengeId ?? 0);
         if (id === 0n) continue;
-        const s = byId.get(id) ?? { id, winnersClaimed: 0 };
-        const challenger = asAddr<Address>(dec.args?.challenger);
+        const s = byId.get(id) ?? { id, claimCount: 0 };
+        const creator = asAddr<Address>(dec.args?.creator ?? dec.args?.challenger);
         const startTs = asBigInt(dec.args?.startTs, 0n);
-        if (challenger) s.creator = challenger;
+        if (creator) s.creator = creator;
         if (startTs !== 0n) s.startTs = startTs;
         s.createdBlock = l.blockNumber!;
         s.createdTx = l.transactionHash!;
-        s.status = "Pending";
+        s.status = "Active";
         s.lastBlock = l.blockNumber!;
         byId.set(id, s);
       } catch {}
@@ -231,30 +213,17 @@ export async function GET(req: Request) {
         const id = BigInt(dec.args?.id ?? dec.args?.challengeId ?? 0);
         if (id === 0n) continue;
 
-        const s = byId.get(id) ?? { id, winnersClaimed: 0 };
+        const s = byId.get(id) ?? { id, claimCount: 0 };
         switch (dec.eventName) {
-          case "StatusBecameApproved":
-            s.approved = true; s.rejected = false; s.paused = false; s.status = "Approved"; break;
-          case "StatusBecameRejected":
-          case "ChallengeRejected": // (present in ABI)
-            s.rejected = true; s.approved = false; s.status = "Rejected"; break;
           case "Finalized":
             s.finalized = true; s.status = "Finalized"; break;
           case "Canceled":
             s.canceled = true; s.status = "Canceled"; break;
-          case "Paused": {
-            const paused = Boolean(dec.args?.paused ?? dec.args?.p);
-            s.paused = paused;
-            if (paused) s.status = "Paused";
-            break;
-          }
-          // Any of these means “someone claimed” → useful for unclaimed KPI
+          // Any V1 claim event → useful for unclaimed KPI
           case "WinnerClaimed":
-          case "PrincipalClaimed":
-          case "ValidatorClaimed":
-          case "RejectCreatorClaimed":
-          case "RejectContributionClaimed":
-            s.winnersClaimed = (s.winnersClaimed ?? 0) + 1;
+          case "LoserClaimed":
+          case "RefundClaimed":
+            s.claimCount = (s.claimCount ?? 0) + 1;
             break;
         }
         s.lastBlock = l.blockNumber!;
@@ -262,16 +231,11 @@ export async function GET(req: Request) {
       }
     }
 
-    applyLogs(approvedLogs);
-    applyLogs(rejectedLogs);
     applyLogs(finalizedLogs);
     applyLogs(canceledLogs);
-    applyLogs(pausedLogs);
     applyLogs(winnerLogs);
-    applyLogs(principalLogs);
-    applyLogs(validatorLogs);
-    applyLogs(rejectCreatorLogs);
-    applyLogs(rejectContributionLogs);
+    applyLogs(loserLogs);
+    applyLogs(refundLogs);
 
     /* ────────────────────────────────────────────────────────────────────────
      * Canonical on-chain reads (named fields; multicall with per-id fallback)
@@ -300,12 +264,12 @@ export async function GET(req: Request) {
           return;
         }
         const res: any = r.result;
-        const s = byId.get(id) ?? { id, winnersClaimed: 0 };
+        const s = byId.get(id) ?? { id, claimCount: 0 };
         const idx = extractStatusIndex(res);
         s.status = toStatus(idx);
         // named fields preferred
-        const creator = asAddr<Address>(res?.challenger ?? res?.[4]);
-        const startTs = asBigInt(res?.startTs ?? res?.[10], 0n);
+        const creator = asAddr<Address>(res?.creator ?? res?.[4]);
+        const startTs = asBigInt(res?.startTs ?? res?.[9], 0n);
         if (creator) s.creator = creator;
         if (startTs !== 0n) s.startTs = startTs;
         byId.set(id, s);
@@ -320,7 +284,7 @@ export async function GET(req: Request) {
             functionName: "getChallenge",
             args: [id],
           })) as any;
-          const s = byId.get(id) ?? { id, winnersClaimed: 0 };
+          const s = byId.get(id) ?? { id, claimCount: 0 };
           const idx = extractStatusIndex(res);
           s.status = toStatus(idx);
           const creator = asAddr<Address>(res?.challenger ?? res?.[4]);
@@ -337,7 +301,7 @@ export async function GET(req: Request) {
           const res = (await client.readContract({
             abi, address: contractAddr, functionName: "getChallenge", args: [id],
           })) as any;
-          const s = byId.get(id) ?? { id, winnersClaimed: 0 };
+          const s = byId.get(id) ?? { id, claimCount: 0 };
           const idx = extractStatusIndex(res);
           s.status = toStatus(idx);
           const creator = asAddr<Address>(res?.challenger ?? res?.[4]);
@@ -352,8 +316,7 @@ export async function GET(req: Request) {
     /* ────────────────────────────────────────────────────────────────────────
      * KPIs + rows
      * ──────────────────────────────────────────────────────────────────────── */
-    const nowSec = Math.floor(Date.now() / 1000);
-    let pending = 0, approved = 0, active = 0, finalized = 0, unclaimed = 0;
+    let active = 0, finalized = 0, canceled = 0, unclaimed = 0;
 
     const entries = [...byId.values()].sort((a, b) =>
       Number((b.createdBlock ?? b.lastBlock ?? 0n) - (a.createdBlock ?? a.lastBlock ?? 0n))
@@ -361,16 +324,11 @@ export async function GET(req: Request) {
 
     const rows: Row[] = [];
     for (const s of entries) {
-      const status = s.status ?? "Pending";
-      if (status === "Pending") pending++;
-      if (status === "Approved") approved++;
+      const status = s.status ?? "Active";
+      if (status === "Active") active++;
       if (status === "Finalized") finalized++;
-
-      // Active heuristic: approved + started + not paused/canceled/finalized
-      if (status === "Approved" && !s.canceled && !s.finalized && !(s.paused ?? false)) {
-        if (s.startTs && Number(s.startTs) <= nowSec) active++;
-      }
-      if (s.finalized && (s.winnersClaimed ?? 0) === 0) unclaimed++;
+      if (status === "Canceled") canceled++;
+      if (s.finalized && (s.claimCount ?? 0) === 0) unclaimed++;
 
       rows.push({
         id: s.id.toString(),
@@ -379,7 +337,7 @@ export async function GET(req: Request) {
         blockNumber: (s.createdBlock ?? s.lastBlock ?? 0n).toString(),
         txHash: (s.createdTx ?? "0x") as `0x${string}`,
         status,
-        winnersClaimed: s.winnersClaimed?.toString(),
+        winnersClaimed: s.claimCount?.toString(),
       });
     }
 
@@ -391,7 +349,7 @@ export async function GET(req: Request) {
     }));
 
     const out: ApiOut = {
-      kpis: { pending, active, unclaimed, approved, finalized },
+      kpis: { active, unclaimed, finalized, canceled },
       items: rows,
       fromBlock: fromBlock.toString(),
       toBlock: toBlock.toString(),
@@ -403,14 +361,14 @@ export async function GET(req: Request) {
     return NextResponse.json(out, { headers: { "Cache-Control": "public, max-age=5" } });
   } catch (e: any) {
     const empty: ApiOut = {
-      kpis: { pending: 0, active: 0, unclaimed: 0, approved: 0, finalized: 0 },
+      kpis: { active: 0, unclaimed: 0, finalized: 0, canceled: 0 },
       items: [],
       fromBlock: "0",
       toBlock: "0",
       hasMore: false,
       range: { fromBlock: "0", toBlock: "0", span: (10_000n).toString() },
       recent: [],
-      error: e?.data?.message || e?.shortMessage || e?.message || String(e),
+      error: "Internal error",
     };
     return NextResponse.json(empty, { status: 200 });
   }

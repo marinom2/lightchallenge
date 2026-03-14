@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAccount, useBalance } from "wagmi";
 import { useRouter } from "next/navigation";
 
-import ClientOnly from "@/app/components/ClientOnly";
+import ClientOnly from "./components/ClientOnly";
 import { Toasts, useToasts } from "@/lib/ui/toast";
 
 import { Stepper } from "./components/Stepper";
@@ -101,8 +101,7 @@ function CreatePageInner() {
 
   const step3Ok =
     step2Ok &&
-    !derived.errors["verification.verifier"] &&
-    !derived.errors["options.peerDeadline"];
+    !derived.errors["verification.verifier"];
 
   const canNavigateTo = React.useCallback(
     (stepId: number) => {

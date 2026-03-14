@@ -3,7 +3,8 @@
 
 import * as React from "react";
 import { Dumbbell, Eye, EyeOff, Gamepad2 } from "lucide-react";
-import type { Action, ChallengeFormState, ChallengeType, Visibility } from "../../state/types";
+import type { Action, ChallengeFormState, ChallengeType, GameId, Visibility } from "../../state/types";
+import type { FitnessKind } from "@/lib/templates";
 import { Section } from "../ui/Section";
 import { Callout } from "../ui/Callout";
 
@@ -131,6 +132,20 @@ function TypeCard({
   );
 }
 
+const GAME_OPTIONS: Array<{ value: GameId; label: string; sub: string }> = [
+  { value: "dota", label: "Dota 2", sub: "Steam + OpenDota verification" },
+  { value: "lol", label: "League of Legends", sub: "Riot account verification" },
+  { value: "cs", label: "CS2 / FACEIT", sub: "Steam + FACEIT verification" },
+];
+
+const FITNESS_OPTIONS: Array<{ value: FitnessKind; label: string; sub: string }> = [
+  { value: "steps", label: "Steps", sub: "Apple Health, Garmin, Fitbit, Google Fit" },
+  { value: "running", label: "Running / Walking", sub: "Strava, Garmin, Fitbit, Google Fit" },
+  { value: "cycling", label: "Cycling", sub: "Strava, Garmin" },
+  { value: "hiking", label: "Hiking / Elevation", sub: "Strava, Garmin" },
+  { value: "swimming", label: "Swimming", sub: "Strava, Garmin" },
+];
+
 export default function Step1_Intent({
   state,
   dispatch,
@@ -147,8 +162,8 @@ export default function Step1_Intent({
       dispatch({
         type: "SET_INTENT",
         payload: {
-          gameId: "dota",
-          gameMode: "5v5",
+          gameId: state.intent.gameId || "dota",
+          gameMode: null,
           fitnessKind: null,
         },
       });
@@ -158,8 +173,7 @@ export default function Step1_Intent({
       dispatch({
         type: "SET_INTENT",
         payload: {
-          fitnessKind:
-            state.intent.fitnessKind === "running" ? "running" : "steps",
+          fitnessKind: state.intent.fitnessKind || "steps",
           gameId: null,
           gameMode: null,
         },
@@ -174,23 +188,23 @@ export default function Step1_Intent({
   return (
     <div className="space-y-5">
       <Section
-        title="Pick what you’re creating"
-        subtitle="Only challenge kinds currently supported on-chain are shown here."
+        title="Pick what you're creating"
+        subtitle="Choose the challenge category and type."
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <TypeCard
-            active={type === "GAMING"}
-            title="Gaming"
-            subtitle="Objective match-based outcomes"
-            icon={<Gamepad2 size={18} />}
-            onClick={() => setType("GAMING")}
-          />
-          <TypeCard
             active={type === "FITNESS"}
             title="Fitness"
-            subtitle="Objective measurable goals"
+            subtitle="Steps, running, cycling, hiking, swimming"
             icon={<Dumbbell size={18} />}
             onClick={() => setType("FITNESS")}
+          />
+          <TypeCard
+            active={type === "GAMING"}
+            title="Gaming"
+            subtitle="Dota 2, League of Legends, CS2"
+            icon={<Gamepad2 size={18} />}
+            onClick={() => setType("GAMING")}
           />
         </div>
       </Section>
@@ -219,87 +233,63 @@ export default function Step1_Intent({
 
       {type === "GAMING" ? (
         <Section
-          title="Game settings"
-          subtitle="Choose the supported game and format."
+          title="Game"
+          subtitle="Choose the game for your challenge."
         >
-          <div className="space-y-4">
-            <div>
-              <div className="mb-2 text-xs font-semibold" style={{ color: "var(--text-muted)" }}>
-                Game
-              </div>
-              <SelectCards<"dota">
-                value={(state.intent.gameId as "dota" | null | undefined) ?? null}
-                onChange={(v) =>
-                  dispatch({
-                    type: "SET_INTENT",
-                    payload: { gameId: v, gameMode: state.intent.gameMode ?? "5v5" },
-                  })
-                }
-                options={[{ value: "dota", label: "Dota", sub: "Currently supported" }]}
-                columns={1}
-              />
-            </div>
+          <SelectCards
+            value={state.intent.gameId ?? null}
+            onChange={(v) =>
+              dispatch({
+                type: "SET_INTENT",
+                payload: { gameId: v, gameMode: null },
+              })
+            }
+            options={GAME_OPTIONS}
+            columns={3}
+          />
 
-            <div>
+          {state.intent.gameId === "dota" ? (
+            <div className="mt-4">
               <div className="mb-2 text-xs font-semibold" style={{ color: "var(--text-muted)" }}>
-                Mode
+                Format (optional)
               </div>
-              <SelectCards<"1v1" | "5v5">
-                value={(state.intent.gameMode as "1v1" | "5v5" | null | undefined) ?? null}
+              <SelectCards
+                value={state.intent.gameMode ?? null}
                 onChange={(v) =>
-                  dispatch({
-                    type: "SET_INTENT",
-                    payload: { gameMode: v },
-                  })
+                  dispatch({ type: "SET_INTENT", payload: { gameMode: v } })
                 }
                 options={[
-                  { value: "1v1", label: "1v1", sub: "Fast duel" },
-                  { value: "5v5", label: "5v5", sub: "Standard match" },
+                  { value: "1v1", label: "1v1", sub: "Duel" },
+                  { value: "5v5", label: "5v5", sub: "Standard" },
                 ]}
                 columns={2}
               />
             </div>
-          </div>
+          ) : null}
         </Section>
       ) : null}
 
       {type === "FITNESS" ? (
         <Section
-          title="Fitness settings"
-          subtitle="Choose the supported fitness challenge type."
+          title="Activity type"
+          subtitle="Choose the fitness activity."
         >
-          <div>
-            <div className="mb-2 text-xs font-semibold" style={{ color: "var(--text-muted)" }}>
-              Type
-            </div>
-            <SelectCards<"steps" | "running">
-              value={(state.intent.fitnessKind as "steps" | "running" | null | undefined) ?? null}
-              onChange={(v) =>
-                dispatch({
-                  type: "SET_INTENT",
-                  payload: { fitnessKind: v },
-                })
-              }
-              options={[
-                { value: "steps", label: "Steps", sub: "Daily step goal" },
-                { value: "running", label: "Running", sub: "Distance target" },
-              ]}
-              columns={2}
-            />
-          </div>
+          <SelectCards
+            value={state.intent.fitnessKind ?? null}
+            onChange={(v) =>
+              dispatch({ type: "SET_INTENT", payload: { fitnessKind: v } })
+            }
+            options={FITNESS_OPTIONS}
+            columns={2}
+          />
         </Section>
       ) : null}
 
       {!type ? (
         <Callout tone="warn" title="Required">
-          Choose Gaming or Fitness to unlock the rest of the flow.
+          Choose Fitness or Gaming to continue.
         </Callout>
       ) : null}
-
-      <Callout tone="ok" title="Currently supported">
-        Create Challenge currently supports <strong>Steps</strong>, <strong>Running</strong>, and{" "}
-        <strong>Dota</strong> on-chain.
-      </Callout>
     </div>
   );
 }

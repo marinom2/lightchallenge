@@ -2,23 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePublicClient } from "wagmi";
 import { ABI, ADDR } from "@/lib/contracts";
-
-export type Status =
-  | "Pending"
-  | "Approved"
-  | "Rejected"
-  | "Finalized"
-  | "Canceled"
-  | "Paused";
-
-const STATUS_LABEL: Status[] = [
-  "Pending",
-  "Approved",
-  "Rejected",
-  "Finalized",
-  "Canceled",
-  "Paused",
-];
+import { type Status, STATUS_LABEL } from "@/lib/types/status";
+export type { Status };
 
 export default function useChainStatusCache(ids: bigint[] = [], intervalMs = 10000) {
   const pc = usePublicClient();
@@ -57,7 +42,7 @@ export default function useChainStatusCache(ids: bigint[] = [], intervalMs = 100
             0;
 
           const idx = Number(raw);
-          const label = STATUS_LABEL[idx] ?? "Pending";
+          const label = STATUS_LABEL[idx] ?? "Active";
           next[uniqIds[i]] = label;
         });
 

@@ -30,15 +30,6 @@ export async function getSnapshot(id: bigint) {
   });
 }
 
-export async function getValidatorClaimInfo(id: bigint, who: Address) {
-  return publicClient.readContract({
-    abi: ABI.ChallengePay,
-    address: ADDR.ChallengePay as Address,
-    functionName: "getValidatorClaimInfo",
-    args: [id, who],
-  });
-}
-
 export async function contribOf(id: bigint, who: Address) {
   return publicClient.readContract({
     abi: ABI.ChallengePay,

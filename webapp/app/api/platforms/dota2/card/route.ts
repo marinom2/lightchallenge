@@ -65,6 +65,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(payload, { status: 200 });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Failed" }, { status: 500 });
+    console.error("[dota2/card]", e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

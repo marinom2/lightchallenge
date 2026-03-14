@@ -18,22 +18,12 @@
     },
     {
       "inputs": [],
-      "name": "AfterDeadline",
-      "type": "error"
-    },
-    {
-      "inputs": [],
       "name": "AlreadyCanceled",
       "type": "error"
     },
     {
       "inputs": [],
       "name": "AlreadyFinalized",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "AlreadyVoted",
       "type": "error"
     },
     {
@@ -48,37 +38,17 @@
     },
     {
       "inputs": [],
-      "name": "ApprovalDeadlineAfterStart",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "ApprovalWindowTooShort",
-      "type": "error"
-    },
-    {
-      "inputs": [],
       "name": "BeforeDeadline",
       "type": "error"
     },
     {
       "inputs": [],
+      "name": "ChallengeNotFinalized",
+      "type": "error"
+    },
+    {
+      "inputs": [],
       "name": "ChallengePaused",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "CharityAddressRequired",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "CharityTooHigh",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "CooldownNotElapsed",
       "type": "error"
     },
     {
@@ -93,17 +63,17 @@
     },
     {
       "inputs": [],
-      "name": "FastTrackInvalid",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "HasOpenVoteLocks",
+      "name": "GlobalPausedError",
       "type": "error"
     },
     {
       "inputs": [],
       "name": "InvalidBounds",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "JoinClosesAfterStart",
       "type": "error"
     },
     {
@@ -123,27 +93,12 @@
     },
     {
       "inputs": [],
-      "name": "MaxVotersReached",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "MinStakeNotMet",
+      "name": "NotActive",
       "type": "error"
     },
     {
       "inputs": [],
       "name": "NotAdmin",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "NotApproved",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "NotCreatorOnly",
       "type": "error"
     },
     {
@@ -158,32 +113,7 @@
     },
     {
       "inputs": [],
-      "name": "NotPeer",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "NotPending",
-      "type": "error"
-    },
-    {
-      "inputs": [],
       "name": "NotPendingAdmin",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "NotValidator",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "PeerDeadlineBeforeEnd",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "PeerQuorumInvalid",
       "type": "error"
     },
     {
@@ -203,27 +133,12 @@
     },
     {
       "inputs": [],
-      "name": "QuorumOrThresholdInvalid",
-      "type": "error"
-    },
-    {
-      "inputs": [],
       "name": "ReentrancyGuardReentrantCall",
       "type": "error"
     },
     {
       "inputs": [],
-      "name": "RejectNotStaged",
-      "type": "error"
-    },
-    {
-      "inputs": [],
       "name": "StartTooSoon",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "StrategyRejected",
       "type": "error"
     },
     {
@@ -234,11 +149,6 @@
     {
       "inputs": [],
       "name": "TokenNotAllowed",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "VoterCapTooSmall",
       "type": "error"
     },
     {
@@ -314,32 +224,7 @@
         {
           "indexed": true,
           "internalType": "address",
-          "name": "user",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "CashbackClaimed",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "challenger",
+          "name": "creator",
           "type": "address"
         },
         {
@@ -371,12 +256,6 @@
           "internalType": "bytes32",
           "name": "externalId",
           "type": "bytes32"
-        },
-        {
-          "indexed": false,
-          "internalType": "bool",
-          "name": "fastTracked",
-          "type": "bool"
         }
       ],
       "name": "ChallengeCreated",
@@ -387,61 +266,31 @@
       "inputs": [
         {
           "indexed": true,
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        },
-        {
-          "indexed": true,
           "internalType": "address",
-          "name": "by",
+          "name": "creator",
           "type": "address"
         },
         {
           "indexed": false,
           "internalType": "bool",
-          "name": "yes",
+          "name": "allowed",
           "type": "bool"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "weight",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "yesWeight",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "noWeight",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "partWeight",
-          "type": "uint256"
         }
       ],
-      "name": "ChallengeVoted",
+      "name": "CreatorAllowed",
       "type": "event"
     },
     {
       "anonymous": false,
       "inputs": [
         {
-          "indexed": true,
-          "internalType": "address",
-          "name": "verifier",
-          "type": "address"
+          "indexed": false,
+          "internalType": "bool",
+          "name": "enabled",
+          "type": "bool"
         }
       ],
-      "name": "FastTrackVerifierSet",
+      "name": "CreatorAllowlistSet",
       "type": "event"
     },
     {
@@ -451,12 +300,6 @@
           "indexed": false,
           "internalType": "uint16",
           "name": "forfeitFeeMaxBps",
-          "type": "uint16"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint16",
-          "name": "charityMaxBps",
           "type": "uint16"
         },
         {
@@ -493,24 +336,6 @@
         {
           "indexed": false,
           "internalType": "uint16",
-          "name": "validatorsBps",
-          "type": "uint16"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint16",
-          "name": "rejectFeeBps",
-          "type": "uint16"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint16",
-          "name": "rejectValidatorsBps",
-          "type": "uint16"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint16",
           "name": "cashbackBps",
           "type": "uint16"
         }
@@ -537,18 +362,6 @@
           "indexed": false,
           "internalType": "uint256",
           "name": "creatorAmt",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "validatorsAmt",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "charityAmt",
           "type": "uint256"
         },
         {
@@ -647,13 +460,25 @@
       "anonymous": false,
       "inputs": [
         {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
           "indexed": false,
-          "internalType": "uint32",
-          "name": "cap",
-          "type": "uint32"
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
         }
       ],
-      "name": "MaxVotersPerChallengeSet",
+      "name": "LoserClaimed",
       "type": "event"
     },
     {
@@ -710,81 +535,6 @@
       "anonymous": false,
       "inputs": [
         {
-          "indexed": true,
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "address[]",
-          "name": "peers",
-          "type": "address[]"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint8",
-          "name": "approvalsNeeded",
-          "type": "uint8"
-        }
-      ],
-      "name": "PeerAssigned",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "peer",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "bool",
-          "name": "pass",
-          "type": "bool"
-        }
-      ],
-      "name": "PeerVoted",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "user",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "PrincipalClaimed",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
           "indexed": false,
           "internalType": "bool",
           "name": "enabled",
@@ -816,51 +566,7 @@
           "type": "uint256"
         }
       ],
-      "name": "RejectContributionClaimed",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "creator",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "RejectCreatorClaimed",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "perValidatorAmount",
-          "type": "uint256"
-        }
-      ],
-      "name": "RejectStaged",
+      "name": "RefundClaimed",
       "type": "event"
     },
     {
@@ -877,60 +583,9 @@
           "internalType": "bool",
           "name": "success",
           "type": "bool"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint32",
-          "name": "eligibleValidators",
-          "type": "uint32"
         }
       ],
       "name": "SnapshotSet",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        }
-      ],
-      "name": "StatusBecameApproved",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        }
-      ],
-      "name": "StatusBecameRejected",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "strategy",
-          "type": "address"
-        }
-      ],
-      "name": "StrategySet",
       "type": "event"
     },
     {
@@ -988,150 +643,6 @@
           "type": "uint256"
         },
         {
-          "indexed": true,
-          "internalType": "address",
-          "name": "validator",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "ValidatorClaimed",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "minStake",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "thresholdBps",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "quorumBps",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "cooldownSec",
-          "type": "uint256"
-        }
-      ],
-      "name": "ValidatorParamsSet",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "validator",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "ValidatorRejectClaimed",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "validator",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "ValidatorStaked",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "validator",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "unlockAt",
-          "type": "uint256"
-        }
-      ],
-      "name": "ValidatorUnstakeRequested",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "validator",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "ValidatorUnstakedGranted",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        },
-        {
           "indexed": false,
           "internalType": "address",
           "name": "verifier",
@@ -1141,12 +652,6 @@
           "indexed": false,
           "internalType": "uint256",
           "name": "proofDeadlineTs",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "peerDeadlineTs",
           "type": "uint256"
         }
       ],
@@ -1165,11 +670,17 @@
         {
           "indexed": true,
           "internalType": "address",
-          "name": "validator",
+          "name": "user",
           "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
         }
       ],
-      "name": "VoteLockCleared",
+      "name": "WinnerClaimed",
       "type": "event"
     },
     {
@@ -1211,19 +722,6 @@
     },
     {
       "inputs": [],
-      "name": "VALIDATOR_BUCKET",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
       "name": "acceptAdmin",
       "outputs": [],
       "stateMutability": "nonpayable",
@@ -1262,37 +760,6 @@
       "type": "function"
     },
     {
-      "inputs": [],
-      "name": "approvalThresholdBps",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bool",
-          "name": "yes",
-          "type": "bool"
-        }
-      ],
-      "name": "approveChallenge",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
       "inputs": [
         {
           "internalType": "uint256",
@@ -1309,11 +776,30 @@
       "inputs": [
         {
           "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "cancelRefundStaged",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
           "name": "id",
           "type": "uint256"
         }
       ],
-      "name": "claimCashback",
+      "name": "claimLoser",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -1326,7 +812,7 @@
           "type": "uint256"
         }
       ],
-      "name": "claimPrincipal",
+      "name": "claimRefund",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -1339,7 +825,7 @@
           "type": "uint256"
         }
       ],
-      "name": "claimRejectContribution",
+      "name": "claimWinner",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -1350,50 +836,22 @@
           "internalType": "uint256",
           "name": "id",
           "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
         }
       ],
-      "name": "claimRejectCreator",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
+      "name": "contribOf",
+      "outputs": [
         {
           "internalType": "uint256",
-          "name": "id",
+          "name": "",
           "type": "uint256"
         }
       ],
-      "name": "claimValidatorReject",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        }
-      ],
-      "name": "claimValidatorReward",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        }
-      ],
-      "name": "clearMyVoteLock",
-      "outputs": [],
-      "stateMutability": "nonpayable",
+      "stateMutability": "view",
       "type": "function"
     },
     {
@@ -1422,12 +880,7 @@
             },
             {
               "internalType": "uint256",
-              "name": "proposalBond",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "approvalDeadline",
+              "name": "joinClosesTs",
               "type": "uint256"
             },
             {
@@ -1446,31 +899,6 @@
               "type": "uint256"
             },
             {
-              "internalType": "address[]",
-              "name": "peers",
-              "type": "address[]"
-            },
-            {
-              "internalType": "uint8",
-              "name": "peerApprovalsNeeded",
-              "type": "uint8"
-            },
-            {
-              "internalType": "uint256",
-              "name": "peerDeadlineTs",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint16",
-              "name": "charityBps",
-              "type": "uint16"
-            },
-            {
-              "internalType": "address",
-              "name": "charity",
-              "type": "address"
-            },
-            {
               "internalType": "address",
               "name": "verifier",
               "type": "address"
@@ -1484,26 +912,6 @@
               "internalType": "bytes32",
               "name": "externalId",
               "type": "bytes32"
-            },
-            {
-              "internalType": "uint256",
-              "name": "leadTime",
-              "type": "uint256"
-            },
-            {
-              "internalType": "bytes",
-              "name": "fastTrackData",
-              "type": "bytes"
-            },
-            {
-              "internalType": "address",
-              "name": "strategy",
-              "type": "address"
-            },
-            {
-              "internalType": "bytes",
-              "name": "strategyData",
-              "type": "bytes"
             }
           ],
           "internalType": "struct ChallengePay.CreateParams",
@@ -1520,6 +928,25 @@
         }
       ],
       "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "creatorAllowed",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
       "type": "function"
     },
     {
@@ -1562,29 +989,11 @@
     },
     {
       "inputs": [],
-      "name": "fastTrackVerifier",
-      "outputs": [
-        {
-          "internalType": "contract IFastTrackVerifier",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
       "name": "feeCaps",
       "outputs": [
         {
           "internalType": "uint16",
           "name": "forfeitFeeMaxBps",
-          "type": "uint16"
-        },
-        {
-          "internalType": "uint16",
-          "name": "charityMaxBps",
           "type": "uint16"
         },
         {
@@ -1613,21 +1022,6 @@
         {
           "internalType": "uint16",
           "name": "creatorBps",
-          "type": "uint16"
-        },
-        {
-          "internalType": "uint16",
-          "name": "validatorsBps",
-          "type": "uint16"
-        },
-        {
-          "internalType": "uint16",
-          "name": "rejectFeeBps",
-          "type": "uint16"
-        },
-        {
-          "internalType": "uint16",
-          "name": "rejectValidatorsBps",
           "type": "uint16"
         },
         {
@@ -1686,7 +1080,7 @@
             },
             {
               "internalType": "address",
-              "name": "challenger",
+              "name": "creator",
               "type": "address"
             },
             {
@@ -1706,12 +1100,7 @@
             },
             {
               "internalType": "uint256",
-              "name": "proposalBond",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "approvalDeadline",
+              "name": "joinClosesTs",
               "type": "uint256"
             },
             {
@@ -1728,56 +1117,6 @@
               "internalType": "uint256",
               "name": "maxParticipants",
               "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "yesWeight",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "noWeight",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "partWeight",
-              "type": "uint256"
-            },
-            {
-              "internalType": "address[]",
-              "name": "peers",
-              "type": "address[]"
-            },
-            {
-              "internalType": "uint8",
-              "name": "peerApprovalsNeeded",
-              "type": "uint8"
-            },
-            {
-              "internalType": "uint256",
-              "name": "peerApprovals",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "peerRejections",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "peerDeadlineTs",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint16",
-              "name": "charityBps",
-              "type": "uint16"
-            },
-            {
-              "internalType": "address",
-              "name": "charity",
-              "type": "address"
             },
             {
               "internalType": "uint256",
@@ -1808,6 +1147,21 @@
               "internalType": "uint256",
               "name": "winnersPool",
               "type": "uint256"
+            },
+            {
+              "internalType": "bool",
+              "name": "paused",
+              "type": "bool"
+            },
+            {
+              "internalType": "bool",
+              "name": "canceled",
+              "type": "bool"
+            },
+            {
+              "internalType": "bool",
+              "name": "payoutsDone",
+              "type": "bool"
             }
           ],
           "internalType": "struct ChallengePay.ChallengeView",
@@ -1841,11 +1195,6 @@
               "type": "bool"
             },
             {
-              "internalType": "uint32",
-              "name": "eligibleValidators",
-              "type": "uint32"
-            },
-            {
               "internalType": "uint256",
               "name": "committedPool",
               "type": "uint256"
@@ -1867,11 +1216,6 @@
             },
             {
               "internalType": "uint256",
-              "name": "charityAmt",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
               "name": "protocolAmt",
               "type": "uint256"
             },
@@ -1882,22 +1226,12 @@
             },
             {
               "internalType": "uint256",
-              "name": "validatorsAmt",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
               "name": "perCommittedBonusX",
               "type": "uint256"
             },
             {
               "internalType": "uint256",
               "name": "perCashbackX",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "perValidatorAmt",
               "type": "uint256"
             }
           ],
@@ -1950,6 +1284,30 @@
         }
       ],
       "name": "isTrustedForwarder",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        }
+      ],
+      "name": "isWinner",
       "outputs": [
         {
           "internalType": "bool",
@@ -2044,33 +1402,7 @@
     },
     {
       "inputs": [],
-      "name": "maxVotersPerChallenge",
-      "outputs": [
-        {
-          "internalType": "uint32",
-          "name": "",
-          "type": "uint32"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
       "name": "minLeadTime",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "minValidatorStake",
       "outputs": [
         {
           "internalType": "uint256",
@@ -2126,24 +1458,6 @@
       "type": "function"
     },
     {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "id",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bool",
-          "name": "pass",
-          "type": "bool"
-        }
-      ],
-      "name": "peerVote",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
       "inputs": [],
       "name": "pendingAdmin",
       "outputs": [
@@ -2151,44 +1465,6 @@
           "internalType": "address",
           "name": "",
           "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "pendingUnstake",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "pendingUnstakeUnlockAt",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
         }
       ],
       "stateMutability": "view",
@@ -2221,13 +1497,24 @@
       "type": "function"
     },
     {
-      "inputs": [],
-      "name": "quorumBps",
-      "outputs": [
+      "inputs": [
         {
           "internalType": "uint256",
           "name": "",
           "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "refundClaimed",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
         }
       ],
       "stateMutability": "view",
@@ -2236,25 +1523,17 @@
     {
       "inputs": [
         {
-          "internalType": "uint256",
-          "name": "amount",
-          "type": "uint256"
-        }
-      ],
-      "name": "requestUnstake",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
           "internalType": "address",
-          "name": "verifier",
+          "name": "creator",
           "type": "address"
+        },
+        {
+          "internalType": "bool",
+          "name": "allowed",
+          "type": "bool"
         }
       ],
-      "name": "setFastTrackVerifier",
+      "name": "setCreatorAllowed",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -2266,11 +1545,6 @@
             {
               "internalType": "uint16",
               "name": "forfeitFeeMaxBps",
-              "type": "uint16"
-            },
-            {
-              "internalType": "uint16",
-              "name": "charityMaxBps",
               "type": "uint16"
             },
             {
@@ -2310,21 +1584,6 @@
             },
             {
               "internalType": "uint16",
-              "name": "validatorsBps",
-              "type": "uint16"
-            },
-            {
-              "internalType": "uint16",
-              "name": "rejectFeeBps",
-              "type": "uint16"
-            },
-            {
-              "internalType": "uint16",
-              "name": "rejectValidatorsBps",
-              "type": "uint16"
-            },
-            {
-              "internalType": "uint16",
               "name": "cashbackBps",
               "type": "uint16"
             }
@@ -2353,19 +1612,6 @@
         }
       ],
       "name": "setLeadTimeBounds",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint32",
-          "name": "cap",
-          "type": "uint32"
-        }
-      ],
-      "name": "setMaxVotersPerChallenge",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -2422,7 +1668,7 @@
           "type": "bool"
         }
       ],
-      "name": "setUseTokenAllowlist",
+      "name": "setUseCreatorAllowlist",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -2430,27 +1676,12 @@
     {
       "inputs": [
         {
-          "internalType": "uint256",
-          "name": "_minStake",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "_thresholdBps",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "_quorumBps",
-          "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "_cooldownSec",
-          "type": "uint256"
+          "internalType": "bool",
+          "name": "enabled",
+          "type": "bool"
         }
       ],
-      "name": "setValidatorParams",
+      "name": "setUseTokenAllowlist",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -2471,23 +1702,11 @@
           "internalType": "uint256",
           "name": "proofDeadlineTs",
           "type": "uint256"
-        },
-        {
-          "internalType": "uint256",
-          "name": "peerDeadlineTs",
-          "type": "uint256"
         }
       ],
       "name": "setVerificationConfig",
       "outputs": [],
       "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "stakeValidator",
-      "outputs": [],
-      "stateMutability": "payable",
       "type": "function"
     },
     {
@@ -2573,19 +1792,6 @@
       "type": "function"
     },
     {
-      "inputs": [],
-      "name": "totalValidatorStake",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
       "inputs": [
         {
           "internalType": "address",
@@ -2626,12 +1832,12 @@
     },
     {
       "inputs": [],
-      "name": "unstakeCooldownSec",
+      "name": "useCreatorAllowlist",
       "outputs": [
         {
-          "internalType": "uint256",
+          "internalType": "bool",
           "name": "",
-          "type": "uint256"
+          "type": "bool"
         }
       ],
       "stateMutability": "view",
@@ -2648,75 +1854,6 @@
         }
       ],
       "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "validatorStake",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        },
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "voteLockedFor",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "voteLocks",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "withdrawUnstaked",
-      "outputs": [],
-      "stateMutability": "nonpayable",
       "type": "function"
     }
   ]

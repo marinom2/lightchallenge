@@ -1,17 +1,23 @@
 // webapp/app/challenges/create/domain/model.ts
-export type ModelKind = "aivm" | "zk" | "plonk" | "unknown";
+//
+// COMPATIBILITY NOTE:
+// Active product model kinds: "aivm" (Lightchain AIVM + PoI).
+// "zk" and "plonk" are retained in the type union for backward compatibility
+// with legacy DB data. Do not use for new challenge creation.
+
+export type ModelKind = "aivm" | "custom" | "zk" | "plonk" | "unknown";
 
 export type VerificationSettlementKind =
   | "lightchain_aivm"
   | "lightchain_poi"
-  | "zk"
-  | "plonk"
   | "api"
   | "unknown";
 
 export function normalizeModelKind(kind: unknown): ModelKind {
   const k = String(kind || "").toLowerCase();
   if (k === "aivm") return "aivm";
+  if (k === "custom") return "custom";
+  // Legacy — kept for reading existing data only
   if (k === "zk") return "zk";
   if (k === "plonk") return "plonk";
   return "unknown";
@@ -20,8 +26,9 @@ export function normalizeModelKind(kind: unknown): ModelKind {
 export function prettyModelKind(kind: unknown) {
   const k = normalizeModelKind(kind);
   if (k === "aivm") return "AIVM";
-  if (k === "zk") return "ZK";
-  if (k === "plonk") return "PLONK";
+  if (k === "custom") return "Custom";
+  if (k === "zk") return "ZK (legacy)";
+  if (k === "plonk") return "PLONK (legacy)";
   return "Unknown";
 }
 
@@ -31,8 +38,6 @@ export function normalizeVerificationSettlementKind(
   const k = String(kind || "").toLowerCase();
   if (k === "lightchain_aivm") return "lightchain_aivm";
   if (k === "lightchain_poi") return "lightchain_poi";
-  if (k === "zk") return "zk";
-  if (k === "plonk") return "plonk";
   if (k === "api") return "api";
   return "unknown";
 }
@@ -41,8 +46,6 @@ export function prettyVerificationSettlementKind(kind: unknown) {
   const k = normalizeVerificationSettlementKind(kind);
   if (k === "lightchain_aivm") return "Lightchain AIVM";
   if (k === "lightchain_poi") return "Lightchain PoI";
-  if (k === "zk") return "ZK";
-  if (k === "plonk") return "PLONK";
   if (k === "api") return "API";
   return "Unknown";
 }

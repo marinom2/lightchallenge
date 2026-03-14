@@ -4,15 +4,15 @@
 import * as React from "react";
 import type { Address } from "viem";
 import { txUrl, addressUrl, blockUrl } from "@/lib/explorer";
-
-type Status = "Pending" | "Approved" | "Rejected" | "Finalized" | "Canceled" | "Paused";
+import { formatLCAIShort } from "@/lib/formatLCAI";
+import type { Status } from "@/lib/types/status";
 type Row = {
   id: bigint;
   creator?: Address;
   blockNumber: bigint;
   txHash: `0x${string}`;
   status: Status;
-  badges: { fast?: boolean; auto?: boolean; strategy?: string | null };
+  badges?: Record<string, unknown>;
   category: "all" | "gaming" | "fitness" | "social" | "custom";
   title?: string;
   description?: string;
@@ -25,19 +25,13 @@ type Row = {
 };
 
 const statusClass = (s: Status) => (
-  s === "Approved" ? "chip chip--ok" :
-  s === "Rejected" ? "chip chip--bad" :
+  s === "Active" ? "chip chip--ok" :
   s === "Finalized" ? "chip chip--info" :
   s === "Canceled" ? "chip chip--warn" : "chip"
 );
 
 function fmtLCAI(wei?: string | null) {
-  if (!wei) return "—";
-  const x = BigInt(wei);
-  const s = x.toString().padStart(19, "0");
-  const head = s.slice(0, -18).replace(/^0+/, "") || "0";
-  const tail = s.slice(-18, -16);
-  return `${head}.${tail}`;
+  return formatLCAIShort(wei) ?? "—";
 }
 
 export default function SmartTable({
@@ -59,7 +53,7 @@ export default function SmartTable({
         <div className="font-semibold">Recent Challenges (newest first)</div>
       </div>
       <div className="panel-body">
-        {loading && <div className="text-[color:var(--text-muted)] text-sm">Loading…</div>}
+        {loading && <div className="text-(--text-muted) text-sm">Loading…</div>}
         {!loading && rows.length === 0 && <div className="empty">No challenges in the scanned range.</div>}
         {!loading && rows.length > 0 && (
           <div className="overflow-x-auto">
@@ -113,13 +107,6 @@ export default function SmartTable({
                       <td>
                         <div className="flex gap-2">
                           <span className="chip">{r.category}</span>
-                          {b.auto && <span className="chip chip--ok" title="Auto-approved">Auto</span>}
-                          {b.fast && <span className="chip chip--info" title="Fast-Track">Fast</span>}
-                          {b.strategy ? (
-                            <a className="chip" href={addressUrl(b.strategy as `0x${string}`)} target="_blank" rel="noreferrer">
-                              Strategy
-                            </a>
-                          ) : null}
                         </div>
                       </td>
                       <td className="text-right mono">

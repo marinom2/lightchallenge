@@ -13,25 +13,15 @@ export type ChainRules = {
   chainNow: number;
   paused: boolean;
 
-  autoApprovalSet: boolean;
   allowlistEnabled: boolean | null;
   tokenAllowed: boolean | null;
-
-  strategyPaused?: boolean | null;
-  strategyRequireCreatorAllowlist?: boolean | null;
-  strategyCreatorAllowed?: boolean | null;
-  strategyAllowNative?: boolean | null;
-  strategyMinLeadSec?: number | null;
-  strategyMaxDurSec?: number | null;
 };
 
 export const DEFAULT_PROOF_GRACE_MIN = 60;
-export const DEFAULT_PEER_GRACE_MIN = 60;
 
 function requiredLeadSec(rules: ChainRules) {
   return Math.max(
     rules.minLeadSec || 0,
-    rules.strategyMinLeadSec || 0,
     SAFE_MIN_LEAD_SEC
   );
 }
@@ -69,32 +59,20 @@ export function clampLeadStart(
 
 export function deriveGatingDeadlines(
   timeline: ChallengeFormState["timeline"],
-  state: ChallengeFormState
 ) {
   const start = timeline.starts;
   const end = timeline.ends;
-  const peerGateEnabled = Number(state.peerApprovalsNeeded ?? 0) > 0;
 
   let proofDeadline = timeline.proofDeadline ?? null;
-  let peerDeadline = timeline.peerDeadline ?? null;
 
   if (start && end) {
     if (!proofDeadline) proofDeadline = addMinutes(end, DEFAULT_PROOF_GRACE_MIN);
-    if (peerGateEnabled && !peerDeadline) {
-      peerDeadline = addMinutes(end, DEFAULT_PEER_GRACE_MIN);
-    }
-
     if (proofDeadline && isBefore(proofDeadline, end)) proofDeadline = end;
-    if (peerGateEnabled && peerDeadline && isBefore(peerDeadline, end)) {
-      peerDeadline = end;
-    }
   }
 
   return {
     proofRequired: true,
-    peerGateEnabled,
     proofDeadline,
-    peerDeadline,
   };
 }
 
@@ -104,40 +82,6 @@ export function computeCreateBlockers(
 ) {
   if (rules.paused) {
     return { hard: true as const, reason: "Protocol is paused." };
-  }
-
-  if (!rules.autoApprovalSet) {
-    return {
-      hard: true as const,
-      reason: "Auto-approval strategy is not configured.",
-    };
-  }
-
-  if (rules.strategyPaused) {
-    return {
-      hard: true as const,
-      reason: "Auto-approval strategy is paused.",
-    };
-  }
-
-  if (
-    rules.strategyRequireCreatorAllowlist &&
-    rules.strategyCreatorAllowed === false
-  ) {
-    return {
-      hard: true as const,
-      reason: "Your wallet is not allowed by the auto-approval strategy.",
-    };
-  }
-
-  if (
-    state.money.currency.type === "NATIVE" &&
-    rules.strategyAllowNative === false
-  ) {
-    return {
-      hard: true as const,
-      reason: "Native currency is not allowed by the auto-approval strategy.",
-    };
   }
 
   if (rules.allowlistEnabled && state.money.currency.type === "ERC20") {
@@ -163,7 +107,7 @@ export function validateAgainstContract(
   rules: ChainRules
 ) {
   const blockers = computeCreateBlockers(state, rules);
-  const gating = deriveGatingDeadlines(state.timeline, state);
+  const gating = deriveGatingDeadlines(state.timeline);
 
   if (blockers.hard) {
     return {
@@ -221,13 +165,6 @@ export function validateAgainstContract(
       reasons.push("Duration exceeds the max allowed by the protocol.");
     }
 
-    if (
-      rules.strategyMaxDurSec != null &&
-      durSec > rules.strategyMaxDurSec
-    ) {
-      reasons.push("Duration exceeds the auto-approval strategy max duration.");
-    }
-
     const leadSec = Math.floor(starts.getTime() / 1000) - rules.chainNow;
     if (leadSec < requiredLeadSec(rules)) {
       reasons.push("Keep at least 2 hours between now and start.");
@@ -243,14 +180,8 @@ export function validateAgainstContract(
   }
 
   const stake = Number.parseFloat(state.money.stake || "0") || 0;
-  const bond = Number.parseFloat(state.money.bond || "0") || 0;
-  if (stake + bond <= 0) {
-    reasons.push("Add stake and/or proposal bond (> 0).");
-  }
-
-  const approvalsNeeded = Number(state.peerApprovalsNeeded ?? 0);
-  if (approvalsNeeded > 0 && (state.peers?.length ?? 0) < approvalsNeeded) {
-    reasons.push("Peer approvals needed exceeds number of peers.");
+  if (stake <= 0) {
+    reasons.push("Add a stake amount (> 0).");
   }
 
   if (starts && ends) {
@@ -258,14 +189,6 @@ export function validateAgainstContract(
       reasons.push("Proof deadline is missing.");
     } else if (isBefore(gating.proofDeadline, ends)) {
       reasons.push("Proof deadline must be at or after end.");
-    }
-
-    if (gating.peerGateEnabled) {
-      if (!gating.peerDeadline) {
-        reasons.push("Peer deadline is missing.");
-      } else if (isBefore(gating.peerDeadline, ends)) {
-        reasons.push("Peer deadline must be at or after end.");
-      }
     }
   }
 

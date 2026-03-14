@@ -110,6 +110,7 @@ contract Treasury is AccessControl, ReentrancyGuard {
   }
 
   function depositERC20From(uint256 bucketId, address token, address from, uint256 amount) external {
+    if (from != msg.sender && !hasRole(OPERATOR_ROLE, msg.sender)) revert BadParams();
     if (bucketId == 0 || token == address(0) || from == address(0)) revert BadParams();
     if (amount == 0) revert AmountZero();
 
@@ -233,6 +234,13 @@ contract Treasury is AccessControl, ReentrancyGuard {
     _claimETHTo(bucketId, msg.sender, amount);
   }
 
+  /**
+   * @notice Claim ETH to a specific address. The allowance is consumed from
+   * `to`'s balance, so funds always go to the correct recipient. This is
+   * permissionless by design: anyone can trigger delivery of already-granted
+   * funds, but cannot redirect them. This enables third-party relayers and
+   * meta-transaction flows without additional authorization.
+   */
   function claimETHTo(uint256 bucketId, address to, uint256 amount) external nonReentrant {
     if (to == address(0)) revert BadParams();
     _claimETHTo(bucketId, to, amount);
@@ -258,6 +266,13 @@ contract Treasury is AccessControl, ReentrancyGuard {
     _claimERC20To(bucketId, token, msg.sender, amount);
   }
 
+  /**
+   * @notice Claim ERC20 to a specific address. The allowance is consumed from
+   * `to`'s balance, so funds always go to the correct recipient. This is
+   * permissionless by design: anyone can trigger delivery of already-granted
+   * funds, but cannot redirect them. This enables third-party relayers and
+   * meta-transaction flows without additional authorization.
+   */
   function claimERC20To(uint256 bucketId, address token, address to, uint256 amount) external nonReentrant {
     if (to == address(0)) revert BadParams();
     _claimERC20To(bucketId, token, to, amount);

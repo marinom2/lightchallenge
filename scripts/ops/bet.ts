@@ -25,9 +25,9 @@ async function main() {
   const amountWei = toWei(process.env.AMOUNT ?? "");
   if (amountWei <= 0n) throw new Error("AMOUNT must be > 0");
 
-  // Expect Approved phase, before startTs (use chain time)
+  // Expect Active phase, before startTs (use chain time)
   const ch = await cp.getChallenge(id);
-  if (Number(ch.status) !== 1) throw new Error("Challenge is not Approved");
+  if (Number(ch.status) !== 0) throw new Error("Challenge is not Active");
   const latestBlock = await ethers.provider.getBlock("latest");
   const now = Number(latestBlock?.timestamp ?? Math.floor(Date.now() / 1000));
   if (now >= Number(ch.startTs)) throw new Error("Bet window closed (>= startTs)");

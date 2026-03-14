@@ -1,39 +1,65 @@
-// weabpp/app/api/admin/models/route.ts
+// webapp/app/api/admin/models/route.ts
+//
+// GET  /api/admin/models  — returns { models: ModelRow[] } from public.models DB table
+// PUT  /api/admin/models  — replaces the entire catalog (atomic transaction)
+//
+// Source of truth is now public.models (migration 007_models.sql).
+// webapp/public/models/models.json is a legacy archive — no longer read or written.
+
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
+import { getAllModels, getAllModelsAdmin, replaceAllModels, type ModelRow } from "../../../../../offchain/db/models";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const filePath = path.join(process.cwd(), "public", "models", "models.json");
-
-function validateModels(data: any) {
-  if (!data || !Array.isArray(data.models)) throw new Error("Top-level must be { models: [] }");
-  for (const m of data.models) {
-    if (typeof m?.id !== "string") throw new Error("Each model needs string id");
-    if (!["aivm","zk","plonk"].includes(m?.kind)) {throw new Error('Model kind must be "aivm", "zk", or "plonk"');}
-    if (typeof m?.modelHash !== "string" || !m.modelHash.startsWith("0x")) throw new Error("modelHash must be 0x hex");
-    if (typeof m?.verifier !== "string" || !m.verifier.startsWith("0x")) throw new Error("verifier must be 0x address");
-  }
-}
-
-function isDev() { return process.env.NODE_ENV !== "production"; }
 function checkAuth(req: NextRequest) {
   const key = process.env.ADMIN_KEY;
-  if (!key || isDev()) return true;
+  if (!key) return false;
   const got = req.headers.get("x-admin-key") || "";
   return got === key;
 }
 
-export async function GET() {
+function validateModels(models: unknown[]): void {
+  for (const m of models) {
+    const row = m as Record<string, unknown>;
+    if (typeof row?.id !== "string") throw new Error("Each model needs string id");
+    if (!["aivm", "custom"].includes(row?.kind as string)) {
+      throw new Error('Model kind must be "aivm" or "custom"');
+    }
+    if (typeof row?.modelHash !== "string" || !(row.modelHash as string).startsWith("0x")) {
+      throw new Error("modelHash must be 0x hex");
+    }
+    if (typeof row?.verifier !== "string" || !(row.verifier as string).startsWith("0x")) {
+      throw new Error("verifier must be 0x address");
+    }
+  }
+}
+
+export async function GET(req: NextRequest) {
+  // GET is public — models are non-sensitive metadata needed by the create-challenge UI.
+  // PUT (mutation) still requires admin auth.
   try {
-    const buf = await fs.readFile(filePath, "utf8").catch(() => '{"models":[]}' );
-    const json = JSON.parse(buf);
-    validateModels(json);
-    return NextResponse.json(json);
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message || "Read failed" }, { status: 500 });
+    const isAdmin = checkAuth(req);
+    const rows = isAdmin ? await getAllModelsAdmin() : await getAllModels();
+    // Return same { models: [...] } shape as before for backward compat with modelRegistry.ts / admin UI
+    const models = rows.map((r) => ({
+      id: r.id,
+      label: r.label,
+      kind: r.kind,
+      modelHash: r.modelHash,
+      verifier: r.verifier,
+      ...(r.plonkVerifier ? { plonkVerifier: r.plonkVerifier } : {}),
+      binding: r.binding,
+      signals: r.signals,
+      params: r.params,
+      sources: r.sources,
+      fileAccept: r.fileAccept,
+      ...(r.notes ? { notes: r.notes } : {}),
+    }));
+    return NextResponse.json({ models });
+  } catch (e) {
+    console.error("[admin/models GET]", e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 
@@ -42,10 +68,14 @@ export async function PUT(req: NextRequest) {
   try {
     const body = await req.text();
     const data = JSON.parse(body);
-    validateModels(data);
-    await fs.writeFile(filePath, JSON.stringify(data, null, 2), "utf8");
+    if (!data || !Array.isArray(data.models)) {
+      throw new Error("Top-level must be { models: [] }");
+    }
+    validateModels(data.models);
+    await replaceAllModels(data.models as ModelRow[]);
     return NextResponse.json({ ok: true, count: data.models.length });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message || "Write failed" }, { status: 400 });
+  } catch (e) {
+    console.error("[admin/models PUT]", e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

@@ -10,10 +10,15 @@ import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
  * @title TrustedForwarder
  * @notice EIP-2771 style forwarder with EIP-712 signed requests.
  *
+ * STATUS: Deployed but DORMANT. No target contracts are currently allowed.
+ * The forwarder is retained for future gasless transaction support.
+ * To activate: owner must call setTargetAllowed() for each target contract.
+ *
  * Security features:
+ * - Ownable2Step ownership transfer (prevents accidental lockout)
  * - Nonce per signer (replay protection)
  * - Optional deadline (0 = no deadline)
- * - Allowed target allowlist (critical)
+ * - Allowed target allowlist (critical — empty by default)
  * - Optional relayer allowlist (recommended for production)
  *
  * Target contracts must:

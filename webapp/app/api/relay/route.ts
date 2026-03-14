@@ -6,6 +6,21 @@ import { lightchain } from "@/lib/lightchain";
 import { publicClient } from "@/lib/viem";
 import { trustedForwarderAbi } from "@/lib/contracts/trustedForwarderAbi";
 
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 20;
+const ipCounts = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = ipCounts.get(ip);
+  if (!entry || now > entry.resetAt) {
+    ipCounts.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= RATE_LIMIT_MAX;
+}
+
 type ForwardRequest = {
   from: Address;
   to: Address;
@@ -17,7 +32,17 @@ type ForwardRequest = {
 };
 
 export async function POST(request: Request) {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   try {
+    const relayEnabled = (process.env.RELAY_ENABLED ?? "false").toLowerCase() === "true";
+    if (!relayEnabled) {
+      return NextResponse.json({ error: "Relay is not enabled" }, { status: 503 });
+    }
+
     const body = await request.json();
     const forwarder = process.env.NEXT_PUBLIC_TRUSTED_FORWARDER as Address | undefined;
     const relayerPk = process.env.RELAYER_PRIVATE_KEY as Hex | undefined;
@@ -77,7 +102,8 @@ export async function POST(request: Request) {
 
     const hash = await walletClient.writeContract(sim.request);
     return NextResponse.json({ hash });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Relay failed" }, { status: 500 });
+  } catch (e) {
+    console.error("[relay]", e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

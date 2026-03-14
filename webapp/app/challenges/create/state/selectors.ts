@@ -34,9 +34,7 @@ export function selectVerifier(state: ChallengeFormState): Address | null {
 export function buildDerivedState(state: ChallengeFormState): DerivedState {
   const decimals = getDecimals(state);
 
-  const stakeWei = safeParse(state.money.stake, decimals);
-  const bondWei = safeParse(state.money.bond, decimals);
-  const totalDepositWei = stakeWei + bondWei;
+  const totalDepositWei = safeParse(state.money.stake, decimals);
 
   const totalDepositFormatted = (() => {
     try {

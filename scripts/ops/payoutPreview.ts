@@ -22,8 +22,6 @@ async function main() {
 
   const poolS: bigint = ch.poolSuccess;
   const poolF: bigint = ch.poolFail;
-  const charityBps: number = Number(ch.charityBps ?? 0);
-
   function preview(success: boolean) {
     const winners = success ? poolS : poolF;
     const losers  = success ? poolF : poolS;
@@ -31,17 +29,15 @@ async function main() {
     const loserCashback = bps(losers, Number(f.loserCashbackBps));
     const losersAfterCashback = losers - loserCashback;
 
-    const charity = bps(losersAfterCashback, charityBps);
-
     const totalFee = bps(losersAfterCashback, Number(f.losersFeeBps));
     const dao      = bps(losersAfterCashback, Number(f.daoBps));
     const creator  = bps(losersAfterCashback, Number(f.creatorBps));
     const validators = bps(losersAfterCashback, Number(f.validatorsBps));
 
     // distributable to winners (excludes winners' own principal — this is “winnings” pot)
-    const distributable = losersAfterCashback - charity - totalFee;
+    const distributable = losersAfterCashback - totalFee;
 
-    return { winners, losers, loserCashback, losersAfterCashback, charity, dao, creator, validators, distributable };
+    return { winners, losers, loserCashback, losersAfterCashback, dao, creator, validators, distributable };
   }
 
   const succ = preview(true);
@@ -53,7 +49,6 @@ async function main() {
   console.log(`losersPool         : ${fmtWei(succ.losers)} LCAI`);
   console.log(`  loserCashback    : ${fmtWei(succ.loserCashback)} LCAI`);
   console.log(`  afterCashback    : ${fmtWei(succ.losersAfterCashback)} LCAI`);
-  console.log(`  charity          : ${fmtWei(succ.charity)} LCAI`);
   console.log(`  fee total        : ${fmtWei(succ.dao + succ.creator + succ.validators)} LCAI`);
   console.log(`    - dao          : ${fmtWei(succ.dao)} LCAI`);
   console.log(`    - creator      : ${fmtWei(succ.creator)} LCAI`);
@@ -66,7 +61,6 @@ async function main() {
   console.log(`losersPool         : ${fmtWei(failP.losers)} LCAI`);
   console.log(`  loserCashback    : ${fmtWei(failP.loserCashback)} LCAI`);
   console.log(`  afterCashback    : ${fmtWei(failP.losersAfterCashback)} LCAI`);
-  console.log(`  charity          : ${fmtWei(failP.charity)} LCAI`);
   console.log(`  fee total        : ${fmtWei(failP.dao + failP.creator + failP.validators)} LCAI`);
   console.log(`    - dao          : ${fmtWei(failP.dao)} LCAI`);
   console.log(`    - creator      : ${fmtWei(failP.creator)} LCAI`);
@@ -77,7 +71,6 @@ async function main() {
     console.log("Caps (from contract)");
     console.log("--------------------");
     console.log(`losersFeeMaxBps    : ${caps.losersFeeMaxBps}`);
-    console.log(`charityMaxBps      : ${caps.charityMaxBps}`);
     console.log(`loserCashbackMaxBps: ${caps.loserCashbackMaxBps}\n`);
   }
 }

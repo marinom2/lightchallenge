@@ -11,8 +11,7 @@ export type Deployments = {
     ChallengePay?: string;
     Treasury?: string;
     DaoTreasury?: string;
-    ZkProofVerifier?: string;
-    PlonkVerifier?: string;
+    MetadataRegistry?: string;
   };
 };
 

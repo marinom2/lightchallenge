@@ -65,7 +65,7 @@ export async function decodeRevert(dataHex: string | undefined) {
     return { name: "std", detail: std };
   }
 
-  const names = ["ChallengePay", "Treasury", "AutoApprovalStrategy", "EventChallengeRouter"];
+  const names = ["ChallengePay", "Treasury", "EventChallengeRouter"];
   for (const n of names) {
     try {
       const art = await artifacts.readArtifact(n);

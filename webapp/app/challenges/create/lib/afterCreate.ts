@@ -1,6 +1,4 @@
-import { ABI, ADDR, makeWalletClient } from "@/lib/contracts";
-import { lightchain } from "@/lib/lightchain";
-import type { Address, Hex } from "viem";
+import type { Hex } from "viem";
 
 type ChallengeProofRecord =
   | {
@@ -26,27 +24,8 @@ type ChallengeProofRecord =
     }
   | null;
 
-const ZERO: Address = "0x0000000000000000000000000000000000000000";
-
 function isHex(value?: string | null): value is Hex {
   return !!value && /^0x[0-9a-fA-F]+$/.test(value) && value.length >= 10;
-}
-
-function isAddr(value?: string | null): value is Address {
-  return !!value && /^0x[0-9a-fA-F]{40}$/.test(value);
-}
-
-function getBaseUrlSafe(): string {
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return window.location.origin.replace(/\/$/, "");
-  }
-
-  const envBase = (process.env.NEXT_PUBLIC_BASE_URL || "")
-    .trim()
-    .replace(/\/$/, "");
-
-  if (envBase) return envBase;
-  return "";
 }
 
 export async function saveLocalMeta(payload: {
@@ -62,7 +41,7 @@ export async function saveLocalMeta(payload: {
   subject?: Hex;
   txHash?: Hex;
   externalId?: string;
-  status?: "Pending" | "Approved" | "Rejected" | "Finalized";
+  status?: "Active" | "Finalized" | "Canceled";
   modelId?: string | null;
   modelKind?: "aivm" | "zk" | "plonk" | null;
   verificationBackend?:
@@ -84,11 +63,9 @@ export async function saveLocalMeta(payload: {
     startsAt?: string | null;
     endsAt?: string | null;
     proofDeadline?: string | null;
-    peerDeadline?: string | null;
   };
   funds?: {
     stake?: string;
-    bond?: string;
     currency?: {
       type: "NATIVE" | "ERC20";
       symbol?: string | null;
@@ -97,12 +74,9 @@ export async function saveLocalMeta(payload: {
   };
   options?: {
     participantCap?: string;
-    charity?: { percent?: string; address?: string };
     externalId?: string;
   };
-  peers?: string[];
-  peerApprovalsNeeded?: number;
-  proofSource?: "API" | "HYBRID" | "PEERS" | string;
+  proofSource?: "API" | "HYBRID" | string;
   invites?: { roster: Array<{ id: string; team?: string | null; wallet?: string | null }> };
 }) {
   const safeSubject = isHex(payload.subject ?? null) ? payload.subject : undefined;
@@ -132,68 +106,11 @@ export async function saveLocalMeta(payload: {
   };
 }
 
-export async function setRegistryUriHttp({
-  id,
-  account,
-}: {
-  id: bigint;
-  account: Address;
-}) {
-  if (!isAddr(ADDR.MetadataRegistry) || ADDR.MetadataRegistry === ZERO) return;
-  if (!isAddr(ADDR.ChallengePay) || ADDR.ChallengePay === ZERO) return;
-
-  const base = getBaseUrlSafe();
-  const envBase = (process.env.NEXT_PUBLIC_BASE_URL || "").trim();
-
-  const isLocal =
-    base.includes("localhost") ||
-    base.includes("127.0.0.1") ||
-    base.includes("0.0.0.0");
-
-  if (!base) {
-    console.warn(
-      "setRegistryUriHttp skipped: base URL unavailable (set NEXT_PUBLIC_BASE_URL in prod)."
-    );
-    return;
-  }
-
-  if (isLocal && !envBase) {
-    console.warn(
-      "setRegistryUriHttp skipped: refusing localhost URI without NEXT_PUBLIC_BASE_URL set."
-    );
-    return;
-  }
-
-  const uri = `${base}/api/challenges/meta/${id.toString()}`;
-  const wallet = makeWalletClient({ account });
-
-  try {
-    await wallet.writeContract({
-      address: ADDR.MetadataRegistry,
-      abi: ABI.MetadataRegistry,
-      functionName: "challengerSet",
-      args: [ADDR.ChallengePay, id, uri],
-      chain: lightchain,
-    });
-  } catch (e: any) {
-    console.warn("setRegistryUriHttp failed:", e?.shortMessage || e?.message || e);
-  }
-}
-
-export async function triggerAivmPipeline(challengeId: string) {
-  try {
-    const res = await fetch(`/api/challenges/${challengeId}/aivm`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.warn(
-        `triggerAivmPipeline failed (${res.status}): ${text || res.statusText}`
-      );
-    }
-  } catch (e: any) {
-    console.warn("triggerAivmPipeline failed:", e?.message || e);
-  }
+/**
+ * No-op: AIVM pipeline is triggered automatically by the challengeDispatcher
+ * worker polling the DB for challenges with passing verdicts.
+ * Kept as a stub so callers don't need to be refactored.
+ */
+export async function triggerAivmPipeline(_challengeId: string) {
+  // Intentionally empty — dispatcher handles this automatically.
 }

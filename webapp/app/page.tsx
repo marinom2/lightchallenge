@@ -1,337 +1,246 @@
+"use client";
+
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
+import { useAccount } from "wagmi";
 
-type Metric = {
-  label: string;
-  value: string;
-  hint?: string;
-  icon?: string;
-};
+/* ── Live protocol stats ────────────────────────────────────────────────── */
+type Stats = { totalChallenges: number; validatorStake: string; modelsCount: number };
 
-type NavItem = {
-  href: string;
-  title: string;
-  desc: string;
-  icon: string;
-  tag?: string;
-};
+function useStats() {
+  const [stats, setStats] = useState<Stats | null>(null);
+  useEffect(() => {
+    fetch("/api/stats", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => { if (d?.ok) setStats(d); })
+      .catch(() => {});
+  }, []);
+  return stats;
+}
 
-const METRICS: readonly Metric[] = [
-  { label: "Active", value: "—", hint: "Challenges live now", icon: "⚡" },
-  { label: "Participants", value: "—", hint: "Unique wallets joined", icon: "👥" },
-  { label: "Pool", value: "—", hint: "Total stake value", icon: "🏦" },
-  { label: "Validators", value: "—", hint: "Available verifiers", icon: "✅" },
-] as const;
+/* ── Types ──────────────────────────────────────────────────────────────── */
+type NavItem = { href: string; title: string; desc: string; tag?: string };
 
 const PRIMARY: readonly NavItem[] = [
-  {
-    href: "/challenges/create",
-    title: "Create",
-    desc: "Guided 4-step builder with approvals, stake, and schedule.",
-    icon: "⚡",
-    tag: "Builder",
-  },
-  {
-    href: "/explore",
-    title: "Explore",
-    desc: "Browse challenges across categories and formats.",
-    icon: "🔎",
-    tag: "Discover",
-  },
-  {
-    href: "/proofs/submit",
-    title: "Submit Proof",
-    desc: "Attach proof bytes + context and request verification.",
-    icon: "🧾",
-    tag: "Verify",
-  },
-  {
-    href: "/claims",
-    title: "Claims",
-    desc: "Claim winner payouts, cashback, and validator rewards.",
-    icon: "🏁",
-    tag: "Payouts",
-  },
-  {
-    href: "/settings/linked-accounts",
-    title: "Linked Accounts",
-    desc: "Connect Steam and more to power validator cards.",
-    icon: "🎮",
-    tag: "Link",
-  },
-  {
-    href: "/dashboard",
-    title: "Dashboard",
-    desc: "Track approvals, pools, and recent activity.",
-    icon: "📊",
-    tag: "Track",
-  },
+  { href: "/explore",                   title: "Explore",        desc: "Browse active challenges. Find one worth your stake.",                tag: "Discover" },
+  { href: "/challenges/create",         title: "Create",         desc: "Launch a challenge in 4 steps — rules, stake, and deadline.",        tag: "Build" },
+  { href: "/me/challenges",             title: "My Challenges",  desc: "Your active, pending, and completed challenges at a glance.",        tag: "Yours" },
+  { href: "/claims",                    title: "Claims",         desc: "See and claim your winnings from finalized challenges.",             tag: "Earn" },
+  { href: "/proofs",                    title: "Submit Proof",   desc: "Upload evidence for AIVM verification of your goal.",               tag: "Verify" },
+  { href: "/settings/linked-accounts",  title: "Link Accounts",  desc: "Connect Steam, Garmin, Strava, and more to enable challenges.",     tag: "Connect" },
 ] as const;
 
-const QUICK: readonly NavItem[] = [
-  {
-    href: "/explore",
-    title: "Explore challenges",
-    desc: "Find something to join or compete in.",
-    icon: "🔎",
-  },
-  {
-    href: "/challenges/create",
-    title: "Create a challenge",
-    desc: "Title, stake, schedule — done in minutes.",
-    icon: "⚡",
-  },
-  {
-    href: "/settings/linked-accounts",
-    title: "Link Steam",
-    desc: "Unlock validator data & game-based challenges.",
-    icon: "🎮",
-  },
-] as const;
-
-export default function HomePage() {
-  return (
-    <div className="container-narrow space-y-10">
-      {/* HERO */}
-      <section className="panel">
-        <div className="panel-header">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="chip chip--soft shrink-0">LightChallenge</div>
-            <div className="text-xs tracking-[0.22em] uppercase text-(--text-muted) truncate">
-              On-chain settlement • Objective challenges • Validator powered
-            </div>
-          </div>
-
-          <div className="hidden md:flex items-center gap-2">
-            <span className="chip">Tip</span>
-            <span className="text-sm text-(--text-muted)">
-              Simple title, fair stake, short window.
-            </span>
-          </div>
-        </div>
-
-        <div className="panel-body">
-          <div className="grid gap-8 md:grid-cols-[1.25fr_.75fr] md:items-start">
-            <div className="min-w-0">
-              <h1 className="h1 title-premium">
-                Create challenges people actually finish.
-              </h1>
-
-              <p className="mt-4 text-(--text-muted) leading-relaxed max-w-2xl">
-                Create, join, and verify challenges. Stake funds, bring proof (on- or
-                off-chain), let validators verify, and claim rewards — finalized on-chain.
-              </p>
-
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <Link href="/challenges/create" className="btn btn-primary btn-lg">
-                  Create Challenge
-                </Link>
-                <Link href="/explore" className="btn btn-ghost btn-lg">
-                  Explore
-                </Link>
-                <Link href="/dashboard" className="btn btn-outline btn-lg">
-                  Dashboard
-                </Link>
-              </div>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                <span className="chip chip--soft">Objective-first</span>
-                <span className="chip chip--soft">No dead ends</span>
-                <span className="chip chip--soft">Clear timelines</span>
-              </div>
-            </div>
-
-            {/* HERO SIDE: Apple-style “Getting started” */}
-            <aside className="u-surface p-5">
-              <div className="text-xs uppercase tracking-wider text-(--text-muted)">
-                Getting started
-              </div>
-
-              <ol className="mt-3 space-y-3">
-                <Step
-                  n="1"
-                  title="Create"
-                  desc="Pick a type, stake, and schedule."
-                  href="/challenges/create"
-                />
-                <Step
-                  n="2"
-                  title="Share"
-                  desc="Post the link and let people join."
-                  href="/explore"
-                />
-                <Step
-                  n="3"
-                  title="Verify"
-                  desc="Submit proof and get it approved."
-                  href="/proofs/submit"
-                />
-                <Step
-                  n="4"
-                  title="Claim"
-                  desc="Payouts, cashback, validator rewards."
-                  href="/claims"
-                />
-              </ol>
-
-              <div className="mt-4 text-sm text-(--text-muted) leading-relaxed">
-                You’ll always see what’s possible right now — actions that are closed will
-                be hidden in the experience, not dumped on you as errors.
-              </div>
-            </aside>
-          </div>
-        </div>
-      </section>
-
-      {/* METRICS */}
-      <section aria-label="Platform metrics" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {METRICS.map((m) => (
-          <MetricCard key={m.label} metric={m} />
-        ))}
-      </section>
-
-      {/* PRIMARY NAV */}
-      <section aria-label="Primary navigation" className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {PRIMARY.map((item) => (
-          <NavCard key={item.href} item={item} />
-        ))}
-      </section>
-
-      {/* QUICK LINKS */}
-      <section className="panel">
-        <div className="panel-header">
-          <div className="min-w-0">
-            <div className="h2">Quick Links</div>
-            <div className="mt-1 text-sm text-(--text-muted)">
-              Jump in fast — clean flows, no clutter.
-            </div>
-          </div>
-
-          <div className="hidden sm:flex items-center gap-2">
-            <span className="chip">Start here</span>
-          </div>
-        </div>
-
-        <div className="panel-body">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            {QUICK.map((q) => (
-              <QuickLinkCard key={q.href} item={q} />
-            ))}
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-/* --------------------------------- */
-/* Components                         */
-/* --------------------------------- */
-
-function MetricCard({ metric }: { metric: Metric }) {
-  return (
-    <div className="panel p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-xs uppercase tracking-wider text-(--text-muted)">
-            {metric.label}
-          </div>
-          <div className="mt-2 text-2xl font-semibold tabular-nums">
-            {metric.value}
-          </div>
-          {metric.hint ? (
-            <div className="mt-1 text-xs text-(--text-muted)">{metric.hint}</div>
-          ) : null}
-        </div>
-
-        {metric.icon ? (
-          <div className="metric-ic shrink-0" aria-hidden="true">
-            <span className="text-lg leading-none">{metric.icon}</span>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
+/* ── Components ─────────────────────────────────────────────────────────── */
 function NavCard({ item }: { item: NavItem }) {
   return (
     <Link
       href={item.href}
-      className="panel group p-5 hover:-translate-y-px transition-transform focus:outline-none"
+      className="nav-card group"
       aria-label={`${item.title}: ${item.desc}`}
     >
-      <div className="flex items-start gap-3">
-        <div className="text-xl leading-none" aria-hidden="true">
-          {item.icon}
-        </div>
-
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="h2">{item.title}</div>
-            {item.tag ? <span className="chip chip--soft">{item.tag}</span> : null}
-          </div>
-
-          <p className="mt-2 text-(--text-muted) leading-relaxed">{item.desc}</p>
-
-          <div className="mt-5 text-sm text-(--text-muted) group-hover:text-(--text)">
-            Open →
-          </div>
-        </div>
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <span className="text-base font-semibold group-hover:text-(--accent) transition-colors">
+          {item.title}
+        </span>
+        {item.tag && <span className="chip chip--soft shrink-0 text-[10px]">{item.tag}</span>}
+      </div>
+      <p className="text-sm text-(--text-muted) leading-relaxed">{item.desc}</p>
+      <div className="mt-4 text-xs text-(--text-muted) group-hover:text-(--text) transition-colors">
+        Open →
       </div>
     </Link>
   );
 }
 
-function QuickLinkCard({ item }: { item: NavItem }) {
-  return (
-    <Link href={item.href} className="u-surface group p-4">
-      <div className="flex items-start gap-3">
-        <div className="text-lg leading-none" aria-hidden="true">
-          {item.icon}
-        </div>
-        <div className="min-w-0">
-          <div className="font-semibold">{item.title}</div>
-          <div className="mt-1 text-sm text-(--text-muted)">{item.desc}</div>
-          <div className="mt-3 text-sm text-(--text-muted) group-hover:text-(--text)">
-            Open →
-          </div>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-function Step({
-  n,
-  title,
-  desc,
-  href,
+function StatCard({
+  value,
+  label,
+  hint,
 }: {
-  n: string;
-  title: string;
-  desc: string;
-  href: string;
+  value: string;
+  label: string;
+  hint: string;
 }) {
   return (
-    <li className="flex items-start gap-3">
-      <div className="badge-id badge-id--sm shrink-0" aria-hidden="true">
-        {n}
-      </div>
-
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <Link href={href} className="link-soft font-semibold">
-            {title}
-          </Link>
-        </div>
-        <div className="text-sm text-(--text-muted) leading-relaxed">{desc}</div>
-      </div>
-    </li>
+    <div className="metric text-center py-4">
+      <div className="text-2xl font-bold tabular-nums">{value}</div>
+      <div className="text-xs font-semibold uppercase tracking-widest mt-1">{label}</div>
+      <div className="text-[11px] text-(--text-muted) mt-0.5">{hint}</div>
+    </div>
   );
 }
 
-/* Utility: tabular numbers */
-function tabularNums(children: ReactNode) {
-  return <span className="tabular-nums">{children}</span>;
+/* ── Page ────────────────────────────────────────────────────────────────── */
+export default function HomePage() {
+  const { isConnected } = useAccount();
+  const stats = useStats();
+
+  const fmtChallenges = (n?: number) => {
+    if (n == null) return "…";
+    if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+    return String(n);
+  };
+
+  const fmtStake = (s?: string) => {
+    if (!s) return "…";
+    const n = parseFloat(s);
+    if (isNaN(n)) return s;
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M LCAI`;
+    if (n >= 1000) return `${(n / 1000).toFixed(1)}k LCAI`;
+    return `${n.toFixed(0)} LCAI`;
+  };
+
+  return (
+    <div className="container-narrow space-y-10">
+      {/* ── HERO ─────────────────────────────────────────────── */}
+      <section className="panel overflow-hidden relative">
+        {/* Ambient gradient */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            opacity: 0.4,
+            background:
+              "radial-gradient(90% 55% at 50% -5%, color-mix(in oklab, var(--grad-1) 55%, transparent), transparent 72%)",
+          }}
+        />
+
+        <div className="panel-body relative z-10 pt-10 pb-8 sm:pt-14 sm:pb-10">
+          <div className="max-w-2xl">
+            <div className="flex items-center gap-2 mb-5">
+              <span className="chip chip--soft">LightChallenge</span>
+              <span className="text-xs text-(--text-muted) tracking-widest uppercase">
+                On-chain · AI-verified · Rewarded
+              </span>
+            </div>
+
+            <h1 className="h1 title-premium leading-[1.1] mb-5">
+              Stake your reputation.<br />
+              Prove it on-chain.
+            </h1>
+
+            <p className="text-base text-(--text-muted) leading-relaxed max-w-xl mb-8">
+              LightChallenge lets you put real stake behind real goals.
+              Win your match, hit your step count, crush your PR — then submit proof
+              and the AI verifier confirms it on-chain. No trust required.
+            </p>
+
+            <div className="flex flex-wrap gap-3">
+              <Link href="/explore" className="btn btn-primary btn-lg">
+                Browse challenges →
+              </Link>
+              <Link href="/challenges/create" className="btn btn-ghost btn-lg">
+                Create one
+              </Link>
+              {isConnected && (
+                <Link href="/me/challenges" className="btn btn-outline btn-lg">
+                  My challenges
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Live Stats ───────────────────────────────────────── */}
+        <div
+          className="relative z-10 grid grid-cols-2 sm:grid-cols-4 divide-x"
+          style={{
+            borderTop: "1px solid color-mix(in oklab, var(--border) 60%, transparent)",
+            "--tw-divide-opacity": 1,
+          } as React.CSSProperties}
+        >
+          <StatCard
+            value={fmtChallenges(stats?.totalChallenges)}
+            label="Challenges"
+            hint="Created on-chain"
+          />
+          <StatCard
+            value={fmtStake(stats?.validatorStake)}
+            label="Staked"
+            hint="Validator pool"
+          />
+          <StatCard
+            value={stats ? String(stats.modelsCount) : "…"}
+            label="Verifiers"
+            hint="AI models"
+          />
+          <StatCard
+            value={stats ? "Live" : "…"}
+            label="Network"
+            hint="Lightchain testnet"
+          />
+        </div>
+      </section>
+
+      {/* ── HOW IT WORKS ─────────────────────────────────────── */}
+      <section>
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-(--text-muted) mb-4">
+          How it works
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[
+            {
+              step: "01",
+              title: "Pick your challenge",
+              desc: "Browse open challenges or create your own. Set the goal, stake LCAI, lock the deadline. It's live on-chain in seconds.",
+            },
+            {
+              step: "02",
+              title: "Do the work",
+              desc: "Run the miles. Win the match. Hit the target. Your deadline is immutable — the chain doesn't care about excuses.",
+            },
+            {
+              step: "03",
+              title: "Prove it, get paid",
+              desc: "Submit your evidence. The Lightchain AI network verifies it independently. Pass the check and claim your reward.",
+            },
+          ].map((s) => (
+            <div key={s.step} className="panel p-5">
+              <div
+                className="text-4xl font-black tabular-nums mb-3"
+                style={{ color: "color-mix(in oklab, var(--text-muted) 40%, transparent)" }}
+              >
+                {s.step}
+              </div>
+              <div className="text-base font-semibold mb-1.5">{s.title}</div>
+              <p className="text-sm text-(--text-muted) leading-relaxed">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── USE CASES ───────────────────────────────────────── */}
+      <section>
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-(--text-muted) mb-4">
+          What people challenge
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: "Gaming", examples: "Dota 2, CS2, LoL, Valorant", icon: "🎮" },
+            { label: "Fitness", examples: "Steps, running, cycling", icon: "🏃" },
+            { label: "Esports", examples: "Win streaks, ranked climbs", icon: "🏆" },
+            { label: "Custom", examples: "Anything verifiable", icon: "⚡" },
+          ].map((uc) => (
+            <div key={uc.label} className="panel p-4 text-center">
+              <div className="text-2xl mb-2">{uc.icon}</div>
+              <div className="text-sm font-semibold mb-1">{uc.label}</div>
+              <div className="text-xs text-(--text-muted)">{uc.examples}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── NAV GRID ─────────────────────────────────────────── */}
+      <section>
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-(--text-muted) mb-4">
+          Explore the app
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {PRIMARY.map((item) => (
+            <NavCard key={item.href} item={item} />
+          ))}
+        </div>
+      </section>
+    </div>
+  );
 }

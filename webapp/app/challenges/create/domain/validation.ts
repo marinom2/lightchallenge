@@ -35,11 +35,9 @@ export function validateFunds(state: ChallengeFormState): ValidationResult {
   const warnings: string[] = [];
 
   const stake = safeNum(state.money?.stake);
-  const bond = safeNum(state.money?.bond);
-  const total = stake + bond;
 
-  if (total <= 0) errors.push("Total stake+bond must be greater than 0.");
-  if (stake < 0 || bond < 0) errors.push("Stake/bond cannot be negative.");
+  if (stake <= 0) errors.push("Stake must be greater than 0.");
+  if (stake < 0) errors.push("Stake cannot be negative.");
 
   return { ok: errors.length === 0, errors, warnings };
 }

@@ -1,26 +1,22 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { isAddress } from "viem";
+import { verifyWallet, requireAuth } from "@/lib/auth";
+import { sslConfig } from "../../../../offchain/db/sslConfig";
+import {
+  writeRegistryUri,
+  buildMetadataUri,
+  isRegistryWriterConfigured,
+} from "@/lib/registryWriter";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
 export const dynamic = "force-dynamic";
 
-type UiStatus =
-  | "Pending"
-  | "Approved"
-  | "Rejected"
-  | "Finalized"
-  | "Canceled"
-  | "Paused";
+// V1 on-chain status enum: Active=0, Finalized=1, Canceled=2
+type UiStatus = "Active" | "Finalized" | "Canceled";
 
 type Category = "gaming" | "fitness" | "social" | "custom";
-
-export type RosterSlot = {
-  id: string;
-  team?: string | null;
-  wallet?: string | null;
-};
 
 export type ChallengeMeta = {
   id: string;
@@ -39,13 +35,12 @@ export type ChallengeMeta = {
   createdAt?: number;
 
   modelId?: string | null;
-  modelKind?: "aivm" | "zk" | "plonk" | null;
+  modelKind?: "aivm" | null;
   modelHash?: `0x${string}` | null;
-  plonkVerifier?: `0x${string}` | null;
   verifierUsed?: `0x${string}` | null;
 
   proof?: {
-    kind: "aivm" | "zk" | "plonk";
+    kind: "aivm";
     modelId: string;
     params: Record<string, any>;
     paramsHash: `0x${string}`;
@@ -57,12 +52,10 @@ export type ChallengeMeta = {
     startsAt?: string | null;
     endsAt?: string | null;
     proofDeadline?: string | null;
-    peerDeadline?: string | null;
   };
 
   funds?: {
     stake?: string;
-    bond?: string;
     currency?: {
       type: "NATIVE" | "ERC20";
       symbol?: string | null;
@@ -72,22 +65,12 @@ export type ChallengeMeta = {
 
   options?: {
     participantCap?: string;
-    charity?: { percent?: string; address?: string };
     externalId?: string;
     category?: string;
     game?: string | null;
     mode?: string | null;
     tags?: string[];
-    peers?: string[];
-    peerApprovalsNeeded?: number;
-    proofSource?: string;
-    invites?: { roster: RosterSlot[] };
   };
-
-  peers?: string[];
-  peerApprovalsNeeded?: number;
-  proofSource?: "API" | "HYBRID" | "PEERS" | string;
-  invites?: { roster: RosterSlot[] };
 };
 
 type AnyBody = Partial<ChallengeMeta> & { meta?: any; essentials?: any };
@@ -117,7 +100,7 @@ if (!DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  ssl: sslConfig(),
 });
 
 function asAddrOrNull(v: unknown): `0x${string}` | null {
@@ -142,24 +125,31 @@ function asStringOrUndef(v: unknown): string | undefined {
   return s || undefined;
 }
 
+/**
+ * Normalize DB status string to V1 UiStatus.
+ *
+ * V1 on-chain enum: Active(0), Finalized(1), Canceled(2).
+ * Legacy V0 labels in DB are mapped to the closest V1 equivalent:
+ *   pending/approved/paused/active/verified/waiting/created → Active
+ *   finalized/complete/completed/done → Finalized
+ *   canceled/cancelled/rejected → Canceled
+ *   null/empty → Active (default: challenge exists but status not yet set)
+ */
 function normalizeStatus(s?: string): UiStatus {
-  if (!s) return "Pending";
+  if (!s) return "Active";
   const k = s.toLowerCase().trim();
 
-  if (
-    ["pending", "approved", "rejected", "finalized", "canceled", "paused"].includes(
-      k
-    )
-  ) {
-    return (k.charAt(0).toUpperCase() + k.slice(1)) as UiStatus;
-  }
+  // V1 canonical values (pass-through)
+  if (k === "active") return "Active";
+  if (k === "finalized") return "Finalized";
+  if (k === "canceled") return "Canceled";
 
-  if (["active", "verified"].includes(k)) return "Approved";
-  if (["waiting", "created"].includes(k)) return "Pending";
+  // Legacy V0 → V1 mapping
+  if (["pending", "approved", "paused", "verified", "waiting", "created"].includes(k)) return "Active";
   if (["complete", "completed", "done"].includes(k)) return "Finalized";
-  if (k === "cancelled") return "Canceled";
+  if (["cancelled", "rejected"].includes(k)) return "Canceled";
 
-  return "Pending";
+  return "Active";
 }
 
 function normalizeCategory(c?: string): Category | undefined {
@@ -275,20 +265,12 @@ function rowToMeta(row: ChallengeRow): ChallengeMeta {
     modelKind: proof.kind ?? null,
     modelHash:
       typeof row.model_hash === "string" ? (row.model_hash as `0x${string}`) : null,
-    plonkVerifier: asAddrOrNull(proof.plonkVerifier),
     verifierUsed: asAddrOrNull(proof.verifierUsed),
 
     proof: row.proof ?? null,
     timeline: row.timeline ?? undefined,
     funds: row.funds ?? undefined,
     options: row.options ?? undefined,
-    peers: Array.isArray(options.peers) ? options.peers : [],
-    peerApprovalsNeeded:
-      typeof options.peerApprovalsNeeded === "number"
-        ? options.peerApprovalsNeeded
-        : 0,
-    proofSource: options.proofSource ?? undefined,
-    invites: options.invites ?? undefined,
   };
 }
 
@@ -390,7 +372,6 @@ async function upsertChallenge(body: AnyBody) {
   const subject = asAddrOrNull(body.subject ?? prev?.subject);
   const verifier = asAddrOrNull(body.verifier ?? prev?.verifier);
   const verifierUsed = asAddrOrNull(body.verifierUsed ?? prev?.verifierUsed);
-  const plonkVerifier = asAddrOrNull(body.plonkVerifier ?? prev?.plonkVerifier);
   const txHash = asTxOrNull(body.txHash ?? prev?.txHash);
 
   const proof = {
@@ -398,7 +379,6 @@ async function upsertChallenge(body: AnyBody) {
     ...(body.proof ?? {}),
     ...(verifier ? { verifier } : {}),
     ...(verifierUsed ? { verifierUsed } : {}),
-    ...(plonkVerifier ? { plonkVerifier } : {}),
     ...(modelKind ? { kind: modelKind } : {}),
     ...(modelId ? { modelId } : {}),
   };
@@ -422,14 +402,6 @@ async function upsertChallenge(body: AnyBody) {
     tags,
     externalId:
       asStringOrUndef(body.externalId ?? body.options?.externalId ?? prev?.externalId) ??
-      undefined,
-    peers: body.peers ?? prev?.peers ?? [],
-    peerApprovalsNeeded:
-      body.peerApprovalsNeeded ?? prev?.peerApprovalsNeeded ?? 0,
-    proofSource: body.proofSource ?? prev?.proofSource ?? undefined,
-    invites:
-      mergeShallow(prev?.invites, body.invites) ??
-      body.options?.invites ??
       undefined,
   };
 
@@ -510,7 +482,60 @@ async function upsertChallenge(body: AnyBody) {
   return saved ? rowToMeta(saved) : null;
 }
 
-export async function GET(req: Request) {
+/**
+ * Update the registry tracking columns for a challenge.
+ */
+async function updateRegistryStatus(
+  id: string,
+  status: "pending" | "success" | "failed" | "skipped",
+  txHash?: string | null,
+  error?: string | null
+) {
+  await pool.query(
+    `UPDATE public.challenges
+     SET registry_status  = $2,
+         registry_tx_hash = $3,
+         registry_error   = $4,
+         updated_at       = now()
+     WHERE id = $1::bigint`,
+    [id, status, txHash ?? null, error ?? null]
+  );
+}
+
+/**
+ * Attempt MetadataRegistry.ownerSet() for a challenge.
+ * Soft failure: logs and records error but does not throw.
+ */
+async function attemptRegistryWrite(id: string): Promise<{
+  registryStatus: string;
+  registryTxHash?: string;
+  registryError?: string;
+}> {
+  if (!isRegistryWriterConfigured()) {
+    await updateRegistryStatus(id, "skipped", null, "writer not configured");
+    return { registryStatus: "skipped", registryError: "writer not configured" };
+  }
+
+  try {
+    const result = await writeRegistryUri(BigInt(id));
+
+    if (result.success) {
+      const status = "success";
+      await updateRegistryStatus(id, status, result.txHash ?? null);
+      return { registryStatus: status, registryTxHash: result.txHash };
+    } else {
+      await updateRegistryStatus(id, "failed", null, result.error);
+      return { registryStatus: "failed", registryError: result.error };
+    }
+  } catch (e: any) {
+    console.error("[challenges/registry]", e);
+    const msg = e?.message || String(e);
+    await updateRegistryStatus(id, "failed", null, msg);
+    return { registryStatus: "failed", registryError: "Registry write failed" };
+  }
+}
+
+export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const subjectFilter = (url.searchParams.get("subject") || "").trim();
@@ -526,37 +551,51 @@ export async function GET(req: Request) {
     const items = rows.map(rowToMeta);
 
     return NextResponse.json({ items }, { status: 200 });
-  } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || String(e) },
-      { status: 500 }
-    );
+  } catch (e) {
+    console.error("[challenges GET]", e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const body = (await req.json().catch(() => ({}))) as AnyBody;
+
+    // Auth: verify wallet matches the challenge subject
+    const wallet = await verifyWallet(req);
+    const authErr = requireAuth(wallet, body.subject as string | undefined);
+    if (authErr) return authErr;
+
     const item = await upsertChallenge(body);
+    const id = String(body.id ?? item?.id ?? "");
+
+    // Attempt on-chain MetadataRegistry write (soft failure — does not block response)
+    let registry: { registryStatus: string; registryTxHash?: string; registryError?: string } | undefined;
+    if (id && id !== "0") {
+      registry = await attemptRegistryWrite(id);
+    }
 
     return NextResponse.json(
-      { ok: true, item },
+      { ok: true, item, registry },
       { status: 201 }
     );
-  } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || String(e) },
-      { status: 500 }
-    );
+  } catch (e) {
+    console.error("[challenges POST]", e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   try {
     const body = (await req.json().catch(() => ({}))) as AnyBody;
     if (!body?.id) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
+
+    // Auth: verify wallet matches the challenge subject
+    const wallet = await verifyWallet(req);
+    const authErr = requireAuth(wallet, body.subject as string | undefined);
+    if (authErr) return authErr;
 
     const item = await upsertChallenge(body);
 
@@ -564,10 +603,8 @@ export async function PATCH(req: Request) {
       { ok: true, item },
       { status: 200 }
     );
-  } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || String(e) },
-      { status: 500 }
-    );
+  } catch (e) {
+    console.error("[challenges PATCH]", e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

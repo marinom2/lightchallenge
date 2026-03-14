@@ -1,59 +1,53 @@
 // webapp/app/api/linked-accounts/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { lookup, type Platform } from "../../../../offchain/identity/registry";
-import { readFile, writeFile, mkdir } from "fs/promises";
-import { join } from "path";
-
-// location used by the registry
-const DIR = join(process.cwd(), "offchain", ".state");
-const FILE = join(DIR, "identity_bindings.json");
+import { lookup, deleteBinding, type Platform } from "../../../../offchain/identity/registry";
+import { verifyWallet, requireAuth } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const wallet = searchParams.get("wallet") as `0x${string}` | null;
+    const wallet   = searchParams.get("wallet") as `0x${string}` | null;
     const platform = (searchParams.get("platform") || "steam") as Platform;
     if (!wallet) return NextResponse.json({ error: "Missing wallet" }, { status: 400 });
 
-    const rec = lookup(wallet, platform);
+    const rec = await lookup(wallet, platform);
     return NextResponse.json({
       binding: rec
         ? {
             platform,
-            wallet: rec.wallet,
+            wallet:     rec.wallet,
             platformId: rec.platformId,
-            handle: rec.handle ?? null,
-            ts: rec.ts,
+            handle:     rec.handle ?? null,
+            ts:         rec.ts,
           }
         : null,
     });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Internal error" }, { status: 500 });
+    console.error("[linked-accounts GET]", e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 
 export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const wallet = (searchParams.get("wallet") || "").toLowerCase();
+    const wallet   = (searchParams.get("wallet") || "").toLowerCase();
     const platform = (searchParams.get("platform") || "steam") as Platform;
     if (!/^0x[a-fA-F0-9]{40}$/.test(wallet)) {
       return NextResponse.json({ error: "bad_wallet" }, { status: 400 });
     }
 
-    // hard delete from registry file
-    await mkdir(DIR, { recursive: true }).catch(() => {});
-    const raw = await readFile(FILE, "utf8").catch(() => "[]");
-    const all: any[] = JSON.parse(raw);
-    const out = all.filter(
-      (e) => !(String(e.wallet).toLowerCase() === wallet && e.platform === platform)
-    );
-    await writeFile(FILE, JSON.stringify(out, null, 2));
+    // Auth: verify wallet matches the wallet query param
+    const authWallet = await verifyWallet(req);
+    const authErr = requireAuth(authWallet, wallet);
+    if (authErr) return authErr;
 
+    await deleteBinding(wallet as `0x${string}`, platform);
     return NextResponse.json({ ok: true });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Internal error" }, { status: 500 });
+    console.error("[linked-accounts DELETE]", e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

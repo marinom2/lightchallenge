@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
+import { verifyWallet, requireAuth } from "@/lib/auth";
 
 type InviteMethod = "email" | "wallet" | "steam";
 
@@ -50,6 +51,11 @@ function db() {
 
 export async function POST(req: NextRequest) {
   try {
+    // Auth: require any authenticated wallet (no subject check)
+    const authWallet = await verifyWallet(req);
+    const authErr = requireAuth(authWallet);
+    if (authErr) return authErr;
+
     const body = (await req.json()) as Partial<InvitePayload>;
     const error = validate(body);
 
@@ -91,11 +97,9 @@ export async function POST(req: NextRequest) {
       message: "Invite queued successfully.",
     });
   } catch (err) {
+    console.error("[invites POST]", err);
     return NextResponse.json(
-      {
-        ok: false,
-        error: err instanceof Error ? err.message : "Failed to create invite.",
-      },
+      { ok: false, error: "Internal error" },
       { status: 500 }
     );
   }
@@ -119,6 +123,12 @@ export async function GET(req: NextRequest) {
         order by created_at desc
         limit 100
       `;
+
+      rows.forEach((r: any) => {
+        if (r.value && r.value.includes("@")) {
+          r.value = r.value.replace(/(.{2}).+@/, "$1***@");
+        }
+      });
 
       return NextResponse.json({ ok: true, invites: rows });
     }
@@ -144,13 +154,17 @@ export async function GET(req: NextRequest) {
       order by created_at desc
     `;
 
+    rows.forEach((r: any) => {
+      if (r.value && r.value.includes("@")) {
+        r.value = r.value.replace(/(.{2}).+@/, "$1***@");
+      }
+    });
+
     return NextResponse.json({ ok: true, invites: rows });
   } catch (err) {
+    console.error("[invites GET]", err);
     return NextResponse.json(
-      {
-        ok: false,
-        error: err instanceof Error ? err.message : "Failed to load invites.",
-      },
+      { ok: false, error: "Internal error" },
       { status: 500 }
     );
   }

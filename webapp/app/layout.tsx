@@ -83,6 +83,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <a href="/challenges/create" className="link-soft">
                       Create
                     </a>
+                    <a href="/me/challenges" className="link-soft">
+                      My Challenges
+                    </a>
+                    <a href="/claims" className="link-soft">
+                      Claims
+                    </a>
                   </div>
                 </div>
               </footer>

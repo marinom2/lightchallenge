@@ -525,42 +525,90 @@ export default function Step3_Options({
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           <Label>Template</Label>
-          <select
-            className="input w-full"
-            value={templateId}
-            onChange={(e) => {
-              const nextId = e.target.value || null;
 
-              dispatch({
-                type: "SET_AIVM_FORM",
-                payload: { templateId: nextId },
-              });
-
-              dispatch({
-                type: "SET_VERIFICATION",
-                payload: {
-                  mode: FIXED_MODE,
-                  backend: FIXED_BACKEND,
-                  templateId: nextId,
-                  modelId: null,
-                  modelHash: null,
-                  params: undefined,
-                  paramsHash: undefined,
-                  benchmarkHash: undefined,
-                  verifier: null,
-                },
-              });
-            }}
-          >
-            <option value="">Select template…</option>
-            {templates.map((tpl) => (
-              <option key={tpl.id} value={tpl.id}>
-                {tpl.name}
-              </option>
-            ))}
-          </select>
+          {templates.length === 0 ? (
+            <div
+              className="rounded-2xl border px-4 py-3 text-sm"
+              style={{
+                borderColor: "color-mix(in oklab, var(--border) 80%, transparent)",
+                background: "color-mix(in oklab, var(--surface-2) 92%, transparent)",
+                color: "var(--text-muted)",
+              }}
+            >
+              {registryReady
+                ? "No templates available for the selected challenge type."
+                : "Loading templates…"}
+            </div>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {templates.map((tpl) => {
+                const active = tpl.id === templateId;
+                return (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={() => {
+                      const nextId = tpl.id;
+                      dispatch({ type: "SET_AIVM_FORM", payload: { templateId: nextId } });
+                      dispatch({
+                        type: "SET_VERIFICATION",
+                        payload: {
+                          mode: FIXED_MODE,
+                          backend: FIXED_BACKEND,
+                          templateId: nextId,
+                          modelId: null,
+                          modelHash: null,
+                          params: undefined,
+                          paramsHash: undefined,
+                          benchmarkHash: undefined,
+                          verifier: null,
+                        },
+                      });
+                    }}
+                    className="rounded-2xl border px-4 py-3 text-left transition"
+                    style={{
+                      borderColor: active
+                        ? "color-mix(in oklab, var(--grad-2) 55%, var(--border))"
+                        : "color-mix(in oklab, var(--border) 80%, transparent)",
+                      background: active
+                        ? "linear-gradient(180deg, color-mix(in oklab, var(--grad-2) 10%, transparent), color-mix(in oklab, var(--surface) 88%, transparent))"
+                        : "color-mix(in oklab, var(--surface) 92%, transparent)",
+                      boxShadow: active
+                        ? "0 0 0 1px color-mix(in oklab, var(--grad-2) 20%, transparent) inset"
+                        : "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                        {tpl.name}
+                      </div>
+                      {active && (
+                        <div
+                          className="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold"
+                          style={{
+                            borderColor: "color-mix(in oklab, var(--grad-2) 55%, var(--border))",
+                            background: "color-mix(in oklab, var(--grad-2) 10%, var(--surface))",
+                            color: "var(--text)",
+                            border: "1px solid",
+                          }}
+                        >
+                          Selected
+                        </div>
+                      )}
+                    </div>
+                    {tpl.hint ? (
+                      <div className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                        {tpl.hint}
+                      </div>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           <div className="text-xs" style={{ color: "var(--text-muted)" }}>
             Templates define the model, required params, and the deterministic input used later by the AIVM PoI pipeline.
@@ -635,18 +683,6 @@ export default function Step3_Options({
         ) : null}
       </Section>
 
-      <Section title="Peer approvals" subtitle="Not used in the Lightchain AIVM + PoI flow.">
-        <div
-          className="rounded-2xl border px-4 py-3 text-sm"
-          style={{
-            borderColor: "var(--hairline)",
-            background: "color-mix(in oklab, var(--surface-2) 92%, transparent)",
-            color: "var(--text-muted)",
-          }}
-        >
-          Lightchain AIVM + PoI does not use peer voting. Settlement happens through the async validator PoI pipeline.
-        </div>
-      </Section>
     </div>
   );
 }

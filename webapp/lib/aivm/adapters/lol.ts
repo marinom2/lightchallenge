@@ -1,7 +1,8 @@
-import { Adapter, AdapterContext, AdapterResult, CanonicalRecord, adapters } from "./index";
+import { Adapter, AdapterContext, AdapterResult, CanonicalRecord } from "./types";
 import { computeBind } from "@/lib/aivm/bind";
 
-const LOL_WINS_MODEL = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" as const;
+/** Matches lol.winrate_next_n@1 in models.json. */
+const LOL_WINS_MODEL = "0x6a68a575fa50ebbc7c0404ebe2078f7a79cfa95b4c2efd9c869b0744137456c3" as const;
 
 function sha256hex(buf: Buffer | string): `0x${string}` {
   const { createHash } = require("node:crypto");
@@ -62,5 +63,4 @@ export const lolAdapter: Adapter = {
   }
 };
 
-(adapters as any).push(lolAdapter);
 export default lolAdapter;

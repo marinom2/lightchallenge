@@ -18,20 +18,6 @@ import useChainStatusCache, { type Status } from "./hooks/useChainStatusCache";
 /* ──────────────────────────────────────────────────────────────────────────── */
 type Category = "all" | "gaming" | "fitness" | "social" | "custom";
 
-type ApiItemD2 = {
-  id: string;
-  creator?: Address;
-  blockNumber: string;
-  txHash: `0x${string}`;
-  status: Status;
-  schedule?: { startTs: string | null; duration: string | null };
-  badges?: { fast?: boolean; auto?: boolean; strategy?: string | null };
-  tags?: string[];
-  game?: string | null;
-  mode?: string | null;
-};
-type ApiResponseD2 = { items: ApiItemD2[]; fromBlock: string; toBlock: string; error?: string };
-
 type ApiItemD1 = { id: string; creator?: Address; blockNumber: string; txHash: `0x${string}`; status: Status };
 type ApiResponseD1 = { items: ApiItemD1[]; fromBlock: string; toBlock: string; error?: string };
 
@@ -41,7 +27,7 @@ type Row = {
   blockNumber: bigint;
   txHash: `0x${string}`;
   status: Status;
-  badges: { fast?: boolean; auto?: boolean; strategy?: string | null };
+  badges: Record<string, unknown>;
   category: Category;
   title?: string;
   description?: string;
@@ -88,15 +74,12 @@ function matchesGame(selected: string, value?: string | null) {
 
 function statusChipClass(s: Status) {
   switch (s) {
-    case "Approved":
+    case "Active":
       return "chip chip--ok";
-    case "Rejected":
-      return "chip chip--bad";
     case "Finalized":
       return "chip chip--info";
     case "Canceled":
       return "chip chip--warn";
-    case "Paused":
     default:
       return "chip";
   }
@@ -112,6 +95,51 @@ function mergeByIdNewer(first: Row[], second: Row[]) {
     if (!curr || r.blockNumber > curr.blockNumber) m.set(k, r);
   }
   return Array.from(m.values());
+}
+
+/* ── Onboarding preference survey ───────────────────────────────────────── */
+const PREF_KEY = "lc_category_pref";
+const PREF_DONE_KEY = "lc_onboarding_done";
+
+type PrefChoice = "Gaming" | "Fitness" | "Both";
+
+function OnboardingSurvey({
+  onChoose,
+  onSkip,
+}: {
+  onChoose: (p: PrefChoice) => void;
+  onSkip: () => void;
+}) {
+  return (
+    <div className="panel p-5 border border-(--accent)/30" style={{ background: "color-mix(in oklab, var(--card) 90%, var(--accent) 6%)" }}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="text-sm font-semibold mb-1">What kind of challenges interest you?</div>
+          <p className="text-xs text-(--text-muted) mb-4">
+            We'll show you the most relevant challenges first. You can change this any time using the sidebar.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {(["Gaming", "Fitness", "Both"] as PrefChoice[]).map((p) => (
+              <button
+                key={p}
+                className="btn btn-outline btn-sm"
+                onClick={() => onChoose(p)}
+              >
+                {p === "Gaming" ? "🎮 Gaming" : p === "Fitness" ? "🏃 Fitness" : "🌟 Both"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button
+          className="btn btn-ghost btn-sm shrink-0 text-(--text-muted)"
+          onClick={onSkip}
+          title="Skip"
+        >
+          Skip
+        </button>
+      </div>
+    </div>
+  );
 }
 
 /* ──────────────────────────────────────────────────────────────────────────── */
@@ -134,6 +162,35 @@ export default function Explore() {
 
   // facets
   const [facetType, setFacetType] = useState<"ALL" | "Gaming" | "Fitness" | "Social" | "Custom">("ALL");
+
+  // onboarding survey
+  const [showSurvey, setShowSurvey] = useState(false);
+  useEffect(() => {
+    try {
+      const done = localStorage.getItem(PREF_DONE_KEY);
+      if (!done) setShowSurvey(true);
+      // Apply saved preference if exists
+      const saved = localStorage.getItem(PREF_KEY) as PrefChoice | null;
+      if (saved === "Gaming") setFacetType("Gaming");
+      else if (saved === "Fitness") setFacetType("Fitness");
+    } catch {}
+  }, []);
+
+  function handlePrefChoice(p: PrefChoice) {
+    try {
+      localStorage.setItem(PREF_KEY, p);
+      localStorage.setItem(PREF_DONE_KEY, "1");
+    } catch {}
+    setShowSurvey(false);
+    if (p === "Gaming") setFacetType("Gaming");
+    else if (p === "Fitness") setFacetType("Fitness");
+    // "Both" keeps facetType as "ALL"
+  }
+
+  function handleSurveySkip() {
+    try { localStorage.setItem(PREF_DONE_KEY, "1"); } catch {}
+    setShowSurvey(false);
+  }
   const [facetGame, setFacetGame] = useState<string | "ALL">("ALL");
   const [facetMode, setFacetMode] = useState<string | "ALL">("ALL");
   const [facetTier, setFacetTier] = useState<string | "ALL">("ALL");
@@ -148,30 +205,14 @@ export default function Explore() {
   useEffect(() => {
     let stop = false;
     (async () => {
-      async function readViaApi() {
+      try {
         const res = await fetch("/api/challenges?ts=" + Date.now(), { cache: "no-store" });
-        if (!res.ok) throw new Error("api");
+        if (!res.ok) throw new Error(`/api/challenges ${res.status}`);
         const j = await res.json();
         const arr: ChallengeMeta[] = Array.isArray(j?.items) ? j.items : [];
-        return Object.fromEntries(arr.map((m) => [String(m.id), m]));
-      }
-      async function readViaFile() {
-        const res = await fetch("/challenges.json?ts=" + Date.now(), { cache: "no-store" });
-        if (!res.ok) throw new Error("file");
-        const j = await res.json().catch(() => ({} as any));
-        const arr: ChallengeMeta[] = Array.isArray(j?.models) ? j.models : Array.isArray(j) ? j : [];
-        return Object.fromEntries(arr.map((m) => [String(m.id), m]));
-      }
-      try {
-        const map = await readViaApi();
-        if (!stop) setMeta(map);
-        if (Object.keys(map).length === 0) {
-          const fallback = await readViaFile().catch(() => ({} as any));
-          if (!stop && Object.keys(fallback).length) setMeta(fallback);
-        }
-      } catch {
-        const fallback = await readViaFile().catch(() => ({} as any));
-        if (!stop) setMeta(fallback);
+        if (!stop) setMeta(Object.fromEntries(arr.map((m) => [String(m.id), m])));
+      } catch (err) {
+        console.warn("[explore] failed to load challenge metadata:", err);
       }
     })();
     return () => {
@@ -201,34 +242,7 @@ export default function Explore() {
     return inferCategoryFromTextAndMeta(m, m?.title, m?.description);
   }
 
-  /* Mappers */
-  function mapFromD2(data: ApiResponseD2): Row[] {
-    const items = Array.isArray(data?.items) ? data.items : [];
-    return items.map((r) => {
-      const m = meta[r.id];
-      const tagArr: string[] = Array.isArray(m?.tags) ? (m!.tags as string[]) : [];
-      const gameTag = tagArr.find((t: string) =>
-        /dota|cs|counter[- ]?strike|league|valorant|apex|run|running|cycle|cycling|bike|hike|hiking|steps/i.test(t)
-      );
-      const game = normalizeGame((r as any).game ?? m?.game ?? gameTag ?? null);
-      const mode = (r as any).mode ?? m?.mode ?? null;
-      return {
-        id: BigInt(r.id),
-        creator: r.creator,
-        blockNumber: BigInt(r.blockNumber),
-        txHash: r.txHash,
-        status: r.status,
-        badges: r.badges || {},
-        category: resolveCategory(m),
-        title: m?.title,
-        description: m?.description,
-        startTs: r.schedule?.startTs ? BigInt(r.schedule.startTs) : undefined,
-        game,
-        mode,
-        tags: (r as any).tags ?? tagArr,
-      };
-    });
-  }
+  /* Mapper */
   function mapFromD1(data: ApiResponseD1): Row[] {
     const items = Array.isArray(data?.items) ? data.items : [];
     return items.map((r) => {
@@ -257,21 +271,7 @@ export default function Explore() {
     });
   }
 
-  /* API fetchers */
-  async function fetchDashboard2(toBlock?: bigint) {
-    const params = new URLSearchParams();
-    params.set("span", DEFAULT_SPAN.toString());
-    if (typeof toBlock === "bigint") params.set("toBlock", toBlock.toString());
-    const res = await fetch(`/api/dashboard2?${params.toString()}`, { cache: "no-store" });
-    const data = (await res.json().catch(() => ({}))) as ApiResponseD2;
-    return {
-      ok: res.ok,
-      items: mapFromD2(data),
-      dataFromBlock: data?.fromBlock ? BigInt(data.fromBlock) : 0n,
-      dataToBlock: data?.toBlock ? BigInt(data.toBlock) : 0n,
-      error: data?.error as string | undefined,
-    };
-  }
+  /* API fetcher */
   async function fetchDashboard(toBlock?: bigint) {
     const params = new URLSearchParams();
     params.set("span", DEFAULT_SPAN.toString());
@@ -293,15 +293,8 @@ export default function Explore() {
     ownMore ? setLoadingMore(true) : setLoading(true);
     setError(null);
     try {
-      const d2 = await fetchDashboard2(toBlock);
-      const fallback = !d2.ok || !!d2.error || (d2.items.length === 0 && d2.dataFromBlock === 0n && d2.dataToBlock === 0n);
-      if (!fallback) {
-        setRange({ fromBlock: d2.dataFromBlock, toBlock: d2.dataToBlock });
-        return d2.items;
-      }
       const d1 = await fetchDashboard(toBlock);
-      if (!!d2.error && !d1.items.length) setError(d2.error);
-      else if (!!d1.error && !d1.items.length) setError(d1.error);
+      if (d1.error && !d1.items.length) setError(d1.error);
       setRange({ fromBlock: d1.dataFromBlock, toBlock: d1.dataToBlock });
       return d1.items;
     } catch (e: any) {
@@ -322,7 +315,29 @@ export default function Explore() {
     return () => {
       stop = true;
     };
-  }, [chainId, meta, fetchWindow]);
+  }, [chainId, fetchWindow]);
+
+  /** When metadata arrives, enrich existing rows in-place (fixes stale closure in fetchWindow) */
+  useEffect(() => {
+    if (Object.keys(meta).length === 0) return;
+    setRows((prev) =>
+      prev.map((r) => {
+        const m = meta[r.id.toString()];
+        if (!m) return r;
+        const tagArr = Array.isArray(m.tags) ? (m.tags as string[]) : [];
+        return {
+          ...r,
+          title: m.title || r.title,
+          description: m.description || r.description,
+          category: resolveCategory(m),
+          game: normalizeGame(m.game ?? null) ?? r.game,
+          mode: m.mode ?? r.mode,
+          tags: tagArr.length > 0 ? tagArr : (r.tags ?? []),
+        };
+      })
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meta]);
 
   // Live polling — merge by ID
   useInterval(() => {
@@ -355,7 +370,7 @@ export default function Explore() {
 
   /** tallies */
   const tallies = useMemo(() => {
-    const base: Record<Status, number> = { Pending: 0, Approved: 0, Rejected: 0, Finalized: 0, Canceled: 0, Paused: 0 };
+    const base: Record<Status, number> = { Active: 0, Finalized: 0, Canceled: 0 };
     for (const r of rows) base[r.status] += 1;
     return base;
   }, [rows]);
@@ -383,7 +398,7 @@ export default function Explore() {
       );
       const rGame = (normalizeGame(r.game || "") || "").toLowerCase();
       const gameBoost = likedGames.size && rGame && likedGames.has(rGame) ? 1 : 0;
-      const statusBoost = r.status === "Pending" ? 1 : 0;
+      const statusBoost = r.status === "Active" ? 1 : 0;
       return fav * 100 + gameBoost * 10 + statusBoost * 5 + Number(r.blockNumber % 1000n);
     },
     [favoritesSet, rows]
@@ -422,12 +437,7 @@ export default function Explore() {
       case "forYou":
         return [...set].sort((a, b) => forYouRank(b) - forYouRank(a));
       case "trending":
-        return [...set].sort((a, b) => {
-          const sa = (a.badges?.auto ? 1 : 0) + (a.badges?.fast ? 1 : 0);
-          const sb = (b.badges?.auto ? 1 : 0) + (b.badges?.fast ? 1 : 0);
-          if (sa !== sb) return sb - sa;
-          return Number(b.blockNumber - a.blockNumber);
-        });
+        return [...set].sort((a, b) => Number(b.blockNumber - a.blockNumber));
       case "endingSoon":
         return [...set].sort((a, b) => Number((a.startTs ?? 0n) - (b.startTs ?? 0n)));
       case "newest":
@@ -449,15 +459,16 @@ export default function Explore() {
     favoritesSet,
   ]);
 
-  /* Controls (header) */
+  /* Controls (header) — simplified: tab + search + view toggle only */
   const controls = (
-    <div className="card p-3 space-y-3">
+    <div className="space-y-3">
+      {/* Tabs */}
       <div className="segmented" role="tablist" aria-label="Explore sections">
         {[
-          ["forYou", "For You"],
-          ["trending", "Trending"],
-          ["newest", "Newest"],
-          ["endingSoon", "Ending soon"],
+          ["forYou",    "For You"],
+          ["trending",  "Trending"],
+          ["newest",    "Newest"],
+          ["endingSoon","Ending soon"],
         ].map(([k, label]) => (
           <button
             key={k}
@@ -471,85 +482,53 @@ export default function Explore() {
         ))}
       </div>
 
-      <div className="validators-filter" style={{ position: "relative", top: 0 }}>
+      {/* Search + view toggle */}
+      <div className="flex gap-2 items-center">
         <input
-          className="input"
-          placeholder="Search challenges, games, creators (⌘K)"
+          className="input flex-1"
+          placeholder="Search by title, game, or creator…"
           value={filterQuery}
           onChange={(e) => setFilterQuery(e.target.value)}
         />
-        <div className="segmented" aria-label="View">
-          <button className={`segmented__btn ${view === "grid" ? "is-active" : ""}`} aria-checked={view === "grid"} onClick={() => setView("grid")}>
-            Grid
+        <div className="segmented shrink-0" aria-label="View">
+          <button
+            className={`segmented__btn ${view === "grid" ? "is-active" : ""}`}
+            aria-checked={view === "grid"}
+            onClick={() => setView("grid")}
+            title="Grid view"
+          >
+            ⊞
           </button>
-          <button className={`segmented__btn ${view === "table" ? "is-active" : ""}`} aria-checked={view === "table"} onClick={() => setView("table")}>
-            Table
+          <button
+            className={`segmented__btn ${view === "table" ? "is-active" : ""}`}
+            aria-checked={view === "table"}
+            onClick={() => setView("table")}
+            title="Table view"
+          >
+            ☰
           </button>
-        </div>
-        <div className="segmented" aria-label="Status">
-          {["ALL", "Pending", "Approved", "Rejected", "Finalized", "Canceled", "Paused"].map((s) => (
-            <button
-              key={s}
-              className={`segmented__btn ${statusFilter === s ? "is-active" : ""}`}
-              aria-checked={statusFilter === s}
-              onClick={() => setStatusFilter(s as any)}
-            >
-              {s}
-            </button>
-          ))}
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {/* Type facet */}
-        <select className="input w-40" value={facetType} onChange={(e) => setFacetType(e.target.value as any)} title="Type">
-          {["ALL", "Gaming", "Fitness", "Social", "Custom"].map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
-
-        <select className="input w-48" value={facetGame} onChange={(e) => setFacetGame(e.target.value as any)} title="Game">
-          {["ALL", "Dota 2", "CS2", "League of Legends", "Valorant", "Other"].map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
-        <select className="input w-44" value={facetMode} onChange={(e) => setFacetMode(e.target.value as any)} title="Mode">
-          {["ALL", "Kills", "Ranked", "Winrate", "Speedrun", "Solo", "Duo", "Team"].map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
-        <select className="input w-40" value={facetTier} onChange={(e) => setFacetTier(e.target.value as any)} title="Tier">
-          {["ALL", "Beginner", "Intermediate", "Advanced", "Pro"].map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
-        <select className="input w-40" value={facetDuration} onChange={(e) => setFacetDuration(e.target.value as any)} title="Duration">
-          {["ALL", "<30m", "Daily", "Weekend", "Season"].map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
-        <label className="tile cursor-pointer">
-          <input type="checkbox" className="mr-2" checked={onlyFavorites} onChange={(e) => setOnlyFavorites(e.target.checked)} />
-          <span>★ Favorites</span>
-        </label>
-        <div className="flex-1" />
-        <div className="text-[color:var(--text-muted)] text-sm">
-          Showing {filtered.length} of {rowsEffective.length}
-          {range ? ` · blocks ${range.fromBlock.toString()} → ${range.toBlock.toString()}` : ""}
+      {/* Result count + error */}
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-(--text-muted)">
+          {filtered.length} challenge{filtered.length !== 1 ? "s" : ""}
+          {filtered.length < rowsEffective.length ? ` of ${rowsEffective.length}` : ""}
         </div>
+        {onlyFavorites && (
+          <button
+            className="text-xs text-(--text-muted) hover:text-(--text) underline underline-offset-2"
+            onClick={() => setOnlyFavorites(false)}
+          >
+            Clear favorites filter
+          </button>
+        )}
       </div>
 
-      {error && rowsEffective.length === 0 && <div className="toast toast--bad">API: {error}</div>}
+      {error && rowsEffective.length === 0 && (
+        <div className="chip chip--bad">API: {error}</div>
+      )}
     </div>
   );
 
@@ -577,6 +556,10 @@ export default function Explore() {
   return (
     <div className="container-narrow py-6 space-y-6">
       <ExploreHeader chainId={chainId} tallies={tallies} controls={controls} />
+
+      {showSurvey && (
+        <OnboardingSurvey onChoose={handlePrefChoice} onSkip={handleSurveySkip} />
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
         {/* Sidebar */}
@@ -657,7 +640,36 @@ export default function Explore() {
         <main className="md:col-span-9 space-y-6">
           {view === "grid" ? (
             <>
-              {Object.keys(grouped).length === 0 && <div className="empty">No challenges match your filters.</div>}
+              {Object.keys(grouped).length === 0 && (
+                <div className="panel p-8 text-center space-y-4">
+                  <div className="text-lg font-semibold">No challenges found</div>
+                  <p className="text-sm text-(--text-muted) max-w-md mx-auto">
+                    {rowsEffective.length > 0
+                      ? "No challenges match your current filters. Try broadening your search or changing the category."
+                      : "No challenges have been created on-chain yet. Be the first to create one!"}
+                  </p>
+                  <div className="flex flex-wrap gap-3 justify-center">
+                    {rowsEffective.length > 0 && (
+                      <button
+                        className="btn btn-ghost"
+                        onClick={() => {
+                          setFacetType("ALL");
+                          setFacetGame("ALL");
+                          setFacetMode("ALL");
+                          setFacetTier("ALL");
+                          setFacetDuration("ALL");
+                          setOnlyFavorites(false);
+                          setFilterQuery("");
+                          setStatusFilter("ALL");
+                        }}
+                      >
+                        Clear all filters
+                      </button>
+                    )}
+                    <a href="/challenges/create" className="btn btn-primary">Create a challenge</a>
+                  </div>
+                </div>
+              )}
               {Object.entries(grouped).map(([title, items]) => (
                 <SectionCarousel key={title} title={title}>
                   {items.map((r) => (
@@ -685,12 +697,19 @@ export default function Explore() {
             <div className="panel">
               <div className="panel-header">
                 <div className="font-semibold">
-                  Recent Challenges · <span className="text-[color:var(--text-muted)]">newest first · compact glass table</span>
+                  Recent Challenges · <span className="text-(--text-muted)">newest first · compact glass table</span>
                 </div>
               </div>
               <div className="panel-body">
-                {loading && <div className="text-[color:var(--text-muted)] text-sm">Loading…</div>}
-                {!loading && filtered.length === 0 && <div className="empty">No challenges in view.</div>}
+                {loading && <div className="text-(--text-muted) text-sm">Loading…</div>}
+                {!loading && filtered.length === 0 && (
+                  <div className="p-6 text-center text-sm text-(--text-muted)">
+                    No challenges match your filters.{" "}
+                    <button className="underline underline-offset-2" onClick={() => { setFacetType("ALL"); setFacetGame("ALL"); setFilterQuery(""); setStatusFilter("ALL"); }}>
+                      Clear filters
+                    </button>
+                  </div>
+                )}
                 {!loading && filtered.length > 0 && (
                   <div className="overflow-x-auto">
                     <table className="table table--compact glass-shadow" style={{ minWidth: 1120 }}>
@@ -749,13 +768,6 @@ export default function Explore() {
                               </td>
                               <td>
                                 <div className="flex gap-2 flex-wrap">
-                                  {b.auto && <span className="chip chip--ok">Auto</span>}
-                                  {b.fast && <span className="chip chip--info">Fast</span>}
-                                  {b.strategy ? (
-                                    <a className="chip" href={addressUrl(b.strategy as `0x${string}`)} target="_blank" rel="noreferrer">
-                                      Strategy
-                                    </a>
-                                  ) : null}
                                   {(r.tags || []).slice(0, 4).map((t) => (
                                     <span key={t} className="chip">
                                       {t}

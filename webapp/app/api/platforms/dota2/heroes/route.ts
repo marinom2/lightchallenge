@@ -39,6 +39,7 @@ export async function GET() {
     CACHE = { at: now, heroes };
     return NextResponse.json({ ok: true, heroes }, { status: 200 });
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "Failed" }, { status: 500 });
+    console.error("[dota2/heroes]", e);
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }

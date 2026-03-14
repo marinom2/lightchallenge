@@ -2,30 +2,39 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { useAccount, useReadContract } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import ThemeSwitcher from "./theme/ThemeIconToggle";
 import { ADDR, ABI, ZERO_ADDR } from "@/lib/contracts";
 import { AnimatePresence, motion } from "framer-motion";
 
+/* ── Nav structure ───────────────────────────────────────────────────────── */
 type NavItem = { label: string; href: string };
 
-const BASE_NAV: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Explore", href: "/explore" },
-  { label: "Create", href: "/challenges/create" },
-  { label: "Validators", href: "/validators" },
-  { label: "Claims", href: "/claims" },
-  { label: "Submit Proof", href: "/proofs/submit" },
+/** Always visible in the top bar */
+const PRIMARY_NAV: NavItem[] = [
+  { label: "Explore",       href: "/explore" },
+  { label: "My Challenges", href: "/me/challenges" },
+  { label: "Claims",        href: "/claims" },
+  { label: "Create",        href: "/challenges/create" },
+];
+
+/** Hidden inside the "More" dropdown */
+const MORE_NAV: NavItem[] = [
+  { label: "Achievements",    href: "/me/achievements" },
+  { label: "Submit Proof",    href: "/proofs" },
   { label: "Linked Accounts", href: "/settings/linked-accounts" },
 ];
 
+/* ── Helpers ─────────────────────────────────────────────────────────────── */
 function RememberSwitch() {
   const [remember, setRemember] = useState(false);
 
   useEffect(() => {
-    import("@/lib/wallets").then(({ isWalletRemembered }) => setRemember(isWalletRemembered()));
+    import("@/lib/wallets").then(({ isWalletRemembered }) =>
+      setRemember(isWalletRemembered())
+    );
   }, []);
 
   async function toggle(v: boolean) {
@@ -90,6 +99,103 @@ function WalletButton() {
   );
 }
 
+/* ── More dropdown ──────────────────────────────────────────────────────── */
+function MoreMenu({
+  items,
+  isActive,
+}: {
+  items: NavItem[];
+  isActive: (href: string) => boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const hasActiveItem = items.some((i) => isActive(i.href));
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    function handler(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        className={`nav-pill ${hasActiveItem ? "is-active" : ""} ${open ? "is-open" : ""}`}
+        aria-expanded={open}
+        aria-haspopup="true"
+        onClick={() => setOpen((v) => !v)}
+      >
+        More
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 10 10"
+          aria-hidden
+          className="ml-1 transition-transform duration-150"
+          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
+        >
+          <path fill="currentColor" d="M5 6.5 1 2.5h8z" />
+        </svg>
+
+        <AnimatePresence>
+          {items.some((i) => isActive(i.href)) && (
+            <motion.span
+              layoutId="nav-underline"
+              className="nav-underline"
+              initial={{ opacity: 0, scaleX: 0 }}
+              animate={{ opacity: 1, scaleX: 1, transformOrigin: "0% 100%" }}
+              exit={{ opacity: 0, scaleX: 0 }}
+              transition={{ duration: 0.22, ease: [0.2, 0.8, 0.2, 1] }}
+            />
+          )}
+        </AnimatePresence>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className="nav-dropdown"
+            initial={{ opacity: 0, y: -4, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.97 }}
+            transition={{ duration: 0.14, ease: [0.2, 0.8, 0.2, 1] }}
+            role="menu"
+          >
+            {items.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`nav-dropdown-item ${isActive(item.href) ? "is-active" : ""}`}
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                aria-current={isActive(item.href) ? "page" : undefined}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ── Main Navbar ──────────────────────────────────────────────────────────── */
 export default function Navbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -101,31 +207,30 @@ export default function Navbar() {
     address: CHALLENGEPAY_ADDR,
     abi: ABI.ChallengePay,
     functionName: "admin",
-    query: {
-      enabled: CHALLENGEPAY_ADDR !== ZERO_ADDR,
-    },
+    query: { enabled: CHALLENGEPAY_ADDR !== ZERO_ADDR },
   });
 
   const isAdmin =
     !!owner && !!address && (owner as string).toLowerCase() === address.toLowerCase();
 
-  const navItems: NavItem[] = useMemo(
-    () => (isAdmin ? [...BASE_NAV, { label: "Admin", href: "/admin" }] : BASE_NAV),
+  const moreItems = useMemo(
+    () => (isAdmin ? [...MORE_NAV, { label: "Admin", href: "/admin" }] : MORE_NAV),
+    [isAdmin]
+  );
+
+  const allNavItems = useMemo(
+    () => (isAdmin ? [...PRIMARY_NAV, ...MORE_NAV, { label: "Admin", href: "/admin" }] : [...PRIMARY_NAV, ...MORE_NAV]),
     [isAdmin]
   );
 
   const isActive = (href: string) =>
     pathname === href || (pathname?.startsWith(href + "/") ?? false);
 
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+  useEffect(() => { setOpen(false); }, [pathname]);
 
   useEffect(() => {
     if (!open) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open]);
@@ -135,16 +240,14 @@ export default function Navbar() {
     const body = document.body;
     html.style.overflow = open ? "hidden" : "";
     body.style.overflow = open ? "hidden" : "";
-    return () => {
-      html.style.overflow = "";
-      body.style.overflow = "";
-    };
+    return () => { html.style.overflow = ""; body.style.overflow = ""; };
   }, [open]);
 
   return (
     <header className="hdr" role="banner">
       <div className="container-narrow">
         <div className="navbar-row">
+          {/* Brand */}
           <Link href="/" className="brand" aria-label="LightChallenge Home">
             <span className="brand-dot" aria-hidden />
             <span className="text-base font-semibold tracking-tight">
@@ -153,9 +256,10 @@ export default function Navbar() {
             </span>
           </Link>
 
+          {/* Desktop nav — primary items always visible */}
           <nav aria-label="Primary" className="hidden md:flex min-w-0 flex-1">
-            <ul className="nav-pills no-scrollbar relative min-w-0 flex-1">
-              {navItems.map((item) => {
+            <ul className="nav-pills no-scrollbar relative min-w-0 flex-1 overflow-visible">
+              {PRIMARY_NAV.map((item) => {
                 const active = isActive(item.href);
                 return (
                   <li key={item.href} className="relative shrink-0">
@@ -166,7 +270,6 @@ export default function Navbar() {
                     >
                       {item.label}
                     </Link>
-
                     <AnimatePresence>
                       {active && (
                         <motion.span
@@ -182,15 +285,22 @@ export default function Navbar() {
                   </li>
                 );
               })}
+
+              {/* More dropdown */}
+              <li className="relative shrink-0">
+                <MoreMenu items={moreItems} isActive={isActive} />
+              </li>
             </ul>
           </nav>
 
+          {/* Desktop right controls */}
           <div className="hidden md:flex items-center gap-3 shrink-0">
             <ThemeSwitcher />
             <RememberSwitch />
             <WalletButton />
           </div>
 
+          {/* Mobile hamburger */}
           <button
             type="button"
             className="md:hidden btn btn-ghost btn-sm"
@@ -206,16 +316,14 @@ export default function Navbar() {
               </svg>
             ) : (
               <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden>
-                <path
-                  fill="currentColor"
-                  d="M18.3 5.7 12 12 5.7 5.7 4.3 7.1 10.6 13.4 4.3 19.7 5.7 21.1 12 14.8l6.3 6.3 1.4-1.4L13.4 13.4 19.7 7.1z"
-                />
+                <path fill="currentColor" d="M18.3 5.7 12 12 5.7 5.7 4.3 7.1 10.6 13.4 4.3 19.7 5.7 21.1 12 14.8l6.3 6.3 1.4-1.4L13.4 13.4 19.7 7.1z" />
               </svg>
             )}
           </button>
         </div>
       </div>
 
+      {/* Mobile drawer */}
       <AnimatePresence>
         {open && (
           <>
@@ -255,20 +363,24 @@ export default function Navbar() {
                     <ThemeSwitcher />
                   </div>
 
-                  <div className="space-y-2">
-                    {navItems.map((item) => {
+                  {/* All nav items in mobile, grouped */}
+                  <div className="space-y-1">
+                    {allNavItems.map((item, idx) => {
                       const active = isActive(item.href);
+                      const isFirstMore = idx === PRIMARY_NAV.length;
                       return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          onClick={() => setOpen(false)}
-                          className={active ? "mobile-link is-active" : "mobile-link"}
-                          aria-current={active ? "page" : undefined}
-                        >
-                          <span className="truncate">{item.label}</span>
-                          {active ? <span aria-hidden className="active-dot" /> : null}
-                        </Link>
+                        <div key={item.href}>
+                          {isFirstMore && <div className="mobile-nav-divider" aria-hidden />}
+                          <Link
+                            href={item.href}
+                            onClick={() => setOpen(false)}
+                            className={`${active ? "mobile-link is-active" : "mobile-link"} ${idx >= PRIMARY_NAV.length && !active ? "mobile-link--secondary" : ""}`}
+                            aria-current={active ? "page" : undefined}
+                          >
+                            <span className="truncate">{item.label}</span>
+                            {active ? <span aria-hidden className="active-dot" /> : null}
+                          </Link>
+                        </div>
                       );
                     })}
                   </div>

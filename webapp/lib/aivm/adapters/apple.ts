@@ -1,6 +1,6 @@
 import unzipper from "unzipper";
 import sax from "sax";
-import { Adapter, AdapterContext, AdapterResult, CanonicalRecord, adapters } from "./index";
+import { Adapter, AdapterContext, AdapterResult, CanonicalRecord } from "./types";
 import { computeBind } from "@/lib/aivm/bind";
 
 // —— Types / helpers ————————————————————————————————————————
@@ -35,8 +35,8 @@ type AppleRecordAttrs = {
 
 // —— Model gating ——————————————————————————————————————————————
 
-/** Must match your models.json (keep your literal). */
-const APPLE_STEPS_MODEL = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" as const;
+/** Matches apple_health.steps@1 in models.json. */
+const APPLE_STEPS_MODEL = "0x2e3f88a0496e6650c192355be471a62cae0bda1aece751eb2b30affd0f010c9e" as const;
 
 // —— Core parsing ——————————————————————————————————————————————
 
@@ -150,6 +150,4 @@ export const appleAdapter: Adapter = {
   },
 };
 
-// auto-register (same pattern as your repo)
-(adapters as any).push(appleAdapter);
 export default appleAdapter;

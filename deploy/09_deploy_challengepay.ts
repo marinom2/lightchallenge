@@ -78,95 +78,36 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const cpAddr = dep.address;
 
   // ---------------------------------------------------------------------------
-  // Optional: move ChallengePay admin/owner to ADMIN_ADDRESS (interface-aware)
+  // Optional: initiate 2-step admin transfer to ADMIN_ADDRESS
+  // The new admin must call acceptAdmin() separately to complete the transfer.
   // ---------------------------------------------------------------------------
   const adminTo = process.env.ADMIN_ADDRESS;
   if (adminTo) {
     const signer = await ethers.getSigner(deployer);
 
-    // Use a minimal ABI so we can "feature-detect" safely.
-    // Some builds have admin()/setAdmin(), others are Ownable (owner()/transferOwnership()).
     const ChallengePayAdminAbi = [
       "function admin() view returns (address)",
-      "function setAdmin(address)",
-      "function owner() view returns (address)",
-      "function transferOwnership(address)",
+      "function transferAdmin(address)",
     ] as const;
 
     const cp = new ethers.Contract(cpAddr, ChallengePayAdminAbi, signer);
 
-    // helper: safe call returning undefined when fn doesn't exist or reverts
-    const safeCallAddr = async (fnName: "admin" | "owner"): Promise<string | undefined> => {
-      try {
-        const fn = (cp as any)[fnName];
-        if (typeof fn !== "function") return undefined;
-        const v = await fn();
-        if (typeof v === "string") return v;
-        return undefined;
-      } catch {
-        return undefined;
-      }
-    };
-
-    // helper: safe tx call (no-throw; returns true if sent)
-    const safeTx = async (
-      fnName: "setAdmin" | "transferOwnership",
-      arg: string
-    ): Promise<{ sent: boolean; reason?: string }> => {
-      try {
-        const fn = (cp as any)[fnName];
-        if (typeof fn !== "function") return { sent: false, reason: "missing" };
-        const tx = await fn(arg);
-        await tx.wait();
-        return { sent: true };
-      } catch (e: any) {
-        return { sent: false, reason: e?.shortMessage || e?.message || String(e) };
-      }
-    };
-
-    // Prefer admin/setAdmin if present; else fallback to owner/transferOwnership.
-    const currentAdmin = await safeCallAddr("admin");
-    const currentOwner = await safeCallAddr("owner");
-
-    // Normalize compare
-    const same = (a?: string, b?: string) =>
-      typeof a === "string" &&
-      typeof b === "string" &&
-      a.toLowerCase() === b.toLowerCase();
-
-    if (currentAdmin) {
-      if (!same(currentAdmin, adminTo)) {
-        const r = await safeTx("setAdmin", adminTo);
-        if (r.sent) {
-          log(`✓ ChallengePay.setAdmin(${adminTo})`);
-        } else if (r.reason === "missing") {
-          log(`⚠️ ChallengePay.admin() exists but setAdmin() missing; skipping admin change.`);
-        } else {
-          log(`⚠️ ChallengePay.setAdmin(${adminTo}) failed: ${r.reason}`);
-        }
-      } else {
+    try {
+      const currentAdmin: string = await cp.admin();
+      if (currentAdmin.toLowerCase() === adminTo.toLowerCase()) {
         log(`• ChallengePay admin already ${adminTo}`);
-      }
-    } else if (currentOwner) {
-      if (!same(currentOwner, adminTo)) {
-        const r = await safeTx("transferOwnership", adminTo);
-        if (r.sent) {
-          log(`✓ ChallengePay.transferOwnership(${adminTo})`);
-        } else if (r.reason === "missing") {
-          log(`⚠️ ChallengePay.owner() exists but transferOwnership() missing; skipping owner change.`);
-        } else {
-          log(`⚠️ ChallengePay.transferOwnership(${adminTo}) failed: ${r.reason}`);
-        }
+      } else if (currentAdmin.toLowerCase() !== deployer.toLowerCase()) {
+        log(`⚠️ ChallengePay admin is ${currentAdmin} (not deployer); cannot transferAdmin`);
       } else {
-        log(`• ChallengePay owner already ${adminTo}`);
+        const tx = await cp.transferAdmin(adminTo);
+        await tx.wait();
+        log(`✓ ChallengePay.transferAdmin(${adminTo}) — new admin must call acceptAdmin()`);
       }
-    } else {
-      log(
-        `• ADMIN_ADDRESS set (${adminTo}) but ChallengePay exposes neither admin()/setAdmin() nor owner()/transferOwnership(); leaving as-is`
-      );
+    } catch (e: any) {
+      log(`⚠️ ChallengePay admin transfer failed: ${e?.shortMessage || e?.message || String(e)}`);
     }
   } else {
-    log(`• ADMIN_ADDRESS not set; leaving ChallengePay admin/owner as-is`);
+    log(`• ADMIN_ADDRESS not set; leaving ChallengePay admin as-is`);
   }
 
   // ---------------------------------------------------------------------------

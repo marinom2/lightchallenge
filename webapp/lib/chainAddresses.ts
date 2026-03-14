@@ -35,10 +35,6 @@ export async function loadAddresses() {
 
   const ChallengePay = assertAddr(d.contracts.ChallengePay, "ChallengePay");
   const Treasury = assertAddr(d.contracts.Treasury, "Treasury");
-  const AutoApprovalStrategy = assertAddr(
-    d.contracts.AutoApprovalStrategy,
-    "AutoApprovalStrategy"
-  );
   const ChallengeTaskRegistry = assertAddr(
     d.contracts.ChallengeTaskRegistry,
     "ChallengeTaskRegistry"
@@ -57,7 +53,6 @@ export async function loadAddresses() {
     rpcUrl: d.rpcUrl,
     ChallengePay,
     Treasury,
-    AutoApprovalStrategy,
     ChallengeTaskRegistry,
     ChallengePayAivmPoiVerifier,
     AIVMInferenceV2,

@@ -55,10 +55,17 @@ export type Template = {
   fields: TemplateField[];
   /** Build model params from UI + timeline */
   paramsBuilder: (args: { state: ChallengeFormState }) => Record<string, any>;
+  /**
+   * Build the evaluator rule object from UI state.
+   * Returns a plain JSON-serialisable Rule (fitness) or GamingRule (gaming)
+   * that is stored as proof.params.rule during challenge creation.
+   * Evaluators check this path first (Phase 13+ canonical).
+   */
+  ruleBuilder?: (args: { state: ChallengeFormState }) => Record<string, unknown> | null;
 };
 
 /** A plain serializable template (no functions) — used by runtime/admin JSON */
-export type TemplatePlain = Omit<Template, "paramsBuilder">;
+export type TemplatePlain = Omit<Template, "paramsBuilder" | "ruleBuilder">;
 
 /* Utility */
 const ts = (d?: Date | null) => (d ? Math.floor(d.getTime() / 1000) : null);
@@ -70,6 +77,12 @@ const ts = (d?: Date | null) => (d ? Math.floor(d.getTime() / 1000) : null);
  * If in the future you move these values, change only this helper.
  */
 const aivm = (state: ChallengeFormState) => (state as any).aivmForm ?? {};
+
+/** ISO string or empty-string fallback for rule period fields */
+const isoOrNow = (d?: Date | null) => d?.toISOString() ?? new Date().toISOString();
+
+/** Browser timezone string e.g. "America/New_York" */
+const localTz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 /* -------------------------------------------------------------------------- */
 /*                                  FITNESS                                   */
@@ -89,6 +102,20 @@ const FITNESS_STEPS: Template = {
     days: Number(aivm(state).days ?? 7),
     minSteps: Number(aivm(state).minSteps ?? 8000),
   }),
+  ruleBuilder: ({ state }) => ({
+    challengeType: "steps",
+    period: {
+      start: isoOrNow(state.timeline.starts),
+      end: isoOrNow(state.timeline.ends),
+      timezone: localTz(),
+    },
+    dailyTarget: {
+      consecutiveDays: Number(aivm(state).days ?? 7),
+      conditions: [
+        { metric: "steps_count", op: ">=", value: Number(aivm(state).minSteps ?? 8000) },
+      ],
+    },
+  }),
 };
 
 const FITNESS_RUNNING_DISTANCE_WINDOW: Template = {
@@ -102,6 +129,18 @@ const FITNESS_RUNNING_DISTANCE_WINDOW: Template = {
     start_ts: ts(state.timeline.starts),
     end_ts: ts(state.timeline.ends),
     min_distance_m: Math.round(Number(aivm(state).distanceKm ?? 5) * 1000),
+  }),
+  ruleBuilder: ({ state }) => ({
+    challengeType: "run",
+    period: {
+      start: isoOrNow(state.timeline.starts),
+      end: isoOrNow(state.timeline.ends),
+      timezone: localTz(),
+    },
+    conditions: [
+      { metric: "distance_km", op: ">=", value: Number(aivm(state).distanceKm ?? 5) },
+    ],
+    antiCheat: { minGpsContinuity: 0.6, maxTeleportJumps: 3 },
   }),
 };
 
@@ -117,6 +156,18 @@ const FITNESS_CYCLING_DISTANCE_WINDOW: Template = {
     end_ts: ts(state.timeline.ends),
     min_distance_m: Math.round(Number(aivm(state).distanceKm ?? 20) * 1000),
   }),
+  ruleBuilder: ({ state }) => ({
+    challengeType: "cycle",
+    period: {
+      start: isoOrNow(state.timeline.starts),
+      end: isoOrNow(state.timeline.ends),
+      timezone: localTz(),
+    },
+    conditions: [
+      { metric: "distance_km", op: ">=", value: Number(aivm(state).distanceKm ?? 20) },
+    ],
+    antiCheat: { minGpsContinuity: 0.5, maxTeleportJumps: 5 },
+  }),
 };
 
 const FITNESS_HIKING_ELEVATION_WINDOW: Template = {
@@ -130,6 +181,17 @@ const FITNESS_HIKING_ELEVATION_WINDOW: Template = {
     start_ts: ts(state.timeline.starts),
     end_ts: ts(state.timeline.ends),
     min_elev_gain_m: Math.round(Number(aivm(state).elevGainM ?? 1000)),
+  }),
+  ruleBuilder: ({ state }) => ({
+    challengeType: "walk",
+    period: {
+      start: isoOrNow(state.timeline.starts),
+      end: isoOrNow(state.timeline.ends),
+      timezone: localTz(),
+    },
+    conditions: [
+      { metric: "elev_gain_m", op: ">=", value: Number(aivm(state).elevGainM ?? 1000) },
+    ],
   }),
 };
 
@@ -145,6 +207,127 @@ const FITNESS_SWIMMING_LAPS_WINDOW: Template = {
     end_ts: ts(state.timeline.ends),
     laps: Math.round(Number(aivm(state).laps ?? 40)),
   }),
+  // Laps don't map to a standard Activity metric; use period + type filter only.
+  // Any swim recorded in the window satisfies the structural rule.
+  ruleBuilder: ({ state }) => ({
+    challengeType: "swim",
+    period: {
+      start: isoOrNow(state.timeline.starts),
+      end: isoOrNow(state.timeline.ends),
+      timezone: localTz(),
+    },
+  }),
+};
+
+const FITNESS_STEPS_COMPETITIVE: Template = {
+  id: "steps_competitive",
+  kind: "steps",
+  name: "Steps Competition",
+  hint: "Compete: whoever accumulates the most steps wins.",
+  modelId: "apple_health.steps@1",
+  fields: [
+    { kind: "number", key: "topN", label: "Number of winners", min: 1, step: 1, default: 1 },
+  ],
+  paramsBuilder: ({ state }) => ({
+    start_ts: ts(state.timeline.starts),
+    end_ts: ts(state.timeline.ends),
+    topN: Number(aivm(state).topN ?? 1),
+  }),
+  ruleBuilder: ({ state }) => ({
+    challengeType: "steps",
+    mode: "competitive",
+    competitiveMetric: "steps_count",
+    topN: Number(aivm(state).topN ?? 1),
+    period: {
+      start: isoOrNow(state.timeline.starts),
+      end: isoOrNow(state.timeline.ends),
+      timezone: localTz(),
+    },
+  }),
+};
+
+const FITNESS_DISTANCE_COMPETITIVE: Template = {
+  id: "distance_competitive",
+  kind: "running",
+  name: "Distance Competition",
+  hint: "Compete: whoever covers the most distance wins.",
+  modelId: "strava.distance_in_window@1",
+  fields: [
+    {
+      kind: "select",
+      key: "activityType",
+      label: "Activity type",
+      options: [
+        { value: "run", label: "Running" },
+        { value: "walk", label: "Walking" },
+        { value: "cycle", label: "Cycling" },
+      ],
+      default: "run",
+    },
+    { kind: "number", key: "topN", label: "Number of winners", min: 1, step: 1, default: 1 },
+  ],
+  paramsBuilder: ({ state }) => ({
+    start_ts: ts(state.timeline.starts),
+    end_ts: ts(state.timeline.ends),
+    topN: Number(aivm(state).topN ?? 1),
+  }),
+  ruleBuilder: ({ state }) => {
+    const actType = String(aivm(state).activityType ?? "run");
+    return {
+      challengeType: actType === "cycle" ? "cycle" : actType === "walk" ? "walk" : "run",
+      mode: "competitive",
+      competitiveMetric: "distance_km",
+      topN: Number(aivm(state).topN ?? 1),
+      period: {
+        start: isoOrNow(state.timeline.starts),
+        end: isoOrNow(state.timeline.ends),
+        timezone: localTz(),
+      },
+    };
+  },
+};
+
+const FITNESS_DURATION_THRESHOLD: Template = {
+  id: "duration_threshold",
+  kind: "running",
+  name: "Active Minutes Threshold",
+  hint: "Accumulate at least X active minutes between Start and End.",
+  modelId: "strava.distance_in_window@1",
+  fields: [
+    { kind: "number", key: "durationMin", label: "Target minutes", min: 10, step: 5, default: 60 },
+    {
+      kind: "select",
+      key: "activityType",
+      label: "Activity type",
+      options: [
+        { value: "run", label: "Running" },
+        { value: "walk", label: "Walking" },
+        { value: "cycle", label: "Cycling" },
+        { value: "swim", label: "Swimming" },
+      ],
+      default: "run",
+    },
+  ],
+  paramsBuilder: ({ state }) => ({
+    start_ts: ts(state.timeline.starts),
+    end_ts: ts(state.timeline.ends),
+    min_duration_min: Number(aivm(state).durationMin ?? 60),
+  }),
+  ruleBuilder: ({ state }) => {
+    const actType = String(aivm(state).activityType ?? "run");
+    const typeMap: Record<string, string> = { run: "run", walk: "walk", cycle: "cycle", swim: "swim" };
+    return {
+      challengeType: typeMap[actType] ?? "run",
+      period: {
+        start: isoOrNow(state.timeline.starts),
+        end: isoOrNow(state.timeline.ends),
+        timezone: localTz(),
+      },
+      conditions: [
+        { metric: "duration_min", op: ">=", value: Number(aivm(state).durationMin ?? 60) },
+      ],
+    };
+  },
 };
 
 /** Fitness registry (code-side defaults) */
@@ -154,13 +337,104 @@ const FITNESS: Template[] = [
   FITNESS_CYCLING_DISTANCE_WINDOW,
   FITNESS_HIKING_ELEVATION_WINDOW,
   FITNESS_SWIMMING_LAPS_WINDOW,
+  FITNESS_STEPS_COMPETITIVE,
+  FITNESS_DISTANCE_COMPETITIVE,
+  FITNESS_DURATION_THRESHOLD,
 ];
 
 /* -------------------------------------------------------------------------- */
 /*                                   DOTA                                     */
 /* -------------------------------------------------------------------------- */
 /** Note: options use ctx.dotaHeroes injected by the React component */
+const DOTA_KILLS_COMPETITIVE: Template = {
+  id: "dota_kills_competitive",
+  kind: "dota",
+  name: "Dota 2 Kills Competition",
+  hint: "Compete: most total kills in ranked matches wins.",
+  modelId: "dota.hero_kills_window@1",
+  fields: [
+    { kind: "number", key: "topN", label: "Number of winners", min: 1, step: 1, default: 1 },
+    { kind: "text", key: "rankedOnly", label: "Ranked only? (true/false)", default: "true" },
+  ],
+  paramsBuilder: ({ state }) => ({
+    start_ts: ts(state.timeline.starts),
+    end_ts: ts(state.timeline.ends),
+    topN: Number(aivm(state).topN ?? 1),
+  }),
+  ruleBuilder: ({ state }) => {
+    const rankedOnly = String(aivm(state).rankedOnly ?? "true") === "true";
+    return {
+      mode: "competitive",
+      competitiveMetric: "kills",
+      topN: Number(aivm(state).topN ?? 1),
+      ...(rankedOnly && { rankedOnly: true }),
+      period: {
+        start: isoOrNow(state.timeline.starts),
+        end: isoOrNow(state.timeline.ends),
+      },
+    };
+  },
+};
+
+const DOTA_WIN_STREAK: Template = {
+  id: "dota_win_streak",
+  kind: "dota",
+  name: "Win Streak Challenge",
+  hint: "Achieve a win streak of N consecutive wins.",
+  modelId: "dota.private_match_1v1@1",
+  fields: [
+    { kind: "number", key: "streakLength", label: "Streak length", min: 2, step: 1, default: 3 },
+    { kind: "text", key: "rankedOnly", label: "Ranked only? (true/false)", default: "false" },
+  ],
+  paramsBuilder: ({ state }) => ({
+    start_ts: ts(state.timeline.starts),
+    end_ts: ts(state.timeline.ends),
+    streakLength: Number(aivm(state).streakLength ?? 3),
+  }),
+  ruleBuilder: ({ state }) => {
+    const rankedOnly = String(aivm(state).rankedOnly ?? "false") === "true";
+    return {
+      streakLength: Number(aivm(state).streakLength ?? 3),
+      ...(rankedOnly && { rankedOnly: true }),
+      period: {
+        start: isoOrNow(state.timeline.starts),
+        end: isoOrNow(state.timeline.ends),
+      },
+    };
+  },
+};
+
+const DOTA_MATCH_WINS: Template = {
+  id: "dota_match_wins",
+  kind: "dota",
+  name: "Match Wins",
+  hint: "Win at least X Dota 2 matches between Start and End.",
+  modelId: "dota.private_match_5v5@1",
+  fields: [
+    { kind: "number", key: "minWins", label: "Target wins", min: 1, step: 1, default: 5 },
+    {
+      kind: "select", key: "rankedOnly", label: "Ranked only",
+      options: [{ value: "false", label: "No — all matches" }, { value: "true", label: "Yes — ranked only" }],
+      default: "false",
+    },
+  ],
+  paramsBuilder: ({ state }) => ({
+    start_ts: ts(state.timeline.starts),
+    end_ts: ts(state.timeline.ends),
+    minWins: Number(aivm(state).minWins ?? 5),
+  }),
+  ruleBuilder: ({ state }) => {
+    const rankedOnly = String(aivm(state).rankedOnly ?? "false") === "true";
+    return {
+      minWins: Number(aivm(state).minWins ?? 5),
+      ...(rankedOnly && { rankedOnly: true }),
+      period: { start: isoOrNow(state.timeline.starts), end: isoOrNow(state.timeline.ends) },
+    };
+  },
+};
+
 const DOTA: Template[] = [
+  DOTA_MATCH_WINS,
   {
     id: "dota_hero_kills_window",
     kind: "dota",
@@ -179,6 +453,19 @@ const DOTA: Template[] = [
       minKills: Number(aivm(state).minKills ?? 50),
       rankedOnly: String(aivm(state).rankedOnly ?? "true"),
     }),
+    ruleBuilder: ({ state }) => {
+      const hero = String(aivm(state).hero ?? "");
+      const rankedOnly = String(aivm(state).rankedOnly ?? "true") === "true";
+      return {
+        minWins: 1,
+        ...(hero && { hero }),
+        ...(rankedOnly && { rankedOnly: true }),
+        period: {
+          start: isoOrNow(state.timeline.starts),
+          end: isoOrNow(state.timeline.ends),
+        },
+      };
+    },
   },
   {
     id: "dota_private_1v1",
@@ -194,6 +481,13 @@ const DOTA: Template[] = [
       end_ts: ts(state.timeline.ends),
       minMatches: Number(aivm(state).minMatches ?? 1),
       minWins: Number(aivm(state).minWins ?? 1),
+    }),
+    ruleBuilder: ({ state }) => ({
+      minWins: Number(aivm(state).minWins ?? 1),
+      period: {
+        start: isoOrNow(state.timeline.starts),
+        end: isoOrNow(state.timeline.ends),
+      },
     }),
   },
   {
@@ -211,13 +505,57 @@ const DOTA: Template[] = [
       minMatches: Number(aivm(state).minMatches ?? 1),
       minWins: Number(aivm(state).minWins ?? 1),
     }),
+    ruleBuilder: ({ state }) => ({
+      minWins: Number(aivm(state).minWins ?? 1),
+      period: {
+        start: isoOrNow(state.timeline.starts),
+        end: isoOrNow(state.timeline.ends),
+      },
+    }),
   },
+  DOTA_KILLS_COMPETITIVE,
+  DOTA_WIN_STREAK,
 ];
 
 /* -------------------------------------------------------------------------- */
 /*                                    LOL                                     */
 /* -------------------------------------------------------------------------- */
+const LOL_MATCH_WINS: Template = {
+  id: "lol_match_wins",
+  kind: "lol",
+  name: "LoL Match Wins",
+  hint: "Win at least X League of Legends matches between Start and End.",
+  modelId: "lol.winrate_next_n@1",
+  fields: [
+    { kind: "number", key: "minWins", label: "Target wins", min: 1, step: 1, default: 10 },
+    {
+      kind: "select", key: "queue", label: "Queue type",
+      options: [
+        { value: "ranked", label: "Ranked" },
+        { value: "flex", label: "Flex" },
+        { value: "aram", label: "ARAM" },
+        { value: "any", label: "Any queue" },
+      ],
+      default: "ranked",
+    },
+  ],
+  paramsBuilder: ({ state }) => ({
+    start_ts: ts(state.timeline.starts),
+    end_ts: ts(state.timeline.ends),
+    minWins: Number(aivm(state).minWins ?? 10),
+  }),
+  ruleBuilder: ({ state }) => {
+    const queue = String(aivm(state).queue ?? "ranked").toLowerCase();
+    return {
+      minWins: Number(aivm(state).minWins ?? 10),
+      ...(queue !== "any" && queue !== "aram" && { rankedOnly: queue === "ranked" }),
+      period: { start: isoOrNow(state.timeline.starts), end: isoOrNow(state.timeline.ends) },
+    };
+  },
+};
+
 const LOL: Template[] = [
+  LOL_MATCH_WINS,
   {
     id: "lol_winrate_next_n",
     kind: "lol",
@@ -232,25 +570,107 @@ const LOL: Template[] = [
       matches: Number(aivm(state).matches ?? 20),
       queue: String(aivm(state).queue ?? "ranked"),
     }),
+    ruleBuilder: ({ state }) => {
+      const queue = String(aivm(state).queue ?? "ranked").toLowerCase();
+      return {
+        minWins: Math.ceil(Number(aivm(state).matches ?? 20) / 2),
+        ...(queue !== "aram" && { rankedOnly: queue === "ranked" }),
+        period: {
+          start: isoOrNow(state.timeline.starts),
+          end: isoOrNow(state.timeline.ends),
+        },
+      };
+    },
+  },
+  {
+    id: "lol_kills_competitive",
+    kind: "lol",
+    name: "LoL Kills Competition",
+    hint: "Compete: most total kills in ranked matches wins.",
+    modelId: "lol.winrate_next_n@1",
+    fields: [
+      { kind: "number", key: "topN", label: "Number of winners", min: 1, step: 1, default: 1 },
+    ],
+    paramsBuilder: ({ state }) => ({
+      start_ts: ts(state.timeline.starts),
+      end_ts: ts(state.timeline.ends),
+      topN: Number(aivm(state).topN ?? 1),
+    }),
+    ruleBuilder: ({ state }) => ({
+      mode: "competitive",
+      competitiveMetric: "kills",
+      topN: Number(aivm(state).topN ?? 1),
+      rankedOnly: true,
+      period: {
+        start: isoOrNow(state.timeline.starts),
+        end: isoOrNow(state.timeline.ends),
+      },
+    }),
   },
 ];
 
 /* -------------------------------------------------------------------------- */
 /*                                     CS                                     */
 /* -------------------------------------------------------------------------- */
+const CS2_KILLS_COMPETITIVE: Template = {
+  id: "cs2_kills_competitive",
+  kind: "cs",
+  name: "CS2 Kills Competition",
+  hint: "Compete: most total FACEIT kills wins.",
+  modelId: "cs2.faceit_wins@1",
+  fields: [
+    { kind: "number", key: "topN", label: "Number of winners", min: 1, step: 1, default: 1 },
+  ],
+  paramsBuilder: ({ state }) => ({
+    start_ts: ts(state.timeline.starts),
+    end_ts: ts(state.timeline.ends),
+    topN: Number(aivm(state).topN ?? 1),
+  }),
+  ruleBuilder: ({ state }) => ({
+    mode: "competitive",
+    competitiveMetric: "kills",
+    topN: Number(aivm(state).topN ?? 1),
+    period: { start: isoOrNow(state.timeline.starts), end: isoOrNow(state.timeline.ends) },
+  }),
+};
+
 const CS: Template[] = [
+  CS2_KILLS_COMPETITIVE,
   {
-    id: "cs_kills_in_window",
+    id: "cs2_faceit_wins",
     kind: "cs",
-    name: "Kills in Window",
-    hint: "Accumulate at least X kills between Start and End.",
-    modelId: "cs.kills_in_window@1",
-    fields: [{ kind: "number", key: "kills", label: "Kills", min: 1, step: 1, default: 30 }],
+    name: "CS2 • FACEIT Wins",
+    hint: "Win at least X FACEIT matches between Start and End. Requires Steam + FACEIT account.",
+    modelId: "cs2.faceit_wins@1",
+    fields: [
+      { kind: "number", key: "minWins", label: "Target wins", min: 1, step: 1, default: 5 },
+      {
+        kind: "select",
+        key: "rankedOnly",
+        label: "Ranked only",
+        options: [
+          { value: "false", label: "No — all matches" },
+          { value: "true", label: "Yes — ranked only" },
+        ],
+        default: "false",
+      },
+    ],
     paramsBuilder: ({ state }) => ({
       start_ts: ts(state.timeline.starts),
       end_ts: ts(state.timeline.ends),
-      kills: Number(aivm(state).kills ?? 30),
+      minWins: Number(aivm(state).minWins ?? 5),
     }),
+    ruleBuilder: ({ state }) => {
+      const rankedOnly = String(aivm(state).rankedOnly ?? "false") === "true";
+      return {
+        minWins: Number(aivm(state).minWins ?? 5),
+        ...(rankedOnly && { rankedOnly: true }),
+        period: {
+          start: isoOrNow(state.timeline.starts),
+          end: isoOrNow(state.timeline.ends),
+        },
+      };
+    },
   },
 ];
 
@@ -259,6 +679,8 @@ const CS: Template[] = [
 /* -------------------------------------------------------------------------- */
 
 /** All code-side templates in one list (used by Step1 discovery) */
+// CS2 uses FACEIT API (Valve provides no public matchmaking API).
+// Only FACEIT matches are verified — honest limitation documented in VCE instructions.
 const ALL: Template[] = [...FITNESS, ...DOTA, ...LOL, ...CS];
 
 /** Export for Step1: discover kinds/games from code templates */

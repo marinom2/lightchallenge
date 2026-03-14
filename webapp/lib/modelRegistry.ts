@@ -5,17 +5,23 @@
 import type { Hex, Address } from "viem";
 
 /* ────────────────────────────────────────────────────────────────────────────
- * Types (aligned with /public/models/models.json and /api/admin/models)
+ * Types
+ *
+ * COMPATIBILITY NOTE:
+ * Active model kinds: "aivm" (Lightchain AIVM + PoI) and "custom".
+ * "zk" and "plonk" are legacy values that may exist in the DB but are NOT
+ * part of the active product architecture. Do not use for new models.
  * ──────────────────────────────────────────────────────────────────────────── */
-export type ModelKind = "aivm" | "zk" | "plonk";
+export type ModelKind = "aivm" | "custom" | "zk" | "plonk";
 
 export interface ModelRow {
   id: string;                     // e.g. "dota.hero_kills_window@1"
   label?: string;
-  kind: ModelKind;                // "aivm" | "zk" | "plonk"
+  kind: ModelKind;                // active: "aivm"|"custom"; legacy: "zk"|"plonk"
   modelHash: Hex;                 // keccak256 hash of model (0x…)
-  verifier: Address;              // primary verifier (AIVM or zk verifier)
-  plonkVerifier?: Address;        // optional separate plonk adapter/verifier
+  verifier: Address;              // primary verifier (AIVM PoI verifier)
+  /** @deprecated Legacy field — not used in AIVM + PoI product flow */
+  plonkVerifier?: Address;
   binding?: boolean;
   signals?: string[];
   params?: Array<{ key: string; label?: string; type?: string; default?: any }>;
@@ -86,22 +92,13 @@ async function loadOnce(): Promise<void> {
 /* ────────────────────────────────────────────────────────────────────────────
  * Heuristic fallback (when registry missing / offline)
  * ──────────────────────────────────────────────────────────────────────────── */
+/**
+ * Heuristic fallback when the registry is unavailable.
+ * All active production models use the AIVM kind.
+ */
 function guessKind(modelId?: string): ModelKind | null {
   if (!modelId) return null;
-  const id = modelId.toLowerCase();
-  if (id.includes("plonk")) return "plonk";
-  if (id.includes("zk")) return "zk";
-  // Common AIVM ids in your catalog
-  if (
-    id.includes("steps") ||
-    id.includes("winrate") ||
-    id.includes("hero_kills") ||
-    id.includes("private_match") ||
-    id.includes("distance_in_window")
-  ) {
-    return "aivm";
-  }
-  return null;
+  return "aivm";
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -115,7 +112,7 @@ export async function getModelFromRegistry(modelId?: string): Promise<ModelRow |
   return registry?.get(modelId) ?? null;
 }
 
-/** Returns only the model kind ("aivm" | "zk" | "plonk"), with no heuristics. */
+/** Returns the model kind from the registry (no heuristic fallback). */
 export async function getModelKindFromRegistry(modelId?: string): Promise<ModelKind | null> {
   const row = await getModelFromRegistry(modelId);
   return row?.kind ?? null;
@@ -141,49 +138,20 @@ export async function getAllModels(): Promise<ModelRow[]> {
  *
  * @param modelId
  * @param fallbacks Provide your known on-chain defaults here.
- *   - aivm: address of your AIVM verifier
- *   - zk: address of your zk verifier
- *   - plonkAdapter: address of your Plonk adapter/verifier
+ *   - aivm: address of the AIVM PoI verifier (active product path)
  */
 export async function getVerifierForModel(
   modelId?: string,
-  fallbacks?: { aivm?: Address; zk?: Address; plonkAdapter?: Address }
-): Promise<{ kind: ModelKind | null; verifier: Address; plonkVerifier?: Address }> {
+  fallbacks?: { aivm?: Address }
+): Promise<{ kind: ModelKind | null; verifier: Address }> {
   const ZERO = "0x0000000000000000000000000000000000000000" as Address;
 
-  // Try registry first
   const row = await getModelFromRegistry(modelId).catch(() => null);
   const kind: ModelKind | null = row?.kind ?? guessKind(modelId);
 
-  if (kind === "plonk") {
-    return {
-      kind,
-      verifier: (row?.plonkVerifier ?? fallbacks?.plonkAdapter ?? ZERO) as Address,
-      plonkVerifier: row?.plonkVerifier as Address | undefined,
-    };
-  }
-
-  if (kind === "aivm") {
-    return {
-      kind,
-      verifier: (row?.verifier ?? fallbacks?.aivm ?? ZERO) as Address,
-      plonkVerifier: row?.plonkVerifier as Address | undefined,
-    };
-  }
-
-  if (kind === "zk") {
-    return {
-      kind,
-      verifier: (row?.verifier ?? fallbacks?.zk ?? ZERO) as Address,
-      plonkVerifier: row?.plonkVerifier as Address | undefined,
-    };
-  }
-
-  // Unknown → generic zk fallback (safer default)
   return {
-    kind: null,
-    verifier: (row?.verifier ?? fallbacks?.zk ?? ZERO) as Address,
-    plonkVerifier: row?.plonkVerifier as Address | undefined,
+    kind,
+    verifier: (row?.verifier ?? fallbacks?.aivm ?? ZERO) as Address,
   };
 }
 

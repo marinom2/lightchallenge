@@ -156,12 +156,10 @@ export function validateState(state: ChallengeFormState): Record<string, string>
   }
 
   const stake = toNum(state.money.stake);
-  const bond = toNum(state.money.bond);
 
   if (stake < 0) errors["money.stake"] = "Stake cannot be negative.";
-  if (bond < 0) errors["money.bond"] = "Bond cannot be negative.";
-  if (stake + bond <= 0) {
-    errors["money.total"] = "Stake + bond must be greater than 0.";
+  if (stake <= 0) {
+    errors["money.total"] = "Stake must be greater than 0.";
   }
 
   if (state.money.currency.type === "ERC20") {
@@ -225,21 +223,6 @@ export function validateState(state: ChallengeFormState): Record<string, string>
   } else if (isValidDate(ends) && proofDeadline.getTime() < ends.getTime()) {
     errors["timeline.proofDeadline2"] =
       "Proof deadline must be on or after end time.";
-  }
-
-  if ((state.peers?.length ?? 0) > 0) {
-    errors["peers.mode.list"] =
-      "Peer wallets are not used in the current Lightchain AIVM / PLONK / ZK flow.";
-  }
-
-  if (Number(state.peerApprovalsNeeded || 0) > 0) {
-    errors["peers.mode"] =
-      "Peer approvals are not used in the current Lightchain AIVM / PLONK / ZK flow.";
-  }
-
-  if (state.timeline.peerDeadline) {
-    errors["timeline.peerDeadline.mode"] =
-      "Peer deadline is not used in the current Lightchain AIVM / PLONK / ZK flow.";
   }
 
   validateTemplateRequirements(state, errors);

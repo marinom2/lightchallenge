@@ -32,7 +32,6 @@ export const NATIVE_SYMBOL = process.env.NEXT_PUBLIC_NATIVE_SYMBOL || "LCAI";
  */
 export const CHALLENGEPAY_ADDR = asAddr(process.env.NEXT_PUBLIC_CHALLENGEPAY_ADDR);
 export const TREASURY_ADDR = asAddr(process.env.NEXT_PUBLIC_TREASURY_ADDR);
-export const AUTO_APPROVAL_STRATEGY = asAddr(process.env.NEXT_PUBLIC_AUTO_APPROVAL_STRATEGY);
 
 /* ────────────────────────────────────────────────────────────────
    Server-only secrets (NO NEXT_PUBLIC prefix)
@@ -58,7 +57,6 @@ if (process.env.NODE_ENV !== "production") {
   const legacySet = [
     CHALLENGEPAY_ADDR,
     TREASURY_ADDR,
-    AUTO_APPROVAL_STRATEGY,
   ].some(Boolean);
 
   if (legacySet) {

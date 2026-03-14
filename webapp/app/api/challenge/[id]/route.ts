@@ -12,35 +12,23 @@ import {
 } from "viem";
 import { RPC_URL, lightchain } from "@/lib/lightchain";
 import { ABI, ADDR } from "@/lib/contracts";
+import type { Status } from "@/lib/types/status";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
 export const dynamic = "force-dynamic";
 
-type Status =
-  | "Pending"
-  | "Approved"
-  | "Rejected"
-  | "Finalized"
-  | "Canceled"
-  | "Paused";
-
 type SnapshotOut = {
   set: boolean;
   success: boolean;
-  rightSide: number;
-  eligibleValidators: number;
   committedPool: string;
   forfeitedPool: string;
   cashback: string;
   forfeitedAfterCashback?: string;
-  charityAmt: string;
   protocolAmt: string;
   creatorAmt: string;
-  validatorsAmt: string;
   perCommittedBonusX: string;
   perCashbackX: string;
-  perValidatorAmt: string;
 };
 
 type TimelineRow = {
@@ -55,25 +43,14 @@ type TimelineRow = {
 type ApiOut = {
   id: string;
   status: Status;
+  outcome?: number;
   creator?: `0x${string}`;
   startTs?: string;
   endTs?: string;
-  approvalDeadline?: string;
   joinClosesTs?: string;
-  peerDeadlineTs?: string;
   createdBlock?: string;
   createdTx?: `0x${string}`;
   winnersClaimed?: number;
-  proofRequired?: boolean;
-  proofOk?: boolean;
-  autoApproved?: boolean;
-  fastTracked?: boolean;
-  strategy?: `0x${string}` | null;
-  peerApprovals?: number;
-  peerApprovalsNeeded?: number;
-  youAlreadyVoted?: boolean;
-  youAreEligibleValidator?: boolean;
-  youMeetMinStake?: boolean;
   youJoined?: boolean;
   youAlreadyJoined?: boolean;
   title?: string;
@@ -87,18 +64,17 @@ type ApiOut = {
   createdAt?: number;
   externalId?: string;
   modelId?: string | null;
-  modelKind?: "aivm" | "zk" | "plonk" | null;
+  modelKind?: "aivm" | null;
   modelHash?: `0x${string}` | null;
-  plonkVerifier?: `0x${string}` | null;
   verifierUsed?: `0x${string}` | null;
   proof?: {
-    kind: "aivm" | "zk" | "plonk";
+    kind: "aivm";
     modelId: string;
     params: Record<string, any>;
     paramsHash: `0x${string}`;
     [key: string]: any;
   } | null;
-  money?: { stakeWei?: string | null; bondWei?: string | null } | null;
+  money?: { stakeWei?: string | null } | null;
   pool?: { committedWei?: string | null } | null;
   treasuryBalanceWei?: string | null;
   snapshot?: SnapshotOut;
@@ -120,20 +96,20 @@ function ev(name: string): AbiEvent {
   return getAbiItem({ abi: cpAbi, name }) as AbiEvent;
 }
 
+/**
+ * Maps on-chain ChallengePay V1 Status enum to string.
+ * enum Status { Active=0, Finalized=1, Canceled=2 }
+ */
 function toStatus(n: number): Status {
   switch (n) {
+    case 0:
+      return "Active";
     case 1:
-      return "Approved";
-    case 2:
-      return "Rejected";
-    case 3:
       return "Finalized";
-    case 4:
+    case 2:
       return "Canceled";
-    case 5:
-      return "Paused";
     default:
-      return "Pending";
+      return "Active";
   }
 }
 
@@ -209,27 +185,6 @@ function coerceParams(input: unknown): Record<string, any> | string | undefined 
   return undefined;
 }
 
-function pickBigIntDeep(obj: any, paths: Array<Array<string>>, fallback: bigint = 0n): bigint {
-  for (const path of paths) {
-    let cur: any = obj;
-    for (const seg of path) {
-      if (cur == null) {
-        cur = undefined;
-        break;
-      }
-      cur = cur[seg];
-    }
-
-    const v = cur;
-    if (typeof v === "bigint") return v;
-    if (typeof v === "number" && Number.isFinite(v)) return BigInt(v);
-    if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) {
-      return BigInt(v);
-    }
-  }
-  return fallback;
-}
-
 export async function GET(req: Request, ctx: { params: { id: string } }) {
   const idStr = ctx.params.id;
 
@@ -264,9 +219,20 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
 
     const latest = await client.getBlockNumber();
     const toBlock = latest;
-    const span = BigInt(url.searchParams.get("span") ?? "10000");
+    const rawSpan = url.searchParams.get("span");
+    const span = BigInt(Math.min(Number(rawSpan) || 10000, 2000000));
     const fromBlock = toBlock > span ? toBlock - span + 1n : 0n;
 
+    /**
+     * V1 ChallengeView struct layout:
+     *  0: id, 1: kind, 2: status, 3: outcome,
+     *  4: creator, 5: currency, 6: token, 7: stake,
+     *  8: joinClosesTs, 9: startTs, 10: duration, 11: maxParticipants,
+     *  12: pool, 13: participantsCount,
+     *  14: verifier, 15: proofDeadlineTs,
+     *  16: winnersCount, 17: winnersPool,
+     *  18: paused, 19: canceled, 20: payoutsDone
+     */
     const cv: any = await client.readContract({
       abi: cpAbi,
       address: challengePay,
@@ -274,23 +240,15 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
       args: [id],
     });
 
-    const creator = cv?.challenger as Address | undefined;
-    const status = toStatus(Number(cv?.status ?? 0));
-    const approvalDeadline = cv?.approvalDeadline
-      ? String(cv.approvalDeadline)
-      : undefined;
-    const peerDeadlineTs = cv?.peerDeadlineTs
-      ? String(cv.peerDeadlineTs)
-      : undefined;
-    const startTs = cv?.startTs ? String(cv.startTs) : undefined;
-    const duration = BigInt(cv?.duration ?? 0n);
+    const creator = (cv?.creator ?? cv?.[4]) as Address | undefined;
+    const status = toStatus(Number(cv?.status ?? cv?.[2] ?? 0));
+    const outcome = Number(cv?.outcome ?? cv?.[3] ?? 0);
+    const startTs = cv?.startTs ?? cv?.[9] ? String(cv.startTs ?? cv[9]) : undefined;
+    const duration = BigInt(cv?.duration ?? cv?.[10] ?? 0n);
     const endTs = startTs ? (BigInt(startTs) + duration).toString() : undefined;
-
-    const proofRequired = !!cv?.proofRequired;
-    const proofOk = !!cv?.proofOk;
-    const peerApprovals = Number(cv?.peerApprovals ?? 0);
-    const peerApprovalsNeeded = Number(cv?.peerApprovalsNeeded ?? 0);
-    const peers: Address[] = Array.isArray(cv?.peers) ? cv.peers : [];
+    const joinClosesTs = cv?.joinClosesTs ?? cv?.[8] ? String(cv.joinClosesTs ?? cv[8]) : undefined;
+    const stakeWei = BigInt(cv?.stake ?? cv?.[7] ?? 0n);
+    const poolWei = BigInt(cv?.pool ?? cv?.[12] ?? 0n);
 
     const rawSnapshot: any = await client
       .readContract({
@@ -301,45 +259,39 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
       })
       .catch(() => null);
 
+    /**
+     * V1 SnapshotView:
+     *  0: set, 1: success, 2: committedPool, 3: forfeitedPool,
+     *  4: cashback, 5: forfeitedAfterCashback,
+     *  6: protocolAmt, 7: creatorAmt,
+     *  8: perCommittedBonusX, 9: perCashbackX
+     */
     const snapshot: SnapshotOut | undefined = rawSnapshot
       ? {
-          set: !!rawSnapshot.set,
-          success: !!rawSnapshot.success,
-          rightSide: Number(rawSnapshot.rightSide ?? 0),
-          eligibleValidators: Number(rawSnapshot.eligibleValidators ?? 0),
-          committedPool: (rawSnapshot.committedPool ?? 0n).toString(),
-          forfeitedPool: (rawSnapshot.forfeitedPool ?? 0n).toString(),
-          cashback: (rawSnapshot.cashback ?? 0n).toString(),
-          forfeitedAfterCashback: (rawSnapshot.forfeitedAfterCashback ?? 0n).toString(),
-          charityAmt: (rawSnapshot.charityAmt ?? 0n).toString(),
-          protocolAmt: (rawSnapshot.protocolAmt ?? 0n).toString(),
-          creatorAmt: (rawSnapshot.creatorAmt ?? 0n).toString(),
-          validatorsAmt: (rawSnapshot.validatorsAmt ?? 0n).toString(),
-          perCommittedBonusX: (rawSnapshot.perCommittedBonusX ?? 0n).toString(),
-          perCashbackX: (rawSnapshot.perCashbackX ?? 0n).toString(),
-          perValidatorAmt: (rawSnapshot.perValidatorAmt ?? 0n).toString(),
+          set: !!(rawSnapshot.set ?? rawSnapshot[0]),
+          success: !!(rawSnapshot.success ?? rawSnapshot[1]),
+          committedPool: (rawSnapshot.committedPool ?? rawSnapshot[2] ?? 0n).toString(),
+          forfeitedPool: (rawSnapshot.forfeitedPool ?? rawSnapshot[3] ?? 0n).toString(),
+          cashback: (rawSnapshot.cashback ?? rawSnapshot[4] ?? 0n).toString(),
+          forfeitedAfterCashback: (rawSnapshot.forfeitedAfterCashback ?? rawSnapshot[5] ?? 0n).toString(),
+          protocolAmt: (rawSnapshot.protocolAmt ?? rawSnapshot[6] ?? 0n).toString(),
+          creatorAmt: (rawSnapshot.creatorAmt ?? rawSnapshot[7] ?? 0n).toString(),
+          perCommittedBonusX: (rawSnapshot.perCommittedBonusX ?? rawSnapshot[8] ?? 0n).toString(),
+          perCashbackX: (rawSnapshot.perCashbackX ?? rawSnapshot[9] ?? 0n).toString(),
         }
       : undefined;
 
+    // V1 events only — no validator/peer/strategy/approval events
     const eventNames = [
       "ChallengeCreated",
-      "ChallengeApproved",
-      "StatusBecameApproved",
-      "ChallengeRejected",
-      "StatusBecameRejected",
       "Finalized",
       "Paused",
       "Canceled",
       "ProofSubmitted",
-      "PrincipalClaimed",
-      "ValidatorClaimed",
-      "RejectCreatorClaimed",
-      "RejectContributionClaimed",
-      "CashbackClaimed",
-      "StrategySet",
+      "WinnerClaimed",
+      "LoserClaimed",
+      "RefundClaimed",
       "SnapshotSet",
-      "ValidatorRejectClaimed",
-      "PeerVoted",
       "Joined",
       "FeesBooked",
     ] as const;
@@ -369,49 +321,6 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
     const seen = new Set<string>();
 
     let winnersClaimed = 0;
-    let strategy: `0x${string}` | null = null;
-    let autoApproved = false;
-    let fastTracked = false;
-
-    const stakeWei = pickBigIntDeep(
-      cv,
-      [
-        ["stakeWei"],
-        ["stake"],
-        ["creatorStake"],
-        ["creatorStakeWei"],
-        ["money", "stakeWei"],
-        ["balances", "stakeWei"],
-        ["funds", "stakeWei"],
-      ],
-      0n
-    );
-
-    const bondWei = pickBigIntDeep(
-      cv,
-      [
-        ["bondWei"],
-        ["proposalBond"],
-        ["bond"],
-        ["money", "bondWei"],
-        ["balances", "bondWei"],
-        ["funds", "bondWei"],
-      ],
-      0n
-    );
-
-    const committedOnChain = pickBigIntDeep(
-      cv,
-      [
-        ["treasuryBalanceWei"],
-        ["committedWei"],
-        ["pool", "committedWei"],
-        ["money", "committedWei"],
-        ["balances", "committedWei"],
-      ],
-      0n
-    );
-
     let joinedTotal = 0n;
 
     function push(
@@ -454,40 +363,15 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
 
         switch (dec.eventName) {
           case "ChallengeCreated":
-            fastTracked = !!args.fastTracked;
-            push(
-              "ChallengeCreated",
-              fastTracked ? "Created (Fast-Track)" : "Challenge created",
-              tx,
-              bn,
-              t
-            );
-            break;
-
-          case "StrategySet":
-            if (args.strategy && args.strategy !== ZERO_ADDR) {
-              strategy = args.strategy;
-            }
-            push("StrategySet", "Strategy attached", tx, bn, t);
-            break;
-
-          case "ChallengeApproved":
-          case "StatusBecameApproved":
-            autoApproved = true;
-            push(dec.eventName, "Approved", tx, bn, t);
-            break;
-
-          case "StatusBecameRejected":
-          case "ChallengeRejected":
-            push(dec.eventName, "Rejected", tx, bn, t);
+            push("ChallengeCreated", "Challenge created", tx, bn, t);
             break;
 
           case "Finalized": {
-            const outcome = Number(args.outcome ?? 0);
+            const o = Number(args.outcome ?? 0);
             const label =
-              outcome === 1
+              o === 1
                 ? "Finalized: Success"
-                : outcome === 2
+                : o === 2
                 ? "Finalized: Fail"
                 : "Finalized";
             push("Finalized", label, tx, bn, t);
@@ -512,31 +396,15 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
             );
             break;
 
-          case "PrincipalClaimed":
-          case "ValidatorClaimed":
-          case "RejectCreatorClaimed":
-          case "RejectContributionClaimed":
-          case "CashbackClaimed":
+          case "WinnerClaimed":
+          case "LoserClaimed":
+          case "RefundClaimed":
             winnersClaimed++;
             push(dec.eventName, "Reward claimed", tx, bn, t);
             break;
 
           case "SnapshotSet":
             push("SnapshotSet", "Snapshot taken", tx, bn, t);
-            break;
-
-          case "ValidatorRejectClaimed":
-            push("ValidatorRejectClaimed", "Validator reject-claim", tx, bn, t);
-            break;
-
-          case "PeerVoted":
-            push(
-              "PeerVoted",
-              args.pass ? "Peer voted: pass" : "Peer voted: fail",
-              tx,
-              bn,
-              t
-            );
             break;
 
           case "Joined": {
@@ -565,47 +433,8 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
 
     timeline.sort((a, b) => Number(BigInt(a.block) - BigInt(b.block)));
 
-    let youAlreadyVoted: boolean | undefined;
-    let youAreEligibleValidator: boolean | undefined;
-    let youMeetMinStake: boolean | undefined;
     let youJoined: boolean | undefined;
-
     if (viewer) {
-      youAlreadyVoted = (await client
-        .readContract({
-          abi: cpAbi,
-          address: challengePay,
-          functionName: "voteLockedFor",
-          args: [id, viewer],
-        })
-        .catch(() => undefined)) as boolean | undefined;
-
-      youAreEligibleValidator = peers.some(
-        (p) => p.toLowerCase() === viewer.toLowerCase()
-      );
-
-      const minStake = (await client
-        .readContract({
-          abi: cpAbi,
-          address: challengePay,
-          functionName: "minValidatorStake",
-          args: [],
-        })
-        .catch(() => undefined)) as bigint | undefined;
-
-      const yourStake = (await client
-        .readContract({
-          abi: cpAbi,
-          address: challengePay,
-          functionName: "validatorStake",
-          args: [viewer],
-        })
-        .catch(() => undefined)) as bigint | undefined;
-
-      if (minStake !== undefined && yourStake !== undefined) {
-        youMeetMinStake = yourStake >= minStake;
-      }
-
       youJoined = timeline.some(
         (t) =>
           t.name === "Joined" &&
@@ -614,15 +443,7 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
       );
     }
 
-    let committed = committedOnChain;
-    if (committed === 0n) committed = stakeWei + bondWei + joinedTotal;
-
-    if (snapshot?.set && snapshot?.committedPool) {
-      const snapCommitted = BigInt(snapshot.committedPool || "0");
-      if (snapCommitted > committed) committed = snapCommitted;
-    }
-
-    const committedWei = committed.toString();
+    const committedWei = (poolWei > 0n ? poolWei : stakeWei + joinedTotal).toString();
 
     let uri = "";
     if (metadataRegistry !== ZERO_ADDR && mrAbi) {
@@ -641,28 +462,17 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
     const out: ApiOut = {
       id: idStr,
       status,
+      outcome,
       creator: creator as any,
       startTs,
       endTs,
-      approvalDeadline,
-      joinClosesTs: approvalDeadline,
-      peerDeadlineTs,
+      joinClosesTs,
       createdBlock: created?.block,
       createdTx: created?.tx,
       winnersClaimed,
-      proofRequired,
-      proofOk,
-      autoApproved,
-      fastTracked,
-      strategy,
-      peerApprovals,
-      peerApprovalsNeeded,
-      youAlreadyVoted: viewer ? youAlreadyVoted : undefined,
-      youAreEligibleValidator,
-      youMeetMinStake,
       youJoined,
       youAlreadyJoined: youJoined,
-      money: { stakeWei: stakeWei.toString(), bondWei: bondWei.toString() },
+      money: { stakeWei: stakeWei.toString() },
       pool: { committedWei },
       treasuryBalanceWei: committedWei,
       snapshot,
@@ -705,9 +515,6 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
 
             const mh = asBytes32((meta as any).modelHash);
             if (mh) out.modelHash = mh;
-
-            const pv = asAddr((meta as any).plonkVerifier);
-            if (pv) out.plonkVerifier = pv;
 
             const vu = asAddr((meta as any).verifierUsed);
             if (vu) out.verifierUsed = vu;
@@ -779,10 +586,8 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
     return NextResponse.json(out, {
       headers: { "Cache-Control": "public, max-age=5" },
     });
-  } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.data?.message || e?.shortMessage || e?.message || String(e) },
-      { status: 200 }
-    );
+  } catch (e) {
+    console.error("[challenge/id]", e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

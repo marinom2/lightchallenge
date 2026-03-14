@@ -43,7 +43,7 @@ export type DotaEvalPayload = {
    ─────────────────────────────────────────────────────────────────────────── */
 export function DotaCardSkeleton() {
   return (
-    <div className="rounded-2xl border border-[color:var(--border)] bg-soft p-4 md:p-5 shadow-lg animate-pulse">
+    <div className="rounded-2xl border border-(--border) bg-soft p-4 md:p-5 shadow-lg animate-pulse">
       <div className="flex items-center gap-4">
         <div className="h-14 w-14 rounded-xl bg-soft" />
         <div className="flex-1 space-y-2">
@@ -56,7 +56,7 @@ export function DotaCardSkeleton() {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="flex items-center justify-between rounded-xl bg-soft border border-[color:var(--border)] px-3 py-2"
+            className="flex items-center justify-between rounded-xl bg-soft border border-(--border) px-3 py-2"
           >
             <span className="h-3 w-16 bg-soft rounded" />
             <span className="h-3 w-12 bg-soft rounded" />
@@ -70,7 +70,7 @@ export function DotaCardSkeleton() {
 
 function Dot() {
   return (
-    <span className="mx-1 inline-block h-1.5 w-1.5 rounded-full bg-[color:var(--soft-bg-14)] align-middle" />
+    <span className="mx-1 inline-block h-1.5 w-1.5 rounded-full bg-(--soft-bg-14) align-middle" />
   );
 }
 
@@ -135,7 +135,7 @@ export default function DotaCard({ data }: { data: DotaEvalPayload }) {
   const medal = rankTierToMedal(prof?.rank_tier ?? null);
 
   return (
-    <div className="rounded-2xl border border-[color:var(--border)] bg-gradient-to-b bg-soft p-4 md:p-5 shadow-[0_0_0_1px_rgba(109,40,217,0.15)]">
+    <div className="rounded-2xl border border-(--border) bg-linear-to-b bg-soft p-4 md:p-5 shadow-[0_0_0_1px_rgba(109,40,217,0.15)]">
       {/* Header row */}
       <div className="flex items-center gap-4">
         {avatar ? (
@@ -190,7 +190,7 @@ export default function DotaCard({ data }: { data: DotaEvalPayload }) {
 
       {/* Favourite hero */}
       {data?.featuredHero && (
-        <div className="mt-3 flex items-center gap-3 rounded-xl border border-[color:var(--border)] bg-soft px-3 py-2">
+        <div className="mt-3 flex items-center gap-3 rounded-xl border border-(--border) bg-soft px-3 py-2">
           {data.featuredHero.icon ? (
             <img
               src={data.featuredHero.icon}
@@ -207,7 +207,7 @@ export default function DotaCard({ data }: { data: DotaEvalPayload }) {
           )}
           <div className="text-sm text-zinc-300">
             <span className="font-medium">{heroLabel}</span>{" "}
-            <span className="text-[color:var(--text)]">
+            <span className="text-(--text)">
               {prettyHeroName(data.featuredHero.name) ||
                 `#${data.featuredHero.id}`}
             </span>
@@ -220,7 +220,7 @@ export default function DotaCard({ data }: { data: DotaEvalPayload }) {
         {lines.map((l, i) => (
           <div
             key={i}
-            className="flex items-center justify-between rounded-xl bg-soft border border-[color:var(--border)] px-3 py-2"
+            className="flex items-center justify-between rounded-xl bg-soft border border-(--border) px-3 py-2"
           >
             <span className="text-zinc-400 text-sm">{l.label}</span>
             <span className="text-zinc-100 font-medium">{l.value}</span>

@@ -171,7 +171,6 @@ export default function Step2_Essentials({
 
   const fundsDone =
     Number(state.money.stake || "0") > 0 &&
-    Number(state.money.bond || "0") >= 0 &&
     (currency.type === "NATIVE" ||
       isAddress(String(currency.address || "")));
 
@@ -336,7 +335,7 @@ export default function Step2_Essentials({
       </BuilderCard>
 
       <BuilderCard
-        title="Stake & bond"
+        title="Stake"
         subtitle="Funds are sent to Treasury on creation."
         done={fundsDone}
         active={activeCard === "funds"}
@@ -346,11 +345,6 @@ export default function Step2_Essentials({
           <div className="grid gap-1 text-sm sm:grid-cols-2">
             <div><span className="text-(--text-muted)">Currency:</span> {currency.type}</div>
             <div><span className="text-(--text-muted)">Stake:</span> {state.money.stake || "0"} {currency.symbol ?? ""}</div>
-            <div><span className="text-(--text-muted)">Bond:</span> {state.money.bond || "0"} {currency.symbol ?? ""}</div>
-            <div>
-              <span className="text-(--text-muted)">Total:</span>{" "}
-              {(Number(state.money.stake || "0") + Number(state.money.bond || "0")).toString()} {currency.symbol ?? ""}
-            </div>
           </div>
         }
       >
@@ -394,32 +388,21 @@ export default function Step2_Essentials({
             </Field>
           ) : null}
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <MoneyInput
-              label="Stake amount"
-              value={state.money.stake}
-              onChange={(v) =>
-                dispatch({ type: "SET_MONEY", payload: { stake: v } })
-              }
-              symbol={currency.symbol ?? ""}
-              balanceFormatted={
-                currency.type === "NATIVE" ? nativeBalanceFormatted : undefined
-              }
-            />
-
-            <MoneyInput
-              label="Proposal bond"
-              value={state.money.bond}
-              onChange={(v) =>
-                dispatch({ type: "SET_MONEY", payload: { bond: v } })
-              }
-              symbol={currency.symbol ?? ""}
-            />
-          </div>
+          <MoneyInput
+            label="Stake amount"
+            value={state.money.stake}
+            onChange={(v) =>
+              dispatch({ type: "SET_MONEY", payload: { stake: v } })
+            }
+            symbol={currency.symbol ?? ""}
+            balanceFormatted={
+              currency.type === "NATIVE" ? nativeBalanceFormatted : undefined
+            }
+          />
 
           <div className="flex items-center gap-2 text-xs text-(--text-muted)">
             <Coins size={14} />
-            <span>Total deposit is stake + bond.</span>
+            <span>Stake is sent to Treasury on creation.</span>
           </div>
         </div>
       </BuilderCard>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Pool } from "pg";
 import { isAddress } from "viem";
+import { sslConfig } from "../../../../../../offchain/db/sslConfig";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
@@ -14,6 +15,7 @@ type ItemRow = {
   model_hash: string | null;
   params: any | null;
   proof: any | null;
+  timeline: any | null;
   options: any | null;
   created_at: Date | null;
 };
@@ -25,7 +27,7 @@ if (!DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  ssl: sslConfig(),
 });
 
 function asAddrOrNull(v: unknown): `0x${string}` | null {
@@ -49,6 +51,7 @@ export async function GET(_: Request, ctx: { params: { id: string } }) {
         model_hash,
         params,
         proof,
+        timeline,
         options,
         created_at
       from public.challenges
@@ -64,7 +67,15 @@ export async function GET(_: Request, ctx: { params: { id: string } }) {
     }
 
     const proof = row.proof ?? {};
+    const timeline = row.timeline ?? {};
     const options = row.options ?? {};
+
+    // Convert ISO dates to unix seconds for the frontend
+    function isoToSec(v: unknown): number | null {
+      if (!v || typeof v !== "string") return null;
+      const ms = new Date(v).getTime();
+      return Number.isFinite(ms) ? Math.floor(ms / 1000) : null;
+    }
 
     const out = {
       title: String(row.title || ""),
@@ -88,6 +99,9 @@ export async function GET(_: Request, ctx: { params: { id: string } }) {
       modelId: row.model_id ?? proof.modelId ?? null,
       modelKind: proof.kind ?? null,
       proof: row.proof ?? null,
+      startsAt: isoToSec(timeline.startsAt),
+      endsAt: isoToSec(timeline.endsAt),
+      proofDeadline: isoToSec(timeline.proofDeadline),
     };
 
     return NextResponse.json(out, {
@@ -95,8 +109,9 @@ export async function GET(_: Request, ctx: { params: { id: string } }) {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (e: any) {
+    console.error("[challenges/meta]", e);
     return NextResponse.json(
-      { error: e?.message || String(e) },
+      { error: "Internal error" },
       { status: 500 }
     );
   }

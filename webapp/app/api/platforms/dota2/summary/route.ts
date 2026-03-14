@@ -103,6 +103,7 @@ try {
 
   return NextResponse.json(resp, { status: 200 });
 } catch (e: any) {
-  return NextResponse.json({ error: e?.message ?? "Failed" }, { status: 500 });
+  console.error("[dota2/summary]", e);
+  return NextResponse.json({ error: "Internal error" }, { status: 500 });
 }
 }

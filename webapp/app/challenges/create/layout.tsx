@@ -1,6 +1,6 @@
 // webapp/app/challenges/create/layout.tsx
 import type { Metadata } from "next";
-import NoAppHeroFlag from "@/app/components/theme/NoAppHeroFlag";
+import NoAppHeroFlag from "./components/NoAppHeroFlag";
 
 export const dynamic = "force-dynamic";
 export const revalidate = false;
@@ -42,8 +42,8 @@ export default function CreateChallengeLayout({
               <h1 className="create-hero__title">Create a Challenge</h1>
 
               <p className="create-hero__subtitle">
-                Define intent, stake funds, set the timeline, and publish. Validators
-                verify proofs and the contract finalizes on-chain.
+                Define intent, stake funds, set the timeline, and publish. The network
+                verifies proofs and the contract finalizes on-chain.
               </p>
             </div>
 

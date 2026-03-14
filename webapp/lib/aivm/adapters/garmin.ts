@@ -1,8 +1,9 @@
-import { Adapter, AdapterContext, AdapterResult, CanonicalRecord, adapters } from "./index";
+import { Adapter, AdapterContext, AdapterResult, CanonicalRecord } from "./types";
 import { computeBind } from "@/lib/aivm/bind";
 
-const GARMIN_STEPS_DAY_MODEL = "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" as const;
-const GARMIN_DISTANCE_WINDOW_MODEL = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" as const;
+/** Matches garmin.steps@1 in models.json. */
+const GARMIN_STEPS_DAY_MODEL = "0x7abfc322e4b015bd06ff99afe644c44868506d0ef39ae80a17b21813a389a1f2" as const;
+const GARMIN_DISTANCE_WINDOW_MODEL = "0x1f0529367f707855129caa7af76a01c8ed88b22602f06433aaa7fc0a50cd1b90" as const;
 
 function sha256hex(buf: Buffer | string): `0x${string}` {
   const { createHash } = require("node:crypto");
@@ -146,5 +147,4 @@ export const garminAdapter: Adapter = {
   }
 };
 
-(adapters as any).push(garminAdapter);
 export default garminAdapter;

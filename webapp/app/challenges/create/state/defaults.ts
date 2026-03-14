@@ -46,7 +46,6 @@ export function defaultCreateState(now: Date = new Date()): ChallengeFormState {
         decimals: 18,
       },
       stake: "0",
-      bond: "0",
     },
 
     timeline: {
@@ -54,8 +53,6 @@ export function defaultCreateState(now: Date = new Date()): ChallengeFormState {
       starts,
       ends,
       proofDeadline,
-      peerDeadline: null,
-      approvalDeadline: null,
     },
 
     options: {
@@ -77,9 +74,6 @@ export function defaultCreateState(now: Date = new Date()): ChallengeFormState {
     aivmForm: {
       templateId: null,
     },
-
-    peers: [],
-    peerApprovalsNeeded: 0,
 
     invites: {
       roster: [],

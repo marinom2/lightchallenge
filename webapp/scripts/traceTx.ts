@@ -31,12 +31,16 @@ import {
     parseAbiItem("event ClaimedETH(address indexed to, uint256 amount)"),
     parseAbiItem("event ClaimedERC20(address indexed token, address indexed to, uint256 amount)"),
   
-    // ChallengePay (useful context)
-    parseAbiItem("event ChallengeCreated(uint256 indexed id, address indexed challenger, uint8 kind, uint8 currency, address token, uint256 startTs, bytes32 externalId, bool fastTracked)"),
+    // ChallengePay V1 events
+    parseAbiItem("event ChallengeCreated(uint256 indexed id, address indexed creator, uint8 kind, uint8 currency, address token, uint256 startTs, bytes32 externalId)"),
     parseAbiItem("event Joined(uint256 indexed id, address indexed user, uint256 amount)"),
-    parseAbiItem("event FeesBooked(uint256 indexed id, uint256 protocol, uint256 creator, uint256 validators, uint256 charity, uint256 cashback)"),
-    parseAbiItem("event SnapshotSet(uint256 indexed id, bool success, uint8 rightSide, uint32 eligibleValidators)"),
+    parseAbiItem("event FeesBooked(uint256 indexed id, uint256 protocolAmt, uint256 creatorAmt, uint256 cashback)"),
+    parseAbiItem("event SnapshotSet(uint256 indexed id, bool success)"),
     parseAbiItem("event Finalized(uint256 indexed id, uint8 status, uint8 outcome)"),
+    parseAbiItem("event WinnerClaimed(uint256 indexed id, address indexed user, uint256 amount)"),
+    parseAbiItem("event LoserClaimed(uint256 indexed id, address indexed user, uint256 amount)"),
+    parseAbiItem("event RefundClaimed(uint256 indexed id, address indexed user, uint256 amount)"),
+    parseAbiItem("event ParticipantProofSubmitted(uint256 indexed id, address indexed participant, address indexed verifier, bool ok)"),
   ] as const;
   
   function label(addr?: `0x${string}` | string) {
@@ -159,9 +163,9 @@ import {
   
     console.log("\n— CHALLENGEPAY CONTEXT —");
     for (const l of created) {
-      const { id, challenger, currency, token, startTs, fastTracked } = l._dec.args;
+      const { id, creator, currency, token, startTs } = l._dec.args;
       console.log(
-        `   • ChallengeCreated id=${id} challenger=${label(challenger)} currency=${currency} token=${token} startTs=${startTs} fastTracked=${fastTracked} (log@${l.logIndex})`
+        `   • ChallengeCreated id=${id} creator=${label(creator)} currency=${currency} token=${token} startTs=${startTs} (log@${l.logIndex})`
       );
     }
     for (const l of joined) {
@@ -171,21 +175,35 @@ import {
       );
     }
     for (const l of fees) {
-      const { id, protocol, creator, validators, charity, cashback } = l._dec.args;
+      const { id, protocolAmt, creatorAmt, cashback } = l._dec.args;
       console.log(
-        `   • FeesBooked id=${id} protocol=${protocol} creator=${creator} validators=${validators} charity=${charity} cashback=${cashback} (log@${l.logIndex})`
+        `   • FeesBooked id=${id} protocol=${protocolAmt} creator=${creatorAmt} cashback=${cashback} (log@${l.logIndex})`
       );
     }
     for (const l of snaps) {
-      const { id, success, rightSide, eligibleValidators } = l._dec.args;
+      const { id, success } = l._dec.args;
       console.log(
-        `   • SnapshotSet id=${id} success=${success} rightSide=${rightSide} eligibleValidators=${eligibleValidators} (log@${l.logIndex})`
+        `   • SnapshotSet id=${id} success=${success} (log@${l.logIndex})`
       );
     }
     for (const l of finalized) {
       const { id, status, outcome } = l._dec.args;
       console.log(
         `   • Finalized id=${id} status=${status} outcome=${outcome} (log@${l.logIndex})`
+      );
+    }
+    const claims = decoded.filter((l) => ["WinnerClaimed","LoserClaimed","RefundClaimed"].includes(l._dec.name));
+    for (const l of claims) {
+      const { id, user, amount } = l._dec.args;
+      console.log(
+        `   • ${l._dec.name} id=${id} user=${label(user)} amount(wei)=${fmtWei(amount)} (log@${l.logIndex})`
+      );
+    }
+    const proofs = decoded.filter((l) => l._dec.name === "ParticipantProofSubmitted");
+    for (const l of proofs) {
+      const { id, participant, verifier, ok } = l._dec.args;
+      console.log(
+        `   • ProofSubmitted id=${id} participant=${label(participant)} verifier=${label(verifier)} ok=${ok} (log@${l.logIndex})`
       );
     }
   

@@ -164,16 +164,6 @@ export function createReducer(
             },
           };
         }
-        
-        nextState = {
-          ...nextState,
-          peerApprovalsNeeded: 0,
-          peers: [],
-          timeline: {
-            ...nextState.timeline,
-            peerDeadline: null,
-          },
-        };
       }
 
       return nextState;
@@ -183,18 +173,6 @@ export function createReducer(
       return {
         ...state,
         aivmForm: { ...state.aivmForm, ...action.payload },
-      };
-
-    case "SET_PEERS":
-      return {
-        ...state,
-        peers: action.payload,
-      };
-
-    case "SET_PEER_APPROVALS_NEEDED":
-      return {
-        ...state,
-        peerApprovalsNeeded: Math.max(0, action.payload),
       };
 
     case "RESET":

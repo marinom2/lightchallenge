@@ -4,12 +4,12 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "challengePay",
+          "name": "_challengePay",
           "type": "address"
         },
         {
           "internalType": "address",
-          "name": "metadataRegistry",
+          "name": "_metadataRegistry",
           "type": "address"
         }
       ],
@@ -189,7 +189,7 @@
     },
     {
       "inputs": [],
-      "name": "challenge",
+      "name": "challengePay",
       "outputs": [
         {
           "internalType": "contract IChallengePay",

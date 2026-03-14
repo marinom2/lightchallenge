@@ -43,7 +43,6 @@ export type CurrencyState =
 export type MoneyState = {
   currency: CurrencyState;
   stake: string;
-  bond: string;
 };
 
 export type TimelineState = {
@@ -51,8 +50,6 @@ export type TimelineState = {
   starts: Date | null;
   ends: Date | null;
   proofDeadline: Date | null;
-  peerDeadline: Date | null;
-  approvalDeadline?: Date | null;
 };
 
 export type OptionsState = {
@@ -108,8 +105,6 @@ export type ChallengeFormState = {
   verification: VerificationState;
 
   aivmForm: AivmFormState;
-  peers: string[];
-  peerApprovalsNeeded: number;
   invites?: {
     roster?: InviteRosterItem[];
   };
@@ -127,7 +122,6 @@ export type UiState = {
   success: boolean;
   txHash: `0x${string}` | null;
   challengeId?: number;
-  wasAutoApproved?: boolean;
 };
 
 export type DerivedState = {
@@ -150,6 +144,4 @@ export type Action =
   | { type: "SET_VERIFICATION_STYLE"; payload: VerificationStyle }
   | { type: "SET_VERIFICATION"; payload: Partial<ProofMeta> }
   | { type: "SET_AIVM_FORM"; payload: Partial<AivmFormState> }
-  | { type: "SET_PEERS"; payload: string[] }
-  | { type: "SET_PEER_APPROVALS_NEEDED"; payload: number }
   | { type: "RESET"; payload?: Partial<ChallengeFormState> };

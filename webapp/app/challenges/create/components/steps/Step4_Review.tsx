@@ -37,18 +37,12 @@ export default function Step4_Review(props: {
   const errors = React.useMemo(() => Object.values(props.derived.errors), [props.derived.errors]);
   const hasErrors = errors.length > 0;
 
-  const strategyPaused = props.policyHints?.strategyPaused === true;
-  const creatorAllowRequired = props.policyHints?.strategyRequireCreatorAllowlist === true;
-  const creatorAllowed = props.policyHints?.strategyCreatorAllowed;
   const tokenAllowBlocked =
     props.policyHints?.allowlistEnabled === true &&
     props.policyHints?.tokenAllowed === false;
 
   const policyIssues = [
-    strategyPaused ? "Auto-approval strategy is paused." : null,
-    creatorAllowRequired && creatorAllowed === false
-      ? "Your wallet is not allowed by the strategy creator allowlist."
-      : null,
+    props.policyHints?.paused ? "Protocol is paused." : null,
     tokenAllowBlocked ? "Selected ERC20 token is not allowed by the on-chain allowlist." : null,
   ].filter(Boolean) as string[];
 

@@ -136,9 +136,10 @@ async function main() {
   }
 
   // Candidate transfer methods (most likely first)
+  // V1 ChallengePay uses transferAdmin(address) + acceptAdmin() (2-step)
   const candidates = [
-    "setAdmin(address)",
     "transferAdmin(address)",
+    "setAdmin(address)",
     "transferOwnership(address)",
     "setOwner(address)",
   ];

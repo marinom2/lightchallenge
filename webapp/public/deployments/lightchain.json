@@ -2,25 +2,15 @@
   "chainId": 504,
   "rpcUrl": "https://light-testnet-rpc.lightchain.ai",
   "contracts": {
-    "PlonkVerifier": "0xd434BE737148ec5B3EBd48B568CF8cDfaa4e482f",
     "Treasury": "0xe84c197614d4fAAE1CdA8d6067fFe43befD9e961",
-    "AutoApprovalStrategy": "0x7ab646195C4a1be878Da2eDe1929E42BFAD0c1DE",
     "MetadataRegistry": "0xe9bAA8c04cd77d06A736fc987cC13348DfF0bfAb",
-    "ZkProofVerifier": "0x0fDB5A5fC0104930489Bcb4A5207c824e096126e",
-    "AivmProofVerifier": "0x1aE8272CfB105A3ec14b2cDff85521C205D9dd35",
-    "MultiSigProofVerifier": "0x7D06CECB1C01fD82940E5a2677045F5bA5B63A0B",
-    "PlonkProofVerifierAdapter": "0x64d0Fd4FF0d95eAcCDD2E338c2541c03C85548eF",
-
-    "ChallengePay": "0xEF52411a2f13DbE3BBB60A8474808D4d4F7F4CA2",
-
-    "ChallengeTaskRegistry": "0x230ffC4600b17AD7AfA0CD3D67A2E24DdB6be377",
-    "ChallengePayAivmPoiVerifier": "0xc797F35D28AB612DD0FacF46d206E9c4d20be968",
-
-    "EventChallengeRouter": "0x2c33B069E86EaF1D8b413eD32D7A35995499b5D2",
+    "ChallengePay": "0xBeA3b508a5Ce2E6C8462108f42c732Da7454c5cb",
+    "ChallengeTaskRegistry": "0x0e079C693Bd177Fa31baab70EfCD5b9D625c355E",
+    "ChallengePayAivmPoiVerifier": "0x44c750aA01Ec2465CB3E7354EF1c16cc83D45123",
+    "EventChallengeRouter": "0x4c523C1eBdcD8FAAA27808f01F3Ec00B98Fb0f2D",
     "TrustedForwarder": "0xedF522094Ce3F497BEAA9f730d15a7dd554CaB4d",
-
     "AIVMInferenceV2": "0x2d499C52312ca8F0AD3B7A53248113941650bA7E",
-
-    "Protocol": "0x95A4CE3c93dBcDb9b3CdFb4CCAE6EFBDb4cCA217"
+    "Protocol": "0x95A4CE3c93dBcDb9b3CdFb4CCAE6EFBDb4cCA217",
+    "ChallengeAchievement": "0xFD6344e9f0d88C6E72563027503734270094e0cF"
   }
 }

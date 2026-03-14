@@ -6,7 +6,7 @@ import { lightchain, RPC_URL } from "@/lib/lightchain"
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url)
-    const ids = (url.searchParams.get("ids") || "").split(",").filter(Boolean)
+    const ids = (url.searchParams.get("ids") || "").split(",").filter(Boolean).slice(0, 50)
     if (ids.length === 0) return NextResponse.json({})
     const client = createPublicClient({ chain: lightchain, transport: http(RPC_URL) })
     const out: Record<string, number> = {}
@@ -17,7 +17,8 @@ export async function GET(req: Request) {
       } catch {}
     }))
     return NextResponse.json(out, { headers: { "Cache-Control": "public, max-age=10" } })
-  } catch (e:any) {
-    return NextResponse.json({ error: e?.message || String(e) }, { status: 500 })
+  } catch (e) {
+    console.error("[blocks]", e)
+    return NextResponse.json({ error: "Internal error" }, { status: 500 })
   }
 }
