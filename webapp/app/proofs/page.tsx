@@ -15,6 +15,7 @@ import ProofChallengeCard, {
   type ProofChallenge,
   getProofGroup,
 } from "./components/ProofChallengeCard";
+import ConnectWalletGate from "@/app/components/ui/ConnectWalletGate";
 
 /* ── Types ────────────────────────────────────────────────────────── */
 type RawChallenge = {
@@ -403,17 +404,7 @@ function ProofHomeInner() {
 
       {/* Not connected */}
       {!isConnected && (
-        <div className="panel p-8 text-center space-y-4">
-          <div className="text-lg font-semibold">Connect your wallet</div>
-          <p className="text-sm text-(--text-muted) max-w-sm mx-auto">
-            Connect to see your challenges and proof obligations. Once connected, your
-            challenges appear here with guided submission flows.
-          </p>
-          <div className="flex flex-wrap gap-3 justify-center mt-4">
-            <Link href="/explore" className="btn btn-primary">Browse challenges</Link>
-            <Link href="/challenges/create" className="btn btn-ghost">Create one</Link>
-          </div>
-        </div>
+        <ConnectWalletGate message="Connect your wallet to see your challenges and proof obligations." />
       )}
 
       {/* Loading */}

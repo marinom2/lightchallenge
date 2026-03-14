@@ -16,9 +16,11 @@ type NavItem = { label: string; href: string };
 /** Always visible in the top bar */
 const PRIMARY_NAV: NavItem[] = [
   { label: "Explore",       href: "/explore" },
+  { label: "Compete",       href: "/competitions" },
   { label: "My Challenges", href: "/me/challenges" },
   { label: "Claims",        href: "/claims" },
   { label: "Create",        href: "/challenges/create" },
+  { label: "Docs",          href: "https://uat.docs.lightchallenge.app" },
 ];
 
 /** Hidden inside the "More" dropdown */
@@ -261,16 +263,28 @@ export default function Navbar() {
           <nav aria-label="Primary" className="hidden md:flex min-w-0 flex-1">
             <ul className="nav-pills no-scrollbar relative min-w-0 flex-1 overflow-visible">
               {PRIMARY_NAV.map((item) => {
-                const active = isActive(item.href);
+                const external = item.href.startsWith("http");
+                const active = !external && isActive(item.href);
                 return (
                   <li key={item.href} className="relative shrink-0">
-                    <Link
-                      href={item.href}
-                      className={`nav-pill ${active ? "is-active" : ""}`}
-                      aria-current={active ? "page" : undefined}
-                    >
-                      {item.label}
-                    </Link>
+                    {external ? (
+                      <a
+                        href={item.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="nav-pill"
+                      >
+                        {item.label}
+                      </a>
+                    ) : (
+                      <Link
+                        href={item.href}
+                        className={`nav-pill ${active ? "is-active" : ""}`}
+                        aria-current={active ? "page" : undefined}
+                      >
+                        {item.label}
+                      </Link>
+                    )}
                     <AnimatePresence>
                       {active && (
                         <motion.span
@@ -368,20 +382,33 @@ export default function Navbar() {
                   {/* All nav items in mobile, grouped */}
                   <div className="space-y-1">
                     {allNavItems.map((item, idx) => {
-                      const active = isActive(item.href);
+                      const external = item.href.startsWith("http");
+                      const active = !external && isActive(item.href);
                       const isFirstMore = idx === PRIMARY_NAV.length;
                       return (
                         <div key={item.href}>
                           {isFirstMore && <div className="mobile-nav-divider" aria-hidden />}
-                          <Link
-                            href={item.href}
-                            onClick={() => setOpen(false)}
-                            className={`${active ? "mobile-link is-active" : "mobile-link"} ${idx >= PRIMARY_NAV.length && !active ? "mobile-link--secondary" : ""}`}
-                            aria-current={active ? "page" : undefined}
-                          >
-                            <span className="truncate">{item.label}</span>
-                            {active ? <span aria-hidden className="active-dot" /> : null}
-                          </Link>
+                          {external ? (
+                            <a
+                              href={item.href}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={() => setOpen(false)}
+                              className="mobile-link mobile-link--secondary"
+                            >
+                              <span className="truncate">{item.label}</span>
+                            </a>
+                          ) : (
+                            <Link
+                              href={item.href}
+                              onClick={() => setOpen(false)}
+                              className={`${active ? "mobile-link is-active" : "mobile-link"} ${idx >= PRIMARY_NAV.length && !active ? "mobile-link--secondary" : ""}`}
+                              aria-current={active ? "page" : undefined}
+                            >
+                              <span className="truncate">{item.label}</span>
+                              {active ? <span aria-hidden className="active-dot" /> : null}
+                            </Link>
+                          )}
                         </div>
                       );
                     })}

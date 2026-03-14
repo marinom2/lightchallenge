@@ -7,6 +7,7 @@ import Badge from "@/app/components/ui/Badge";
 import EmptyState from "@/app/components/ui/EmptyState";
 import Skeleton from "@/app/components/ui/Skeleton";
 import Breadcrumb from "@/app/components/ui/Breadcrumb";
+import ConnectWalletGate from "@/app/components/ui/ConnectWalletGate";
 
 /* ── Types ─────────────────────────────────────────────────────────────────── */
 
@@ -86,12 +87,7 @@ export default function AchievementsPage() {
     return (
       <div style={{ maxWidth: "var(--lc-content-narrow)", margin: "0 auto" }}>
         <Breadcrumb items={[{ label: "Achievements" }]} />
-        <div style={{ marginTop: "var(--lc-space-6)" }}>
-          <EmptyState
-            title="Connect your wallet"
-            description="Connect your wallet to view your achievements and reputation."
-          />
-        </div>
+        <ConnectWalletGate message="Connect your wallet to view your achievements and reputation." />
       </div>
     );
   }

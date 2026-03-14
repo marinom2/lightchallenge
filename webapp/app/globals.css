@@ -4280,3 +4280,17 @@ html[data-theme="light"] .builder-card__ring--active {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(143, 152, 182, 0.30);
 }
+
+/* ── Competition Platform ─────────────────────────────────────────────────── */
+
+@media (max-width: 767px) {
+  .comp-table-header {
+    display: none !important;
+  }
+  .comp-table-row {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: var(--lc-space-2);
+    padding: var(--lc-space-3) var(--lc-space-4);
+  }
+}

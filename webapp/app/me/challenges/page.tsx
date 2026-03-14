@@ -14,6 +14,7 @@ import { ABI, ADDR, EXPLORER_URL } from "@/lib/contracts";
 import { useToasts } from "@/lib/ui/toast";
 import Breadcrumb from "@/app/components/ui/Breadcrumb";
 import EmptyState from "@/app/components/ui/EmptyState";
+import ConnectWalletGate from "@/app/components/ui/ConnectWalletGate";
 import {
   resolveLifecycle,
   toCardGroup,
@@ -822,12 +823,7 @@ export default function MyChallengesPage() {
         <h1 style={{ fontSize: "var(--lc-text-title)", fontWeight: "var(--lc-weight-bold)" as any, color: "var(--lc-text)" }}>
           My Challenges
         </h1>
-        <EmptyState
-          title="Connect your wallet"
-          description="Connect your wallet to see active challenges, pending proofs, and claimable rewards."
-          actionLabel="Browse challenges"
-          onAction={() => { window.location.href = "/explore"; }}
-        />
+        <ConnectWalletGate message="Connect your wallet to see active challenges, pending proofs, and claimable rewards." />
       </div>
     );
   }

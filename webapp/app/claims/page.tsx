@@ -11,6 +11,7 @@ import { useToasts } from "@/lib/ui/toast";
 import { timeAgo as sharedTimeAgo } from "@/lib/formatTime";
 import Breadcrumb from "@/app/components/ui/Breadcrumb";
 import EmptyState from "@/app/components/ui/EmptyState";
+import ConnectWalletGate from "@/app/components/ui/ConnectWalletGate";
 import {
   resolveLifecycle,
   toClaimSection,
@@ -616,12 +617,7 @@ export default function ClaimsPage() {
       {isConnected && address ? (
         <RewardBoard address={address} />
       ) : (
-        <EmptyState
-          title="Connect your wallet"
-          description="Connect to see your claimable rewards, pending finalization, and reward history."
-          actionLabel="Browse challenges"
-          onAction={() => { window.location.href = "/explore"; }}
-        />
+        <ConnectWalletGate message="Connect your wallet to see claimable rewards, pending finalization, and reward history." />
       )}
 
       {/* Manual lookup */}

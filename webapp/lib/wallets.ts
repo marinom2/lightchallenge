@@ -1,8 +1,14 @@
 // lib/wallets.ts
 import { createConfig, http, createStorage, cookieStorage } from "wagmi";
 import type { Config, Storage } from "wagmi";
-import { injected, walletConnect } from "wagmi/connectors";
 import { lightchain } from "@/lib/lightchain";
+import { connectorsForWallets } from "@rainbow-me/rainbowkit";
+import {
+  injectedWallet,
+  walletConnectWallet,
+  metaMaskWallet,
+  coinbaseWallet,
+} from "@rainbow-me/rainbowkit/wallets";
 
 /* ────────────────────────────────────────────────────────────────────────────
    Storage (session vs local) with "Remember this device" opt-in
@@ -98,33 +104,36 @@ if (!process.env.NEXT_PUBLIC_RPC_URL && typeof window !== "undefined") {
   console.warn("[viem] NEXT_PUBLIC_RPC_URL not set — using fallback RPC:", RPC_URL);
 }
 
-const isServer = typeof window === "undefined";
-const clientConnectors = !isServer
-  ? [
-      injected({ shimDisconnect: true }),
-      ...(projectId
-        ? [
-            walletConnect({
-              projectId,
-              showQrModal: false,
-              metadata: {
-                name: "LightChallenge",
-                description: "Challenges verified by decentralized AI.",
-                url: "https://lightchallenge.app",
-                icons: ["https://lightchallenge.app/icon.png"],
-              },
-            }),
-          ]
-        : []),
-    ]
-  : []; // SSR: avoid WalletConnect (IndexedDB)
+/*
+ * Use RainbowKit's connectorsForWallets so browsers without extensions
+ * (Safari, mobile browsers) get the WalletConnect QR modal automatically.
+ */
+const wcProjectId = projectId || "1e01f2c06b5099a438c24fae3379ea57";
+
+const connectors = connectorsForWallets(
+  [
+    {
+      groupName: "Recommended",
+      wallets: [
+        metaMaskWallet,
+        walletConnectWallet,
+        coinbaseWallet,
+        injectedWallet,
+      ],
+    },
+  ],
+  {
+    appName: "LightChallenge",
+    projectId: wcProjectId,
+  }
+);
 
 export const wagmiConfig: Config = createConfig({
   chains: [lightchain],
   transports: { [lightchain.id]: http(RPC_URL) },
-  connectors: clientConnectors,
+  connectors,
   storage: wagmiStore,
-  ssr: false, // avoid server-side eager behavior
+  ssr: false,
 });
 
 /* ────────────────────────────────────────────────────────────────────────────
