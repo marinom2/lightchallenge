@@ -23,9 +23,7 @@ export default function ChallengeLayout({
   header,
   primaryAction,
   join,
-  story,
   details,
-  timeline,
   showCompletion,
 }: any) {
   const isMobile = useIsMobile();
@@ -39,18 +37,14 @@ export default function ChallengeLayout({
           header={header}
           primaryAction={primaryAction}
           join={join}
-          story={story}
           details={details}
-          timeline={timeline}
         />
       ) : (
         <DesktopLayout
           header={header}
           primaryAction={primaryAction}
           join={join}
-          story={story}
           details={details}
-          timeline={timeline}
         />
       )}
     </>

@@ -4,12 +4,11 @@ import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAccount, useBalance } from "wagmi";
 import { useRouter } from "next/navigation";
+import { Check } from "lucide-react";
 
 import ClientOnly from "./components/ClientOnly";
 import { Toasts, useToasts } from "@/lib/ui/toast";
-import Breadcrumb from "@/app/components/ui/Breadcrumb";
 
-import { Stepper } from "./components/Stepper";
 import { InviteSheet } from "./components/InviteSheet";
 import SuccessSheet from "./components/SuccessSheet";
 
@@ -22,9 +21,9 @@ import { useCreateChallenge } from "./hooks/useCreateChallenge";
 import { useChainPolicyHints } from "./hooks/useChainPolicyHints";
 
 const STEPS = [
-  { id: 1 as const, name: "Intent" },
-  { id: 2 as const, name: "Essentials" },
-  { id: 3 as const, name: "Options" },
+  { id: 1 as const, name: "Type" },
+  { id: 2 as const, name: "Details" },
+  { id: 3 as const, name: "Settings" },
   { id: 4 as const, name: "Review" },
 ];
 
@@ -114,54 +113,20 @@ function CreatePageInner() {
       }
 
       if (stepId <= 1) return { ok: true as const };
-      if (!step1Ok) return { ok: false as const, reason: "Complete Intent first." };
+      if (!step1Ok) return { ok: false as const, reason: "Choose the challenge type first." };
       if (stepId === 2) return { ok: true as const };
 
       if (!step2Ok) {
-        return { ok: false as const, reason: "Complete Essentials first." };
+        return { ok: false as const, reason: "Fill in the details first." };
       }
       if (stepId === 3) return { ok: true as const };
 
       if (!step3Ok) {
-        return { ok: false as const, reason: "Complete Options first." };
+        return { ok: false as const, reason: "Configure settings first." };
       }
       return { ok: true as const };
     },
     [policy.paused, step1Ok, step2Ok, step3Ok]
-  );
-
-  const getBadge = React.useCallback(
-    (stepId: number) => {
-      if (stepId === 1) {
-        return step1Ok
-          ? { text: "Ready", tone: "ok" as const }
-          : { text: "Required", tone: "warn" as const };
-      }
-
-      if (stepId === 2) {
-        if (!step1Ok) return { text: "Locked", tone: "muted" as const };
-        return step2Ok
-          ? { text: "Ready", tone: "ok" as const }
-          : { text: "In progress", tone: "pending" as const };
-      }
-
-      if (stepId === 3) {
-        if (!step2Ok) return { text: "Locked", tone: "muted" as const };
-        return step3Ok
-          ? { text: "Ready", tone: "ok" as const }
-          : { text: "Required", tone: "warn" as const };
-      }
-
-      if (stepId === 4) {
-        if (!step3Ok) return { text: "Locked", tone: "muted" as const };
-        return allowSubmit
-          ? { text: "Ready", tone: "ok" as const }
-          : { text: "Check", tone: "pending" as const };
-      }
-
-      return null;
-    },
-    [step1Ok, step2Ok, step3Ok, allowSubmit]
   );
 
   const isFinal = ui.step === 4;
@@ -259,239 +224,196 @@ function CreatePageInner() {
     submit,
   ]);
 
+  const stepReady = [step1Ok, step2Ok, step3Ok, allowSubmit];
+
   return (
     <>
-      <div style={{ marginBottom: "var(--lc-space-4)" }}>
-        <Breadcrumb items={[{ label: "Create", href: "/challenges/create" }, { label: `Step ${ui.step}` }]} />
-      </div>
-
+      {/* ── Alerts ── */}
       {policy.error ? (
-        <div role="alert" style={{ marginTop: "var(--lc-space-4)" }}>
-          <div style={{ padding: "var(--lc-space-3)", borderRadius: "var(--lc-radius-md)", border: "1px solid var(--lc-warning)", backgroundColor: "var(--lc-warning-muted)", fontSize: "var(--lc-text-small)", color: "var(--lc-text)" }}>
-            Chain policy: {policy.error}
-          </div>
-        </div>
+        <div className="cw-alert cw-alert--warn">{policy.error}</div>
       ) : null}
-
       {policy.paused ? (
-        <div role="alert" style={{ marginTop: "var(--lc-space-4)" }}>
-          <div style={{ padding: "var(--lc-space-3)", borderRadius: "var(--lc-radius-md)", border: "1px solid var(--lc-warning)", backgroundColor: "var(--lc-warning-muted)", fontSize: "var(--lc-text-small)", color: "var(--lc-text)" }}>
-            Chain policy: challenge creation is currently paused on-chain.
-          </div>
-        </div>
+        <div className="cw-alert cw-alert--warn">Challenge creation is currently paused on-chain.</div>
       ) : null}
-
       {ui.error ? (
-        <div role="alert" style={{ marginTop: "var(--lc-space-4)" }}>
-          <div style={{ padding: "var(--lc-space-3)", borderRadius: "var(--lc-radius-md)", border: "1px solid var(--lc-error)", backgroundColor: "var(--lc-error-muted)", fontSize: "var(--lc-text-small)", color: "var(--lc-text)" }}>
-            {ui.error}
-          </div>
-        </div>
+        <div className="cw-alert cw-alert--error">{ui.error}</div>
       ) : null}
 
-      <div className="sticky top-[calc(var(--navbar-top)+env(safe-area-inset-top,0px))] z-20 create-stepper">
-        <div className="section">
-          <div className="create-stepper__inner">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div style={{ fontSize: "var(--lc-text-caption)", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--lc-text-muted)" }}>
-                  Step {ui.step} / 4
-                  {policy.loading ? (
-                    <span style={{ marginLeft: 8, opacity: 0.7 }}>· syncing policy…</span>
-                  ) : null}
-                </div>
+      {/* ── Header ── */}
+      <div className="cw-header">
+        <div className="cw-header__top">
+          <div>
+            <h1 className="cw-header__title">Create Challenge</h1>
+            <p className="cw-header__sub">
+              Step {ui.step} of 4 — {STEPS.find((s) => s.id === ui.step)?.name}
+              {policy.loading ? <span className="cw-header__sync"> · syncing…</span> : null}
+            </p>
+          </div>
 
-                <div className="font-semibold truncate flex items-center gap-2">
-                  <span>{STEPS.find((s) => s.id === ui.step)?.name}</span>
-                  {getBadge(ui.step)?.text ? (
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: "var(--lc-weight-semibold)" as any,
-                        padding: "2px 8px",
-                        borderRadius: "var(--lc-radius-pill)",
-                        border: "1px solid",
-                        borderColor:
-                          getBadge(ui.step)?.tone === "ok"
-                            ? "var(--lc-success)"
-                            : getBadge(ui.step)?.tone === "warn"
-                            ? "var(--lc-warning)"
-                            : "var(--lc-border)",
-                        backgroundColor:
-                          getBadge(ui.step)?.tone === "ok"
-                            ? "var(--lc-success-muted)"
-                            : getBadge(ui.step)?.tone === "warn"
-                            ? "var(--lc-warning-muted)"
-                            : "var(--lc-bg-inset)",
-                        color:
-                          getBadge(ui.step)?.tone === "ok"
-                            ? "var(--lc-success)"
-                            : getBadge(ui.step)?.tone === "warn"
-                            ? "var(--lc-warning)"
-                            : "var(--lc-text-muted)",
-                      }}
-                    >
-                      {getBadge(ui.step)?.text}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
+          <div className="cw-header__actions">
+            {hasCreatedChallenge ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setInviteOpen(true)}
+                disabled={ui.isSubmitting}
+              >
+                Invite
+              </button>
+            ) : null}
 
-              <div className="flex items-center gap-2">
-                {hasCreatedChallenge ? (
-                  <button
-                    type="button"
-                    className="btn btn-ghost hidden sm:inline-flex"
-                    onClick={() => setInviteOpen(true)}
-                    disabled={ui.isSubmitting}
-                  >
-                    Invite
-                  </button>
-                ) : null}
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={cta.disabled}
+              onClick={cta.onClick}
+              title={cta.title}
+            >
+              {cta.loading ? "Processing…" : cta.text}
+            </button>
+          </div>
+        </div>
 
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={cta.disabled}
-                  onClick={cta.onClick}
-                  title={cta.title}
-                >
-                  {cta.loading ? "Processing…" : cta.text}
-                </button>
-              </div>
-            </div>
+        {/* ── Progress ── */}
+        <div className="cw-progress">
+          {STEPS.map((step, i) => {
+            const active = step.id === ui.step;
+            const done = step.id < ui.step;
+            const ready = stepReady[i];
 
-            <div className="mt-4">
-              <Stepper
-                steps={STEPS}
-                currentStep={ui.step}
-                getBadge={getBadge}
-                canNavigateTo={canNavigateTo}
-                onStepClick={(id) => {
+            return (
+              <button
+                key={step.id}
+                type="button"
+                className={`cw-progress__step ${active ? "is-active" : ""} ${done ? "is-done" : ""}`}
+                onClick={() => {
                   if (ui.isSubmitting) return;
-                  const g = canNavigateTo(id);
-                  if (!g.ok) {
-                    return push(g.reason || "Complete the previous section to continue.");
-                  }
-                  goTo(id as any);
+                  const g = canNavigateTo(step.id);
+                  if (!g.ok) return push(g.reason || "Complete the previous section.");
+                  goTo(step.id as any);
                 }}
+                aria-current={active ? "step" : undefined}
+              >
+                <span className="cw-progress__dot">
+                  {done && ready ? <Check size={12} strokeWidth={3} /> : <span>{i + 1}</span>}
+                </span>
+                <span className="cw-progress__label">{step.name}</span>
+              </button>
+            );
+          })}
+
+          {/* Progress bar */}
+          <div className="cw-progress__bar" aria-hidden>
+            <div
+              className="cw-progress__fill"
+              style={{ width: `${((ui.step - 1) / (STEPS.length - 1)) * 100}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Step Content ── */}
+      <div className="cw-body">
+        <AnimatePresence mode="wait">
+          {ui.step === 1 && (
+            <motion.div
+              key="step1"
+              initial={{ x: 16, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -16, opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+            >
+              <Step1_Intent state={state} dispatch={dispatch} />
+            </motion.div>
+          )}
+
+          {ui.step === 2 && (
+            <motion.div
+              key="step2"
+              initial={{ x: 16, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -16, opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+            >
+              <Step2_Essentials
+                state={state}
+                dispatch={dispatch}
+                nativeBalanceFormatted={nativeBal?.formatted}
               />
-            </div>
-          </div>
+            </motion.div>
+          )}
+
+          {ui.step === 3 && (
+            <motion.div
+              key="step3"
+              initial={{ x: 16, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -16, opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+            >
+              <Step3_Options state={state} dispatch={dispatch} />
+            </motion.div>
+          )}
+
+          {ui.step === 4 && (
+            <motion.div
+              key="step4"
+              initial={{ x: 16, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -16, opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+            >
+              <Step4_Review
+                state={state}
+                derived={derived}
+                policyHints={policy.hints}
+                nativeBalanceFormatted={nativeBal?.formatted}
+                creating={ui.isSubmitting}
+                txHash={ui.txHash}
+                canCreate={!!address && allowSubmit && !policy.paused}
+                onCreate={submit}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Bottom Nav (desktop) ── */}
+        <div className="cw-footer">
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={back}
+            disabled={ui.isSubmitting || ui.step === 1}
+          >
+            Back
+          </button>
+
+          <span className="cw-footer__hint">
+            {policy.hints?.chainNow ? `Chain time: ${policy.hints.chainNow}` : null}
+          </span>
         </div>
       </div>
 
-      <div className="mt-6 create-page">
-        <div className="section">
-          <div className="pt-2">
-            <AnimatePresence mode="wait">
-              {ui.step === 1 && (
-                <motion.div
-                  key="step1"
-                  initial={{ x: 20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: -20, opacity: 0 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 28 }}
-                >
-                  <Step1_Intent state={state} dispatch={dispatch} />
-                </motion.div>
-              )}
+      {/* ── Mobile Bottom Bar ── */}
+      <div className="cw-mobile-bar">
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={back}
+          disabled={ui.isSubmitting || ui.step === 1}
+        >
+          Back
+        </button>
 
-              {ui.step === 2 && (
-                <motion.div
-                  key="step2"
-                  initial={{ x: 20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: -20, opacity: 0 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 28 }}
-                >
-                  <Step2_Essentials
-                    state={state}
-                    dispatch={dispatch}
-                    nativeBalanceFormatted={nativeBal?.formatted}
-                  />
-                </motion.div>
-              )}
-
-              {ui.step === 3 && (
-                <motion.div
-                  key="step3"
-                  initial={{ x: 20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: -20, opacity: 0 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 28 }}
-                >
-                  <Step3_Options state={state} dispatch={dispatch} />
-                </motion.div>
-              )}
-
-              {ui.step === 4 && (
-                <motion.div
-                  key="step4"
-                  initial={{ x: 20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: -20, opacity: 0 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 28 }}
-                >
-                  <Step4_Review
-                    state={state}
-                    derived={derived}
-                    policyHints={policy.hints}
-                    nativeBalanceFormatted={nativeBal?.formatted}
-                    creating={ui.isSubmitting}
-                    txHash={ui.txHash}
-                    canCreate={!!address && allowSubmit && !policy.paused}
-                    onCreate={submit}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="mt-6 hidden sm:flex items-center justify-between">
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={back}
-                disabled={ui.isSubmitting || ui.step === 1}
-              >
-                Back
-              </button>
-
-              <div className="text-xs" style={{ color: "var(--text-muted)" }}>
-                {policy.hints?.chainNow ? `Chain time: ${policy.hints.chainNow}` : null}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 p-3">
-        <div className="section">
-          <div className="create-stepper__inner">
-            <div className="flex items-center justify-between gap-2">
-              {hasCreatedChallenge ? (
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => setInviteOpen(true)}
-                  disabled={ui.isSubmitting}
-                >
-                  Invite
-                </button>
-              ) : <div />}
-
-              <button
-                type="button"
-                className="btn btn-primary min-w-40"
-                disabled={cta.disabled}
-                onClick={cta.onClick}
-                title={cta.title}
-              >
-                {cta.loading ? "Processing…" : cta.text}
-              </button>
-            </div>
-          </div>
-        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={cta.disabled}
+          onClick={cta.onClick}
+          title={cta.title}
+        >
+          {cta.loading ? "Processing…" : cta.text}
+        </button>
       </div>
 
       <AnimatePresence>
@@ -541,6 +463,7 @@ function CreatePageInner() {
         ) : null}
       </AnimatePresence>
 
+      {/* Spacer for mobile bottom bar */}
       <div className="lg:hidden h-24" />
     </>
   );

@@ -85,4 +85,4 @@ export type ApiOut = {
   tags?: string[];
 };
 
-export type TabKey = "details" | "economics" | "model" | "onchain" | "links" | "params";
+export type TabKey = "overview" | "technical" | "activity";

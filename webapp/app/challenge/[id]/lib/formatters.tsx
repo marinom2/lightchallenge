@@ -48,35 +48,35 @@ export function code(v?: any) {
   return v ? <code className="mono">{String(v)}</code> : "—";
 }
 
-export function safe(v?: any) {
-  return v == null || v === "" ? "—" : String(v);
+export function safe(v?: any, hint?: string) {
+  return v == null || v === "" ? (hint ?? "Not set") : String(v);
 }
 
 export function yesno(v?: any) {
-  return v == null ? "—" : v ? "Yes" : "No";
+  return v == null ? "Not set" : v ? "Yes" : "No";
 }
 
-export function ts(n?: number | null) {
-  return n ? new Date(n * 1000).toLocaleString() : "—";
+export function ts(n?: number | null, hint?: string) {
+  return n ? new Date(n * 1000).toLocaleString() : (hint ?? "Not scheduled");
 }
 
-export function fmtNum(n?: any) {
-  if (n == null) return "—";
+export function fmtNum(n?: any, hint?: string) {
+  if (n == null) return hint ?? "0";
   try {
     const x = typeof n === "bigint" ? Number(n) : Number(n);
-    return Number.isFinite(x) ? String(x) : "—";
+    return Number.isFinite(x) ? String(x) : (hint ?? "0");
   } catch {
-    return "—";
+    return hint ?? "0";
   }
 }
 
 export function short(a: string) {
-  if (!a) return "—";
+  if (!a) return "None";
   return `${a.slice(0, 6)}…${a.slice(-4)}`;
 }
 
 export function shortOrDash(a?: string | null) {
-  return a ? short(a) : "—";
+  return a ? short(a) : "None";
 }
 
 export function linkAddr(a?: string | null) {
@@ -135,12 +135,12 @@ export function groupByDate(items: any[]) {
 }
 
 export function formatMaxParticipants(n?: number | null) {
-  if (n == null) return "—";
+  if (n == null) return "No limit";
   return n === 0 ? "No limit" : String(n);
 }
 
 export function formatDuration(sec?: number | null) {
-  if (!sec || sec < 0) return "—";
+  if (!sec || sec < 0) return "Not set";
   const s = Math.floor(sec % 60);
   const m = Math.floor((sec / 60) % 60);
   const h = Math.floor(sec / 3600);
@@ -154,7 +154,7 @@ export function formatDuration(sec?: number | null) {
 export const prettyCountdown = _prettyCountdown;
 
 export function formatDateShort(sec?: number | null) {
-  if (!sec) return "—";
+  if (!sec) return "Not scheduled";
   const d = new Date(sec * 1000);
   return d.toLocaleString(undefined, {
     year: "numeric",
@@ -190,7 +190,7 @@ export function computePublicStatus({
   adminStatus?: Status;
   snapshotSet?: boolean;
 }) {
-  if (!start || !end) return { label: "—", note: "" };
+  if (!start || !end) return { label: "Draft", note: "No schedule yet" };
   if (adminStatus === "Canceled") return { label: "Canceled", note: "" };
   if (now >= end) {
     if (snapshotSet || adminStatus === "Finalized") return { label: "Completed", note: "" };

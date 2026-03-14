@@ -4,9 +4,7 @@ export default function MobileLayout({
   header,
   primaryAction,
   join,
-  story,
   details,
-  timeline,
 }: any) {
   return (
     <div className="space-y-4">
@@ -18,9 +16,7 @@ export default function MobileLayout({
       </div>
 
       {join}
-      {story}
       {details}
-      {timeline}
     </div>
   );
 }

@@ -5,11 +5,8 @@ import {
   ChevronDown,
   ChevronUp,
   LayoutDashboard,
-  Coins,
-  BrainCircuit,
   Layers,
   Link2,
-  SlidersHorizontal,
   Sparkles,
   CheckCircle2,
   Info,
@@ -179,12 +176,9 @@ export function ActionRow(props: {
 
 export function TabBar(props: { value: TabKey; onChange: (k: TabKey) => void }) {
   const tabs: UnderlineTab[] = [
-    { key: "details", label: "Details", icon: <LayoutDashboard size={16} /> },
-    { key: "economics", label: "Economics", icon: <Coins size={16} /> },
-    { key: "model", label: "Model", icon: <BrainCircuit size={16} /> },
-    { key: "onchain", label: "On-Chain", icon: <Layers size={16} /> },
-    { key: "links", label: "Links", icon: <Link2 size={16} /> },
-    { key: "params", label: "Params", icon: <SlidersHorizontal size={16} /> },
+    { key: "overview", label: "Overview", icon: <LayoutDashboard size={16} /> },
+    { key: "technical", label: "Technical", icon: <Layers size={16} /> },
+    { key: "activity", label: "Activity", icon: <Link2 size={16} /> },
   ];
 
   return (

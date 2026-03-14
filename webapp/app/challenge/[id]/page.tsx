@@ -3,7 +3,6 @@
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
 import type { Abi } from "viem";
 import { parseEther, parseUnits } from "viem";
 import {
@@ -19,7 +18,6 @@ import { ABI, ADDR } from "@/lib/contracts";
 import { addressUrl, blockUrl, txUrl } from "@/lib/explorer";
 import { useToasts } from "@/lib/ui/toast";
 import { prettyGame } from "@/lib/games";
-import { GlassIcon } from "@/app/components/ui/GlassIcon";
 import * as Lucide from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ChallengeLayout from "./components/ChallengeLayout";
@@ -28,52 +26,38 @@ import { useHaptics } from "./hooks/useHaptics";
 import { resolvePrimaryAction } from "./lib/PrimaryActionResolver";
 
 // Extracted modules
-import type { Status, ApiOut, SnapshotOut, TabKey } from "./lib/types";
+import type { Status, ApiOut, TabKey } from "./lib/types";
 import { safeLower, safeBigintFrom, safeParseId, normalizeDecimalInput, toNum, fetchJson } from "./lib/utils";
 import { decodeSnapshot, decodeChallenge, normalizeApi } from "./lib/decoders";
 import {
-  safeText, buildDetailsRibbon, code, safe, yesno, ts, fmtNum, short, shortOrDash,
-  linkAddr, linkBlock, linkTx, timeAgo, timeAgoAbs,
-  formatLCAI, formatMaxParticipants, formatDuration, prettyCountdown, formatDateShort, enumLabel, computePublicStatus,
+  safeText, code, safe, yesno, ts, fmtNum, short, shortOrDash,
+  linkAddr, linkBlock, linkTx, timeAgo,
+  formatLCAI, formatMaxParticipants, formatDuration, enumLabel, computePublicStatus,
 } from "./lib/formatters";
 import { usePullToRefresh } from "./hooks/usePullToRefresh";
 import { SkeletonLine, HeroSummarySkeleton, PrimaryActionSkeleton } from "./components/Skeletons";
-import { StatusCapsule, DetailsRibbon, HeroMetricsRow, HeroProgress } from "./components/HeroSection";
+import { StatusCapsule, HeroProgress } from "./components/HeroSection";
 import { PrimaryActionCard, JoinCard } from "./components/ActionCards";
-import { CollapsiblePanel, PhaseStory, ActionRow, TabBar, DLGrid, Metric, SectionPanel, ChainTimeline } from "./components/DetailPanels";
+import { CollapsiblePanel, ActionRow, TabBar, DLGrid, ChainTimeline } from "./components/DetailPanels";
 
 
 type LI = Lucide.LucideIcon;
 const {
   ArrowLeft,
   RefreshCcw,
-  Zap,
   Clock,
   Hourglass,
-  ShieldCheck,
   BadgeCheck,
-  Link2,
-  Layers,
-  BrainCircuit,
-  SlidersHorizontal,
   Calendar,
-  Coins,
-  LayoutDashboard,
   Users,
   Award,
   ChevronDown,
-  ChevronUp,
   Info,
   Sparkles,
   CheckCircle2,
-  XCircle,
-  PauseCircle,
-  AlertTriangle,
   Vote,
   Receipt,
 } = Lucide;
-
-const PartyPopperSafe: LI = (Lucide as any).PartyPopper ?? Award;
 
 // NOTE: Types (Status, ApiOut, SnapshotOut, TabKey) → ./lib/types.ts
 // NOTE: Utilities (isHexAddress, safeLower, etc.) → ./lib/utils.ts
@@ -134,7 +118,7 @@ export default function ChallengePage() {
 
   const rootRef = React.useRef<HTMLDivElement>(null);
 
-  const [tab, setTab] = React.useState<TabKey>("details");
+  const [tab, setTab] = React.useState<TabKey>("overview");
   const [data, setData] = React.useState<ApiOut | null>(null);
   /** Fast preview from DB meta \u2014 populated before slow RPC call completes */
   const [metaPreview, setMetaPreview] = React.useState<{ title?: string; description?: string } | null>(null);
@@ -1268,414 +1252,242 @@ const primaryAction = React.useMemo(() => {
   const kindFromChain = decoded.kind ?? null;
   const outcomeFromChain = decoded.outcome ?? null;
 
-  const detailsRibbon = buildDetailsRibbon({
-    category: data?.category ?? null,
-    game: prettyGame(data?.game) || null,
-    mode: safeText(data?.mode) || null,
-    joinCloseSec,
-    startSec,
-    endSec,
-    externalId: data?.externalId ?? null,
-  });
-
   // ────────────────────────────────────────────────────────────────────────────
   // Build extracted layout slots
   // ────────────────────────────────────────────────────────────────────────────
   const header = (
-    <div className="space-y-5">
-      {/* Pull-to-refresh micro-indicator (mobile only, subtle) */}
-      {ptrEnabled ? (
-        <div
-          className="pointer-events-none fixed left-0 right-0 z-60"
-          style={{ top: "calc(var(--navbar-top) + env(safe-area-inset-top, 0px))" }}
-        >
-          <div className="mx-auto w-fit">
-            <div className="chip chip--soft py-1! px-3!">
-              {refreshing ? (
-                <span className="inline-flex items-center gap-2">
-                  <RefreshCcw size={14} className="animate-spin" />
-                  Refreshing…
-                </span>
-              ) : ptr.pullPx > 2 ? (
-                <span className="inline-flex items-center gap-2">
-                  <ChevronDown size={14} />
-                  {ptr.armed ? "Release to refresh" : "Pull to refresh"}
-                </span>
-              ) : null}
-            </div>
+    <div className="cd-header">
+      {/* Pull-to-refresh indicator (mobile) */}
+      {ptrEnabled && (refreshing || ptr.pullPx > 2) ? (
+        <div className="cd-ptr">
+          <div className="chip chip--soft">
+            {refreshing ? (
+              <span className="inline-flex items-center gap-2">
+                <RefreshCcw size={14} className="animate-spin" /> Refreshing…
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-2">
+                <ChevronDown size={14} />
+                {ptr.armed ? "Release to refresh" : "Pull to refresh"}
+              </span>
+            )}
           </div>
         </div>
       ) : null}
 
-      {/* HERO */}
-      <motion.header
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
-        className="panel"
-      >
-        <div className="panel-header">
-          <div className="w-full flex flex-col gap-3">
-            {/* Top row: back/refresh + updated */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm px-3!"
-                onClick={() => router.push("/explore")}
-                title="Back to Explore"
-                aria-label="Back to Explore"
-              >
-                <ArrowLeft size={16} />
-              </button>
+      {/* Nav row */}
+      <div className="cd-nav">
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => router.push("/explore")} aria-label="Back">
+          <ArrowLeft size={16} />
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          onClick={() => fetchOnce()}
+          disabled={!id || refreshing}
+          aria-label="Refresh"
+        >
+          <RefreshCcw size={16} className={refreshing ? "animate-spin" : ""} />
+        </button>
+        <span className="cd-nav__updated">
+          {lastUpdatedAt ? `Updated ${timeAgo(lastUpdatedAt)}` : ""}
+        </span>
+      </div>
 
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm px-3!"
-                onClick={() => fetchOnce()}
-                disabled={!id || refreshing}
-                title="Refresh"
-                aria-label="Refresh"
-              >
-                <RefreshCcw size={16} className={refreshing ? "animate-spin" : ""} />
-              </button>
+      {/* Title + status */}
+      <div className="cd-title-row">
+        <StatusCapsule label={publicStatus.label} note={publicStatus.note} />
+        <span className="cd-id">#{id ?? "—"}</span>
+      </div>
 
-              <div className="ml-auto text-xs text-(--text-muted) tabular-nums">
-                {lastUpdatedAt ? `Updated ${timeAgo(lastUpdatedAt)}` : ""}
-              </div>
-            </div>
-
-            {/* Title + status */}
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="badge-rank badge-rank--header" aria-label={`Challenge ID ${id}`}>
-                  {id ?? "—"}
-                </span>
-
-                <StatusCapsule label={publicStatus.label} note={publicStatus.note} />
-              </div>
-
-              {isInitialLoading ? (
-                <div className="space-y-2">
-                  {metaPreview?.title ? (
-                    <>
-                      <h1 className="text-xl sm:text-2xl title-premium truncate">{metaPreview.title}</h1>
-                      {metaPreview.description && (
-                        <p className="text-sm text-(--text-muted) leading-relaxed line-clamp-2">{metaPreview.description}</p>
-                      )}
-                      {/* subtle loading shimmer while chain data loads */}
-                      <SkeletonLine className="h-3 w-[min(260px,50%)] opacity-40" />
-                    </>
-                  ) : (
-                    <>
-                      <SkeletonLine className="h-7 w-[min(520px,90%)]" />
-                      <SkeletonLine className="h-4 w-[min(680px,95%)]" />
-                    </>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <h1 className="text-xl sm:text-2xl title-premium truncate">
-                    {metaTitle || `Challenge #${id}`}
-                  </h1>
-
-                  {metaDesc && (
-                    <p className="text-sm text-(--text-muted) leading-relaxed line-clamp-2">{metaDesc}</p>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Details ribbon (one line, Apple-like) */}
-            <DetailsRibbon text={detailsRibbon} />
-          </div>
-        </div>
-
-        <div className="panel-body pt-0 bg-transparent shadow-none">
-          {/* HERO BANNER */}
-          {isInitialLoading ? (
-            <HeroSummarySkeleton />
+      {isInitialLoading ? (
+        <div className="cd-title-skeleton">
+          {metaPreview?.title ? (
+            <>
+              <h1 className="cd-title">{metaPreview.title}</h1>
+              {metaPreview.description && <p className="cd-desc">{metaPreview.description}</p>}
+              <SkeletonLine className="h-3 w-[min(260px,50%)] opacity-40" />
+            </>
           ) : (
-            <div className="hero-banner relative overflow-hidden rounded-2xl">
-              <div className="relative z-10 p-3 sm:p-4 space-y-3">
-                <HeroProgress
-                  start={startSec ?? null}
-                  end={endSec ?? null}
-                  joinClose={joinCloseSec ?? null}
-                  status={effectiveStatus}
-                />
-                <HeroMetricsRow
-                  treasuryLabel={treasuryLabel}
-                  treasuryWei={treasuryWei}
-                  winnersClaimed={data?.winnersClaimed ?? 0}
-                  startTs={startSec ?? null}
-                  endTs={endSec ?? null}
-                />
-              </div>
-            </div>
+            <>
+              <SkeletonLine className="h-7 w-[min(520px,90%)]" />
+              <SkeletonLine className="h-4 w-[min(680px,95%)]" />
+            </>
           )}
         </div>
+      ) : (
+        <>
+          <h1 className="cd-title">{metaTitle || `Challenge #${id}`}</h1>
+          {metaDesc && <p className="cd-desc">{metaDesc}</p>}
+        </>
+      )}
 
-        <AnimatePresence>
-          {err ? (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              className="px-4 pb-4"
-            >
-              <div className="subpanel p-3">
-                <div className="text-sm font-medium">Couldn’t load this challenge.</div>
-                <div className="text-sm text-(--text-muted) mt-1">{err}</div>
-                <div className="mt-3 flex gap-2">
-                  <button className="btn btn-primary btn-sm" onClick={() => fetchOnce()} disabled={refreshing}>
-                    {refreshing ? "Refreshing…" : "Try again"}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-      </motion.header>
-    </div>
-  );
-
-  const story = (
-    <div className="panel">
-      <div className="panel-header">
-        <div className="min-w-0">
-          <div className="text-sm font-semibold">What’s happening</div>
-          <div className="text-xs text-(--text-muted)">
-            Track your progress and take the next required action.
+      {/* Key stats row */}
+      {!isInitialLoading ? (
+        <div className="cd-stats">
+          <div className="cd-stat">
+            <span className="cd-stat__label">{treasuryLabel}</span>
+            <span className="cd-stat__value">{formatLCAI(treasuryWei)}</span>
+          </div>
+          <div className="cd-stat">
+            <span className="cd-stat__label">Participants</span>
+            <span className="cd-stat__value">{fmtNum(participantsCountFromChain)}</span>
+          </div>
+          <div className="cd-stat">
+            <span className="cd-stat__label">Starts</span>
+            <span className="cd-stat__value">{ts(startSec, "TBD")}</span>
+          </div>
+          <div className="cd-stat">
+            <span className="cd-stat__label">Ends</span>
+            <span className="cd-stat__value">{ts(endSec, "TBD")}</span>
           </div>
         </div>
-      </div>
-      <div className="panel-body">
-        <PhaseStory
-          statusLabel={publicStatus.label}
-          startTs={startSec ?? null}
-          endTs={endSec ?? null}
-          joinCloseTs={joinCloseSec ?? null}
-          hasJoined={hasJoined}
-          proofRequired={Boolean(data?.proofRequired)}
-          canVote={canVote}
-          isAdmin={isAdmin}
-          canFinalize={canFinalize}
-          claimablesCount={claimables?.length ?? 0}
-        />
-      </div>
+      ) : (
+        <HeroSummarySkeleton />
+      )}
+
+      {/* Progress bar */}
+      {!isInitialLoading && (
+        <HeroProgress start={startSec ?? null} end={endSec ?? null} joinClose={joinCloseSec ?? null} status={effectiveStatus} />
+      )}
+
+      {/* Error */}
+      <AnimatePresence>
+        {err ? (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            className="cd-error"
+          >
+            <div className="text-sm font-medium">Couldn’t load this challenge.</div>
+            <div className="text-sm text-(--text-muted) mt-1">{err}</div>
+            <button className="btn btn-primary btn-sm mt-3" onClick={() => fetchOnce()} disabled={refreshing}>
+              {refreshing ? "Refreshing…" : "Try again"}
+            </button>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 
   const details = (
-    <div className="space-y-4">
-      <div className="panel">
-        <div className="panel-header">
-          <div className="text-sm font-semibold">Details</div>
-        </div>
+    <div className="cd-details">
+      <TabBar value={tab} onChange={setTab} />
 
-        <div className="panel-body pt-0 space-y-4">
-          <TabBar value={tab} onChange={setTab} />
+      {tab === "overview" && (
+        <div className="cd-tab-content">
+          {/* Basics + Participation */}
+          <DLGrid
+            rows={[
+              ["Title", metaTitle || `Challenge #${id}`],
+              ...(metaDesc ? [["Description", metaDesc] as [string, string]] : []),
+              ["Category", safe(data?.category, "General")],
+              ...(data?.game ? [["Game", prettyGame(data.game) || safe(data.game)] as [string, string]] : []),
+              ...(data?.mode ? [["Mode", safe(data.mode)] as [string, string]] : []),
+              ["Participants", `${fmtNum(participantsCountFromChain)} / ${formatMaxParticipants(maxParticipantsFromChain)}`],
+              ["Join closes", ts(joinCloseSec, "Open until start")],
+              ["Your stake", myJoinedTotalWei != null ? formatLCAI(myJoinedTotalWei.toString()) : "Not joined"],
+            ]}
+          />
 
-          {tab === "details" && (
-            <div className="space-y-3">
-              <SectionPanel title="Basics" icon={LayoutDashboard} help="What this challenge is and how it appears in Explore.">
-                <DLGrid
-                  rows={[
-                    ["Title", metaTitle || `Challenge #${id}`],
-                    ...(metaDesc ? [["Description", metaDesc] as [string, string]] : []),
-                    ["Category", safe(data?.category)],
-                    ["Game", prettyGame(data?.game) || "—"],
-                    ["Mode", safe(data?.mode)],
-                    ["External ID", code(data?.externalId)],
-                  ]}
-                />
-              </SectionPanel>
-
-              <SectionPanel
-                title="Participation"
-                icon={(Lucide as any).Users ?? Users}
-                help="Join window, schedule, and your current commitment."
-              >
-                <DLGrid
-                  rows={[
-                    ["Participants", fmtNum(participantsCountFromChain)],
-                    ["Max participants", formatMaxParticipants(maxParticipantsFromChain)],
-                    ["Join closes", ts(joinCloseSec)],
-                    ["Starts", ts(startSec)],
-                    ["Ends", ts(endSec)],
-                    ["Your joined total", myJoinedTotalWei != null ? formatLCAI(myJoinedTotalWei.toString()) : "—"],
-                  ]}
-                />
-              </SectionPanel>
-
-              <SectionPanel
-                title="Verification"
-                icon={(Lucide as any).BadgeCheck ?? BadgeCheck}
-                help="How the outcome is verified (proofs / validators)."
-              >
-                <DLGrid
-                  rows={[
-                    ["Proof required", yesno(data?.proofRequired)],
-                    ["Verifier (used)", shortOrDash((data as any)?.verifierUsed ?? data?.verifier)],
-                    ["Proof OK", yesno(data?.proofOk)],
-                    ["Model kind", safe(data?.modelKind)],
-                  ]}
-                />
-
-                {challengeIdStr ? (
-                  <ActionRow
-                    primaryLabel={data?.proofRequired ? "Submit proof" : "All proofs"}
-                    onPrimary={() =>
-                      data?.proofRequired
-                        ? router.push(`/proofs/${challengeIdStr}`)
-                        : router.push(`/proofs/${challengeIdStr}`)
-                    }
-                    secondaryLabel={data?.proofRequired ? "All proofs" : "Submit proof"}
-                    onSecondary={() =>
-                      data?.proofRequired
-                        ? router.push(`/proofs/${challengeIdStr}`)
-                        : router.push(`/proofs/${challengeIdStr}`)
-                    }
-                  />
-                ) : null}
-              </SectionPanel>
+          {/* Economics */}
+          <div className="cd-metrics-row">
+            <div className="cd-metric-card">
+              <div className="cd-metric-card__label">{treasuryLabel}</div>
+              <div className="cd-metric-card__value">{formatLCAI(treasuryWei)}</div>
             </div>
-          )}
+            <div className="cd-metric-card">
+              <div className="cd-metric-card__label">Creator stake</div>
+              <div className="cd-metric-card__value">{formatLCAI(stakeWei)}</div>
+            </div>
+            <div className="cd-metric-card">
+              <div className="cd-metric-card__label">Currency</div>
+              <div className="cd-metric-card__value">
+                {currencyFromChain === 0 || tokenFromChain === ZERO
+                  ? "LCAI (native)"
+                  : tokenFromChain ? `ERC-20 ${short(tokenFromChain)}` : "LCAI"}
+              </div>
+            </div>
+          </div>
 
-          {tab === "economics" && (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-                <div className="metric">
-                  <div className="text-xs uppercase tracking-wider text-(--text-muted)">{treasuryLabel}</div>
-                  <div className="mt-1 text-lg font-semibold">{formatLCAI(treasuryWei)}</div>
+          {/* Outcome snapshot */}
+          {data?.snapshot?.set ? (
+            <div className="cd-outcome">
+              <div className="cd-outcome__title">
+                Outcome: {data.snapshot.success ? "Success" : "Fail"}
+              </div>
+              <div className="cd-metrics-row">
+                <div className="cd-metric-card">
+                  <div className="cd-metric-card__label">Committed</div>
+                  <div className="cd-metric-card__value">{formatLCAI(data.snapshot.committedPool)}</div>
                 </div>
-                <div className="metric">
-                  <div className="text-xs uppercase tracking-wider text-(--text-muted)">Creator stake</div>
-                  <div className="mt-1 text-lg font-semibold">{formatLCAI(stakeWei)}</div>
+                <div className="cd-metric-card">
+                  <div className="cd-metric-card__label">Forfeited</div>
+                  <div className="cd-metric-card__value">{formatLCAI(data.snapshot.forfeitedPool)}</div>
                 </div>
-                <div className="metric">
-                  <div className="text-xs uppercase tracking-wider text-(--text-muted)">Proposal bond</div>
-                  <div className="mt-1 text-lg font-semibold">{formatLCAI(bondWei)}</div>
+                <div className="cd-metric-card">
+                  <div className="cd-metric-card__label">Cashback</div>
+                  <div className="cd-metric-card__value">{formatLCAI(data.snapshot.cashback)}</div>
                 </div>
               </div>
-
-              <DLGrid
-                rows={[
-                  [
-                    "Currency",
-                    currencyFromChain === 0 || tokenFromChain === ZERO
-                      ? "Native (LCAI)"
-                      : tokenFromChain
-                        ? `ERC-20 ${short(tokenFromChain)}`
-                        : "—",
-                  ],
-                  ["Pool", poolFromChainStr ? formatLCAI(poolFromChainStr) : "—"],
-                  ["Your joined total", myJoinedTotalWei != null ? formatLCAI(myJoinedTotalWei.toString()) : "—"],
-                ]}
-              />
-            </>
-          )}
-
-          {tab === "model" && (
-            <DLGrid
-              rows={[
-                ["Model kind", safe(data?.modelKind)],
-                ["Model ID", safe(data?.modelId)],
-                ["Model hash", code((data as any)?.modelHash)],
-                ["Verifier (used)", shortOrDash((data as any)?.verifierUsed ?? data?.verifier)],
-                ["Params hash", code(data?.proof?.paramsHash)],
-              ]}
-            />
-          )}
-
-          {tab === "onchain" && (
-            <DLGrid
-              rows={[
-                ["Kind", enumLabel("kind", kindFromChain)],
-                ["Outcome", enumLabel("outcome", outcomeFromChain)],
-                ["Duration", formatDuration(decoded.duration)],
-              ]}
-            />
-          )}
-
-          {tab === "links" && (
-            <DLGrid
-              rows={[
-                ["Creator", linkAddr(data?.creator)],
-                ["Verifier", linkAddr((data as any)?.verifierUsed ?? data?.verifier)],
-                ["Created block", data?.createdBlock ? linkBlock(data.createdBlock) : "—"],
-                ["Created tx", data?.createdTx ? linkTx(data.createdTx) : "—"],
-              ]}
-            />
-          )}
-
-          {tab === "params" && (
-            <>
-              <p className="text-sm text-(--text-muted) mb-2">
-                Parameters describe how the verifier interprets results (thresholds, windows, ids, etc).
-              </p>
-
-              {data?.params ? (
-                <div className="subpanel">
-                  <div className="subpanel__head">
-                    <div className="subpanel__title">
-                      <div className="text-sm font-semibold">Parameters</div>
-                      <div className="text-xs text-(--text-muted)">Raw config (read-only)</div>
-                    </div>
-                  </div>
-
-                  <div className="subpanel__body">
-                    <pre className="overflow-auto text-xs" style={{ maxHeight: 340 }}>
-                      {typeof data.params === "string" ? data.params : JSON.stringify(data.params, null, 2)}
-                    </pre>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-sm text-(--text-muted)">No params.</div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* OUTCOME SNAPSHOT (only when set) */}
-      {data?.snapshot?.set ? (
-        <div className="panel">
-          <div className="panel-header">
-            <div className="text-sm font-semibold">Outcome & Payouts</div>
-          </div>
-          <div className="panel-body">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-              <Metric label="Outcome">{data.snapshot.success ? "Success ✅" : "Fail ❌"}</Metric>
-              <Metric label="Committed">{formatLCAI(data.snapshot.committedPool)}</Metric>
-              <Metric label="Forfeited">{formatLCAI(data.snapshot.forfeitedPool)}</Metric>
-              <Metric label="Cashback">{formatLCAI(data.snapshot.cashback)}</Metric>
-              <Metric label="Creator">{formatLCAI(data.snapshot.creatorAmt)}</Metric>
-              <Metric label="Protocol">{formatLCAI(data.snapshot.protocolAmt)}</Metric>
             </div>
-          </div>
+          ) : null}
         </div>
-      ) : null}
-    </div>
-  );
+      )}
 
-  const timelineNode = (
-    <div className="panel">
-      <div className="panel-header">
-        <div className="min-w-0">
-          <div className="text-sm font-semibold">Activity</div>
-          <div className="text-xs text-(--text-muted)">Readable story first. Chain links when you need them.</div>
+      {tab === "technical" && (
+        <div className="cd-tab-content">
+          <DLGrid
+            rows={[
+              ["Proof required", yesno(data?.proofRequired)],
+              ["Proof status", data?.proofOk ? "Verified" : "Pending"],
+              ["Verifier", shortOrDash((data as any)?.verifierUsed ?? data?.verifier)],
+              ["Verification type", safe(data?.modelKind, "Standard")],
+              ...(data?.modelId ? [["Model ID", safe(data.modelId)] as [string, string]] : []),
+              ["Challenge type", enumLabel("kind", kindFromChain)],
+              ["Outcome", enumLabel("outcome", outcomeFromChain)],
+              ...(decoded.duration ? [["Duration", formatDuration(decoded.duration)] as [string, string]] : []),
+              ["Creator", linkAddr(data?.creator)],
+              ...(data?.createdBlock ? [["Created block", linkBlock(data.createdBlock)] as [string, any]] : []),
+              ...(data?.createdTx ? [["Created tx", linkTx(data.createdTx)] as [string, any]] : []),
+            ]}
+          />
+
+          {data?.params ? (
+            <div className="cd-params">
+              <div className="text-xs font-semibold text-(--text-muted) uppercase tracking-wider mb-2">Parameters</div>
+              <pre className="cd-params__pre">
+                {typeof data.params === "string" ? data.params : JSON.stringify(data.params, null, 2)}
+              </pre>
+            </div>
+          ) : null}
+
+          {challengeIdStr ? (
+            <ActionRow
+              primaryLabel="Submit proof"
+              onPrimary={() => router.push(`/proofs/${challengeIdStr}`)}
+              secondaryLabel="All proofs"
+              onSecondary={() => router.push(`/proofs/${challengeIdStr}`)}
+            />
+          ) : null}
         </div>
-      </div>
-      <div className="panel-body">
-        {!data ? (
-          <div className="text-sm text-(--text-muted)">Loading…</div>
-        ) : timeline.length === 0 ? (
-          <div className="text-sm text-(--text-muted)">No events yet.</div>
-        ) : (
-          <ChainTimeline items={timeline} />
-        )}
-      </div>
+      )}
+
+      {tab === "activity" && (
+        <div className="cd-tab-content">
+          {!data ? (
+            <div className="empty-hint">Loading chain events…</div>
+          ) : timeline.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state__title">No activity yet</div>
+              <div className="empty-state__sub">On-chain events will appear here as the challenge progresses.</div>
+            </div>
+          ) : (
+            <ChainTimeline items={timeline} />
+          )}
+        </div>
+      )}
     </div>
   );
 
@@ -1724,10 +1536,6 @@ const primaryAction = React.useMemo(() => {
                 onSecondary={() => router.push(`/proofs/${challengeIdStr}`)}
               />
             ) : null}
-
-            <div className="text-xs text-(--text-muted)">
-              Tip: submit within the valid window. The network verifies only proofs that match the configured verifier and model.
-            </div>
           </div>
         </CollapsiblePanel>
       ) : null}
@@ -1738,9 +1546,6 @@ const primaryAction = React.useMemo(() => {
           <div className="panel-header">
             <div className="min-w-0">
               <div className="text-sm font-semibold">Your verification status</div>
-              <div className="text-xs text-(--text-muted)">
-                Evidence submission and evaluation result
-              </div>
             </div>
             {participantStatus.verdict_pass === true &&
               participantStatus.challenge_status?.toLowerCase() === "finalized" && (
@@ -1773,7 +1578,7 @@ const primaryAction = React.useMemo(() => {
               <span className="chip chip--soft">No evidence yet</span>
             )}
           </div>
-          <div className="mt-3 space-y-1 text-sm">
+          <div className="panel-body space-y-1 text-sm">
             <div className="flex gap-2">
               <span className="text-(--text-muted) w-32 shrink-0">Evidence</span>
               <span>
@@ -1807,12 +1612,12 @@ const primaryAction = React.useMemo(() => {
                   <span className="capitalize">{participantStatus.aivm_verification_status}</span>
                 </div>
             )}
-          {allowanceBn > 0n && (
-            <div className="flex gap-2 mt-2">
-              <span className="text-(--text-muted) w-32 shrink-0">Claimable</span>
-              <span className="font-semibold">{formatLCAI(allowanceBn.toString())} LCAI</span>
-            </div>
-          )}
+            {allowanceBn > 0n && (
+              <div className="flex gap-2 mt-2">
+                <span className="text-(--text-muted) w-32 shrink-0">Claimable</span>
+                <span className="font-semibold">{formatLCAI(allowanceBn.toString())} LCAI</span>
+              </div>
+            )}
           </div>
         </div>
       ) : null}
@@ -1829,7 +1634,6 @@ const primaryAction = React.useMemo(() => {
             {busy === "finalize" ? "Finalizing…" : "Finalize challenge"}
             {busy === "finalize" ? <span className="btn__spinner" aria-hidden /> : null}
           </button>
-
           <div className="mt-2 text-xs text-(--text-muted)">Finalizing settles the outcome and enables claims.</div>
         </CollapsiblePanel>
       ) : null}
@@ -1856,9 +1660,7 @@ const primaryAction = React.useMemo(() => {
           header={header}
           primaryAction={primaryActionNode}
           join={join}
-          story={story}
           details={details}
-          timeline={timelineNode}
           showCompletion={showCompletion}
         />
       </div>
