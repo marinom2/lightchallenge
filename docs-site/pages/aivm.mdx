@@ -1,0 +1,82 @@
+# AI Verification
+
+LightChallenge uses the **Lightchain AIVM** (AI Virtual Machine) network for trustless verification of challenge evidence.
+
+## What is Lightchain AIVM?
+
+Lightchain AIVM is a decentralized AI inference network that uses **Proof-of-Intelligence (PoI)** consensus. Instead of a single server checking your evidence, multiple independent validators on the Lightchain network process the request and reach consensus on the result.
+
+## How Verification Works
+
+### For Users
+
+1. You complete your challenge goal (run the miles, win the matches, hit the steps)
+2. You submit evidence through the app (Apple Health data, gaming stats, etc.)
+3. The system evaluates your evidence and sends it to the Lightchain AI network
+4. Multiple validators independently verify your claim
+5. If they agree you passed, the smart contract releases your reward
+
+You don't need to trust any single party — the network reaches consensus independently.
+
+### Technical Flow
+
+```
+Evidence → Evaluator → Verdict → AIVM Request → Lightchain Network
+                                                        ↓
+                                              Commit → Reveal → PoI Attest
+                                                        ↓
+                                              InferenceFinalized event
+                                                        ↓
+                                              ChallengePay.finalize()
+```
+
+1. **Evidence Evaluation** — Off-chain workers check the raw evidence against challenge rules
+2. **Verdict** — A pass/fail verdict with reasons is stored in the database
+3. **AIVM Request** — The verdict is submitted as an inference request to `AIVMInferenceV2.requestInferenceV2()`
+4. **Network Processing** — Lightchain workers commit their results, then reveal them
+5. **PoI Attestation** — Validators attest to the result using EIP-712 signed proofs
+6. **Finalization** — When quorum is reached, `InferenceFinalized` is emitted
+7. **Bridge** — Our indexer catches the event and calls the smart contract to finalize the challenge
+
+## Key Properties
+
+| Property | Value |
+|----------|-------|
+| Consensus | Proof-of-Intelligence (PoI) |
+| Quorum | 1 (testnet), configurable for mainnet |
+| Finality | ~1 minute after submission (testnet) |
+| Trust model | No single point of trust — network consensus |
+| Request fee | 0.001 LCAI per inference request |
+
+## AIVM Request States
+
+| State | Code | Description |
+|-------|------|-------------|
+| None | 0 | Not submitted |
+| Requested | 1 | Inference request submitted |
+| Committed | 2 | Worker has committed result hash |
+| Revealed | 3 | Worker has revealed actual result |
+| Finalized | 4 | PoI quorum reached, result confirmed |
+| Cancelled | 5 | Request was cancelled |
+| TimedOut | 6 | Deadline passed without finalization |
+| Disputed | 7 | Result is being disputed |
+
+## Smart Contracts
+
+| Contract | Address (Testnet) | Purpose |
+|----------|-------------------|---------|
+| AIVMInferenceV2 | `0x2d499C52312ca8F0AD3B7A53248113941650bA7E` | Lightchain AIVM inference contract |
+| ChallengeTaskRegistry | `0x0e079C693Bd177Fa31baab70EfCD5b9D625c355E` | Binds challenges to AIVM tasks |
+| ChallengePayAivmPoiVerifier | `0x44c750aA01Ec2465CB3E7354EF1c16cc83D45123` | Verifies PoI results for ChallengePay |
+
+## For Non-Technical Users
+
+Think of the AI verification like a panel of independent judges:
+
+1. You make a claim ("I walked 10,000 steps today")
+2. You provide evidence (your Apple Health data)
+3. Multiple AI judges independently review your evidence
+4. If they all agree you did it, you get your reward
+5. No one can cheat — the judges don't know each other and can't collude
+
+The entire process is transparent and recorded on the blockchain.

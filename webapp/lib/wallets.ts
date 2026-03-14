@@ -3,7 +3,6 @@ import { createConfig, http, createStorage, cookieStorage } from "wagmi";
 import type { Config, Storage } from "wagmi";
 import { injected, walletConnect } from "wagmi/connectors";
 import { lightchain } from "@/lib/lightchain";
-import { createWeb3Modal } from "@web3modal/wagmi/react";
 
 /* ────────────────────────────────────────────────────────────────────────────
    Storage (session vs local) with "Remember this device" opt-in
@@ -11,16 +10,6 @@ import { createWeb3Modal } from "@web3modal/wagmi/react";
 const REMEMBER_KEY = "lc.wallet.remember";
 const WAGMI_KEY = "wagmi.lightchallenge";
 
-const W3M_KEYS = [
-  "W3M_CONNECTED",
-  "W3M_CONNECTOR",
-  "W3M_RECENT_WALLET_ID",
-  "W3M_RECENT_WALLET_DATA",
-  "W3M_LAST_USED_CHAIN",
-  "W3M_MODAL",
-  "W3M_WIDGET_STATE",
-  "W3M_VERSION",
-];
 const WC_KEYS = [
   "walletconnect",
   "WALLETCONNECT_DEEPLINK_CHOICE",
@@ -113,16 +102,20 @@ const isServer = typeof window === "undefined";
 const clientConnectors = !isServer
   ? [
       injected({ shimDisconnect: true }),
-      walletConnect({
-        projectId: projectId ?? "dummy-project-id",
-        showQrModal: false,
-        metadata: {
-          name: "LightChallenge",
-          description: "Bet on yourself. Set challenges and pay only if you fail.",
-          url: "https://challengepay.app",
-          icons: ["https://challengepay.app/icon.png"],
-        },
-      }),
+      ...(projectId
+        ? [
+            walletConnect({
+              projectId,
+              showQrModal: false,
+              metadata: {
+                name: "LightChallenge",
+                description: "Challenges verified by decentralized AI.",
+                url: "https://lightchallenge.app",
+                icons: ["https://lightchallenge.app/icon.png"],
+              },
+            }),
+          ]
+        : []),
     ]
   : []; // SSR: avoid WalletConnect (IndexedDB)
 
@@ -133,23 +126,6 @@ export const wagmiConfig: Config = createConfig({
   storage: wagmiStore,
   ssr: false, // avoid server-side eager behavior
 });
-
-/* ────────────────────────────────────────────────────────────────────────────
-   Web3Modal — init once on client (before hooks render), HMR-safe
-   ─────────────────────────────────────────────────────────────────────────── */
-declare global { interface Window { __W3M_READY?: boolean } }
-
-if (!isServer && !window.__W3M_READY && projectId) {
-  createWeb3Modal({
-    wagmiConfig,
-    projectId,
-    enableAnalytics: false,
-    enableOnramp: false,
-    // themeMode: "dark",
-    // themeVariables: { accentColor: "#6B5CFF", borderRadius: "14px" }
-  });
-  window.__W3M_READY = true;
-}
 
 /* ────────────────────────────────────────────────────────────────────────────
    Public helpers for Remember toggle
@@ -176,10 +152,10 @@ export async function setWalletRemembered(remember: boolean) {
   if (remember) {
     // Move wagmi + Web3Modal/WalletConnect hints to localStorage
     copyKey(session, local, WAGMI_KEY);
-    for (const k of ["wagmi.store", ...W3M_KEYS, ...WC_KEYS, ...CB_KEYS]) copyKey(session, local, k);
+    for (const k of ["wagmi.store", ...WC_KEYS, ...CB_KEYS]) copyKey(session, local, k);
   } else {
     // Purge persistent hints from localStorage
-    for (const k of [WAGMI_KEY, "wagmi.store", ...W3M_KEYS, ...WC_KEYS, ...CB_KEYS]) removeKey(local, k);
+    for (const k of [WAGMI_KEY, "wagmi.store", ...WC_KEYS, ...CB_KEYS]) removeKey(local, k);
   }
 
   setRemember(remember);
@@ -191,7 +167,7 @@ export async function hardResetWalletState() {
   try { await disconnect(wagmiConfig); } catch {}
   const local = getLocalAdapter();
   const session = getSessionAdapter();
-  const keys = [WAGMI_KEY, "wagmi.store", ...W3M_KEYS, ...WC_KEYS, ...CB_KEYS];
+  const keys = [WAGMI_KEY, "wagmi.store", ...WC_KEYS, ...CB_KEYS];
   for (const s of [local, session, cookieAdapter]) for (const k of keys) removeKey(s, k);
 }
 
@@ -199,11 +175,11 @@ export async function hardResetWalletState() {
 export function purgePersistentWalletHints() {
   if (typeof window === "undefined") return;
   const local = getLocalAdapter();
-  for (const k of [WAGMI_KEY, "wagmi.store", ...W3M_KEYS, ...WC_KEYS, ...CB_KEYS]) removeKey(local, k);
+  for (const k of [WAGMI_KEY, "wagmi.store", ...WC_KEYS, ...CB_KEYS]) removeKey(local, k);
 }
 
 /** Clear ephemeral (sessionStorage). */
 export function clearEphemeralSession() {
   const session = getSessionAdapter();
-  for (const k of [WAGMI_KEY, "wagmi.store", ...W3M_KEYS, ...WC_KEYS, ...CB_KEYS]) removeKey(session, k);
+  for (const k of [WAGMI_KEY, "wagmi.store", ...WC_KEYS, ...CB_KEYS]) removeKey(session, k);
 }

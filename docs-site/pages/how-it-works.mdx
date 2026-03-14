@@ -1,0 +1,73 @@
+# How It Works
+
+LightChallenge follows a four-stage lifecycle: **Create → Prove → Verify → Settle**.
+
+## 1. Create a Challenge
+
+A user creates a challenge by calling `createChallenge()` on the ChallengePay smart contract, specifying:
+
+- **Goal** — What they're committing to (e.g., "10,000 steps per day for 7 days")
+- **Stake** — LCAI tokens locked in the contract
+- **Deadline** — When the challenge expires
+- **Template** — Which verification model to use (fitness-steps, gaming-dota2, etc.)
+
+The stake is held in escrow by the smart contract until the challenge is finalized.
+
+## 2. Submit Evidence
+
+When the user has completed their goal, they submit evidence through the webapp:
+
+- **Fitness challenges** — Connect Apple Health, Strava, Garmin, or Fitbit. The iOS collector app reads HealthKit data and submits it.
+- **Gaming challenges** — Link Steam, Riot, or FACEIT accounts. The system pulls match data from gaming APIs.
+- **Custom challenges** — Upload evidence manually.
+
+Evidence is stored in the database with a cryptographic hash for integrity.
+
+## 3. AI Verification
+
+The evidence goes through a multi-stage verification pipeline:
+
+1. **Evidence Evaluator** — An off-chain worker evaluates the evidence against the challenge rules and produces a verdict (pass/fail with reasons)
+2. **Challenge Dispatcher** — Queues approved verdicts as AIVM jobs
+3. **Challenge Worker** — Submits an inference request to the Lightchain AIVM network
+4. **Lightchain Network** — Native AIVM workers commit, reveal, and attest to the result via Proof-of-Intelligence (PoI) consensus
+5. **AIVM Indexer** — Watches for `InferenceFinalized` events and bridges the result back to ChallengePay
+
+## 4. Settlement
+
+Once the AIVM network finalizes the verification:
+
+- **Pass** → The challenge is finalized as successful. The user can claim their stake back plus any rewards.
+- **Fail** → The challenge is finalized as failed. The stake goes to the protocol treasury.
+- **Expired** → If no proof is submitted before the deadline, the challenge can be finalized as expired.
+
+Claims are pull-based — users call `claimWinner()` or `claimRefund()` on the smart contract to withdraw.
+
+## Architecture Diagram
+
+```
+User → Webapp → Evidence DB → Evaluator → Verdict
+                                              ↓
+                                         Dispatcher → AIVM Job
+                                              ↓
+                                      Challenge Worker → Lightchain AIVM
+                                              ↓
+                                     (Commit → Reveal → PoI Attest)
+                                              ↓
+                                      InferenceFinalized event
+                                              ↓
+                                       AIVM Indexer → ChallengePay.finalize()
+                                              ↓
+                                         User claims reward
+```
+
+## Challenge Types
+
+### Binary Challenges
+Simple pass/fail outcomes. Example: "Walk 10,000 steps today."
+
+### Competitive Challenges (via EventChallengeRouter)
+Multiple participants compete. The router manages multi-outcome resolution, ranking participants by their verified results.
+
+### Event Challenges
+Tied to real-world events (matches, races). The EventChallengeRouter resolves outcomes based on external event results.

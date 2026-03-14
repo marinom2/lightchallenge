@@ -18,6 +18,47 @@ function useStats() {
   return stats;
 }
 
+/* ── Recent challenges ─────────────────────────────────────────────────── */
+type ChallengeMeta = {
+  id: string;
+  title?: string;
+  description?: string;
+  status?: string;
+  intent?: string;
+  stake?: string;
+};
+
+function useRecentChallenges() {
+  const [challenges, setChallenges] = useState<ChallengeMeta[]>([]);
+  useEffect(() => {
+    fetch("/api/challenges?limit=6", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.items) setChallenges(d.items.slice(0, 6));
+      })
+      .catch(() => {});
+  }, []);
+  return challenges;
+}
+
+/* ── Network health ────────────────────────────────────────────────────── */
+type Health = { status: string; rpc: boolean; db: boolean; blockNumber: string; blockAge: number };
+
+function useHealth() {
+  const [health, setHealth] = useState<Health | null>(null);
+  useEffect(() => {
+    const poll = () =>
+      fetch("/api/health")
+        .then((r) => r.json())
+        .then(setHealth)
+        .catch(() => {});
+    poll();
+    const id = setInterval(poll, 30_000);
+    return () => clearInterval(id);
+  }, []);
+  return health;
+}
+
 /* ── Types ──────────────────────────────────────────────────────────────── */
 type NavItem = { href: string; title: string; desc: string; tag?: string };
 
@@ -71,9 +112,40 @@ function StatCard({
 }
 
 /* ── Page ────────────────────────────────────────────────────────────────── */
+function ChallengePreviewCard({ c }: { c: ChallengeMeta }) {
+  const statusColor =
+    c.status === "Active" ? "#22c55e" : c.status === "Finalized" ? "#6B5CFF" : "#888";
+  return (
+    <Link href={`/challenge/${c.id}`} className="panel p-4 group hover:border-(--accent) transition-colors">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <span className="text-sm font-semibold group-hover:text-(--accent) transition-colors truncate">
+          {c.title || `Challenge #${c.id}`}
+        </span>
+        <span
+          className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+          style={{ background: `${statusColor}22`, color: statusColor }}
+        >
+          {c.status || "—"}
+        </span>
+      </div>
+      {c.description && (
+        <p className="text-xs text-(--text-muted) leading-relaxed line-clamp-2 mb-2">
+          {c.description}
+        </p>
+      )}
+      <div className="flex items-center gap-3 text-[11px] text-(--text-muted)">
+        {c.intent && <span className="capitalize">{c.intent.replace(/-/g, " ")}</span>}
+        {c.stake && <span>{c.stake} LCAI</span>}
+      </div>
+    </Link>
+  );
+}
+
 export default function HomePage() {
   const { isConnected } = useAccount();
   const stats = useStats();
+  const recentChallenges = useRecentChallenges();
+  const health = useHealth();
 
   const fmtChallenges = (n?: number) => {
     if (n == null) return "…";
@@ -165,7 +237,7 @@ export default function HomePage() {
             hint="AI models"
           />
           <StatCard
-            value={stats ? "Live" : "…"}
+            value={health ? (health.status === "healthy" ? "Live" : health.status === "degraded" ? "Degraded" : "Down") : "…"}
             label="Network"
             hint="Lightchain testnet"
           />
@@ -229,6 +301,25 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+
+      {/* ── RECENT CHALLENGES ─────────────────────────────────── */}
+      {recentChallenges.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-(--text-muted)">
+              Recent challenges
+            </h2>
+            <Link href="/explore" className="text-xs text-(--text-muted) hover:text-(--text) transition-colors">
+              View all →
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {recentChallenges.map((c) => (
+              <ChallengePreviewCard key={c.id} c={c} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── NAV GRID ─────────────────────────────────────────── */}
       <section>

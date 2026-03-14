@@ -1,0 +1,99 @@
+# iOS Collector
+
+The LightChallenge iOS app collects Apple Health evidence (steps and walking/running distance) and submits it to the backend for verification.
+
+## Overview
+
+The iOS collector is a lightweight SwiftUI app that:
+
+1. Reads HealthKit data (step count, walking + running distance)
+2. Packages it as a JSON evidence payload
+3. Submits it to the `/api/aivm/intake` endpoint
+4. Authenticates via a signed evidence token from the webapp
+
+## Requirements
+
+- Xcode 15+
+- iOS 17+ device (HealthKit requires a physical device)
+- Apple Developer account (free tier works for personal testing)
+
+## Setup
+
+### 1. Open the Project
+
+```bash
+open mobile/ios/LightChallengeApp/LightChallengeApp.xcodeproj
+```
+
+### 2. Configure Server URL
+
+Edit `Sources/Models/Models.swift` and set the server URL for your environment:
+
+- **UAT** (default): `https://uat.lightchallenge.app`
+- **Production**: `https://app.lightchallenge.app`
+- **Local dev**: Replace `YOUR_MAC_IP` with your Mac's LAN IP address
+
+### 3. Signing
+
+In Xcode:
+1. Select the project in the navigator
+2. Go to **Signing & Capabilities**
+3. Select your personal team
+4. Let Xcode manage signing automatically
+
+### 4. Build and Run
+
+Select your iPhone as the target device and press **Cmd+R**.
+
+## Usage Flow
+
+### Full Authenticated Flow (Recommended)
+
+1. Open the webapp in a browser and connect your wallet
+2. Navigate to a challenge's proof page
+3. Select "Apple Health" as the evidence source
+4. Click **"Sign & Generate QR"** — this signs a one-time token with your wallet
+5. Scan the QR code with your iPhone camera
+6. The app opens via deep link with the auth token pre-filled
+7. Grant HealthKit permissions when prompted
+8. Tap **"Collect Health Data"** then **"Submit Evidence"**
+
+### How Authentication Works
+
+The webapp generates an EIP-191 signed message:
+```
+lightchallenge-evidence:{challengeId}:{subject}:{expires}
+```
+
+This signature is embedded in the deep link URL and sent with the evidence submission. The server recovers the signer and verifies it matches the wallet address.
+
+## HealthKit Permissions
+
+The app requests **read-only** access to:
+- `HKQuantityType(.stepCount)` — Daily step counts
+- `HKQuantityType(.distanceWalkingRunning)` — Walking and running distance
+
+No write permissions are requested. No clinical health records are accessed.
+
+## Deep Link Format
+
+```
+lightchallenge://challenge/{id}?subject={wallet}&token={signature}&expires={timestamp}
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `id` | Challenge ID |
+| `subject` | Wallet address (0x...) |
+| `token` | EIP-191 signature from webapp |
+| `expires` | Token expiry timestamp (ms) |
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| App won't install | Trust developer cert: Settings → General → VPN & Device Management |
+| Network error on submit | Ensure iPhone and Mac are on same Wi-Fi; check IP in Models.swift |
+| HealthKit permission denied | Re-enable in Settings → Health → Data Access |
+| "No auth token" warning | Open the app via QR code from the webapp, not directly |
+| Deep link doesn't open app | Rebuild and reinstall the app to register URL scheme |

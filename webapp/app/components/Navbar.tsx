@@ -6,6 +6,7 @@ import { useEffect, useRef, useMemo, useState } from "react";
 import { useAccount, useReadContract } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import ThemeSwitcher from "./theme/ThemeIconToggle";
+import NetworkStatus from "./NetworkStatus";
 import { ADDR, ABI, ZERO_ADDR } from "@/lib/contracts";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -295,6 +296,7 @@ export default function Navbar() {
 
           {/* Desktop right controls */}
           <div className="hidden md:flex items-center gap-3 shrink-0">
+            <NetworkStatus />
             <ThemeSwitcher />
             <RememberSwitch />
             <WalletButton />

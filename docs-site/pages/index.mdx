@@ -1,0 +1,49 @@
+# LightChallenge
+
+**Challenges verified by decentralized AI.**
+
+LightChallenge is an on-chain challenge protocol where users stake cryptocurrency on personal goals — fitness targets, gaming wins, skill achievements — and submit real-world evidence that is verified by the [Lightchain AI](https://lightchain.ai) network.
+
+## What Makes It Different
+
+- **Trustless verification** — Evidence is verified by the Lightchain AIVM network, not a central authority
+- **On-chain settlement** — Stakes, outcomes, and rewards are managed by smart contracts
+- **Multi-category** — Fitness (steps, distance), gaming (Dota 2, CS2, LoL), and custom challenges
+- **Real evidence** — Apple Health data, gaming API stats, manual uploads — all cryptographically bound
+
+## Quick Links
+
+- [How It Works](/how-it-works) — End-to-end flow from challenge creation to reward payout
+- [Protocol](/protocol) — Detailed protocol specification
+- [Architecture](/architecture) — Smart contracts, off-chain services, and AI verification
+- [Developer Guide](/guides/deploy) — Set up the project locally
+- [iOS Collector](/ios) — HealthKit integration for Apple Health evidence
+- [API Reference](/api) — Backend API endpoints
+
+## Challenge Categories
+
+| Category | Sources | Examples |
+|----------|---------|----------|
+| **Fitness** | Apple Health, Strava, Garmin, Fitbit, Google Fit | 10k steps/day, run 5km, cycle 100km |
+| **Gaming** | Dota 2 (OpenDota), CS2 (FACEIT), League of Legends (Riot) | Win 3 matches, reach rank X |
+| **Custom** | Manual upload with verifier attestation | Any verifiable goal |
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Smart Contracts | Solidity 0.8.24, Hardhat, ethers v6 |
+| Webapp | Next.js 14, TypeScript, wagmi v2, RainbowKit |
+| Off-chain | TypeScript workers, PostgreSQL, polling indexers |
+| AI Verification | Lightchain AIVM (PoI consensus) |
+| Mobile | Swift/SwiftUI, HealthKit |
+| Chain | Lightchain testnet (chain ID 504) |
+
+## Network
+
+| Resource | URL |
+|----------|-----|
+| App (UAT) | [uat.lightchallenge.app](https://uat.lightchallenge.app) |
+| RPC | `https://light-testnet-rpc.lightchain.ai` |
+| Explorer | [testnet.lightscan.app](https://testnet.lightscan.app) |
+| GitHub | [github.com/marinom2/lightchallenge](https://github.com/marinom2/lightchallenge) |

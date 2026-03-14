@@ -1,0 +1,113 @@
+# Architecture
+
+LightChallenge is a full-stack Web3 protocol with smart contracts, off-chain services, a webapp, and a mobile evidence collector.
+
+## Repository Structure
+
+```
+lightchallenge/
+├── contracts/           # Solidity smart contracts
+├── deploy/              # Hardhat deploy scripts
+├── offchain/            # TypeScript off-chain services
+│   ├── adapters/        # Evidence source adapters (OpenDota, Riot, etc.)
+│   ├── connectors/      # Data provider connectors (Apple, Strava, Garmin)
+│   ├── db/              # Database access layer
+│   ├── evaluators/      # Evidence evaluation logic
+│   ├── identity/        # Identity binding registry
+│   ├── indexers/        # On-chain event indexers
+│   ├── lib/             # Shared utilities
+│   └── workers/         # Polling worker processes
+├── webapp/              # Next.js 14 web application
+│   ├── app/             # App router pages and API routes
+│   ├── lib/             # Client-side utilities
+│   └── public/          # Static assets, ABIs, deployments
+├── mobile/ios/          # iOS HealthKit evidence collector
+├── db/                  # Database migrations and seed scripts
+├── schemas/             # JSON schemas for challenge rules
+├── scripts/             # Deploy, admin, and operations scripts
+└── docs-site/           # Documentation portal (Nextra)
+```
+
+## Smart Contracts
+
+| Contract | Purpose |
+|----------|---------|
+| **ChallengePay** | Core contract: challenge lifecycle, stakes, claims |
+| **EventChallengeRouter** | Multi-outcome event routing and resolution |
+| **Treasury** | DAO treasury with bucketed custody and pull-based claims |
+| **MetadataRegistry** | Off-chain metadata URI storage |
+| **TrustedForwarder** | EIP-2771 gasless transaction relay |
+| **ChallengeTaskRegistry** | Binds challenges to AIVM task IDs |
+| **ChallengePayAivmPoiVerifier** | AIVM Proof-of-Intelligence verification adapter |
+| **ChallengeAchievement** | NFT achievements for challenge milestones |
+
+### Challenge Lifecycle (ChallengePay V1)
+
+```
+Active → (proof submitted) → Finalized (Success/Fail)
+Active → (deadline passed) → Finalized (Expired)
+Active → (admin cancel)   → Canceled → Refundable
+```
+
+### Verification Path
+
+The active verification path uses **ChallengePayAivmPoiVerifier**, which:
+1. Receives a proof submission containing an AIVM inference result
+2. Verifies the result was finalized by the Lightchain AIVM network (PoI consensus)
+3. Calls `ChallengePay.finalize()` with the verified outcome
+
+## Off-chain Services
+
+### Workers
+
+| Worker | Purpose | Poll Interval |
+|--------|---------|--------------|
+| **evidenceCollector** | Polls provider APIs for activity data | 5 min |
+| **evidenceEvaluator** | Evaluates evidence → verdicts | 15s |
+| **challengeDispatcher** | Queues verdicts as AIVM jobs | 10s |
+| **challengeWorker** | Submits AIVM inference requests | 5s |
+
+### Indexers
+
+| Indexer | Purpose | Poll Interval |
+|---------|---------|--------------|
+| **aivmIndexer** | Watches AIVM events, bridges finalization | 4s |
+| **statusIndexer** | Syncs ChallengePay status → DB | 6s |
+| **claimsIndexer** | Indexes claim events → DB | 6s |
+
+### Database
+
+PostgreSQL (Neon) with tables for challenges, participants, evidence, verdicts, AIVM jobs, identity bindings, and claims.
+
+## Lightchain AIVM Integration
+
+LightChallenge is a **client** of the Lightchain AIVM network:
+
+1. **Request** — Our `challengeWorker` submits an inference request via `requestInferenceV2()`
+2. **Process** — Lightchain native workers commit, reveal, and attest results
+3. **Finalize** — The network emits `InferenceFinalized` when quorum is reached
+4. **Bridge** — Our `aivmIndexer` catches the event and calls `submitProofFor()` + `finalize()` on ChallengePay
+
+We do NOT run AIVM workers or validators — the Lightchain network handles verification independently.
+
+## Webapp
+
+Next.js 14 with App Router. Key pages:
+
+| Page | Path | Purpose |
+|------|------|---------|
+| Home | `/` | Landing page with stats and navigation |
+| Explore | `/explore` | Browse and search challenges |
+| Create | `/challenges/create` | 4-step challenge creation wizard |
+| Challenge Detail | `/challenge/[id]` | Full challenge view with actions |
+| My Challenges | `/me/challenges` | User's challenge dashboard |
+| Claims | `/claims` | Claim rewards from finalized challenges |
+| Proofs | `/proofs` | Submit evidence for verification |
+| Admin | `/admin` | Template, model, and challenge management |
+
+### Wallet Integration
+
+- **wagmi v2** for chain interaction
+- **RainbowKit** for connect UI
+- **WalletConnect v2** for mobile wallets and Safari
+- Supports: MetaMask, WalletConnect, Coinbase Wallet, Rainbow, Trust Wallet, Phantom
