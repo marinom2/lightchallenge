@@ -188,8 +188,7 @@ export default function Step1_Intent({
   return (
     <div className="space-y-5">
       <Section
-        title="Pick what you're creating"
-        subtitle="Choose the challenge category and type."
+        title="What type of challenge?"
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <TypeCard
@@ -211,7 +210,6 @@ export default function Step1_Intent({
 
       <Section
         title="Visibility"
-        subtitle="Public challenges appear in discovery. Private challenges are share-link only."
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <TypeCard
@@ -234,7 +232,6 @@ export default function Step1_Intent({
       {type === "GAMING" ? (
         <Section
           title="Game"
-          subtitle="Choose the game for your challenge."
         >
           <SelectCards
             value={state.intent.gameId ?? null}
@@ -271,8 +268,7 @@ export default function Step1_Intent({
 
       {type === "FITNESS" ? (
         <Section
-          title="Activity type"
-          subtitle="Choose the fitness activity."
+          title="Activity"
         >
           <SelectCards
             value={state.intent.fitnessKind ?? null}

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Info } from "lucide-react";
+import { Info, ShieldCheck, Sparkles, CheckCircle2 } from "lucide-react";
 import { isAddress } from "viem";
 
 import type {
@@ -21,7 +21,6 @@ import {
 import { getModelFromRegistry } from "@/lib/modelRegistry";
 import deploymentData from "@/public/deployments/lightchain.json";
 import {
-  VERIFICATION_BACKEND_LABEL,
   type VerificationBackend,
 } from "../../lib/proof";
 import {
@@ -51,158 +50,15 @@ function shallowEqualRecord(
 ): boolean {
   const aKeys = Object.keys(a);
   const bKeys = Object.keys(b);
-
   if (aKeys.length !== bKeys.length) return false;
-
   for (const key of aKeys) {
     if (!Object.prototype.hasOwnProperty.call(b, key)) return false;
     if (a[key] !== b[key]) return false;
   }
-
   return true;
 }
 
-function Segmented<T extends string>({
-  value,
-  onChange,
-  items,
-}: {
-  value: T;
-  onChange: (next: T) => void;
-  items: Array<{ value: T; label: string; hint?: string }>;
-}) {
-  return (
-    <div
-      className="grid gap-2 sm:grid-cols-2"
-      style={{
-        gridTemplateColumns: `repeat(${Math.min(items.length, 4)}, minmax(0, 1fr))`,
-      }}
-    >
-      {items.map((item) => {
-        const active = item.value === value;
-
-        return (
-          <button
-            key={item.value}
-            type="button"
-            onClick={() => onChange(item.value)}
-            className="rounded-2xl border px-4 py-3 text-left transition"
-            style={{
-              borderColor: active
-                ? "color-mix(in oklab, var(--grad-2) 55%, var(--border))"
-                : "color-mix(in oklab, var(--border) 80%, transparent)",
-              background: active
-                ? "linear-gradient(180deg, color-mix(in oklab, var(--grad-2) 10%, transparent), color-mix(in oklab, var(--surface) 88%, transparent))"
-                : "color-mix(in oklab, var(--surface) 92%, transparent)",
-              boxShadow: active
-                ? "0 0 0 1px color-mix(in oklab, var(--grad-2) 20%, transparent) inset"
-                : "none",
-              cursor: "pointer",
-            }}
-          >
-            <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-              {item.label}
-            </div>
-            {item.hint ? (
-              <div className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
-                {item.hint}
-              </div>
-            ) : null}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function Section({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section
-      className="rounded-3xl border p-5"
-      style={{
-        borderColor: "color-mix(in oklab, var(--border) 80%, transparent)",
-        background: "color-mix(in oklab, var(--surface) 92%, transparent)",
-      }}
-    >
-      <div className="mb-4">
-        <div className="text-base font-semibold" style={{ color: "var(--text)" }}>
-          {title}
-        </div>
-        {subtitle ? (
-          <div className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
-            {subtitle}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="space-y-4">{children}</div>
-    </section>
-  );
-}
-
-function Label({ children }: { children: React.ReactNode }) {
-  return (
-    <label className="block text-sm font-medium" style={{ color: "var(--text)" }}>
-      {children}
-    </label>
-  );
-}
-
-function HintBox({
-  tone = "neutral",
-  title,
-  children,
-}: {
-  tone?: "neutral" | "ok" | "warn";
-  title: string;
-  children: React.ReactNode;
-}) {
-  const styles =
-    tone === "ok"
-      ? {
-          borderColor: "color-mix(in oklab, var(--ok, #22c55e) 35%, var(--border))",
-          iconColor: "var(--ok, #22c55e)",
-        }
-      : tone === "warn"
-      ? {
-          borderColor: "color-mix(in oklab, var(--warn, #f59e0b) 35%, var(--border))",
-          iconColor: "var(--warn, #f59e0b)",
-        }
-      : {
-          borderColor: "color-mix(in oklab, var(--border) 80%, transparent)",
-          iconColor: "var(--text-muted)",
-        };
-
-  return (
-    <div
-      className="rounded-2xl border px-4 py-3"
-      style={{
-        borderColor: styles.borderColor,
-        background: "color-mix(in oklab, var(--surface-2) 92%, transparent)",
-      }}
-    >
-      <div className="flex items-start gap-3">
-        <Info size={18} style={{ color: styles.iconColor }} />
-        <div>
-          <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-            {title}
-          </div>
-          <div className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
-            {children}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+/* ── Template requirement fields ── */
 
 function TemplateRequirements({
   template,
@@ -216,36 +72,29 @@ function TemplateRequirements({
   if (!template) return null;
 
   const setField = (key: string, value: unknown) => {
-    dispatch({
-      type: "SET_AIVM_FORM",
-      payload: { [key]: value },
-    });
+    dispatch({ type: "SET_AIVM_FORM", payload: { [key]: value } });
   };
 
   const editableFields = template.fields.filter((f) => f.kind !== "readonly");
   if (editableFields.length === 0) return null;
 
   return (
-    <div className="space-y-3">
-      <div>
-        <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-          Template requirements
-        </div>
-        <div className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
-          These parameters are required for the selected Lightchain AIVM template.
-        </div>
+    <div className="cw-requirements">
+      <div className="cw-requirements__header">
+        <Sparkles size={14} />
+        <span>Challenge parameters</span>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="cw-requirements__grid">
         {editableFields.map((field) => {
           const raw = state.aivmForm?.[field.key];
 
           if (field.kind === "number") {
             return (
-              <div key={field.key} className="space-y-2">
-                <Label>{field.label}</Label>
+              <label key={field.key} className="cw-field">
+                <span className="cw-field__label">{field.label}</span>
                 <input
-                  className="input w-full"
+                  className="input"
                   type="number"
                   min={field.min}
                   step={field.step ?? 1}
@@ -253,21 +102,21 @@ function TemplateRequirements({
                   onChange={(e) => setField(field.key, e.target.value)}
                   placeholder={field.default != null ? String(field.default) : ""}
                 />
-              </div>
+              </label>
             );
           }
 
           if (field.kind === "text") {
             return (
-              <div key={field.key} className="space-y-2">
-                <Label>{field.label}</Label>
+              <label key={field.key} className="cw-field">
+                <span className="cw-field__label">{field.label}</span>
                 <input
-                  className="input w-full"
+                  className="input"
                   value={raw == null ? "" : String(raw)}
                   onChange={(e) => setField(field.key, e.target.value)}
                   placeholder={field.default ?? ""}
                 />
-              </div>
+              </label>
             );
           }
 
@@ -276,10 +125,10 @@ function TemplateRequirements({
 
             if (options.length > 0) {
               return (
-                <div key={field.key} className="space-y-2">
-                  <Label>{field.label}</Label>
+                <label key={field.key} className="cw-field">
+                  <span className="cw-field__label">{field.label}</span>
                   <select
-                    className="input w-full"
+                    className="input"
                     value={raw == null ? "" : String(raw)}
                     onChange={(e) => setField(field.key, e.target.value)}
                   >
@@ -290,20 +139,20 @@ function TemplateRequirements({
                       </option>
                     ))}
                   </select>
-                </div>
+                </label>
               );
             }
 
             return (
-              <div key={field.key} className="space-y-2">
-                <Label>{field.label}</Label>
+              <label key={field.key} className="cw-field">
+                <span className="cw-field__label">{field.label}</span>
                 <input
-                  className="input w-full"
+                  className="input"
                   value={raw == null ? "" : String(raw)}
                   onChange={(e) => setField(field.key, e.target.value)}
                   placeholder="Enter value"
                 />
-              </div>
+              </label>
             );
           }
 
@@ -314,6 +163,36 @@ function TemplateRequirements({
   );
 }
 
+/* ── Settlement info tooltip ── */
+
+function SettlementTooltip() {
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <span className="cw-info-tip">
+      <button
+        type="button"
+        className="cw-info-tip__trigger"
+        onClick={() => setOpen((p) => !p)}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        aria-label="How settlement works"
+      >
+        <Info size={14} />
+      </button>
+
+      {open ? (
+        <span className="cw-info-tip__bubble" role="tooltip">
+          Results are verified through Lightchain&apos;s decentralized AI network.
+          The settlement lifecycle: request → commit → reveal → PoI attestation → finalize.
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/* ── Main component ── */
+
 export default function Step3_Options({
   state,
   dispatch,
@@ -322,9 +201,6 @@ export default function Step3_Options({
   dispatch: React.Dispatch<Action>;
 }) {
   const style = (state.verification.style ?? "SIMPLE") as VerificationStyle;
-  const backend =
-    (state.verification.backend as VerificationBackend | null | undefined) ??
-    FIXED_BACKEND;
 
   const templateId =
     state.aivmForm?.templateId ?? state.verification.templateId ?? "";
@@ -334,18 +210,10 @@ export default function Step3_Options({
 
   React.useEffect(() => {
     let alive = true;
-
     ensureTemplateRegistryLoaded()
-      .then(() => {
-        if (alive) setRegistryReady(true);
-      })
-      .catch(() => {
-        if (alive) setRegistryReady(true);
-      });
-
-    return () => {
-      alive = false;
-    };
+      .then(() => { if (alive) setRegistryReady(true); })
+      .catch(() => { if (alive) setRegistryReady(true); });
+    return () => { alive = false; };
   }, []);
 
   const templates = React.useMemo(() => {
@@ -369,26 +237,22 @@ export default function Step3_Options({
 
   const verifierValid = !!verifier && isAddress(String(verifier));
 
+  /* ── Auto-fill template defaults ── */
   React.useEffect(() => {
     if (!selectedTemplate) return;
-
     const nextForm = buildTemplateDefaultFormState(selectedTemplate, state.aivmForm);
     const currentForm = state.aivmForm ?? { templateId: null };
-
     if (!shallowEqualRecord(nextForm, currentForm)) {
-      dispatch({
-        type: "SET_AIVM_FORM",
-        payload: nextForm,
-      });
+      dispatch({ type: "SET_AIVM_FORM", payload: nextForm });
     }
   }, [dispatch, selectedTemplate, state.aivmForm]);
 
+  /* ── Sync verification state ── */
   React.useEffect(() => {
     let cancelled = false;
 
     async function syncVerificationState() {
       if (!templateId) return;
-
       const tpl = getTemplateByIdSync(templateId);
       if (!tpl?.modelId) return;
 
@@ -400,7 +264,7 @@ export default function Step3_Options({
         form: state.aivmForm ?? {},
         intent: state.intent,
       });
-      
+
       const paramsHash = buildCanonicalAivmParamsHash({
         templateId,
         form: state.aivmForm ?? {},
@@ -442,10 +306,7 @@ export default function Step3_Options({
     }
 
     void syncVerificationState();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [
     templateId,
     style,
@@ -461,228 +322,100 @@ export default function Step3_Options({
     dispatch,
   ]);
 
-  const styleItems: Array<{
-    value: VerificationStyle;
-    label: string;
-    hint: string;
-  }> = [
-    {
-      value: "SIMPLE",
-      label: "Simple",
-      hint: "Recommended. Auto-fills the correct Lightchain PoI verifier and hides unnecessary controls.",
-    },
-    {
-      value: "ADVANCED",
-      label: "Advanced",
-      hint: "Manual control for verifier address while keeping the Lightchain AIVM + PoI flow.",
-    },
-  ];
-
   return (
     <div className="space-y-5">
-      <Section
-        title="Verification"
-        subtitle="This challenge uses Lightchain AIVM with PoI settlement. Select a template and confirm the verifier."
-      >
-        <div className="space-y-2">
-          <Label>Style</Label>
-          <Segmented
-            value={style}
-            onChange={(next) =>
-              dispatch({ type: "SET_VERIFICATION_STYLE", payload: next })
-            }
-            items={styleItems}
-          />
+      {/* ── AIVM + PoI verification badge ── */}
+      <div className="cw-verification-badge">
+        <div className="cw-verification-badge__icon">
+          <ShieldCheck size={20} />
         </div>
-
-        <HintBox tone="ok" title="Settlement path">
-          Backend:{" "}
-          <span className="font-semibold">
-            {VERIFICATION_BACKEND_LABEL[backend]}
+        <div className="cw-verification-badge__text">
+          <span className="cw-verification-badge__title">
+            Lightchain AIVM + PoI
+            <SettlementTooltip />
           </span>
-          . This challenge will use the Lightchain async lifecycle:
-          request → commit → reveal → PoI attestation → finalize.
-        </HintBox>
-
-        <div className="space-y-2">
-          <Label>Mode</Label>
-          <div
-            className="rounded-2xl border px-4 py-3"
-            style={{
-              borderColor: "color-mix(in oklab, var(--grad-2) 55%, var(--border))",
-              background:
-                "linear-gradient(180deg, color-mix(in oklab, var(--grad-2) 10%, transparent), color-mix(in oklab, var(--surface) 88%, transparent))",
-              boxShadow:
-                "0 0 0 1px color-mix(in oklab, var(--grad-2) 20%, transparent) inset",
-            }}
-          >
-            <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-              Lightchain AIVM
-            </div>
-            <div className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
-              Fixed mode for this flow. The verifier path is Lightchain AIVM + PoI.
-            </div>
-          </div>
+          <span className="cw-verification-badge__sub">
+            Decentralized AI verification with Proof-of-Intelligence
+          </span>
         </div>
-
-        <div className="space-y-3">
-          <Label>Template</Label>
-
-          {templates.length === 0 ? (
-            <div
-              className="rounded-2xl border px-4 py-3 text-sm"
-              style={{
-                borderColor: "color-mix(in oklab, var(--border) 80%, transparent)",
-                background: "color-mix(in oklab, var(--surface-2) 92%, transparent)",
-                color: "var(--text-muted)",
-              }}
-            >
-              {registryReady
-                ? "No templates available for the selected challenge type."
-                : "Loading templates…"}
-            </div>
-          ) : (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {templates.map((tpl) => {
-                const active = tpl.id === templateId;
-                return (
-                  <button
-                    key={tpl.id}
-                    type="button"
-                    onClick={() => {
-                      const nextId = tpl.id;
-                      dispatch({ type: "SET_AIVM_FORM", payload: { templateId: nextId } });
-                      dispatch({
-                        type: "SET_VERIFICATION",
-                        payload: {
-                          mode: FIXED_MODE,
-                          backend: FIXED_BACKEND,
-                          templateId: nextId,
-                          modelId: null,
-                          modelHash: null,
-                          params: undefined,
-                          paramsHash: undefined,
-                          benchmarkHash: undefined,
-                          verifier: null,
-                        },
-                      });
-                    }}
-                    className="rounded-2xl border px-4 py-3 text-left transition"
-                    style={{
-                      borderColor: active
-                        ? "color-mix(in oklab, var(--grad-2) 55%, var(--border))"
-                        : "color-mix(in oklab, var(--border) 80%, transparent)",
-                      background: active
-                        ? "linear-gradient(180deg, color-mix(in oklab, var(--grad-2) 10%, transparent), color-mix(in oklab, var(--surface) 88%, transparent))"
-                        : "color-mix(in oklab, var(--surface) 92%, transparent)",
-                      boxShadow: active
-                        ? "0 0 0 1px color-mix(in oklab, var(--grad-2) 20%, transparent) inset"
-                        : "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-                        {tpl.name}
-                      </div>
-                      {active && (
-                        <div
-                          className="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold"
-                          style={{
-                            borderColor: "color-mix(in oklab, var(--grad-2) 55%, var(--border))",
-                            background: "color-mix(in oklab, var(--grad-2) 10%, var(--surface))",
-                            color: "var(--text)",
-                            border: "1px solid",
-                          }}
-                        >
-                          Selected
-                        </div>
-                      )}
-                    </div>
-                    {tpl.hint ? (
-                      <div className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
-                        {tpl.hint}
-                      </div>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          <div className="text-xs" style={{ color: "var(--text-muted)" }}>
-            Templates define the model, required params, and the deterministic input used later by the AIVM PoI pipeline.
-          </div>
-        </div>
-
-        {selectedTemplate ? (
-          <TemplateRequirements
-            template={selectedTemplate}
-            state={state}
-            dispatch={dispatch}
-          />
-        ) : (
-          <HintBox title="Template required">
-            Choose a template first. That resolves the model, canonical params payload, and params hash used by the PoI flow.
-          </HintBox>
-        )}
-
-        {selectedTemplate ? (
-          <div
-            className="rounded-2xl border px-4 py-3"
-            style={{
-              borderColor: "color-mix(in oklab, var(--border) 80%, transparent)",
-              background: "color-mix(in oklab, var(--surface-2) 92%, transparent)",
-            }}
-          >
-            <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-              Selected model
-            </div>
-            <div className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
-              {state.verification.modelId ?? selectedTemplate.modelId ?? "—"}
-            </div>
-          </div>
-        ) : null}
-
-        <HintBox
-          tone={verifierValid ? "ok" : "warn"}
-          title={style === "SIMPLE" ? "Verifier resolved from backend" : "Verifier contract"}
-        >
+        <div className="cw-verification-badge__status">
           {verifierValid ? (
-            <>
-              Current verifier: <span className="font-mono">{String(verifier)}</span>
-            </>
-          ) : deployedDefaultVerifier ? (
-            <>
-              Default fallback:{" "}
-              <span className="font-mono">{deployedDefaultVerifier}</span>
-            </>
-          ) : (
-            "No verifier was found in deployments/lightchain.json."
-          )}
-        </HintBox>
+            <CheckCircle2 size={16} className="cw-verification-badge__ok" />
+          ) : null}
+        </div>
+      </div>
 
-        {style === "ADVANCED" ? (
-          <div className="space-y-2">
-            <Label>Verifier address</Label>
-            <input
-              className="input w-full font-mono"
-              placeholder="0x..."
-              value={verifier ?? ""}
-              onChange={(e) =>
-                dispatch({
-                  type: "SET_VERIFICATION",
-                  payload: { verifier: (e.target.value || null) as any },
-                })
-              }
-            />
-            <div className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Advanced mode can override the default ChallengePay Lightchain PoI verifier, but usually should not.
-            </div>
+      {/* ── Template selection ── */}
+      <div className="cw-section">
+        <div className="cw-section__head">
+          <h3 className="cw-section__title">Choose a template</h3>
+          <p className="cw-section__sub">
+            Select the verification model for your challenge.
+          </p>
+        </div>
+
+        {templates.length === 0 ? (
+          <div className="cw-empty-templates">
+            {registryReady
+              ? "No templates available for this challenge type."
+              : "Loading…"}
           </div>
-        ) : null}
-      </Section>
+        ) : (
+          <div className="cw-template-grid">
+            {templates.map((tpl) => {
+              const active = tpl.id === templateId;
+              return (
+                <button
+                  key={tpl.id}
+                  type="button"
+                  onClick={() => {
+                    dispatch({ type: "SET_AIVM_FORM", payload: { templateId: tpl.id } });
+                    dispatch({
+                      type: "SET_VERIFICATION",
+                      payload: {
+                        mode: FIXED_MODE,
+                        backend: FIXED_BACKEND,
+                        templateId: tpl.id,
+                        modelId: null,
+                        modelHash: null,
+                        params: undefined,
+                        paramsHash: undefined,
+                        benchmarkHash: undefined,
+                        verifier: null,
+                      },
+                    });
+                  }}
+                  className={`cw-template-card ${active ? "is-selected" : ""}`}
+                >
+                  <div className="cw-template-card__head">
+                    <span className="cw-template-card__name">{tpl.name}</span>
+                    {active ? (
+                      <CheckCircle2 size={16} className="cw-template-card__check" />
+                    ) : null}
+                  </div>
+                  {tpl.hint ? (
+                    <span className="cw-template-card__hint">{tpl.hint}</span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
+      {/* ── Template requirements (if selected) ── */}
+      {selectedTemplate ? (
+        <TemplateRequirements
+          template={selectedTemplate}
+          state={state}
+          dispatch={dispatch}
+        />
+      ) : (
+        <div className="cw-pick-hint">
+          <Sparkles size={16} />
+          <span>Pick a template above to configure your challenge parameters.</span>
+        </div>
+      )}
     </div>
   );
 }

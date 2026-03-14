@@ -42,8 +42,8 @@ export default function Step4_Review(props: {
     props.policyHints?.tokenAllowed === false;
 
   const policyIssues = [
-    props.policyHints?.paused ? "Protocol is paused." : null,
-    tokenAllowBlocked ? "Selected ERC20 token is not allowed by the on-chain allowlist." : null,
+    props.policyHints?.paused ? "Protocol is currently paused." : null,
+    tokenAllowBlocked ? "Selected token is not on the allowlist." : null,
   ].filter(Boolean) as string[];
 
   const openTx = () => {
@@ -63,77 +63,61 @@ export default function Step4_Review(props: {
       {hasErrors ? (
         <Callout tone="warn" title="Fix before creating">
           <ul className="mt-2 space-y-1">
-            {errors.slice(0, 10).map((e, i) => (
+            {errors.slice(0, 6).map((e, i) => (
               <li key={i} className="flex items-start gap-2">
-                <AlertTriangle size={16} className="mt-0.5" />
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                 <span className="text-sm">{e}</span>
               </li>
             ))}
           </ul>
         </Callout>
+      ) : policyIssues.length > 0 ? (
+        <Callout tone="warn" title="Policy issue">
+          {policyIssues.map((issue, i) => (
+            <div key={i} className="text-sm">{issue}</div>
+          ))}
+        </Callout>
       ) : (
-        <Callout tone="ok" title="Looks good">
-          Your config is structurally valid. Review the policy checks below and create when ready.
+        <Callout tone="ok" title="Ready to create">
+          Everything looks good. Hit Create to submit your challenge on-chain.
         </Callout>
       )}
 
-      {policyIssues.length > 0 ? (
-        <Callout tone="warn" title="Chain policy issues">
-          <ul className="mt-2 space-y-1">
-            {policyIssues.map((issue, i) => (
-              <li key={i} className="text-sm">
-                {issue}
-              </li>
-            ))}
-          </ul>
-        </Callout>
-      ) : null}
-
-      <div className="panel p-4" style={{ borderColor: "var(--border)" }}>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-sm font-semibold">Ready to submit</div>
-            <div className="text-xs text-(--text-muted)">
-              This sends a wallet transaction calling <span className="font-mono">createChallenge</span>.
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
+      {/* ── Submit bar ── */}
+      <div className="cw-submit-bar">
+        {props.txHash ? (
+          <div className="cw-submit-bar__tx">
             <button
               type="button"
-              className="btn btn-ghost"
-              disabled={!props.txHash}
+              className="btn btn-ghost btn-sm"
               onClick={async () => {
                 if (!props.txHash) return;
                 const ok = await copySafe(props.txHash);
-                push(ok ? "Tx hash copied" : "Could not copy tx hash");
+                push(ok ? "Copied" : "Could not copy");
               }}
             >
-              <Copy size={16} />
+              <Copy size={14} />
               Copy tx
             </button>
-
             <button
               type="button"
-              className="btn btn-ghost"
-              disabled={!props.txHash}
+              className="btn btn-ghost btn-sm"
               onClick={openTx}
             >
-              <ExternalLink size={16} />
+              <ExternalLink size={14} />
               Explorer
             </button>
-
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={!props.canCreate || props.creating}
-              onClick={props.onCreate}
-              title={!props.canCreate ? "Fix the issues above before creating." : undefined}
-            >
-              {props.creating ? "Processing…" : "Create"}
-            </button>
           </div>
-        </div>
+        ) : null}
+
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={!props.canCreate || props.creating}
+          onClick={props.onCreate}
+        >
+          {props.creating ? "Creating…" : "Create Challenge"}
+        </button>
       </div>
     </div>
   );

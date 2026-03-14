@@ -186,7 +186,7 @@ export default function Step2_Essentials({
     <div className="space-y-4">
       <BuilderCard
         title="Title & description"
-        subtitle="Make it clear what success looks like."
+        subtitle="What are participants competing to do?"
         done={basicsDone}
         active={activeCard === "basics"}
         onExpand={() => setActiveCard("basics")}
@@ -203,7 +203,7 @@ export default function Step2_Essentials({
         }
       >
         <div className="space-y-3">
-          <Field label="Title" hint="Short, specific, and objective.">
+          <Field label="Title" hint="Keep it short and specific.">
             <input
               className="input"
               value={state.essentials.title}
@@ -223,7 +223,7 @@ export default function Step2_Essentials({
 
           <Field
             label="Description"
-            hint="Optional, but recommended. Add rules, edge cases, or context."
+            hint="Optional. Add rules or context."
           >
             <textarea
               className="input"
@@ -243,7 +243,7 @@ export default function Step2_Essentials({
 
       <BuilderCard
         title="Tags"
-        subtitle="Helps discovery and sets context."
+        subtitle="Help others find your challenge."
         done={tagsDone}
         active={activeCard === "tags"}
         onExpand={() => setActiveCard("tags")}
@@ -262,7 +262,7 @@ export default function Step2_Essentials({
           )
         }
       >
-        <Field label="Tags" hint="Comma-separated. Max 8 tags.">
+        <Field label="Tags" hint="Comma-separated, up to 8.">
           <div className="flex items-center gap-2">
             <input
               className="input"
@@ -296,7 +296,7 @@ export default function Step2_Essentials({
 
       <BuilderCard
         title="Schedule"
-        subtitle="Earliest valid times are prefilled automatically. You can still adjust them."
+        subtitle="When does the challenge start and end?"
         done={scheduleDone}
         active={activeCard === "schedule"}
         onExpand={() => setActiveCard("schedule")}
@@ -336,7 +336,7 @@ export default function Step2_Essentials({
 
       <BuilderCard
         title="Stake"
-        subtitle="Funds are sent to Treasury on creation."
+        subtitle="How much are you putting up?"
         done={fundsDone}
         active={activeCard === "funds"}
         onExpand={() => setActiveCard("funds")}
@@ -349,10 +349,7 @@ export default function Step2_Essentials({
         }
       >
         <div className="space-y-3">
-          <Field
-            label="Currency"
-            hint="Native currency is recommended. Use ERC20 only when needed."
-          >
+          <Field label="Currency">
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -402,7 +399,7 @@ export default function Step2_Essentials({
 
           <div className="flex items-center gap-2 text-xs text-(--text-muted)">
             <Coins size={14} />
-            <span>Stake is sent to Treasury on creation.</span>
+            <span>Held in Treasury until challenge resolves.</span>
           </div>
         </div>
       </BuilderCard>
