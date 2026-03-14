@@ -23,3 +23,5 @@ export * from "./brackets";
 export * from "./seasons";
 export * from "./webhooks";
 export * from "./whitelabel";
+export * from "./disputes";
+export * from "./notifications";

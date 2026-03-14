@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "../../../../../../../../../offchain/db/pool";
+import { emitWebhookEvent } from "../../../../../../../../../offchain/workers/webhookDelivery";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string; mid: string } }) {
   try {
@@ -21,6 +22,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string;
     );
 
     if (!match) return NextResponse.json({ ok: false, error: "Match not found" }, { status: 404 });
+
+    // Emit webhook event for match completion
+    const { rows: [compRow] } = await pool.query(
+      `SELECT org_id FROM public.competitions WHERE id = $1`, [params.id]
+    );
+    if (compRow?.org_id) {
+      emitWebhookEvent(compRow.org_id, "match.completed", {
+        competition_id: params.id,
+        match_id: params.mid,
+        winner,
+        score_a,
+        score_b,
+      }).catch(() => {});
+    }
 
     // Advance winner to next round (for bracket type)
     let nextMatchInfo = null;

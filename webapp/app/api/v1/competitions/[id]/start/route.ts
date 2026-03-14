@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "../../../../../../../offchain/db/pool";
+import { emitWebhookEvent } from "../../../../../../../offchain/workers/webhookDelivery";
 
 function nextPow2(n: number): number { let p = 1; while (p < n) p *= 2; return p; }
 
@@ -9,7 +10,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   try {
     const pool = getPool();
     const { rows: [comp] } = await pool.query(
-      `SELECT id, type, status, settings FROM public.competitions WHERE id = $1`, [params.id]
+      `SELECT id, org_id, type, status, settings FROM public.competitions WHERE id = $1`, [params.id]
     );
     if (!comp) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
     if (comp.status !== "registration")
@@ -131,6 +132,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     await pool.query(
       `UPDATE public.competitions SET status = 'active', updated_at = now() WHERE id = $1`, [params.id]
     );
+
+    if (comp.org_id) {
+      emitWebhookEvent(comp.org_id, "competition.started", {
+        competition_id: params.id,
+      }).catch(() => {});
+    }
 
     return NextResponse.json({ ok: true, status: "active", participants: regs.length });
   } catch (e) {

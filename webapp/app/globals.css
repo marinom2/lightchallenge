@@ -4522,3 +4522,99 @@ html[data-theme="light"] .builder-card__ring--active {
     padding: var(--lc-space-3) var(--lc-space-4);
   }
 }
+
+/* ── Bracket / Tournament ────────────────────────────────────────────────── */
+
+.bracket-container {
+  display: flex;
+  gap: var(--lc-space-6);
+  padding: var(--lc-space-4) 0;
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+.bracket-round {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lc-space-4);
+  justify-content: space-around;
+  min-width: 220px;
+}
+
+.bracket-round__title {
+  font-size: var(--lc-text-caption);
+  font-weight: var(--lc-weight-semibold);
+  color: var(--lc-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--lc-space-2);
+}
+
+.bracket-match {
+  padding: var(--lc-space-3) var(--lc-space-4);
+  border-radius: var(--lc-radius-md);
+  border: 1px solid var(--lc-border);
+  background-color: var(--lc-bg-raised);
+  font-size: var(--lc-text-small);
+  transition: border-color var(--lc-dur-fast) var(--lc-ease);
+}
+
+.bracket-match:hover {
+  border-color: var(--lc-border-strong);
+}
+
+.bracket-match__player {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--lc-space-1) 0;
+}
+
+.bracket-match__player + .bracket-match__player {
+  border-top: 1px solid var(--lc-border);
+}
+
+.bracket-match__player--winner {
+  color: var(--lc-success);
+  font-weight: var(--lc-weight-semibold);
+}
+
+.bracket-match__player--loser {
+  color: var(--lc-text-muted);
+}
+
+.bracket-match__score {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--lc-weight-medium);
+  min-width: 1.5em;
+  text-align: right;
+}
+
+.bracket-connector {
+  position: relative;
+}
+
+.bracket-connector::after {
+  content: "";
+  position: absolute;
+  right: calc(-1 * var(--lc-space-6));
+  top: 50%;
+  width: var(--lc-space-6);
+  height: 1px;
+  background: var(--lc-border);
+}
+
+/* Mobile bracket responsiveness */
+@media (max-width: 767px) {
+  .bracket-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+  }
+  .bracket-round {
+    scroll-snap-align: start;
+    min-width: 260px;
+  }
+  .bracket-match {
+    font-size: var(--lc-text-small, 0.875rem);
+  }
+}

@@ -9,6 +9,7 @@ import Skeleton from "@/app/components/ui/Skeleton";
 import Tabs, { type Tab } from "@/app/components/ui/Tabs";
 import StatCard from "@/app/components/ui/StatCard";
 import EmptyState from "@/app/components/ui/EmptyState";
+import { useAuthFetch } from "@/lib/useAuthFetch";
 
 /* ── Types ─────────────────────────────────────────────────────────────────── */
 
@@ -172,6 +173,7 @@ export default function OrgDashboardPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params?.slug as string;
+  const { authFetch } = useAuthFetch();
 
   const [org, setOrg] = useState<Organization | null>(null);
   const [competitions, setCompetitions] = useState<OrgCompetition[]>([]);
@@ -181,6 +183,14 @@ export default function OrgDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("competitions");
+
+  /* Flash messages */
+  const [flash, setFlash] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const showFlash = useCallback((type: "success" | "error", message: string) => {
+    setFlash({ type, message });
+    setTimeout(() => setFlash(null), 4000);
+  }, []);
 
   /* Invite member form */
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -217,7 +227,7 @@ export default function OrgDashboardPage() {
 
     (async () => {
       try {
-        const res = await fetch(`/api/v1/organizations?slug=${encodeURIComponent(slug)}`);
+        const res = await authFetch(`/api/v1/organizations?slug=${encodeURIComponent(slug)}`);
         if (!res.ok) throw new Error(`Organization not found (${res.status})`);
         const data = await res.json();
         const orgData = Array.isArray(data) ? data[0] : data?.organization || data;
@@ -240,7 +250,7 @@ export default function OrgDashboardPage() {
     })();
 
     return () => { stop = true; };
-  }, [slug]);
+  }, [slug, authFetch]);
 
   /* Fetch org sub-resources */
   useEffect(() => {
@@ -250,7 +260,7 @@ export default function OrgDashboardPage() {
     const fetchAll = async () => {
       // Competitions
       try {
-        const res = await fetch(`/api/v1/organizations/${org.id}/competitions`);
+        const res = await authFetch(`/api/v1/organizations/${org.id}/competitions`);
         if (res.ok) {
           const data = await res.json();
           if (!stop) setCompetitions(Array.isArray(data?.competitions) ? data.competitions : Array.isArray(data) ? data : []);
@@ -259,7 +269,7 @@ export default function OrgDashboardPage() {
 
       // Members
       try {
-        const res = await fetch(`/api/v1/organizations/${org.id}/members`);
+        const res = await authFetch(`/api/v1/organizations/${org.id}/members`);
         if (res.ok) {
           const data = await res.json();
           if (!stop) setMembers(Array.isArray(data?.members) ? data.members : Array.isArray(data) ? data : []);
@@ -268,7 +278,7 @@ export default function OrgDashboardPage() {
 
       // Teams
       try {
-        const res = await fetch(`/api/v1/organizations/${org.id}/teams`);
+        const res = await authFetch(`/api/v1/organizations/${org.id}/teams`);
         if (res.ok) {
           const data = await res.json();
           if (!stop) setTeams(Array.isArray(data?.teams) ? data.teams : Array.isArray(data) ? data : []);
@@ -277,7 +287,7 @@ export default function OrgDashboardPage() {
 
       // Webhooks
       try {
-        const res = await fetch(`/api/v1/organizations/${org.id}/webhooks`);
+        const res = await authFetch(`/api/v1/organizations/${org.id}/webhooks`);
         if (res.ok) {
           const data = await res.json();
           if (!stop) setWebhooks(Array.isArray(data?.webhooks) ? data.webhooks : Array.isArray(data) ? data : []);
@@ -287,74 +297,88 @@ export default function OrgDashboardPage() {
 
     fetchAll();
     return () => { stop = true; };
-  }, [org?.id]);
+  }, [org?.id, authFetch]);
 
   /* Actions */
   const handleInviteMember = useCallback(async () => {
     if (!org?.id || !inviteWallet.trim()) return;
     setInviting(true);
     try {
-      const res = await fetch(`/api/v1/organizations/${org.id}/members`, {
+      const res = await authFetch(`/api/v1/organizations/${org.id}/members`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ wallet: inviteWallet.trim(), role: inviteRole }),
       });
-      if (!res.ok) throw new Error("Failed to invite member");
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.error || `Failed to invite member (${res.status})`);
+      }
       const data = await res.json();
       const newMember = data?.member || { wallet: inviteWallet.trim(), role: inviteRole, joined_at: new Date().toISOString() };
       setMembers((prev) => [...prev, newMember]);
       setInviteWallet("");
       setInviteOpen(false);
-    } catch {}
+      showFlash("success", "Member invited!");
+    } catch (e: any) {
+      showFlash("error", e?.message || "Failed to invite member");
+    }
     setInviting(false);
-  }, [org?.id, inviteWallet, inviteRole]);
+  }, [org?.id, inviteWallet, inviteRole, authFetch, showFlash]);
 
   const handleCreateTeam = useCallback(async () => {
     if (!org?.id || !teamName.trim()) return;
     setCreatingTeam(true);
     try {
-      const res = await fetch(`/api/v1/organizations/${org.id}/teams`, {
+      const res = await authFetch(`/api/v1/organizations/${org.id}/teams`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: teamName.trim(), tag: teamTag.trim() || teamName.trim().substring(0, 4).toUpperCase() }),
       });
-      if (!res.ok) throw new Error("Failed to create team");
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.error || `Failed to create team (${res.status})`);
+      }
       const data = await res.json();
       const newTeam = data?.team || { id: Date.now().toString(), name: teamName.trim(), tag: teamTag.trim(), roster_count: 0, created_at: new Date().toISOString() };
       setTeams((prev) => [...prev, newTeam]);
       setTeamName("");
       setTeamTag("");
       setTeamFormOpen(false);
-    } catch {}
+      showFlash("success", "Team created!");
+    } catch (e: any) {
+      showFlash("error", e?.message || "Failed to create team");
+    }
     setCreatingTeam(false);
-  }, [org?.id, teamName, teamTag]);
+  }, [org?.id, teamName, teamTag, authFetch, showFlash]);
 
   const handleAddWebhook = useCallback(async () => {
     if (!org?.id || !webhookUrl.trim()) return;
     setAddingWebhook(true);
     try {
-      const res = await fetch(`/api/v1/organizations/${org.id}/webhooks`, {
+      const res = await authFetch(`/api/v1/organizations/${org.id}/webhooks`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: webhookUrl.trim(), events: ["competition.created", "match.completed", "competition.finalized"] }),
       });
-      if (!res.ok) throw new Error("Failed to add webhook");
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.error || `Failed to add webhook (${res.status})`);
+      }
       const data = await res.json();
       const newHook = data?.webhook || { id: Date.now().toString(), url: webhookUrl.trim(), events: [], active: true, created_at: new Date().toISOString() };
       setWebhooks((prev) => [...prev, newHook]);
       setWebhookUrl("");
       setWebhookFormOpen(false);
-    } catch {}
+      showFlash("success", "Webhook added!");
+    } catch (e: any) {
+      showFlash("error", e?.message || "Failed to add webhook");
+    }
     setAddingWebhook(false);
-  }, [org?.id, webhookUrl]);
+  }, [org?.id, webhookUrl, authFetch, showFlash]);
 
   const handleSaveSettings = useCallback(async () => {
     if (!org?.id) return;
     setSavingSettings(true);
     try {
-      await fetch(`/api/v1/organizations/${org.id}`, {
+      const res = await authFetch(`/api/v1/organizations/${org.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: settingsForm.name,
           description: settingsForm.description,
@@ -367,11 +391,18 @@ export default function OrgDashboardPage() {
           },
         }),
       });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.error || `Failed to save settings (${res.status})`);
+      }
       // Refresh org data
       setOrg((prev) => prev ? { ...prev, name: settingsForm.name, description: settingsForm.description, website: settingsForm.website } : prev);
-    } catch {}
+      showFlash("success", "Settings saved!");
+    } catch (e: any) {
+      showFlash("error", e?.message || "Failed to save settings");
+    }
     setSavingSettings(false);
-  }, [org?.id, settingsForm]);
+  }, [org?.id, settingsForm, authFetch, showFlash]);
 
   const tabs: Tab[] = useMemo(
     () => [
@@ -420,6 +451,26 @@ export default function OrgDashboardPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+      {/* Flash message */}
+      {flash && (
+        <div
+          role="alert"
+          style={{
+            padding: "var(--lc-space-3) var(--lc-space-4)",
+            borderRadius: "var(--lc-radius-md)",
+            fontSize: "var(--lc-text-small)",
+            fontWeight: "var(--lc-weight-medium)" as any,
+            color: flash.type === "success" ? "var(--lc-success)" : "var(--lc-danger)",
+            backgroundColor: flash.type === "success" ? "var(--lc-success-muted)" : "var(--lc-danger-muted)",
+            border: `1px solid ${flash.type === "success" ? "var(--lc-success)" : "var(--lc-danger)"}`,
+            opacity: 0.95,
+            transition: "opacity var(--lc-dur-fast) var(--lc-ease)",
+          }}
+        >
+          {flash.message}
+        </div>
+      )}
+
       {/* Breadcrumb */}
       <Breadcrumb
         items={[

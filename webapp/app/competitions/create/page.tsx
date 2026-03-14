@@ -4,6 +4,7 @@ import React, { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Breadcrumb from "@/app/components/ui/Breadcrumb";
 import Badge from "@/app/components/ui/Badge";
+import { useAuthFetch } from "@/lib/useAuthFetch";
 
 /* ── Types ─────────────────────────────────────────────────────────────────── */
 
@@ -149,6 +150,7 @@ const cardStyle: React.CSSProperties = {
 
 export default function CreateCompetitionPage() {
   const router = useRouter();
+  const { authFetch, address } = useAuthFetch();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormState>(INITIAL_STATE);
   const [submitting, setSubmitting] = useState(false);
@@ -216,9 +218,8 @@ export default function CreateCompetitionPage() {
               : undefined,
         },
       };
-      const res = await fetch("/api/v1/competitions", {
+      const res = await authFetch("/api/v1/competitions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (!res.ok) {
@@ -237,7 +238,7 @@ export default function CreateCompetitionPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [form, router]);
+  }, [form, router, authFetch]);
 
   /* Split helpers */
   const updateSplit = useCallback(
@@ -310,6 +311,30 @@ export default function CreateCompetitionPage() {
           { label: "Create" },
         ]}
       />
+
+      {/* ── Wallet Gate ────────────────────────────────────────────────────── */}
+      {!address && (
+        <div
+          style={{
+            padding: "var(--lc-space-5)",
+            borderRadius: "var(--lc-radius-lg)",
+            border: "1px solid var(--lc-border)",
+            backgroundColor: "var(--lc-bg-raised)",
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "var(--lc-space-3)",
+          }}
+        >
+          <span style={{ fontSize: "var(--lc-text-subhead)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)" }}>
+            Connect wallet to create
+          </span>
+          <span style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)" }}>
+            You need a connected wallet to create a competition. Please connect your wallet first.
+          </span>
+        </div>
+      )}
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-3)" }}>
@@ -898,7 +923,7 @@ export default function CreateCompetitionPage() {
         ) : (
           <button
             onClick={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || !address}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -906,16 +931,16 @@ export default function CreateCompetitionPage() {
               padding: "10px 28px",
               borderRadius: "var(--lc-radius-md)",
               border: "none",
-              backgroundColor: "var(--lc-accent)",
-              color: "var(--lc-accent-text)",
+              backgroundColor: submitting || !address ? "var(--lc-bg-overlay)" : "var(--lc-accent)",
+              color: submitting || !address ? "var(--lc-text-muted)" : "var(--lc-accent-text)",
               fontSize: "var(--lc-text-small)",
               fontWeight: "var(--lc-weight-semibold)" as any,
-              cursor: submitting ? "not-allowed" : "pointer",
+              cursor: submitting || !address ? "not-allowed" : "pointer",
               opacity: submitting ? 0.7 : 1,
               transition: "all var(--lc-dur-fast) var(--lc-ease)",
             }}
           >
-            {submitting ? "Creating..." : "Create Competition"}
+            {submitting ? "Creating..." : !address ? "Connect Wallet" : "Create Competition"}
           </button>
         )}
       </div>

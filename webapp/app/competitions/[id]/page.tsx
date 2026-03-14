@@ -9,6 +9,7 @@ import Skeleton from "@/app/components/ui/Skeleton";
 import Tabs, { type Tab } from "@/app/components/ui/Tabs";
 import StatCard from "@/app/components/ui/StatCard";
 import EmptyState from "@/app/components/ui/EmptyState";
+import { useAuthFetch } from "@/lib/useAuthFetch";
 
 /* ── Types ─────────────────────────────────────────────────────────────────── */
 
@@ -296,6 +297,7 @@ function MatchCard({ match }: { match: BracketMatch }) {
 export default function CompetitionDetailPage() {
   const params = useParams();
   const id = params?.id as string;
+  const { authFetch, address } = useAuthFetch();
 
   const [comp, setComp] = useState<Competition | null>(null);
   const [bracket, setBracket] = useState<BracketMatch[]>([]);
@@ -304,6 +306,17 @@ export default function CompetitionDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+
+  /* Action states */
+  const [registering, setRegistering] = useState(false);
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [reportingMatchId, setReportingMatchId] = useState<string | null>(null);
+  const [reportForm, setReportForm] = useState<{ score_a: string; score_b: string; winner: "a" | "b" | "" }>({ score_a: "", score_b: "", winner: "" });
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [regRefreshKey, setRegRefreshKey] = useState(0);
 
   /* Fetch competition detail */
   useEffect(() => {
@@ -373,7 +386,7 @@ export default function CompetitionDetailPage() {
       } catch {}
     })();
     return () => { stop = true; };
-  }, [id]);
+  }, [id, regRefreshKey]);
 
   /* Derived data */
   const rounds = useMemo(() => {
@@ -401,6 +414,123 @@ export default function CompetitionDetailPage() {
         return tB - tA;
       });
   }, [bracket]);
+
+  /* User registration state */
+  const addrLower = address?.toLowerCase();
+  const myRegistration = useMemo(
+    () => registrations.find((r) => r.participant.toLowerCase() === addrLower),
+    [registrations, addrLower],
+  );
+  const isRegistered = !!myRegistration;
+  const isCheckedIn = myRegistration?.status === "confirmed";
+  const isOrgAdmin = !!(comp && address && comp.org_id && comp.org_id.toLowerCase() === addrLower);
+
+  /* Action handlers */
+  const handleRegister = useCallback(async () => {
+    if (!address || !id) return;
+    setRegistering(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      const res = await authFetch(`/api/v1/competitions/${id}/register`, {
+        method: "POST",
+        body: JSON.stringify({ wallet: address }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || `Registration failed (${res.status})`);
+      }
+      setActionSuccess("Successfully registered!");
+      setRegRefreshKey((k) => k + 1);
+    } catch (e: any) {
+      setActionError(e?.message || String(e));
+    } finally {
+      setRegistering(false);
+    }
+  }, [address, id, authFetch]);
+
+  const handleCheckIn = useCallback(async () => {
+    if (!address || !id) return;
+    setCheckingIn(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      const res = await authFetch(`/api/v1/competitions/${id}/check-in`, {
+        method: "POST",
+        body: JSON.stringify({ wallet: address }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || `Check-in failed (${res.status})`);
+      }
+      setActionSuccess("Checked in successfully!");
+      setRegRefreshKey((k) => k + 1);
+    } catch (e: any) {
+      setActionError(e?.message || String(e));
+    } finally {
+      setCheckingIn(false);
+    }
+  }, [address, id, authFetch]);
+
+  const handleStart = useCallback(async () => {
+    if (!address || !id) return;
+    setStarting(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      const res = await authFetch(`/api/v1/competitions/${id}/start`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || `Failed to start (${res.status})`);
+      }
+      setActionSuccess("Competition started!");
+      window.location.reload();
+    } catch (e: any) {
+      setActionError(e?.message || String(e));
+    } finally {
+      setStarting(false);
+    }
+  }, [address, id, authFetch]);
+
+  const handleReportResult = useCallback(async (matchId: string) => {
+    if (!id) return;
+    setReportSubmitting(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      const body: Record<string, unknown> = {
+        score_a: parseInt(reportForm.score_a) || 0,
+        score_b: parseInt(reportForm.score_b) || 0,
+      };
+      if (reportForm.winner === "a" || reportForm.winner === "b") {
+        body.winner = reportForm.winner;
+      }
+      const res = await authFetch(`/api/v1/competitions/${id}/matches/${matchId}/result`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || `Report failed (${res.status})`);
+      }
+      setActionSuccess("Result reported!");
+      setReportingMatchId(null);
+      setReportForm({ score_a: "", score_b: "", winner: "" });
+      // Refetch bracket
+      const bracketRes = await fetch(`/api/v1/competitions/${id}/bracket`);
+      if (bracketRes.ok) {
+        const data = await bracketRes.json();
+        setBracket(Array.isArray(data?.matches) ? data.matches : Array.isArray(data) ? data : []);
+      }
+    } catch (e: any) {
+      setActionError(e?.message || String(e));
+    } finally {
+      setReportSubmitting(false);
+    }
+  }, [id, reportForm, authFetch]);
 
   const tabs: Tab[] = useMemo(
     () => [
@@ -506,6 +636,126 @@ export default function CompetitionDetailPage() {
           </p>
         )}
       </section>
+
+      {/* ── Action Feedback ────────────────────────────────────────────────── */}
+      {actionError && (
+        <div
+          style={{
+            padding: "var(--lc-space-3) var(--lc-space-4)",
+            borderRadius: "var(--lc-radius-md)",
+            backgroundColor: "var(--lc-danger-muted)",
+            color: "var(--lc-danger)",
+            fontSize: "var(--lc-text-small)",
+          }}
+        >
+          {actionError}
+        </div>
+      )}
+      {actionSuccess && (
+        <div
+          style={{
+            padding: "var(--lc-space-3) var(--lc-space-4)",
+            borderRadius: "var(--lc-radius-md)",
+            backgroundColor: "var(--lc-success-muted)",
+            color: "var(--lc-success)",
+            fontSize: "var(--lc-text-small)",
+          }}
+        >
+          {actionSuccess}
+        </div>
+      )}
+
+      {/* ── Action Buttons ──────────────────────────────────────────────────── */}
+      {address && (
+        <div style={{ display: "flex", gap: "var(--lc-space-3)", flexWrap: "wrap", alignItems: "center" }}>
+          {/* Register button */}
+          {comp.status === "registration" && !isRegistered && (
+            <button
+              onClick={handleRegister}
+              disabled={registering}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "var(--lc-space-2)",
+                padding: "10px 20px",
+                borderRadius: "var(--lc-radius-md)",
+                border: "none",
+                backgroundColor: "var(--lc-accent)",
+                color: "var(--lc-accent-text)",
+                fontSize: "var(--lc-text-small)",
+                fontWeight: "var(--lc-weight-medium)" as any,
+                cursor: registering ? "not-allowed" : "pointer",
+                opacity: registering ? 0.7 : 1,
+                transition: "all var(--lc-dur-fast) var(--lc-ease)",
+              }}
+            >
+              {registering ? "Registering..." : "Register"}
+            </button>
+          )}
+
+          {/* Check-in button */}
+          {isRegistered && !isCheckedIn && (
+            <button
+              onClick={handleCheckIn}
+              disabled={checkingIn}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "var(--lc-space-2)",
+                padding: "10px 20px",
+                borderRadius: "var(--lc-radius-md)",
+                border: "none",
+                backgroundColor: "var(--lc-success)",
+                color: "#fff",
+                fontSize: "var(--lc-text-small)",
+                fontWeight: "var(--lc-weight-medium)" as any,
+                cursor: checkingIn ? "not-allowed" : "pointer",
+                opacity: checkingIn ? 0.7 : 1,
+                transition: "all var(--lc-dur-fast) var(--lc-ease)",
+              }}
+            >
+              {checkingIn ? "Checking in..." : "Check In"}
+            </button>
+          )}
+
+          {/* Registered badge */}
+          {isRegistered && isCheckedIn && (
+            <Badge variant="tone" tone="success" dot size="md">
+              Registered &amp; Checked In
+            </Badge>
+          )}
+          {isRegistered && !isCheckedIn && (
+            <Badge variant="tone" tone="info" dot size="md">
+              Registered (pending check-in)
+            </Badge>
+          )}
+
+          {/* Start Competition (org admin) */}
+          {isOrgAdmin && comp.status === "registration" && (
+            <button
+              onClick={handleStart}
+              disabled={starting}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "var(--lc-space-2)",
+                padding: "10px 20px",
+                borderRadius: "var(--lc-radius-md)",
+                border: "1px solid var(--lc-warning)",
+                backgroundColor: "var(--lc-warning-muted)",
+                color: "var(--lc-warning)",
+                fontSize: "var(--lc-text-small)",
+                fontWeight: "var(--lc-weight-medium)" as any,
+                cursor: starting ? "not-allowed" : "pointer",
+                opacity: starting ? 0.7 : 1,
+                transition: "all var(--lc-dur-fast) var(--lc-ease)",
+              }}
+            >
+              {starting ? "Starting..." : "Start Competition"}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Stats Row ───────────────────────────────────────────────────────── */}
       <div
@@ -815,7 +1065,146 @@ export default function CompetitionDetailPage() {
                           : `Round ${round}`}
                       </div>
                       {matches.map((match) => (
-                        <MatchCard key={match.id} match={match} />
+                        <div key={match.id}>
+                          <MatchCard match={match} />
+                          {/* Report button for in_progress matches */}
+                          {match.status === "in_progress" && address && (
+                            <div style={{ marginTop: "var(--lc-space-2)" }}>
+                              {reportingMatchId === match.id ? (
+                                <div
+                                  style={{
+                                    padding: "var(--lc-space-3)",
+                                    borderRadius: "var(--lc-radius-md)",
+                                    border: "1px solid var(--lc-border)",
+                                    backgroundColor: "var(--lc-bg-raised)",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: "var(--lc-space-2)",
+                                  }}
+                                >
+                                  <div style={{ display: "flex", gap: "var(--lc-space-2)", alignItems: "center" }}>
+                                    <label style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-secondary)", flex: 1 }}>
+                                      Score A
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        value={reportForm.score_a}
+                                        onChange={(e) => setReportForm((f) => ({ ...f, score_a: e.target.value }))}
+                                        style={{
+                                          display: "block",
+                                          width: "100%",
+                                          padding: "4px 8px",
+                                          fontSize: "var(--lc-text-caption)",
+                                          color: "var(--lc-text)",
+                                          backgroundColor: "var(--lc-bg-inset)",
+                                          border: "1px solid var(--lc-border)",
+                                          borderRadius: "var(--lc-radius-sm)",
+                                          fontFamily: "var(--lc-font-mono)",
+                                          marginTop: 2,
+                                        }}
+                                      />
+                                    </label>
+                                    <label style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-secondary)", flex: 1 }}>
+                                      Score B
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        value={reportForm.score_b}
+                                        onChange={(e) => setReportForm((f) => ({ ...f, score_b: e.target.value }))}
+                                        style={{
+                                          display: "block",
+                                          width: "100%",
+                                          padding: "4px 8px",
+                                          fontSize: "var(--lc-text-caption)",
+                                          color: "var(--lc-text)",
+                                          backgroundColor: "var(--lc-bg-inset)",
+                                          border: "1px solid var(--lc-border)",
+                                          borderRadius: "var(--lc-radius-sm)",
+                                          fontFamily: "var(--lc-font-mono)",
+                                          marginTop: 2,
+                                        }}
+                                      />
+                                    </label>
+                                  </div>
+                                  <label style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-secondary)" }}>
+                                    Winner
+                                    <select
+                                      value={reportForm.winner}
+                                      onChange={(e) => setReportForm((f) => ({ ...f, winner: e.target.value as "a" | "b" | "" }))}
+                                      style={{
+                                        display: "block",
+                                        width: "100%",
+                                        padding: "4px 8px",
+                                        fontSize: "var(--lc-text-caption)",
+                                        color: "var(--lc-text)",
+                                        backgroundColor: "var(--lc-bg-inset)",
+                                        border: "1px solid var(--lc-border)",
+                                        borderRadius: "var(--lc-radius-sm)",
+                                        marginTop: 2,
+                                      }}
+                                    >
+                                      <option value="">Select winner</option>
+                                      <option value="a">{match.participant_a ? truncAddr(match.participant_a) : "Participant A"}</option>
+                                      <option value="b">{match.participant_b ? truncAddr(match.participant_b) : "Participant B"}</option>
+                                    </select>
+                                  </label>
+                                  <div style={{ display: "flex", gap: "var(--lc-space-2)" }}>
+                                    <button
+                                      onClick={() => handleReportResult(match.id)}
+                                      disabled={reportSubmitting || !reportForm.winner}
+                                      style={{
+                                        flex: 1,
+                                        padding: "6px 12px",
+                                        fontSize: "var(--lc-text-caption)",
+                                        fontWeight: "var(--lc-weight-medium)" as any,
+                                        borderRadius: "var(--lc-radius-sm)",
+                                        border: "none",
+                                        backgroundColor: !reportForm.winner || reportSubmitting ? "var(--lc-bg-overlay)" : "var(--lc-accent)",
+                                        color: !reportForm.winner || reportSubmitting ? "var(--lc-text-muted)" : "var(--lc-accent-text)",
+                                        cursor: !reportForm.winner || reportSubmitting ? "not-allowed" : "pointer",
+                                      }}
+                                    >
+                                      {reportSubmitting ? "Saving..." : "Submit"}
+                                    </button>
+                                    <button
+                                      onClick={() => { setReportingMatchId(null); setReportForm({ score_a: "", score_b: "", winner: "" }); }}
+                                      style={{
+                                        padding: "6px 12px",
+                                        fontSize: "var(--lc-text-caption)",
+                                        borderRadius: "var(--lc-radius-sm)",
+                                        border: "1px solid var(--lc-border)",
+                                        backgroundColor: "transparent",
+                                        color: "var(--lc-text-secondary)",
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => { setReportingMatchId(match.id); setReportForm({ score_a: "", score_b: "", winner: "" }); }}
+                                  style={{
+                                    display: "block",
+                                    width: "100%",
+                                    padding: "6px 12px",
+                                    fontSize: "var(--lc-text-caption)",
+                                    fontWeight: "var(--lc-weight-medium)" as any,
+                                    borderRadius: "var(--lc-radius-sm)",
+                                    border: "1px solid var(--lc-accent)",
+                                    backgroundColor: "var(--lc-accent-muted)",
+                                    color: "var(--lc-accent)",
+                                    cursor: "pointer",
+                                    transition: "all var(--lc-dur-fast) var(--lc-ease)",
+                                  }}
+                                >
+                                  Report Result
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   );

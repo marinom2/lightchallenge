@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "../../../../../../../offchain/db/pool";
+import { emitWebhookEvent } from "../../../../../../../offchain/workers/webhookDelivery";
 import { createHash } from "crypto";
 
 export const runtime = "nodejs";
@@ -130,6 +131,14 @@ export async function POST(
        RETURNING *`,
       [id, wallet?.toLowerCase() ?? null, team_id, seed]
     );
+
+    if (competition.org_id) {
+      emitWebhookEvent(competition.org_id, "competition.registration", {
+        competition_id: id,
+        wallet: wallet ?? null,
+        team_id: team_id ?? null,
+      }).catch(() => {});
+    }
 
     return NextResponse.json({ ok: true, registration: rows[0] }, { status: 201 });
   } catch (e: any) {
