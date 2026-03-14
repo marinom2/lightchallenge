@@ -5,8 +5,13 @@ const path = require("path");
 module.exports = {
   reactStrictMode: true,
   eslint: {
-    // 👇 prevents ESLint errors from blocking production builds
     ignoreDuringBuilds: true,
+  },
+  typescript: {
+    // Type checking is done locally via `tsc --noEmit`.
+    // The Next.js build checker can't resolve types for ../offchain/ files
+    // since they're outside the webapp root directory.
+    ignoreBuildErrors: true,
   },
   experimental: {
     outputFileTracingRoot: path.join(__dirname, ".."),
