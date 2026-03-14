@@ -23,23 +23,88 @@ HTTP status codes follow standard conventions: `200` for success, `201` for crea
 
 ---
 
+## Quick Start
+
+Get up and running in 3 steps:
+
+### Step 1: Create an Organization
+
+Go to [uat.lightchallenge.app/org/new](https://uat.lightchallenge.app/org/new), connect your wallet, and create an organization. You'll receive a **secret API key** — save it immediately, it's shown only once.
+
+```
+Your API key: lc_a8f3b2e1c9d4567890abcdef12345678901234567890abcdef1234567890abcd
+```
+
+### Step 2: Use your key to call any endpoint
+
+```bash
+curl https://uat.lightchallenge.app/api/v1/competitions \
+  -H "Authorization: Bearer lc_a8f3b2e1..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "org_id": "YOUR_ORG_ID",
+    "title": "Weekend Bracket",
+    "type": "bracket",
+    "category": "Gaming"
+  }'
+```
+
+### Step 3: Build your tournament
+
+1. Create teams → add players to rosters
+2. Create a competition → open registration
+3. Players register → start the competition (generates bracket)
+4. Report match results → winners auto-advance
+5. Competition auto-completes when the final match is decided
+
+That's it. Every step has an API endpoint and a corresponding UI page.
+
+---
+
 ## Authentication
 
-All state-mutating routes require authentication. Most read routes are public or require organization membership.
+All state-mutating routes require authentication. Most read routes are public.
 
-### API Key (recommended for integrations)
+### How API Keys Work
 
-Pass a Bearer token in the `Authorization` header:
+When you create an organization, the system generates a random secret key prefixed with `lc_`. This key is:
+
+- **Shown once** — on creation. We never store the plaintext key. We store only its SHA-256 hash.
+- **Scoped to your organization** — it can only access data belonging to your org.
+- **Rate-limited** — default 1,000 requests per hour per key.
+- **Revocable** — you can deactivate a key instantly via the API or dashboard.
+
+You can create additional keys with different labels (e.g., "CI Pipeline", "Discord Bot", "Partner Widget") and revoke them independently.
+
+### Using your API Key
+
+Pass it as a Bearer token in the `Authorization` header on every request:
 
 ```
-Authorization: Bearer lc_xxxxx
+Authorization: Bearer lc_a8f3b2e1c9d4567890abcdef...
 ```
 
-API keys are scoped to an organization. They inherit the permissions of the org member who created them.
+**Example:**
+```bash
+# List your org's competitions
+curl https://uat.lightchallenge.app/api/v1/competitions?org_id=YOUR_ORG_ID \
+  -H "Authorization: Bearer lc_YOUR_SECRET_KEY"
 
-### Wallet Signature (same as core API)
+# Create a team
+curl -X POST https://uat.lightchallenge.app/api/v1/teams \
+  -H "Authorization: Bearer lc_YOUR_SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "org_id": "YOUR_ORG_ID", "name": "Team Alpha", "tag": "ALPH" }'
+```
 
-Pass all three headers:
+If the key is missing, expired, or revoked, you'll get:
+```json
+{ "ok": false, "error": "Authentication required" }
+```
+
+### Alternative: Wallet Signature
+
+For browser-based access (the webapp uses this), you can authenticate with wallet signature headers instead of an API key:
 
 | Header | Description |
 |--------|-------------|
@@ -47,7 +112,7 @@ Pass all three headers:
 | `x-lc-signature` | EIP-191 `personal_sign` of `lightchallenge:{timestamp}` |
 | `x-lc-timestamp` | Unix epoch milliseconds |
 
-Signatures are valid for 5 minutes.
+Signatures are valid for 5 minutes. The wallet must be a member of the organization (owner or admin role) to perform write operations.
 
 ---
 
