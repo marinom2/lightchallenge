@@ -47,8 +47,14 @@ export async function POST(request: Request) {
     const forwarder = process.env.NEXT_PUBLIC_TRUSTED_FORWARDER as Address | undefined;
     const relayerPk = process.env.RELAYER_PRIVATE_KEY as Hex | undefined;
 
-    if (!forwarder) return NextResponse.json({ error: "Missing NEXT_PUBLIC_TRUSTED_FORWARDER" }, { status: 500 });
-    if (!relayerPk) return NextResponse.json({ error: "Missing RELAYER_PRIVATE_KEY" }, { status: 500 });
+    if (!forwarder) {
+      console.error("[relay] NEXT_PUBLIC_TRUSTED_FORWARDER not configured");
+      return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    }
+    if (!relayerPk) {
+      console.error("[relay] RELAYER_PRIVATE_KEY not configured");
+      return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    }
 
     const req: ForwardRequest = body.req;
     const sig: Hex = body.sig;

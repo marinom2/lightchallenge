@@ -525,7 +525,7 @@ async function attemptRegistryWrite(id: string): Promise<{
       return { registryStatus: status, registryTxHash: result.txHash };
     } else {
       await updateRegistryStatus(id, "failed", null, result.error);
-      return { registryStatus: "failed", registryError: result.error };
+      return { registryStatus: "failed", registryError: "Registry write failed" };
     }
   } catch (e: any) {
     console.error("[challenges/registry]", e);

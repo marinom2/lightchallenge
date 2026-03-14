@@ -19,7 +19,6 @@ const SAFE_RPC_METHODS = new Set([
   "eth_estimateGas",
   "eth_gasPrice",
   "eth_getCode",
-  "eth_getStorageAt",
   "net_version",
 ]);
 

@@ -997,7 +997,8 @@ const isInProgress = publicStatus.label === "In progress";
 const isUpcoming = publicStatus.label === "Upcoming";
 
 const shouldShowJoin = canInitialJoin || canTopUp;
-const shouldShowClaims = mounted && !checkingClaims && (claimables?.length ?? 0) > 0;
+// Claims ONLY visible when challenge is finalized AND claimables exist
+const shouldShowClaims = mounted && !checkingClaims && (claimables?.length ?? 0) > 0 && effectiveStatus === "Finalized";
 // keep vote topic visible when Pending (so you can show disabled reason)
 // V1: No validator voting — removed
 const shouldShowVoteTopic = false;

@@ -55,6 +55,11 @@ export type InsertEvidenceInput = {
   rawRef?: string | null;
 };
 
+// ─── Limits ─────────────────────────────────────────────────────────────────
+
+const MAX_EVIDENCE_RECORDS = 10_000;
+const MAX_EVIDENCE_BYTES = 5 * 1024 * 1024; // 5MB
+
 // ─── Queries ────────────────────────────────────────────────────────────────
 
 /**
@@ -65,9 +70,6 @@ export async function insertEvidence(
   input: InsertEvidenceInput,
   db?: Pool | PoolClient
 ): Promise<EvidenceRow> {
-  const MAX_EVIDENCE_RECORDS = 10_000;
-  const MAX_EVIDENCE_BYTES = 5 * 1024 * 1024; // 5 MB
-
   if (input.data.length > MAX_EVIDENCE_RECORDS) {
     throw new Error(
       `Evidence data contains ${input.data.length} records, exceeding the limit of ${MAX_EVIDENCE_RECORDS}.`
@@ -83,6 +85,23 @@ export async function insertEvidence(
   }
 
   const client = db ?? getPool();
+
+  // Check existing evidence count for this challenge+subject
+  const countRes = await client.query<{ cnt: string }>(
+    `
+    SELECT count(*)::text AS cnt
+    FROM public.evidence
+    WHERE challenge_id = $1::bigint
+      AND lower(subject) = lower($2::text)
+    `,
+    [String(input.challengeId), input.subject]
+  );
+  const existingCount = Number(countRes.rows[0]?.cnt ?? "0");
+  if (existingCount >= MAX_EVIDENCE_RECORDS) {
+    throw new Error(
+      `Challenge ${input.challengeId} / subject ${input.subject} already has ${existingCount} evidence rows, at the limit of ${MAX_EVIDENCE_RECORDS}.`
+    );
+  }
 
   const res = await client.query<EvidenceRow>(
     `

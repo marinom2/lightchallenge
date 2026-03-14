@@ -1,43 +1,47 @@
 /**
- * LightChallenge Design Tokens — v3
+ * LightChallenge Design Tokens — v4
  *
- * Restored: original cosmic-glass aesthetic with deep blue surfaces,
- * ice-white accent, warm gold + blue-lavender gradients, glass depth.
+ * Apple-grade clarity + subtle atmospheric depth.
  *
  * Philosophy:
- *   - Accent = ice-white (#f6f7ff) for interactive elements, warm gold for CTAs
- *   - Deep cosmic blue surfaces with subtle blue undertones
- *   - Glass surfaces with blur, transparency, depth
- *   - Color = semantics (status, urgency) — decorative via gradients only
- *   - 4-level typography hierarchy
- *   - Structured spacing scale (4→64px)
+ *   - Restrained shadows — depth from tonal contrast & borders, not heavy drops
+ *   - 3-level surface hierarchy: page → card (L1, border-defined) → floating (L2, shadow)
+ *   - Atmosphere from page background, not card elevation
+ *   - Cool-blue accent for selection states, ice-white for primary actions
+ *   - Premium restraint: calm, intentional, slightly futuristic
  */
 
 /* ── Color Palette ────────────────────────────────────────────────── */
 
 :root {
-  /* Surfaces (deep cosmic grey — metallic depth) */
-  --lc-bg:          #020308;
-  --lc-bg-raised:   #0a0d16;
-  --lc-bg-overlay:  #10131e;
-  --lc-bg-inset:    #060920;
+  /* Surfaces — deep cosmic, tighter tonal range for subtle layering */
+  --lc-bg:          #030509;
+  --lc-bg-raised:   #0b0e17;
+  --lc-bg-overlay:  #11141f;
+  --lc-bg-inset:    #07091a;
 
-  /* Borders (cool silver-chrome) */
-  --lc-border:        rgba(160, 175, 200, 0.12);
-  --lc-border-strong: rgba(170, 185, 210, 0.22);
+  /* Borders — slightly more visible for embedded card definition */
+  --lc-border:        rgba(150, 165, 195, 0.10);
+  --lc-border-strong: rgba(150, 165, 195, 0.18);
   --lc-border-focus:  var(--lc-accent);
 
-  /* Text (warm white / blue-silver muted) */
-  --lc-text:          rgba(255, 255, 255, 0.92);
-  --lc-text-secondary: rgba(255, 255, 255, 0.74);
-  --lc-text-muted:    rgba(143, 152, 182, 0.72);
+  /* Text */
+  --lc-text:          rgba(255, 255, 255, 0.93);
+  --lc-text-secondary: rgba(255, 255, 255, 0.60);
+  --lc-text-muted:    rgba(140, 150, 180, 0.55);
   --lc-text-inverse:  #03040c;
 
-  /* Brand accent (ice-white — original) */
+  /* Brand accent (ice-white) */
   --lc-accent:       #f6f7ff;
   --lc-accent-hover: #ffffff;
-  --lc-accent-muted: rgba(246, 247, 255, 0.10);
+  --lc-accent-muted: rgba(246, 247, 255, 0.08);
   --lc-accent-text:  #03040c;
+
+  /* Selection accent (cool blue — Apple-grade selected states) */
+  --lc-select:       rgba(80, 140, 255, 0.07);
+  --lc-select-border: rgba(80, 140, 255, 0.22);
+  --lc-select-ring:  rgba(80, 140, 255, 0.12);
+  --lc-select-text:  #7eb4ff;
 
   /* Warm accent (gold — CTAs, highlights) */
   --lc-warm:         #d6a24a;
@@ -52,13 +56,13 @@
 
   /* Semantic status */
   --lc-success:       #22c55e;
-  --lc-success-muted: rgba(34, 197, 94, 0.12);
+  --lc-success-muted: rgba(34, 197, 94, 0.10);
   --lc-warning:       #eab308;
-  --lc-warning-muted: rgba(234, 179, 8, 0.12);
+  --lc-warning-muted: rgba(234, 179, 8, 0.10);
   --lc-danger:        #ef4444;
-  --lc-danger-muted:  rgba(239, 68, 68, 0.12);
+  --lc-danger-muted:  rgba(239, 68, 68, 0.10);
   --lc-info:          #3b82f6;
-  --lc-info-muted:    rgba(59, 130, 246, 0.12);
+  --lc-info-muted:    rgba(59, 130, 246, 0.10);
   --lc-error:         var(--lc-danger);
   --lc-error-muted:   var(--lc-danger-muted);
 
@@ -73,17 +77,23 @@
   --lc-status-finalized: var(--lc-info);
   --lc-status-canceled:  var(--lc-text-muted);
 
-  /* Glass system (silver-chrome tint) */
-  --lc-glass:         rgba(180, 195, 220, 0.05);
-  --lc-glass-border:  rgba(160, 175, 200, 0.10);
-  --lc-glass-hover:   rgba(180, 195, 220, 0.08);
-  --lc-glass-blur:    16px;
+  /* Glass system — very subtle, border-defined */
+  --lc-glass:         rgba(160, 175, 210, 0.04);
+  --lc-glass-border:  rgba(150, 165, 195, 0.09);
+  --lc-glass-hover:   rgba(160, 175, 210, 0.07);
+  --lc-glass-blur:    12px;
 
-  /* Shadows (deep metallic depth) */
-  --lc-shadow-sm:  0 4px 12px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.18);
-  --lc-shadow-md:  0 10px 28px rgba(0, 0, 0, 0.42), 0 4px 10px rgba(0, 0, 0, 0.22);
-  --lc-shadow-lg:  0 20px 52px rgba(0, 0, 0, 0.52), 0 8px 20px rgba(0, 0, 0, 0.28);
-  --lc-shadow-card: 0 18px 50px rgba(0, 0, 0, 0.54), 0 6px 16px rgba(0, 0, 0, 0.26);
+  /*
+   * Shadows — 3-level hierarchy:
+   *   sm = L1 cards (barely visible, tonal definition only)
+   *   md = interactive hover / emphasis
+   *   lg = L2 floating UI (dropdowns, modals, popovers)
+   *   card = deprecated alias → use sm for cards, lg for floating
+   */
+  --lc-shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.16), 0 1px 2px rgba(0, 0, 0, 0.10);
+  --lc-shadow-md:  0 4px 12px rgba(0, 0, 0, 0.20), 0 1px 4px rgba(0, 0, 0, 0.12);
+  --lc-shadow-lg:  0 12px 36px rgba(0, 0, 0, 0.32), 0 4px 12px rgba(0, 0, 0, 0.18);
+  --lc-shadow-card: var(--lc-shadow-sm);
 
   /* Overlay / scrims */
   --lc-overlay-bg:     rgba(0, 0, 0, 0.52);
@@ -154,37 +164,43 @@
 
 html[data-theme="light"] {
   /* Icy blue-white surfaces */
-  --lc-bg:            #f4f7fc;
-  --lc-bg-raised:     #edf1f9;
-  --lc-bg-overlay:    #e5eaf4;
-  --lc-bg-inset:      #e9eef7;
+  --lc-bg:            #f5f7fb;
+  --lc-bg-raised:     #eef1f8;
+  --lc-bg-overlay:    #e6eaf3;
+  --lc-bg-inset:      #eaeff7;
 
   /* Cool blue-grey borders */
-  --lc-border:        rgba(80, 100, 140, 0.12);
-  --lc-border-strong: rgba(60, 80, 120, 0.18);
+  --lc-border:        rgba(80, 100, 140, 0.10);
+  --lc-border-strong: rgba(60, 80, 120, 0.16);
 
   /* Text — deep navy for contrast on icy surfaces */
-  --lc-text:           #0a0e1a;
-  --lc-text-secondary: #475068;
-  --lc-text-muted:     #7080a0;
+  --lc-text:           #0c1020;
+  --lc-text-secondary: #4a5370;
+  --lc-text-muted:     #7585a5;
   --lc-text-inverse:   #f4f7fc;
 
   /* Accent — deep navy-blue */
-  --lc-accent:       #0f1830;
+  --lc-accent:       #111d3a;
   --lc-accent-hover: #1a2545;
-  --lc-accent-muted: rgba(15, 24, 48, 0.08);
+  --lc-accent-muted: rgba(15, 24, 48, 0.06);
   --lc-accent-text:  #ffffff;
 
-  /* Glass — icy translucent with blue tint */
-  --lc-glass:         rgba(235, 242, 255, 0.72);
-  --lc-glass-border:  rgba(60, 80, 130, 0.10);
-  --lc-glass-hover:   rgba(235, 242, 255, 0.88);
+  /* Selection — cool blue for light theme */
+  --lc-select:       rgba(50, 120, 255, 0.06);
+  --lc-select-border: rgba(50, 120, 255, 0.20);
+  --lc-select-ring:  rgba(50, 120, 255, 0.10);
+  --lc-select-text:  #2563eb;
 
-  /* Smokey blue shadows */
-  --lc-shadow-sm:  0 2px 6px rgba(40, 60, 100, 0.08), 0 1px 2px rgba(40, 60, 100, 0.04);
-  --lc-shadow-md:  0 6px 16px rgba(40, 60, 100, 0.10), 0 2px 6px rgba(40, 60, 100, 0.06);
-  --lc-shadow-lg:  0 12px 32px rgba(40, 60, 100, 0.12), 0 4px 12px rgba(40, 60, 100, 0.08);
-  --lc-shadow-card: 0 14px 40px rgba(40, 60, 100, 0.10), 0 4px 10px rgba(40, 60, 100, 0.06);
+  /* Glass — clean translucent white */
+  --lc-glass:         rgba(255, 255, 255, 0.65);
+  --lc-glass-border:  rgba(60, 80, 130, 0.08);
+  --lc-glass-hover:   rgba(255, 255, 255, 0.80);
+
+  /* Smokey blue shadows — restrained */
+  --lc-shadow-sm:  0 1px 3px rgba(30, 50, 90, 0.06), 0 1px 2px rgba(30, 50, 90, 0.03);
+  --lc-shadow-md:  0 4px 12px rgba(30, 50, 90, 0.08), 0 1px 4px rgba(30, 50, 90, 0.04);
+  --lc-shadow-lg:  0 10px 28px rgba(30, 50, 90, 0.10), 0 4px 10px rgba(30, 50, 90, 0.06);
+  --lc-shadow-card: var(--lc-shadow-sm);
 }
 
 /* ── Animations ──────────────────────────────────────────────── */

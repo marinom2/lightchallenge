@@ -76,17 +76,22 @@ export async function POST(req: NextRequest) {
   const authErr = requireAuth(authWallet, recipient);
   if (authErr) return authErr;
 
-  const mint = await upsertAchievementMint({
-    tokenId,
-    challengeId,
-    recipient,
-    achievementType,
-    txHash,
-    blockNumber,
-  });
+  try {
+    const mint = await upsertAchievementMint({
+      tokenId,
+      challengeId,
+      recipient,
+      achievementType,
+      txHash,
+      blockNumber,
+    });
 
-  // Recompute reputation after mint
-  const rep = await recomputeReputation(recipient);
+    // Recompute reputation after mint
+    const rep = await recomputeReputation(recipient);
 
-  return NextResponse.json({ ok: true, mint, reputation: rep });
+    return NextResponse.json({ ok: true, mint, reputation: rep });
+  } catch (e) {
+    console.error("[me/achievements POST]", e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  }
 }

@@ -535,7 +535,7 @@ contract ChallengePay is ReentrancyGuard {
     if (c.canceled) revert AlreadyCanceled();
     if (sender != c.creator && sender != admin) revert NotCreatorOrAdmin();
     if (c.status != Status.Active) revert NotActive();
-    if (c.winnersCount > 0) revert AlreadyFinalized();
+    if (c.winnersCount > 0) revert AlreadyWinner();
 
     c.canceled = true;
     c.status = Status.Canceled;

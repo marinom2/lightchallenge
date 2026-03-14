@@ -220,7 +220,7 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
     const latest = await client.getBlockNumber();
     const toBlock = latest;
     const rawSpan = url.searchParams.get("span");
-    const span = BigInt(Math.min(Number(rawSpan) || 10000, 2000000));
+    const span = BigInt(Math.min(Number(rawSpan) || 2000, 2000));
     const fromBlock = toBlock > span ? toBlock - span + 1n : 0n;
 
     /**

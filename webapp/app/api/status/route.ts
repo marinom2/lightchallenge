@@ -56,9 +56,14 @@ export async function GET(req: Request) {
   const idsRaw = (url.searchParams.get("ids") || "").trim();
 
   if (!idsRaw) return NextResponse.json({ error: "ids query param required, e.g. ?ids=1,2,3" }, { status: 400 });
-  if (!RPC_URL) return NextResponse.json({ error: "Missing RPC_URL" }, { status: 500 });
-  if (!ADDR.ChallengePay || ADDR.ChallengePay === ZERO_ADDR)
-    return NextResponse.json({ error: "ChallengePay address not configured" }, { status: 500 });
+  if (!RPC_URL) {
+    console.error("[status] RPC_URL not configured");
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  }
+  if (!ADDR.ChallengePay || ADDR.ChallengePay === ZERO_ADDR) {
+    console.error("[status] ChallengePay address not configured");
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  }
 
   let ids = parseIdsParam(idsRaw);
   if (!ids.length) return NextResponse.json({ items: [] }, { headers: { "Cache-Control": "public, max-age=3" } });

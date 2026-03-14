@@ -39,24 +39,14 @@ function SelectCards<T extends string>({
             type="button"
             onClick={() => onChange(o.value)}
             aria-pressed={active}
-            className="rounded-2xl border px-4 py-3 text-left transition"
-            style={{
-              borderColor: active
-                ? "color-mix(in oklab, var(--accent) 55%, var(--border))"
-                : "var(--border)",
-              background: active
-                ? "color-mix(in oklab, var(--accent) 10%, var(--surface))"
-                : "color-mix(in oklab, var(--surface) 96%, transparent)",
-              boxShadow: active
-                ? "0 0 0 1px color-mix(in oklab, var(--accent) 18%, transparent) inset"
-                : "none",
-            }}
+            className="select-card"
+            data-selected={active ? "true" : undefined}
           >
-            <div className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+            <div className="select-card__label">
               {o.label}
             </div>
             {o.sub ? (
-              <div className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+              <div className="select-card__sub">
                 {o.sub}
               </div>
             ) : null}
@@ -84,50 +74,26 @@ function TypeCard({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-3xl border p-4 text-left transition"
-      style={{
-        borderColor: active
-          ? "color-mix(in oklab, var(--accent) 55%, var(--border))"
-          : "var(--border)",
-        background: active
-          ? "color-mix(in oklab, var(--accent) 10%, var(--surface))"
-          : "color-mix(in oklab, var(--surface) 96%, transparent)",
-        boxShadow: active
-          ? "0 0 0 1px color-mix(in oklab, var(--accent) 18%, transparent) inset"
-          : "none",
-      }}
+      className="select-card select-card--type"
+      data-selected={active ? "true" : undefined}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <div
-            className="grid h-10 w-10 place-items-center rounded-2xl border"
-            style={{ borderColor: "var(--border)" }}
-          >
-            {icon}
-          </div>
-          <div>
-            <div className="text-base font-semibold" style={{ color: "var(--text)" }}>
-              {title}
-            </div>
-            <div className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
-              {subtitle}
-            </div>
-          </div>
+      <div className="flex items-start gap-3">
+        <div className="select-card__icon">
+          {icon}
         </div>
-
-        {active ? (
-          <div
-            className="rounded-full border px-3 py-1 text-xs font-semibold"
-            style={{
-              borderColor: "color-mix(in oklab, var(--accent) 55%, var(--border))",
-              background: "color-mix(in oklab, var(--accent) 10%, var(--surface))",
-              color: "var(--text)",
-            }}
-          >
-            Selected
-          </div>
-        ) : null}
+        <div>
+          <div className="select-card__label">{title}</div>
+          <div className="select-card__sub">{subtitle}</div>
+        </div>
       </div>
+
+      {active ? (
+        <span className="select-card__check" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M11.5 4L5.5 10L2.5 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </span>
+      ) : null}
     </button>
   );
 }

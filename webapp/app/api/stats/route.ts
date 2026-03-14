@@ -12,7 +12,10 @@ export const revalidate = 30; // cache 30 s
 export async function GET() {
   try {
     const cp = ADDR.ChallengePay;
-    if (!cp) return NextResponse.json({ ok: false, error: "no contract" }, { status: 503 });
+    if (!cp) {
+      console.error("[stats] ChallengePay address not configured");
+      return NextResponse.json({ ok: false, error: "Internal error" }, { status: 503 });
+    }
 
     const abi = ABI.ChallengePay as Abi;
 
