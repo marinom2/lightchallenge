@@ -64,9 +64,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!["completion", "victory"].includes(achievementType)) {
+  const VALID_TYPES = [
+    "completion", "victory", "streak", "first_win", "participation",
+    "top_scorer", "undefeated", "comeback", "speedrun", "social",
+    "early_adopter", "veteran", "perfectionist", "explorer",
+  ];
+  if (!VALID_TYPES.includes(achievementType)) {
     return NextResponse.json(
-      { error: "achievementType must be 'completion' or 'victory'" },
+      { error: `achievementType must be one of: ${VALID_TYPES.join(", ")}` },
       { status: 400 }
     );
   }

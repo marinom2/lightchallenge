@@ -63,24 +63,54 @@ export async function POST(req: NextRequest) {
     const {
       title,
       description,
-      type,
+      type: rawType,
       category,
       rules,
       prize_config,
+      prize_distribution,
       settings,
+      max_participants,
       registration_opens_at,
+      registration_opens,
       registration_closes_at,
+      registration_closes,
       starts_at,
       ends_at,
       org_id,
     } = body;
 
-    if (!title || !type) {
+    if (!title || !rawType) {
       return NextResponse.json(
         { error: "title and type are required" },
         { status: 400 }
       );
     }
+
+    // Map frontend type names to DB-valid types
+    const TYPE_MAP: Record<string, string> = {
+      single: "challenge",
+      bracket: "bracket",
+      round_robin: "league",
+      circuit: "circuit",
+      // Also allow direct DB types
+      challenge: "challenge",
+      league: "league",
+      ladder: "ladder",
+    };
+    const type = TYPE_MAP[rawType] || rawType;
+
+    // Merge prize_distribution into prize_config if provided
+    const mergedPrizeConfig = prize_config || prize_distribution || null;
+
+    // Resolve registration dates (accept both naming conventions)
+    const regOpensAt = registration_opens_at || registration_opens || null;
+    const regClosesAt = registration_closes_at || registration_closes || null;
+
+    // Build settings with max_participants if provided
+    const mergedSettings = {
+      ...(settings || {}),
+      ...(max_participants ? { max_participants } : {}),
+    };
 
     // Determine org ownership
     let ownerOrgId = org_id ?? null;
@@ -122,11 +152,11 @@ export async function POST(req: NextRequest) {
         description ?? null,
         type,
         category ?? null,
-        rules ? JSON.stringify(rules) : null,
-        prize_config ? JSON.stringify(prize_config) : null,
-        settings ? JSON.stringify(settings) : null,
-        registration_opens_at ?? null,
-        registration_closes_at ?? null,
+        JSON.stringify(rules || {}),
+        JSON.stringify(mergedPrizeConfig || {}),
+        JSON.stringify(mergedSettings),
+        regOpensAt,
+        regClosesAt,
         starts_at ?? null,
         ends_at ?? null,
         ownerOrgId,

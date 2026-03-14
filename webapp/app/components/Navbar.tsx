@@ -154,12 +154,12 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "Compete",
+    label: "Tournaments",
     items: [
       {
-        label: "Competitions",
+        label: "Browse Tournaments",
         href: "/competitions",
-        description: "Browse live tournaments",
+        description: "Browse live tournaments & leagues",
         icon: Icons.competitions,
       },
       {
@@ -168,13 +168,11 @@ const NAV_GROUPS: NavGroup[] = [
         description: "Host your own competition",
         icon: Icons.createTournament,
       },
-      {
-        label: "Achievements",
-        href: "/me/achievements",
-        description: "View badges and milestones",
-        icon: Icons.achievements,
-      },
     ],
+  },
+  {
+    label: "Achievements",
+    href: "/me/achievements",
   },
   {
     label: "Docs",
@@ -495,7 +493,7 @@ export default function Navbar() {
   const mobileGroups = useMemo(() => {
     const groups: { title: string; items: MegaItem[] }[] = [];
 
-    // Explore as a standalone item
+    // Standalone top-level links
     groups.push({
       title: "Discover",
       items: [
@@ -504,6 +502,12 @@ export default function Navbar() {
           href: "/explore",
           description: "Discover challenges",
           icon: Icons.explore,
+        },
+        {
+          label: "Achievements",
+          href: "/me/achievements",
+          description: "Badges, milestones & reputation",
+          icon: Icons.achievements,
         },
       ],
     });
