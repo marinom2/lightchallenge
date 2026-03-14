@@ -8,6 +8,9 @@ import { isAddress } from "viem";
 import { txUrl, addressUrl, blockUrl } from "@/lib/explorer";
 import { useInterval } from "@/lib/ui/useInterval";
 import type { ChallengeMeta } from "@/lib/types/challenge";
+import Breadcrumb from "@/app/components/ui/Breadcrumb";
+import EmptyState from "@/app/components/ui/EmptyState";
+import Badge from "@/app/components/ui/Badge";
 
 import ExploreHeader from "./components/ExploreHeader";
 import ChallengeCard from "./components/ChallengeCard";
@@ -40,13 +43,6 @@ type Row = {
 const DEFAULT_SPAN = 10_000n;
 
 /* Helpers */
-function inferCategoryFromText(title?: string, desc?: string): Exclude<Category, "all"> {
-  const t = `${title || ""} ${desc || ""}`.toLowerCase();
-  if (/(dota|dota 2|league|lol|cs:?go|cs2|counter[- ]?strike|valorant|match|kills|win ?rate|esports)/.test(t)) return "gaming";
-  if (/(apple|health|steps|strava|garmin|fit|run|cycle|cycling|bike|hike|hiking|walk)/.test(t)) return "fitness";
-  if (/(friend|follow|social|lens|farcaster|twitter|x\.com)/.test(t)) return "social";
-  return "custom";
-}
 function normalizeGame(g?: string | null): string | null {
   if (!g) return null;
   const t = g.trim().toLowerCase();
@@ -72,20 +68,6 @@ function matchesGame(selected: string, value?: string | null) {
   return val === sel;
 }
 
-function statusChipClass(s: Status) {
-  switch (s) {
-    case "Active":
-      return "chip chip--ok";
-    case "Finalized":
-      return "chip chip--info";
-    case "Canceled":
-      return "chip chip--warn";
-    default:
-      return "chip";
-  }
-}
-
-/** merge helper: keep newest row per id */
 function mergeByIdNewer(first: Row[], second: Row[]) {
   const m = new Map<string, Row>();
   for (const r of first) m.set(r.id.toString(), r);
@@ -100,45 +82,79 @@ function mergeByIdNewer(first: Row[], second: Row[]) {
 /* ── Onboarding preference survey ───────────────────────────────────────── */
 const PREF_KEY = "lc_category_pref";
 const PREF_DONE_KEY = "lc_onboarding_done";
-
 type PrefChoice = "Gaming" | "Fitness" | "Both";
 
-function OnboardingSurvey({
-  onChoose,
-  onSkip,
-}: {
-  onChoose: (p: PrefChoice) => void;
-  onSkip: () => void;
-}) {
+function OnboardingSurvey({ onChoose, onSkip }: { onChoose: (p: PrefChoice) => void; onSkip: () => void }) {
   return (
-    <div className="panel p-5 border border-(--accent)/30" style={{ background: "color-mix(in oklab, var(--card) 90%, var(--accent) 6%)" }}>
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="text-sm font-semibold mb-1">What kind of challenges interest you?</div>
-          <p className="text-xs text-(--text-muted) mb-4">
-            We'll show you the most relevant challenges first. You can change this any time using the sidebar.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {(["Gaming", "Fitness", "Both"] as PrefChoice[]).map((p) => (
-              <button
-                key={p}
-                className="btn btn-outline btn-sm"
-                onClick={() => onChoose(p)}
-              >
-                {p === "Gaming" ? "🎮 Gaming" : p === "Fitness" ? "🏃 Fitness" : "🌟 Both"}
-              </button>
-            ))}
-          </div>
+    <div
+      style={{
+        padding: "var(--lc-space-5)",
+        borderRadius: "var(--lc-radius-lg)",
+        border: "1px solid var(--lc-accent)",
+        backgroundColor: "var(--lc-accent-muted)",
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: "var(--lc-space-4)",
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: "var(--lc-text-small)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)", marginBottom: "var(--lc-space-1)" }}>
+          What kind of challenges interest you?
         </div>
-        <button
-          className="btn btn-ghost btn-sm shrink-0 text-(--text-muted)"
-          onClick={onSkip}
-          title="Skip"
-        >
-          Skip
-        </button>
+        <p style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-secondary)", marginBottom: "var(--lc-space-4)" }}>
+          We&apos;ll show you the most relevant challenges first.
+        </p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--lc-space-2)" }}>
+          {(["Gaming", "Fitness", "Both"] as PrefChoice[]).map((p) => (
+            <button
+              key={p}
+              className="btn btn-outline btn-sm"
+              onClick={() => onChoose(p)}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
       </div>
+      <button
+        onClick={onSkip}
+        style={{
+          fontSize: "var(--lc-text-caption)",
+          color: "var(--lc-text-muted)",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          padding: "var(--lc-space-2)",
+          flexShrink: 0,
+        }}
+      >
+        Skip
+      </button>
     </div>
+  );
+}
+
+/* ── Filter pill ────────────────────────────────────────────────────────── */
+function FilterPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: "6px 14px",
+        borderRadius: "var(--lc-radius-pill)",
+        fontSize: "var(--lc-text-caption)",
+        fontWeight: "var(--lc-weight-medium)" as any,
+        color: active ? "var(--lc-accent-text)" : "var(--lc-text-secondary)",
+        backgroundColor: active ? "var(--lc-accent)" : "transparent",
+        border: active ? "none" : "1px solid var(--lc-border)",
+        cursor: "pointer",
+        transition: "all var(--lc-dur-fast) var(--lc-ease)",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -160,7 +176,6 @@ export default function Explore() {
   const [tab, setTab] = useState<"forYou" | "trending" | "newest" | "endingSoon">("forYou");
   const [statusFilter, setStatusFilter] = useState<Status | "ALL">("ALL");
 
-  // facets
   const [facetType, setFacetType] = useState<"ALL" | "Gaming" | "Fitness" | "Social" | "Custom">("ALL");
 
   // onboarding survey
@@ -169,7 +184,6 @@ export default function Explore() {
     try {
       const done = localStorage.getItem(PREF_DONE_KEY);
       if (!done) setShowSurvey(true);
-      // Apply saved preference if exists
       const saved = localStorage.getItem(PREF_KEY) as PrefChoice | null;
       if (saved === "Gaming") setFacetType("Gaming");
       else if (saved === "Fitness") setFacetType("Fitness");
@@ -184,23 +198,18 @@ export default function Explore() {
     setShowSurvey(false);
     if (p === "Gaming") setFacetType("Gaming");
     else if (p === "Fitness") setFacetType("Fitness");
-    // "Both" keeps facetType as "ALL"
   }
 
   function handleSurveySkip() {
     try { localStorage.setItem(PREF_DONE_KEY, "1"); } catch {}
     setShowSurvey(false);
   }
-  const [facetGame, setFacetGame] = useState<string | "ALL">("ALL");
-  const [facetMode, setFacetMode] = useState<string | "ALL">("ALL");
-  const [facetTier, setFacetTier] = useState<string | "ALL">("ALL");
-  const [facetDuration, setFacetDuration] = useState<string | "ALL">("ALL");
-  const [onlyFavorites, setOnlyFavorites] = useState(false);
 
-  // mini-search
+  const [facetGame, setFacetGame] = useState<string | "ALL">("ALL");
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [filterQuery, setFilterQuery] = useState("");
 
-  /** Off-chain metadata (category/game/mode/tags/title/description) */
+  /** Off-chain metadata */
   const [meta, setMeta] = useState<Record<string, ChallengeMeta>>({});
   useEffect(() => {
     let stop = false;
@@ -215,29 +224,22 @@ export default function Explore() {
         console.warn("[explore] failed to load challenge metadata:", err);
       }
     })();
-    return () => {
-      stop = true;
-    };
+    return () => { stop = true; };
   }, []);
 
-
   function inferCategoryFromTextAndMeta(m?: ChallengeMeta, title?: string, desc?: string): Exclude<Category, "all"> {
-    // strong hints from meta first
     const cat = (m?.category || "").toLowerCase();
     if (["gaming","fitness","social","custom"].includes(cat)) return cat as any;
-  
     const game = normalizeGame(m?.game);
     if (game && ["Dota 2","CS2","League of Legends","Valorant"].includes(game)) return "gaming";
     if (game && ["Running","Cycling","Hiking","Steps"].includes(game)) return "fitness";
-  
-    // fallback to text inference
     const t = `${title || ""} ${desc || ""}`.toLowerCase();
     if (/(dota|dota 2|league|lol|cs:?go|cs2|counter[- ]?strike|valorant|esports)/.test(t)) return "gaming";
     if (/(run|running|cycle|cycling|bike|steps|walk|hike|hiking|garmin|strava|fit)/.test(t)) return "fitness";
     if (/(friend|follow|social|lens|farcaster|twitter|x\.com)/.test(t)) return "social";
     return "custom";
   }
-  
+
   function resolveCategory(m?: ChallengeMeta): Category {
     return inferCategoryFromTextAndMeta(m, m?.title, m?.description);
   }
@@ -287,7 +289,6 @@ export default function Explore() {
     };
   }
 
-  /* unified window fetch */
   const fetchWindow = useCallback(async (toBlock?: bigint) => {
     const ownMore = typeof toBlock === "bigint";
     ownMore ? setLoadingMore(true) : setLoading(true);
@@ -305,19 +306,17 @@ export default function Explore() {
     }
   }, []);
 
-  /** initial + live refresh of the current window */
+  /** initial + live refresh */
   useEffect(() => {
     let stop = false;
     (async () => {
       const items = await fetchWindow();
       if (!stop) setRows((prev) => mergeByIdNewer(prev, items));
     })();
-    return () => {
-      stop = true;
-    };
+    return () => { stop = true; };
   }, [chainId, fetchWindow]);
 
-  /** When metadata arrives, enrich existing rows in-place (fixes stale closure in fetchWindow) */
+  /** Enrich rows when metadata arrives */
   useEffect(() => {
     if (Object.keys(meta).length === 0) return;
     setRows((prev) =>
@@ -339,7 +338,7 @@ export default function Explore() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meta]);
 
-  // Live polling — merge by ID
+  // Live polling
   useInterval(() => {
     (async () => {
       if (!range) return;
@@ -349,7 +348,7 @@ export default function Explore() {
     })();
   }, 10_000);
 
-  /** Infinite scroll for older */
+  /** Infinite scroll */
   const olderSentinel = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!olderSentinel.current) return;
@@ -375,7 +374,7 @@ export default function Explore() {
     return base;
   }, [rows]);
 
-  /* authoritative on-chain status */
+  /* on-chain status */
   const visibleIds = useMemo(() => rows.slice(0, 120).map((r) => r.id), [rows]);
   const statusCache = useChainStatusCache(visibleIds, 10_000);
 
@@ -417,20 +416,16 @@ export default function Explore() {
     }
 
     if (facetGame !== "ALL") set = set.filter((r) => matchesGame(facetGame, r.game));
-    if (facetMode !== "ALL") set = set.filter((r) => (r.mode || "").toLowerCase() === facetMode.toLowerCase());
-    if (facetTier !== "ALL") set = set.filter((r) => (r.tags || []).some((t) => t.toLowerCase() === facetTier.toLowerCase()));
-    if (facetDuration !== "ALL") set = set.filter((r) => (r.tags || []).some((t) => t.toLowerCase() === facetDuration.toLowerCase()));
 
     if (q) {
-      const byQ = (r: Row) => {
+      set = set.filter((r) => {
         const idMatch = r.id.toString().includes(q);
         const creator = r.creator && isAddress(r.creator) ? r.creator.toLowerCase() : "";
         const creatorMatch = creator.includes(q);
         const titleMatch = (r.title || "").toLowerCase().includes(q);
         const gameMatch = (normalizeGame(r.game || "") || "").toLowerCase().includes(q);
         return idMatch || creatorMatch || titleMatch || gameMatch;
-      };
-      set = set.filter(byQ);
+      });
     }
 
     switch (tab) {
@@ -444,93 +439,7 @@ export default function Explore() {
       default:
         return [...set].sort((a, b) => Number(b.blockNumber - a.blockNumber));
     }
-  }, [
-    rowsEffective,
-    filterQuery,
-    statusFilter,
-    facetType,
-    facetGame,
-    facetMode,
-    facetTier,
-    facetDuration,
-    onlyFavorites,
-    tab,
-    forYouRank,
-    favoritesSet,
-  ]);
-
-  /* Controls (header) — simplified: tab + search + view toggle only */
-  const controls = (
-    <div className="space-y-3">
-      {/* Tabs */}
-      <div className="segmented" role="tablist" aria-label="Explore sections">
-        {[
-          ["forYou",    "For You"],
-          ["trending",  "Trending"],
-          ["newest",    "Newest"],
-          ["endingSoon","Ending soon"],
-        ].map(([k, label]) => (
-          <button
-            key={k}
-            className={`segmented__btn ${tab === k ? "is-active" : ""}`}
-            aria-checked={tab === (k as any)}
-            role="tab"
-            onClick={() => setTab(k as any)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Search + view toggle */}
-      <div className="flex gap-2 items-center">
-        <input
-          className="input flex-1"
-          placeholder="Search by title, game, or creator…"
-          value={filterQuery}
-          onChange={(e) => setFilterQuery(e.target.value)}
-        />
-        <div className="segmented shrink-0" aria-label="View">
-          <button
-            className={`segmented__btn ${view === "grid" ? "is-active" : ""}`}
-            aria-checked={view === "grid"}
-            onClick={() => setView("grid")}
-            title="Grid view"
-          >
-            ⊞
-          </button>
-          <button
-            className={`segmented__btn ${view === "table" ? "is-active" : ""}`}
-            aria-checked={view === "table"}
-            onClick={() => setView("table")}
-            title="Table view"
-          >
-            ☰
-          </button>
-        </div>
-      </div>
-
-      {/* Result count + error */}
-      <div className="flex items-center justify-between">
-        <div className="text-xs text-(--text-muted)">
-          {filtered.length} challenge{filtered.length !== 1 ? "s" : ""}
-          {filtered.length < rowsEffective.length ? ` of ${rowsEffective.length}` : ""}
-        </div>
-        {onlyFavorites && (
-          <button
-            className="text-xs text-(--text-muted) hover:text-(--text) underline underline-offset-2"
-            onClick={() => setOnlyFavorites(false)}
-          >
-            Clear favorites filter
-          </button>
-        )}
-      </div>
-
-      {error && rowsEffective.length === 0 && (
-        <div className="chip chip--bad">API: {error}</div>
-      )}
-    </div>
-  );
+  }, [rowsEffective, filterQuery, statusFilter, facetType, facetGame, onlyFavorites, tab, forYouRank, favoritesSet]);
 
   /** Apple TV style grouping */
   const grouped = useMemo(() => {
@@ -553,246 +462,356 @@ export default function Explore() {
     return Object.fromEntries(Object.entries(by).sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0])));
   }, [filtered]);
 
+  /* ── Sort tabs ──────────────────────────────────────────────────────────── */
+  const sortTabs: { key: typeof tab; label: string }[] = [
+    { key: "forYou", label: "For You" },
+    { key: "trending", label: "Trending" },
+    { key: "newest", label: "Newest" },
+    { key: "endingSoon", label: "Ending Soon" },
+  ];
+
+  /* ── Active filter count (for clear button) ────────────────────────────── */
+  const activeFilters = [
+    statusFilter !== "ALL",
+    facetType !== "ALL",
+    facetGame !== "ALL",
+    onlyFavorites,
+    filterQuery.trim() !== "",
+  ].filter(Boolean).length;
+
+  function clearAllFilters() {
+    setFacetType("ALL");
+    setFacetGame("ALL");
+    setOnlyFavorites(false);
+    setFilterQuery("");
+    setStatusFilter("ALL");
+  }
+
+  /* ── Controls (passed to header) ────────────────────────────────────────── */
+  const controls = (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-3)" }}>
+      {/* Sort tabs */}
+      <div style={{ display: "flex", gap: "var(--lc-space-1)", padding: "3px", borderRadius: "var(--lc-radius-pill)", backgroundColor: "var(--lc-bg-inset)", width: "fit-content" }}>
+        {sortTabs.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            style={{
+              padding: "6px 16px",
+              borderRadius: "var(--lc-radius-pill)",
+              fontSize: "var(--lc-text-caption)",
+              fontWeight: "var(--lc-weight-medium)" as any,
+              color: tab === key ? "var(--lc-text)" : "var(--lc-text-muted)",
+              backgroundColor: tab === key ? "var(--lc-bg-raised)" : "transparent",
+              border: "none",
+              cursor: "pointer",
+              transition: "all var(--lc-dur-fast) var(--lc-ease)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Search + view toggle row */}
+      <div style={{ display: "flex", gap: "var(--lc-space-2)", alignItems: "center" }}>
+        <input
+          className="input"
+          placeholder="Search by title, game, or creator\u2026"
+          value={filterQuery}
+          onChange={(e) => setFilterQuery(e.target.value)}
+          style={{ flex: 1 }}
+        />
+        <div style={{ display: "flex", padding: 2, borderRadius: "var(--lc-radius-md)", backgroundColor: "var(--lc-bg-inset)", border: "1px solid var(--lc-border)", flexShrink: 0 }}>
+          {(["grid", "table"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              title={v === "grid" ? "Grid view" : "Table view"}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "var(--lc-radius-sm)",
+                border: "none",
+                backgroundColor: view === v ? "var(--lc-bg-raised)" : "transparent",
+                color: view === v ? "var(--lc-text)" : "var(--lc-text-muted)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 16,
+                transition: "all var(--lc-dur-fast) var(--lc-ease)",
+              }}
+            >
+              {v === "grid" ? "\u229E" : "\u2630"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Result count */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>
+        <span>
+          {filtered.length} challenge{filtered.length !== 1 ? "s" : ""}
+          {filtered.length < rowsEffective.length ? ` of ${rowsEffective.length}` : ""}
+        </span>
+        {activeFilters > 0 && (
+          <button
+            onClick={clearAllFilters}
+            style={{
+              background: "none",
+              border: "none",
+              color: "var(--lc-accent)",
+              fontSize: "var(--lc-text-caption)",
+              cursor: "pointer",
+              textDecoration: "underline",
+              textUnderlineOffset: 2,
+            }}
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
+
+      {error && rowsEffective.length === 0 && (
+        <div style={{ padding: "var(--lc-space-3)", borderRadius: "var(--lc-radius-md)", backgroundColor: "var(--lc-error-muted)", color: "var(--lc-error)", fontSize: "var(--lc-text-small)" }}>
+          API: {error}
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div className="container-narrow py-6 space-y-6">
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+      <Breadcrumb items={[{ label: "Explore" }]} />
+
       <ExploreHeader chainId={chainId} tallies={tallies} controls={controls} />
 
       {showSurvey && (
         <OnboardingSurvey onChoose={handlePrefChoice} onSkip={handleSurveySkip} />
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-        {/* Sidebar */}
-        <aside className="hidden md:block md:col-span-3">
-          <div className="category-zone">
-            <div className="sidebar-title">Type</div>
-            <div className="pill-grid">
-              {["All", "Gaming", "Fitness", "Social", "Custom"].map((g) => {
-                const on = (facetType === "ALL" && g === "All") || (facetType !== "ALL" && g.toLowerCase() === facetType.toLowerCase());
-                return (
-                  <button key={g} className={`pill-toggle ${on ? "is-active" : ""}`} onClick={() => setFacetType(g === "All" ? "ALL" : (g as any))}>
-                    <span className="label">{g}</span>
-                  </button>
-                );
-              })}
-            </div>
+      {/* Horizontal filter pills */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-3)" }}>
+        {/* Category */}
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", flexWrap: "wrap" }}>
+          <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", minWidth: 48 }}>Type</span>
+          {["All", "Gaming", "Fitness", "Social", "Custom"].map((g) => (
+            <FilterPill
+              key={g}
+              label={g}
+              active={(facetType === "ALL" && g === "All") || (facetType !== "ALL" && g.toLowerCase() === facetType.toLowerCase())}
+              onClick={() => setFacetType(g === "All" ? "ALL" : (g as any))}
+            />
+          ))}
+        </div>
 
-            <div className="sidebar-divider" />
-            <div className="sidebar-title">Games</div>
-            <div className="pill-grid">
-              {["All", "Dota 2", "CS2", "League of Legends", "Valorant", "Other"].map((g) => {
-                const on = (facetGame === "ALL" && g === "All") || (facetGame !== "ALL" && g.toLowerCase() === facetGame.toLowerCase());
-                return (
-                  <button key={g} className={`pill-toggle ${on ? "is-active" : ""}`} onClick={() => setFacetGame(g === "All" ? "ALL" : g)}>
-                    <span className="label">{g}</span>
-                  </button>
-                );
-              })}
-            </div>
+        {/* Status */}
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", flexWrap: "wrap" }}>
+          <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", minWidth: 48 }}>Status</span>
+          {["All", "Active", "Finalized", "Canceled"].map((s) => (
+            <FilterPill
+              key={s}
+              label={s}
+              active={(statusFilter === "ALL" && s === "All") || statusFilter === s}
+              onClick={() => setStatusFilter(s === "All" ? "ALL" : (s as Status))}
+            />
+          ))}
+        </div>
 
-            <div className="sidebar-divider" />
-            <div className="sidebar-title">Modes</div>
-            <div className="pill-grid">
-              {["All", "Kills", "Ranked", "Winrate", "Speedrun", "Solo", "Duo", "Team"].map((m) => {
-                const on = (facetMode === "ALL" && m === "All") || (facetMode !== "ALL" && m.toLowerCase() === facetMode.toLowerCase());
-                return (
-                  <button key={m} className={`pill-toggle ${on ? "is-active" : ""}`} onClick={() => setFacetMode(m === "All" ? "ALL" : m)}>
-                    <span className="label">{m}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="sidebar-divider" />
-            <div className="sidebar-title">Tier</div>
-            <div className="pill-grid">
-              {["All", "Beginner", "Intermediate", "Advanced", "Pro"].map((t) => {
-                const on = (facetTier === "ALL" && t === "All") || (facetTier !== "ALL" && t.toLowerCase() === facetTier.toLowerCase());
-                return (
-                  <button key={t} className={`pill-toggle ${on ? "is-active" : ""}`} onClick={() => setFacetTier(t === "All" ? "ALL" : t)}>
-                    <span className="label">{t}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="sidebar-divider" />
-            <div className="sidebar-title">Duration</div>
-            <div className="pill-grid">
-              {["All", "<30m", "Daily", "Weekend", "Season"].map((d) => {
-                const on = (facetDuration === "ALL" && d === "All") || (facetDuration !== "ALL" && d.toLowerCase() === facetDuration.toLowerCase());
-                return (
-                  <button key={d} className={`pill-toggle ${on ? "is-active" : ""}`} onClick={() => setFacetDuration(d === "All" ? "ALL" : d)}>
-                    <span className="label">{d}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="sidebar-divider" />
-            <button className={`pill-toggle ${onlyFavorites ? "is-active" : ""}`} onClick={() => setOnlyFavorites((v) => !v)}>
-              <span className="label">★ Favorites</span>
-            </button>
+        {/* Games (only show when Gaming type is selected or ALL) */}
+        {(facetType === "ALL" || facetType === "Gaming") && (
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", minWidth: 48 }}>Game</span>
+            {["All", "Dota 2", "CS2", "League of Legends", "Valorant", "Other"].map((g) => (
+              <FilterPill
+                key={g}
+                label={g}
+                active={(facetGame === "ALL" && g === "All") || (facetGame !== "ALL" && g.toLowerCase() === facetGame.toLowerCase())}
+                onClick={() => setFacetGame(g === "All" ? "ALL" : g)}
+              />
+            ))}
           </div>
-        </aside>
+        )}
 
-        {/* Content */}
-        <main className="md:col-span-9 space-y-6">
-          {view === "grid" ? (
-            <>
-              {Object.keys(grouped).length === 0 && (
-                <div className="panel p-8 text-center space-y-4">
-                  <div className="text-lg font-semibold">No challenges found</div>
-                  <p className="text-sm text-(--text-muted) max-w-md mx-auto">
-                    {rowsEffective.length > 0
-                      ? "No challenges match your current filters. Try broadening your search or changing the category."
-                      : "No challenges have been created on-chain yet. Be the first to create one!"}
-                  </p>
-                  <div className="flex flex-wrap gap-3 justify-center">
-                    {rowsEffective.length > 0 && (
-                      <button
-                        className="btn btn-ghost"
-                        onClick={() => {
-                          setFacetType("ALL");
-                          setFacetGame("ALL");
-                          setFacetMode("ALL");
-                          setFacetTier("ALL");
-                          setFacetDuration("ALL");
-                          setOnlyFavorites(false);
-                          setFilterQuery("");
-                          setStatusFilter("ALL");
-                        }}
-                      >
-                        Clear all filters
-                      </button>
-                    )}
-                    <a href="/challenges/create" className="btn btn-primary">Create a challenge</a>
-                  </div>
-                </div>
-              )}
-              {Object.entries(grouped).map(([title, items]) => (
-                <SectionCarousel key={title} title={title}>
-                  {items.map((r) => (
-                    <div key={`${r.id.toString()}-${r.txHash}`}>
-                      <ChallengeCard
-                        id={r.id}
-                        title={r.title}
-                        description={r.description}
-                        status={r.status}
-                        startTs={r.startTs}
-                        badges={r.badges}
-                        game={r.game || undefined}
-                        mode={r.mode || undefined}
-                        onOpen={() => router.push(`/challenge/${r.id.toString()}`)}
-                        isFavorite={isFav(r.id.toString())}
-                        onToggleFavorite={() => toggleFav(r.id.toString())}
-                      />
-                    </div>
-                  ))}
-                </SectionCarousel>
+        {/* Favorites toggle */}
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)" }}>
+          <FilterPill
+            label={`\u2605 Favorites${onlyFavorites ? " (on)" : ""}`}
+            active={onlyFavorites}
+            onClick={() => setOnlyFavorites((v) => !v)}
+          />
+        </div>
+      </div>
+
+      {/* Content */}
+      {view === "grid" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+          {loading && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "var(--lc-space-4)" }}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    height: 200,
+                    borderRadius: "var(--lc-radius-lg)",
+                    border: "1px solid var(--lc-border)",
+                    backgroundColor: "var(--lc-bg-raised)",
+                    background: "linear-gradient(90deg, var(--lc-bg-raised) 25%, var(--lc-bg-inset) 50%, var(--lc-bg-raised) 75%)",
+                    backgroundSize: "200% 100%",
+                    animation: "lc-shimmer 1.4s ease-in-out infinite",
+                  }}
+                />
               ))}
-              <div ref={olderSentinel} className="h-14" />
-            </>
-          ) : (
-            <div className="panel">
-              <div className="panel-header">
-                <div className="font-semibold">
-                  Recent Challenges · <span className="text-(--text-muted)">newest first · compact glass table</span>
-                </div>
-              </div>
-              <div className="panel-body">
-                {loading && <div className="text-(--text-muted) text-sm">Loading…</div>}
-                {!loading && filtered.length === 0 && (
-                  <div className="p-6 text-center text-sm text-(--text-muted)">
-                    No challenges match your filters.{" "}
-                    <button className="underline underline-offset-2" onClick={() => { setFacetType("ALL"); setFacetGame("ALL"); setFilterQuery(""); setStatusFilter("ALL"); }}>
-                      Clear filters
-                    </button>
-                  </div>
-                )}
-                {!loading && filtered.length > 0 && (
-                  <div className="overflow-x-auto">
-                    <table className="table table--compact glass-shadow" style={{ minWidth: 1120 }}>
-                      <thead>
-                        <tr>
-                          <th style={{ width: 80 }}>ID</th>
-                          <th style={{ width: 300 }}>Title</th>
-                          <th style={{ width: 180 }}>Game / Mode</th>
-                          <th style={{ width: 160 }}>Creator</th>
-                          <th style={{ width: 140 }}>Block</th>
-                          <th style={{ width: 220 }}>Tx</th>
-                          <th style={{ width: 140 }}>Status</th>
-                          <th style={{ width: 300 }}>Badges / Tags</th>
-                          <th style={{ width: 60 }}>Fav</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filtered.map((r) => {
-                          const idStr = r.id.toString();
-                          const b = r.badges || {};
-                          return (
-                            <tr key={`${r.txHash}-${idStr}`} className="align-middle hover:bg-white/5 transition-colors">
-                              <td>
-                                <a className="link" href={`/challenge/${idStr}`}>
-                                  #{idStr}
-                                </a>
-                              </td>
-                              <td className="truncate max-w-[300px]">{r.title || "—"}</td>
-                              <td className="truncate">
-                                <div className="flex gap-1 items-center">
-                                  <span className="chip">{normalizeGame(r.game) || "—"}</span>
-                                  {r.mode && <span className="chip chip--info">{r.mode}</span>}
-                                </div>
-                              </td>
-                              <td>
-                                {r.creator ? (
-                                  <a className="link" href={addressUrl(r.creator)} target="_blank" rel="noreferrer">
-                                    {r.creator.slice(0, 6)}…{r.creator.slice(-4)}
-                                  </a>
-                                ) : (
-                                  "—"
-                                )}
-                              </td>
-                              <td>
-                                <a className="link" href={blockUrl(r.blockNumber)} target="_blank" rel="noreferrer">
-                                  {r.blockNumber.toString()}
-                                </a>
-                              </td>
-                              <td>
-                                <a className="link mono" href={txUrl(r.txHash)} target="_blank" rel="noreferrer">
-                                  {r.txHash.slice(0, 14)}…
-                                </a>
-                              </td>
-                              <td>
-                                <span className={statusChipClass(r.status)}>{r.status}</span>
-                              </td>
-                              <td>
-                                <div className="flex gap-2 flex-wrap">
-                                  {(r.tags || []).slice(0, 4).map((t) => (
-                                    <span key={t} className="chip">
-                                      {t}
-                                    </span>
-                                  ))}
-                                </div>
-                              </td>
-                              <td>
-                                <button className={`icon-btn star ${isFav(idStr) ? "is-fav" : ""}`} onClick={() => toggleFav(idStr)} title="Favorite">
-                                  ★
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                    <div ref={olderSentinel} className="h-14" />
-                  </div>
-                )}
-              </div>
             </div>
           )}
-        </main>
-      </div>
+
+          {!loading && Object.keys(grouped).length === 0 && (
+            <EmptyState
+              title="No challenges found"
+              description={
+                rowsEffective.length > 0
+                  ? "No challenges match your current filters. Try broadening your search."
+                  : "No challenges have been created on-chain yet. Be the first!"
+              }
+              actionLabel={rowsEffective.length > 0 ? "Clear filters" : "Create a challenge"}
+              onAction={rowsEffective.length > 0 ? clearAllFilters : () => { window.location.href = "/challenges/create"; }}
+            />
+          )}
+
+          {!loading && Object.entries(grouped).map(([title, items]) => (
+            <SectionCarousel key={title} title={title}>
+              {items.map((r) => (
+                <div key={`${r.id.toString()}-${r.txHash}`}>
+                  <ChallengeCard
+                    id={r.id}
+                    title={r.title}
+                    description={r.description}
+                    status={r.status}
+                    startTs={r.startTs}
+                    badges={r.badges}
+                    game={r.game || undefined}
+                    mode={r.mode || undefined}
+                    onOpen={() => router.push(`/challenge/${r.id.toString()}`)}
+                    isFavorite={isFav(r.id.toString())}
+                    onToggleFavorite={() => toggleFav(r.id.toString())}
+                  />
+                </div>
+              ))}
+            </SectionCarousel>
+          ))}
+
+          <div ref={olderSentinel} style={{ height: 56 }} />
+        </div>
+      ) : (
+        /* Table view */
+        <div
+          style={{
+            borderRadius: "var(--lc-radius-lg)",
+            border: "1px solid var(--lc-border)",
+            backgroundColor: "var(--lc-bg-raised)",
+            overflow: "hidden",
+          }}
+        >
+          {loading && (
+            <div style={{ padding: "var(--lc-space-6)", fontSize: "var(--lc-text-small)", color: "var(--lc-text-muted)" }}>
+              Loading\u2026
+            </div>
+          )}
+          {!loading && filtered.length === 0 && (
+            <div style={{ padding: "var(--lc-space-8)", textAlign: "center", fontSize: "var(--lc-text-small)", color: "var(--lc-text-muted)" }}>
+              No challenges match your filters.{" "}
+              <button
+                onClick={clearAllFilters}
+                style={{ textDecoration: "underline", background: "none", border: "none", color: "var(--lc-accent)", cursor: "pointer", fontSize: "inherit" }}
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
+          {!loading && filtered.length > 0 && (
+            <div style={{ overflowX: "auto" }}>
+              <table className="table table--compact" style={{ minWidth: 900 }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: 70 }}>ID</th>
+                    <th style={{ width: 260 }}>Title</th>
+                    <th style={{ width: 160 }}>Game / Mode</th>
+                    <th style={{ width: 140 }}>Creator</th>
+                    <th style={{ width: 100 }}>Block</th>
+                    <th style={{ width: 120 }}>Status</th>
+                    <th style={{ width: 50 }}>Fav</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((r) => {
+                    const idStr = r.id.toString();
+                    const statusTone = r.status === "Active" ? "success" : r.status === "Finalized" ? "accent" : "warning";
+                    return (
+                      <tr key={`${r.txHash}-${idStr}`}>
+                        <td>
+                          <a href={`/challenge/${idStr}`} style={{ color: "var(--lc-accent)", textDecoration: "none" }}>
+                            #{idStr}
+                          </a>
+                        </td>
+                        <td style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 260 }}>
+                          {r.title || "\u2014"}
+                        </td>
+                        <td>
+                          <span style={{ fontSize: "var(--lc-text-caption)" }}>
+                            {normalizeGame(r.game) || "\u2014"}
+                            {r.mode && <span style={{ color: "var(--lc-text-muted)", marginLeft: 4 }}>\u00B7 {r.mode}</span>}
+                          </span>
+                        </td>
+                        <td>
+                          {r.creator ? (
+                            <a href={addressUrl(r.creator)} target="_blank" rel="noreferrer" style={{ color: "var(--lc-accent)", textDecoration: "none", fontFamily: "monospace", fontSize: "var(--lc-text-caption)" }}>
+                              {r.creator.slice(0, 6)}\u2026{r.creator.slice(-4)}
+                            </a>
+                          ) : (
+                            "\u2014"
+                          )}
+                        </td>
+                        <td>
+                          <a href={blockUrl(r.blockNumber)} target="_blank" rel="noreferrer" style={{ color: "var(--lc-accent)", textDecoration: "none", fontFamily: "monospace", fontSize: "var(--lc-text-caption)" }}>
+                            {r.blockNumber.toString()}
+                          </a>
+                        </td>
+                        <td>
+                          <Badge variant="tone" tone={statusTone} size="sm">{r.status}</Badge>
+                        </td>
+                        <td>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleFav(idStr); }}
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: "50%",
+                              border: "1px solid var(--lc-border)",
+                              backgroundColor: isFav(idStr) ? "var(--lc-warning-muted)" : "transparent",
+                              color: isFav(idStr) ? "var(--lc-warning)" : "var(--lc-text-muted)",
+                              cursor: "pointer",
+                              fontSize: 12,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                            title="Favorite"
+                          >
+                            ★
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div ref={olderSentinel} style={{ height: 56 }} />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

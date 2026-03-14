@@ -133,13 +133,15 @@ struct ContentView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Server").font(.caption).foregroundStyle(.secondary)
-                TextField("https://app.lightchallenge.io", text: $serverURL)
+                TextField("https://uat.lightchallenge.app", text: $serverURL)
                     .textFieldStyle(.roundedBorder)
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
                     .font(.system(.caption, design: .monospaced))
                 HStack(spacing: 8) {
-                    Button("Production") { serverURL = ServerConfig.defaultBaseURL }
+                    Button("UAT") { serverURL = ServerConfig.uatBaseURL }
+                        .font(.caption2)
+                    Button("Production") { serverURL = ServerConfig.productionBaseURL }
                         .font(.caption2)
                     Button("Local Dev") { serverURL = ServerConfig.devBaseURL }
                         .font(.caption2)

@@ -2,35 +2,11 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Users, Coins, Clock3 } from "lucide-react";
 import { useAccount } from "wagmi";
 import { formatLCAIShort } from "@/lib/formatLCAI";
 import type { Status } from "@/lib/types/status";
+import Badge from "@/app/components/ui/Badge";
 import GameIcon from "./GameIcon";
-
-const statusChipClass = (s: Status) =>
-  s === "Active" ? "chip chip--ok"
-  : s === "Finalized" ? "chip chip--info"
-  : s === "Canceled" ? "chip chip--warn"
-  : "chip";
-
-/** Skeleton shimmer for loading state */
-function Shimmer({ className }: { className?: string }) {
-  return (
-    <span
-      className={className}
-      style={{
-        display: "inline-block",
-        borderRadius: 6,
-        background:
-          "linear-gradient(90deg, rgba(255,255,255,.06) 25%, rgba(255,255,255,.13) 50%, rgba(255,255,255,.06) 75%)",
-        backgroundSize: "200% 100%",
-        animation: "shimmer 1.4s ease-in-out infinite",
-      }}
-      aria-hidden
-    />
-  );
-}
 
 export default function ChallengeCard({
   id,
@@ -49,7 +25,7 @@ export default function ChallengeCard({
   title?: string;
   description?: string;
   status: Status;
-  startTs?: bigint; // seconds since epoch (on-chain)
+  startTs?: bigint;
   badges?: Record<string, unknown>;
   game?: string | null;
   mode?: string | null;
@@ -61,11 +37,8 @@ export default function ChallengeCard({
   const router = useRouter();
   const { address } = useAccount();
 
-  // startTs prop is seconds; keep it in seconds internally
   const startSec = typeof startTs === "bigint" ? Number(startTs) : null;
 
-  // Stats from the API: participants, pool, timestamps, youJoined.
-  // title/description are NOT fetched — they come from props (DB meta, fast).
   const [statsState, setStatsState] = React.useState<
     | "loading"
     | {
@@ -105,7 +78,6 @@ export default function ChallengeCard({
           youJoined: !!(j?.youJoined || j?.youAlreadyJoined),
         });
       } catch {
-        // best-effort; show dashes on error
         if (!dead) {
           setStatsState({
             participants: null,
@@ -132,10 +104,9 @@ export default function ChallengeCard({
 
   const loading = statsState === "loading";
   const stats = loading ? null : statsState;
-
-  // Title comes from props immediately — no fallback fetch needed.
-  // If the DB meta hasn't arrived yet the parent will re-render with it.
   const displayTitle = title ?? `Challenge #${idStr}`;
+
+  const statusTone = status === "Active" ? "success" : status === "Finalized" ? "accent" : "warning";
 
   return (
     <article
@@ -144,115 +115,140 @@ export default function ChallengeCard({
       onClick={go}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && go()}
       aria-label={`Open challenge ${idStr}`}
-      className="dark-card group cursor-pointer"
       style={{
-        padding: 20,
-        borderRadius: "24px",
-        minHeight: 210,
-        background:
-          "linear-gradient(180deg, color-mix(in oklab, var(--grad-1) 10%, transparent), color-mix(in oklab, var(--surface-2) 18%, var(--card)))",
+        padding: "var(--lc-space-5)",
+        borderRadius: "var(--lc-radius-lg)",
+        border: "1px solid var(--lc-border)",
+        backgroundColor: "var(--lc-bg-raised)",
+        cursor: "pointer",
+        transition: "border-color var(--lc-dur-fast) var(--lc-ease), box-shadow var(--lc-dur-fast) var(--lc-ease)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "var(--lc-space-3)",
+        minHeight: 200,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "var(--lc-accent)";
+        e.currentTarget.style.boxShadow = "0 0 0 1px var(--lc-accent)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "var(--lc-border)";
+        e.currentTarget.style.boxShadow = "none";
       }}
     >
-      <div className="dark-halo" aria-hidden />
-      <div className="dark-sheen" aria-hidden />
-
-      {/* Header */}
-      <header className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
+      {/* Header: ID circle + game icon + title + status */}
+      <header style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "var(--lc-space-3)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-3)", minWidth: 0, flex: 1 }}>
           <div
-            className="w-10 h-10 rounded-full grid place-items-center font-extrabold text-sm shrink-0"
             style={{
-              background: "color-mix(in oklab, #fff 18%, transparent)",
-              color: "#fff",
-              boxShadow: "inset 0 0 0 1px rgba(255,255,255,.14)",
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              backgroundColor: "var(--lc-accent-muted)",
+              color: "var(--lc-accent)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: "var(--lc-weight-bold)" as any,
+              fontSize: "var(--lc-text-caption)",
+              flexShrink: 0,
             }}
-            aria-hidden
           >
             {idStr}
           </div>
-          <GameIcon name={game} className="w-6 h-6 shrink-0" />
-          <div className="min-w-0 flex-1">
-            <h3 className="text-[16px] sm:text-[18px] font-extrabold tracking-[-.01em] truncate leading-tight">
+          <GameIcon name={game} className="w-5 h-5 shrink-0" />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <h3
+              style={{
+                fontSize: "var(--lc-text-body)",
+                fontWeight: "var(--lc-weight-semibold)" as any,
+                color: "var(--lc-text)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
               {displayTitle}
             </h3>
-            <div className="flex items-center gap-2 text-[12px] text-(--text-muted) mt-0.5">
-              <span className="truncate">{[game, mode].filter(Boolean).join(" • ") || "—"}</span>
-              <div className="flex items-center gap-1 shrink-0" />
+            <div style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", marginTop: 1 }}>
+              {[game, mode].filter(Boolean).join(" \u00B7 ") || "\u2014"}
             </div>
           </div>
         </div>
 
-        <span className={statusChipClass(status)}>{status}</span>
+        <Badge variant="tone" tone={statusTone} size="sm">{status}</Badge>
       </header>
 
-      {/* Description — shown immediately from props, 2-line clamp */}
+      {/* Description */}
       {description ? (
-        <p className="mt-2.5 text-[13px] leading-[1.45] text-(--text-muted) line-clamp-2">
+        <p
+          style={{
+            fontSize: "var(--lc-text-small)",
+            lineHeight: 1.45,
+            color: "var(--lc-text-secondary)",
+            overflow: "hidden",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+          }}
+        >
           {description}
         </p>
       ) : (
-        /* Reserve space so cards with/without descriptions align better */
-        <div className="mt-2.5 h-[38px]" aria-hidden />
+        <div style={{ height: 38 }} aria-hidden />
       )}
 
-      {/* Stats row — skeleton while loading */}
-      <div className="grid grid-cols-2 gap-2 mt-3">
+      {/* Stats row */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--lc-space-2)" }}>
         <StatPill
-          icon={<Users size={12} />}
           label="Joined"
-          value={
-            loading ? (
-              <Shimmer className="w-6 h-3.5 rounded" />
-            ) : stats!.participants !== null ? (
-              String(stats!.participants)
-            ) : (
-              "—"
-            )
-          }
+          value={loading ? null : stats!.participants !== null ? String(stats!.participants) : "\u2014"}
+          loading={loading}
         />
         <StatPill
-          icon={<Coins size={12} />}
-          label="Treasury"
+          label="Pool"
           value={
-            loading ? (
-              <Shimmer className="w-10 h-3.5 rounded" />
-            ) : formatLCAIShort(stats!.pool) !== null ? (
-              formatLCAIShort(stats!.pool)!
-            ) : (
-              "—"
-            )
+            loading
+              ? null
+              : formatLCAIShort(stats!.pool) !== null
+                ? `${formatLCAIShort(stats!.pool)} LCAI`
+                : "\u2014"
           }
-          suffix={!loading && formatLCAIShort(stats!.pool) !== null ? " LCAI" : undefined}
+          loading={loading}
         />
       </div>
 
-      {/* Timelines — only shown once stats are loaded (API returns seconds → *1000 for Date) */}
+      {/* Timeline */}
       {!loading && (
-        <div className="mt-3 text-[12px] text-(--text-muted) flex flex-wrap gap-x-3 gap-y-1">
-          {typeof stats!.joinClosesTs === "number" && (
-            <span className="inline-flex items-center gap-1">
-              <Clock3 size={12} /> Join closes {new Date(stats!.joinClosesTs * 1000).toLocaleString()}
-            </span>
-          )}
-          {typeof stats!.startTs === "number" && (
-            <span className="inline-flex items-center gap-1">
-              <Clock3 size={12} /> Starts {new Date(stats!.startTs * 1000).toLocaleString()}
-            </span>
-          )}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--lc-space-3)", fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>
           {typeof stats!.endTs === "number" && (
-            <span className="inline-flex items-center gap-1">
-              <Clock3 size={12} /> Ends {new Date(stats!.endTs * 1000).toLocaleString()}
-            </span>
+            <span>Ends {new Date(stats!.endTs * 1000).toLocaleDateString()}</span>
+          )}
+          {typeof stats!.joinClosesTs === "number" && (
+            <span>Join closes {new Date(stats!.joinClosesTs * 1000).toLocaleDateString()}</span>
           )}
         </div>
       )}
-      {loading && <div className="mt-3 h-4" aria-hidden />}
+      {loading && <div style={{ height: 16 }} aria-hidden />}
 
-      {/* Footer: favorite + youJoined badge */}
-      <div className="mt-4 flex items-center gap-2">
+      {/* Footer: favorite + youJoined */}
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", marginTop: "auto" }}>
         {onToggleFavorite && (
           <button
-            className={`icon-btn star ${isFavorite ? "is-fav" : ""}`}
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              border: "1px solid var(--lc-border)",
+              backgroundColor: isFavorite ? "var(--lc-warning-muted)" : "transparent",
+              color: isFavorite ? "var(--lc-warning)" : "var(--lc-text-muted)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 14,
+              transition: "all var(--lc-dur-fast) var(--lc-ease)",
+            }}
             title={isFavorite ? "Unfavorite" : "Favorite"}
             aria-pressed={!!isFavorite}
             onClick={(e) => {
@@ -264,7 +260,9 @@ export default function ChallengeCard({
           </button>
         )}
         {!loading && stats!.youJoined && (
-          <span className="chip chip--ok ml-auto">You joined</span>
+          <span style={{ marginLeft: "auto" }}>
+            <Badge variant="tone" tone="success" size="sm">You joined</Badge>
+          </span>
         )}
       </div>
     </article>
@@ -272,31 +270,47 @@ export default function ChallengeCard({
 }
 
 function StatPill({
-  icon,
   label,
   value,
-  suffix,
+  loading,
 }: {
-  icon: React.ReactNode;
   label: string;
-  value: React.ReactNode;
-  suffix?: string;
+  value: string | null;
+  loading: boolean;
 }) {
   return (
     <div
-      className="rounded-2xl px-3 py-2 text-[12px] flex items-center gap-1 min-h-[36px]"
       style={{
-        background: "var(--ghost-bg)",
-        border: "1px solid var(--ghost-border)",
-        color: "var(--ghost-text)",
-        backdropFilter: "blur(8px) saturate(1.06)",
+        borderRadius: "var(--lc-radius-md)",
+        padding: "var(--lc-space-2) var(--lc-space-3)",
+        fontSize: "var(--lc-text-caption)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "var(--lc-space-2)",
+        minHeight: 34,
+        backgroundColor: "var(--lc-bg-inset)",
+        border: "1px solid var(--lc-border)",
       }}
     >
-      {icon} <span>{label}</span>
-      <span className="ml-auto font-semibold text-(--text) flex items-center gap-0.5">
-        {value}
-        {suffix ? <span className="opacity-70">{suffix}</span> : null}
-      </span>
+      <span style={{ color: "var(--lc-text-muted)" }}>{label}</span>
+      {loading ? (
+        <span
+          style={{
+            width: 40,
+            height: 12,
+            borderRadius: "var(--lc-radius-sm)",
+            background: "linear-gradient(90deg, var(--lc-bg-inset) 25%, var(--lc-border) 50%, var(--lc-bg-inset) 75%)",
+            backgroundSize: "200% 100%",
+            animation: "lc-shimmer 1.4s ease-in-out infinite",
+          }}
+          aria-hidden
+        />
+      ) : (
+        <span style={{ fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)" }}>
+          {value}
+        </span>
+      )}
     </div>
   );
 }

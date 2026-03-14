@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
+import Badge from "./components/ui/Badge";
 
-/* ── Live protocol stats ────────────────────────────────────────────────── */
+/* ── Data hooks ────────────────────────────────────────────────────────────── */
+
 type Stats = { totalChallenges: number; validatorStake: string; modelsCount: number };
 
 function useStats() {
@@ -18,7 +20,6 @@ function useStats() {
   return stats;
 }
 
-/* ── Recent challenges ─────────────────────────────────────────────────── */
 type ChallengeMeta = {
   id: string;
   title?: string;
@@ -26,6 +27,9 @@ type ChallengeMeta = {
   status?: string;
   intent?: string;
   stake?: string;
+  category?: string;
+  deadline?: string;
+  participants_count?: number;
 };
 
 function useRecentChallenges() {
@@ -41,7 +45,6 @@ function useRecentChallenges() {
   return challenges;
 }
 
-/* ── Network health ────────────────────────────────────────────────────── */
 type Health = { status: string; rpc: boolean; db: boolean; blockNumber: string; blockAge: number };
 
 function useHealth() {
@@ -59,202 +62,212 @@ function useHealth() {
   return health;
 }
 
-/* ── Types ──────────────────────────────────────────────────────────────── */
-type NavItem = { href: string; title: string; desc: string; tag?: string };
+/* ── Formatters ────────────────────────────────────────────────────────────── */
 
-const PRIMARY: readonly NavItem[] = [
-  { href: "/explore",                   title: "Explore",        desc: "Browse active challenges. Find one worth your stake.",                tag: "Discover" },
-  { href: "/challenges/create",         title: "Create",         desc: "Launch a challenge in 4 steps — rules, stake, and deadline.",        tag: "Build" },
-  { href: "/me/challenges",             title: "My Challenges",  desc: "Your active, pending, and completed challenges at a glance.",        tag: "Yours" },
-  { href: "/claims",                    title: "Claims",         desc: "See and claim your winnings from finalized challenges.",             tag: "Earn" },
-  { href: "/proofs",                    title: "Submit Proof",   desc: "Upload evidence for AIVM verification of your goal.",               tag: "Verify" },
-  { href: "/settings/linked-accounts",  title: "Link Accounts",  desc: "Connect Steam, Garmin, Strava, and more to enable challenges.",     tag: "Connect" },
-] as const;
-
-/* ── Components ─────────────────────────────────────────────────────────── */
-function NavCard({ item }: { item: NavItem }) {
-  return (
-    <Link
-      href={item.href}
-      className="nav-card group"
-      aria-label={`${item.title}: ${item.desc}`}
-    >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <span className="text-base font-semibold group-hover:text-(--accent) transition-colors">
-          {item.title}
-        </span>
-        {item.tag && <span className="chip chip--soft shrink-0 text-[10px]">{item.tag}</span>}
-      </div>
-      <p className="text-sm text-(--text-muted) leading-relaxed">{item.desc}</p>
-      <div className="mt-4 text-xs text-(--text-muted) group-hover:text-(--text) transition-colors">
-        Open →
-      </div>
-    </Link>
-  );
+function fmtNumber(n?: number) {
+  if (n == null) return "\u2014";
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
 }
 
-function StatCard({
-  value,
-  label,
-  hint,
-}: {
-  value: string;
-  label: string;
-  hint: string;
-}) {
-  return (
-    <div className="metric text-center py-4">
-      <div className="text-2xl font-bold tabular-nums">{value}</div>
-      <div className="text-xs font-semibold uppercase tracking-widest mt-1">{label}</div>
-      <div className="text-[11px] text-(--text-muted) mt-0.5">{hint}</div>
-    </div>
-  );
+function fmtStake(s?: string) {
+  if (!s) return "\u2014";
+  const n = parseFloat(s);
+  if (isNaN(n)) return s;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return n.toFixed(0);
 }
 
-/* ── Page ────────────────────────────────────────────────────────────────── */
-function ChallengePreviewCard({ c }: { c: ChallengeMeta }) {
-  const statusColor =
-    c.status === "Active" ? "#22c55e" : c.status === "Finalized" ? "#6B5CFF" : "#888";
-  return (
-    <Link href={`/challenge/${c.id}`} className="panel p-4 group hover:border-(--accent) transition-colors">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <span className="text-sm font-semibold group-hover:text-(--accent) transition-colors truncate">
-          {c.title || `Challenge #${c.id}`}
-        </span>
-        <span
-          className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-          style={{ background: `${statusColor}22`, color: statusColor }}
-        >
-          {c.status || "—"}
-        </span>
-      </div>
-      {c.description && (
-        <p className="text-xs text-(--text-muted) leading-relaxed line-clamp-2 mb-2">
-          {c.description}
-        </p>
-      )}
-      <div className="flex items-center gap-3 text-[11px] text-(--text-muted)">
-        {c.intent && <span className="capitalize">{c.intent.replace(/-/g, " ")}</span>}
-        {c.stake && <span>{c.stake} LCAI</span>}
-      </div>
-    </Link>
-  );
+function inferCategory(c: ChallengeMeta): string {
+  const t = `${c.title || ""} ${c.description || ""} ${c.intent || ""} ${c.category || ""}`.toLowerCase();
+  if (/(dota|cs|valorant|league|lol|game|gaming|esport|match|kills|win)/.test(t)) return "Gaming";
+  if (/(step|run|fitness|garmin|strava|cycle|hike|walk|apple.*health)/.test(t)) return "Fitness";
+  return "Custom";
 }
+
+/* ── Page ──────────────────────────────────────────────────────────────────── */
 
 export default function HomePage() {
-  const { isConnected } = useAccount();
+  useAccount(); // keep provider hydrated
   const stats = useStats();
-  const recentChallenges = useRecentChallenges();
+  const challenges = useRecentChallenges();
   const health = useHealth();
 
-  const fmtChallenges = (n?: number) => {
-    if (n == null) return "…";
-    if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-    return String(n);
-  };
-
-  const fmtStake = (s?: string) => {
-    if (!s) return "…";
-    const n = parseFloat(s);
-    if (isNaN(n)) return s;
-    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M LCAI`;
-    if (n >= 1000) return `${(n / 1000).toFixed(1)}k LCAI`;
-    return `${n.toFixed(0)} LCAI`;
-  };
-
   return (
-    <div className="container-narrow space-y-10">
-      {/* ── HERO ─────────────────────────────────────────────── */}
-      <section className="panel overflow-hidden relative">
-        {/* Ambient gradient */}
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-16)" }}>
+      {/* ── Hero ──────────────────────────────────────────────────── */}
+      <section
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          textAlign: "center",
+          paddingTop: "var(--lc-space-16)",
+          paddingBottom: "var(--lc-space-12)",
+          gap: "var(--lc-space-6)",
+        }}
+      >
         <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0"
           style={{
-            opacity: 0.4,
-            background:
-              "radial-gradient(90% 55% at 50% -5%, color-mix(in oklab, var(--grad-1) 55%, transparent), transparent 72%)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "var(--lc-space-2)",
+            padding: "4px 12px",
+            borderRadius: "var(--lc-radius-pill)",
+            border: "1px solid var(--lc-border)",
+            fontSize: "var(--lc-text-caption)",
+            color: "var(--lc-text-secondary)",
           }}
-        />
-
-        <div className="panel-body relative z-10 pt-10 pb-8 sm:pt-14 sm:pb-10">
-          <div className="max-w-2xl">
-            <div className="flex items-center gap-2 mb-5">
-              <span className="chip chip--soft">LightChallenge</span>
-              <span className="text-xs text-(--text-muted) tracking-widest uppercase">
-                On-chain · AI-verified · Rewarded
-              </span>
-            </div>
-
-            <h1 className="h1 title-premium leading-[1.1] mb-5">
-              Stake your reputation.<br />
-              Prove it on-chain.
-            </h1>
-
-            <p className="text-base text-(--text-muted) leading-relaxed max-w-xl mb-8">
-              LightChallenge lets you put real stake behind real goals.
-              Win your match, hit your step count, crush your PR — then submit proof
-              and the AI verifier confirms it on-chain. No trust required.
-            </p>
-
-            <div className="flex flex-wrap gap-3">
-              <Link href="/explore" className="btn btn-primary btn-lg">
-                Browse challenges →
-              </Link>
-              <Link href="/challenges/create" className="btn btn-ghost btn-lg">
-                Create one
-              </Link>
-              {isConnected && (
-                <Link href="/me/challenges" className="btn btn-outline btn-lg">
-                  My challenges
-                </Link>
-              )}
-            </div>
-          </div>
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              backgroundColor: health?.status === "healthy" ? "var(--lc-success)" : "var(--lc-text-muted)",
+            }}
+          />
+          Lightchain Testnet
         </div>
 
-        {/* ── Live Stats ───────────────────────────────────────── */}
-        <div
-          className="relative z-10 grid grid-cols-2 sm:grid-cols-4 divide-x"
+        <h1
           style={{
-            borderTop: "1px solid color-mix(in oklab, var(--border) 60%, transparent)",
-            "--tw-divide-opacity": 1,
-          } as React.CSSProperties}
+            fontSize: "clamp(2rem, 5vw, 3.25rem)",
+            fontWeight: 800,
+            letterSpacing: "-0.03em",
+            lineHeight: 1.1,
+            color: "var(--lc-text)",
+            maxWidth: 640,
+          }}
         >
-          <StatCard
-            value={fmtChallenges(stats?.totalChallenges)}
-            label="Challenges"
-            hint="Created on-chain"
-          />
-          <StatCard
-            value={fmtStake(stats?.validatorStake)}
-            label="Staked"
-            hint="Validator pool"
-          />
-          <StatCard
-            value={stats ? String(stats.modelsCount) : "…"}
-            label="Verifiers"
-            hint="AI models"
-          />
-          <StatCard
-            value={health ? (health.status === "healthy" ? "Live" : health.status === "degraded" ? "Degraded" : "Down") : "…"}
-            label="Network"
-            hint="Lightchain testnet"
-          />
+          Stake your reputation.{"\n"}
+          <span style={{ color: "var(--lc-accent)" }}>Prove it on-chain.</span>
+        </h1>
+
+        <p
+          style={{
+            fontSize: "var(--lc-text-body)",
+            color: "var(--lc-text-secondary)",
+            lineHeight: "var(--lc-leading-relaxed)" as any,
+            maxWidth: 520,
+          }}
+        >
+          Create challenges with real stakes. Submit evidence from fitness trackers
+          or gaming platforms. AI verifies your results. Winners get paid.
+        </p>
+
+        <div style={{ display: "flex", gap: "var(--lc-space-3)", flexWrap: "wrap", justifyContent: "center" }}>
+          <Link
+            href="/explore"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "12px 24px",
+              borderRadius: "var(--lc-radius-md)",
+              backgroundColor: "var(--lc-accent)",
+              color: "var(--lc-accent-text)",
+              fontSize: "var(--lc-text-body)",
+              fontWeight: "var(--lc-weight-semibold)" as any,
+              textDecoration: "none",
+              transition: "background-color var(--lc-dur-fast) var(--lc-ease)",
+            }}
+          >
+            Explore Challenges
+          </Link>
+          <Link
+            href="/challenges/create"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "12px 24px",
+              borderRadius: "var(--lc-radius-md)",
+              border: "1px solid var(--lc-border-strong)",
+              color: "var(--lc-text)",
+              fontSize: "var(--lc-text-body)",
+              fontWeight: "var(--lc-weight-medium)" as any,
+              textDecoration: "none",
+              backgroundColor: "transparent",
+              transition: "border-color var(--lc-dur-fast) var(--lc-ease)",
+            }}
+          >
+            Create Challenge
+          </Link>
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ─────────────────────────────────────── */}
+      {/* ── Stats Row ─────────────────────────────────────────────── */}
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+          gap: "var(--lc-space-4)",
+        }}
+      >
+        {[
+          { value: fmtNumber(stats?.totalChallenges), label: "Challenges", sub: "Created on-chain" },
+          { value: fmtStake(stats?.validatorStake), label: "LCAI Staked", sub: "Total pool value" },
+          { value: stats ? String(stats.modelsCount) : "\u2014", label: "AI Models", sub: "Verification models" },
+          {
+            value: health?.status === "healthy" ? "Live" : health?.status === "degraded" ? "Degraded" : "\u2014",
+            label: "Network",
+            sub: "Lightchain testnet",
+            dot: health?.status === "healthy",
+          },
+        ].map((s) => (
+          <div
+            key={s.label}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 4,
+              padding: "var(--lc-space-5)",
+              borderRadius: "var(--lc-radius-lg)",
+              border: "1px solid var(--lc-border)",
+              backgroundColor: "var(--lc-bg-raised)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {s.dot && (
+                <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "var(--lc-success)" }} />
+              )}
+              <span
+                style={{
+                  fontSize: "var(--lc-text-heading)",
+                  fontWeight: "var(--lc-weight-bold)" as any,
+                  color: "var(--lc-text)",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {s.value}
+              </span>
+            </div>
+            <span style={{ fontSize: "var(--lc-text-caption)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              {s.label}
+            </span>
+            <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>
+              {s.sub}
+            </span>
+          </div>
+        ))}
+      </section>
+
+      {/* ── How It Works ──────────────────────────────────────────── */}
       <section>
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-(--text-muted) mb-4">
-          How it works
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <SectionHeading>How it works</SectionHeading>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: "var(--lc-space-4)",
+          }}
+        >
           {[
             {
               step: "01",
               title: "Pick your challenge",
-              desc: "Browse open challenges or create your own. Set the goal, stake LCAI, lock the deadline. It's live on-chain in seconds.",
+              desc: "Browse open challenges or create your own. Set the goal, stake LCAI, and lock the deadline.",
             },
             {
               step: "02",
@@ -264,74 +277,268 @@ export default function HomePage() {
             {
               step: "03",
               title: "Prove it, get paid",
-              desc: "Submit your evidence. The Lightchain AI network verifies it independently. Pass the check and claim your reward.",
+              desc: "Submit your evidence. The Lightchain AI network verifies it. Pass the check and claim your reward.",
             },
           ].map((s) => (
-            <div key={s.step} className="panel p-5">
+            <div
+              key={s.step}
+              style={{
+                padding: "var(--lc-space-6)",
+                borderRadius: "var(--lc-radius-lg)",
+                border: "1px solid var(--lc-border)",
+                backgroundColor: "var(--lc-bg-raised)",
+              }}
+            >
               <div
-                className="text-4xl font-black tabular-nums mb-3"
-                style={{ color: "color-mix(in oklab, var(--text-muted) 40%, transparent)" }}
+                style={{
+                  fontSize: "var(--lc-text-title)",
+                  fontWeight: "var(--lc-weight-bold)" as any,
+                  color: "var(--lc-text-muted)",
+                  opacity: 0.3,
+                  marginBottom: "var(--lc-space-3)",
+                  fontVariantNumeric: "tabular-nums",
+                }}
               >
                 {s.step}
               </div>
-              <div className="text-base font-semibold mb-1.5">{s.title}</div>
-              <p className="text-sm text-(--text-muted) leading-relaxed">{s.desc}</p>
+              <h3
+                style={{
+                  fontSize: "var(--lc-text-body)",
+                  fontWeight: "var(--lc-weight-semibold)" as any,
+                  color: "var(--lc-text)",
+                  marginBottom: "var(--lc-space-2)",
+                }}
+              >
+                {s.title}
+              </h3>
+              <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", lineHeight: "var(--lc-leading-normal)" as any }}>
+                {s.desc}
+              </p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── USE CASES ───────────────────────────────────────── */}
+      {/* ── Categories ────────────────────────────────────────────── */}
       <section>
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-(--text-muted) mb-4">
-          What people challenge
-        </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <SectionHeading>Categories</SectionHeading>
+        <div style={{ display: "flex", gap: "var(--lc-space-3)", flexWrap: "wrap" }}>
           {[
-            { label: "Gaming", examples: "Dota 2, CS2, LoL, Valorant", icon: "🎮" },
-            { label: "Fitness", examples: "Steps, running, cycling", icon: "🏃" },
-            { label: "Esports", examples: "Win streaks, ranked climbs", icon: "🏆" },
-            { label: "Custom", examples: "Anything verifiable", icon: "⚡" },
-          ].map((uc) => (
-            <div key={uc.label} className="panel p-4 text-center">
-              <div className="text-2xl mb-2">{uc.icon}</div>
-              <div className="text-sm font-semibold mb-1">{uc.label}</div>
-              <div className="text-xs text-(--text-muted)">{uc.examples}</div>
-            </div>
+            { label: "Gaming", desc: "Dota 2, CS2, LoL, Valorant" },
+            { label: "Fitness", desc: "Steps, running, cycling" },
+            { label: "Esports", desc: "Win streaks, ranked climbs" },
+            { label: "Custom", desc: "Anything verifiable" },
+          ].map((cat) => (
+            <Link
+              key={cat.label}
+              href={`/explore?category=${cat.label.toLowerCase()}`}
+              style={{
+                flex: "1 1 140px",
+                padding: "var(--lc-space-5)",
+                borderRadius: "var(--lc-radius-lg)",
+                border: "1px solid var(--lc-border)",
+                backgroundColor: "var(--lc-bg-raised)",
+                textDecoration: "none",
+                textAlign: "center",
+                transition: "border-color var(--lc-dur-fast) var(--lc-ease)",
+              }}
+            >
+              <div style={{ fontSize: "var(--lc-text-body)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)", marginBottom: 4 }}>
+                {cat.label}
+              </div>
+              <div style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>
+                {cat.desc}
+              </div>
+            </Link>
           ))}
         </div>
       </section>
 
-      {/* ── RECENT CHALLENGES ─────────────────────────────────── */}
-      {recentChallenges.length > 0 && (
+      {/* ── Recent Challenges ─────────────────────────────────────── */}
+      {challenges.length > 0 && (
         <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-(--text-muted)">
-              Recent challenges
-            </h2>
-            <Link href="/explore" className="text-xs text-(--text-muted) hover:text-(--text) transition-colors">
-              View all →
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--lc-space-4)" }}>
+            <SectionHeading style={{ marginBottom: 0 }}>Recent Challenges</SectionHeading>
+            <Link
+              href="/explore"
+              style={{
+                fontSize: "var(--lc-text-small)",
+                color: "var(--lc-text-secondary)",
+                textDecoration: "none",
+              }}
+            >
+              View all &rarr;
             </Link>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {recentChallenges.map((c) => (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+              gap: "var(--lc-space-4)",
+            }}
+          >
+            {challenges.map((c) => (
               <ChallengePreviewCard key={c.id} c={c} />
             ))}
           </div>
         </section>
       )}
 
-      {/* ── NAV GRID ─────────────────────────────────────────── */}
+      {/* ── Quick Links ───────────────────────────────────────────── */}
       <section>
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-(--text-muted) mb-4">
-          Explore the app
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {PRIMARY.map((item) => (
-            <NavCard key={item.href} item={item} />
+        <SectionHeading>Quick links</SectionHeading>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+            gap: "var(--lc-space-4)",
+          }}
+        >
+          {[
+            { href: "/explore", title: "Explore", desc: "Browse active challenges. Find one worth your stake." },
+            { href: "/challenges/create", title: "Create", desc: "Launch a challenge — rules, stake, and deadline." },
+            { href: "/me/challenges", title: "My Challenges", desc: "Your active and completed challenges." },
+            { href: "/claims", title: "Claims", desc: "Claim your winnings from finalized challenges." },
+            { href: "/proofs", title: "Submit Proof", desc: "Upload evidence for AIVM verification." },
+            { href: "/settings/linked-accounts", title: "Link Accounts", desc: "Connect Steam, Garmin, Strava, and more." },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              style={{
+                display: "block",
+                padding: "var(--lc-space-5)",
+                borderRadius: "var(--lc-radius-lg)",
+                border: "1px solid var(--lc-border)",
+                backgroundColor: "var(--lc-bg-raised)",
+                textDecoration: "none",
+                transition: "border-color var(--lc-dur-base) var(--lc-ease)",
+              }}
+            >
+              <div style={{ fontSize: "var(--lc-text-body)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)", marginBottom: 4 }}>
+                {item.title}
+              </div>
+              <div style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", lineHeight: "var(--lc-leading-normal)" as any }}>
+                {item.desc}
+              </div>
+              <div style={{ marginTop: "var(--lc-space-3)", fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>
+                Open &rarr;
+              </div>
+            </Link>
           ))}
         </div>
       </section>
     </div>
+  );
+}
+
+/* ── Shared sub-components ─────────────────────────────────────────────────── */
+
+function SectionHeading({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <h2
+      style={{
+        fontSize: "var(--lc-text-caption)",
+        fontWeight: "var(--lc-weight-semibold)" as any,
+        color: "var(--lc-text-muted)",
+        textTransform: "uppercase",
+        letterSpacing: "0.08em",
+        marginBottom: "var(--lc-space-4)",
+        ...style,
+      }}
+    >
+      {children}
+    </h2>
+  );
+}
+
+function ChallengePreviewCard({ c }: { c: ChallengeMeta }) {
+  const category = inferCategory(c);
+  return (
+    <Link
+      href={`/challenge/${c.id}`}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "var(--lc-space-3)",
+        padding: "var(--lc-space-5)",
+        borderRadius: "var(--lc-radius-lg)",
+        border: "1px solid var(--lc-border)",
+        backgroundColor: "var(--lc-bg-raised)",
+        textDecoration: "none",
+        transition: "border-color var(--lc-dur-base) var(--lc-ease)",
+      }}
+    >
+      {/* Top row */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Badge variant="category" size="sm">{category}</Badge>
+        <Badge
+          variant="status"
+          status={(c.status as "Active" | "Finalized" | "Canceled") || "Active"}
+          dot
+          size="sm"
+        >
+          {c.status || "\u2014"}
+        </Badge>
+      </div>
+
+      {/* Title */}
+      <div
+        style={{
+          fontSize: "var(--lc-text-body)",
+          fontWeight: "var(--lc-weight-semibold)" as any,
+          color: "var(--lc-text)",
+          lineHeight: "var(--lc-leading-tight)" as any,
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical" as any,
+          overflow: "hidden",
+        }}
+      >
+        {c.title || `Challenge #${c.id}`}
+      </div>
+
+      {/* Description */}
+      {c.description && (
+        <p
+          style={{
+            fontSize: "var(--lc-text-small)",
+            color: "var(--lc-text-secondary)",
+            lineHeight: "var(--lc-leading-normal)" as any,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical" as any,
+            overflow: "hidden",
+            margin: 0,
+          }}
+        >
+          {c.description}
+        </p>
+      )}
+
+      {/* Metrics */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--lc-space-3)",
+          fontSize: "var(--lc-text-caption)",
+          color: "var(--lc-text-muted)",
+        }}
+      >
+        {c.intent && <span style={{ textTransform: "capitalize" }}>{c.intent.replace(/-/g, " ")}</span>}
+        {c.stake && (
+          <span>
+            <strong style={{ color: "var(--lc-text)", fontWeight: "var(--lc-weight-semibold)" as any }}>{c.stake}</strong> LCAI
+          </span>
+        )}
+      </div>
+    </Link>
   );
 }

@@ -38,7 +38,17 @@
     },
     {
       "inputs": [],
+      "name": "NotFinalized",
+      "type": "error"
+    },
+    {
+      "inputs": [],
       "name": "NotOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NotPendingOwner",
       "type": "error"
     },
     {
@@ -160,6 +170,32 @@
       "type": "event"
     },
     {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "currentOwner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "pendingOwner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnershipTransferStarted",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "acceptOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
       "inputs": [
         {
           "internalType": "bytes32",
@@ -219,6 +255,19 @@
         }
       ],
       "name": "finalizeEvent",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "eventId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "finalizeLosingOutcomes",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -301,6 +350,19 @@
     {
       "inputs": [],
       "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "pendingOwner",
       "outputs": [
         {
           "internalType": "address",

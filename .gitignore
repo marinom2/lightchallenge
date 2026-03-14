@@ -47,3 +47,4 @@ lightchain_references/
 
 # ZK circuits (legacy, not in active compilation)
 zk/
+.vercel

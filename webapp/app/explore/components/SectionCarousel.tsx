@@ -44,17 +44,28 @@ export default function SectionCarousel({
   }
 
   return (
-    <section className={`mb-8 ${className}`}>
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold opacity-90">{title}</h3>
+    <section className={className} style={{ marginBottom: "var(--lc-space-6)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--lc-space-3)" }}>
+        <h3 style={{ fontSize: "var(--lc-text-small)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text-secondary)" }}>
+          {title}
+        </h3>
         {pages > 1 && (
-          <div className="flex gap-1">
+          <div style={{ display: "flex", gap: 4 }}>
             {Array.from({ length: pages }).map((_, i) => (
               <button
                 key={i}
                 aria-label={`Go to slide ${i + 1}`}
-                className={`h-1.5 rounded-full transition-all ${i === page ? "w-5 bg-white/80" : "w-2 bg-white/30"}`}
                 onClick={() => go(i)}
+                style={{
+                  height: 6,
+                  width: i === page ? 20 : 8,
+                  borderRadius: "var(--lc-radius-pill)",
+                  border: "none",
+                  backgroundColor: i === page ? "var(--lc-accent)" : "var(--lc-border)",
+                  cursor: "pointer",
+                  transition: "all var(--lc-dur-fast) var(--lc-ease)",
+                  padding: 0,
+                }}
               />
             ))}
           </div>
@@ -63,15 +74,21 @@ export default function SectionCarousel({
 
       <div
         ref={ref}
-        className="snap-x snap-mandatory overflow-x-auto scroll-smooth no-scrollbar -mx-3 px-3"
-        style={{ scrollPadding: "0 12px" }}
+        style={{
+          display: "flex",
+          overflowX: "auto",
+          scrollSnapType: "x mandatory",
+          scrollBehavior: "smooth",
+          gap: "var(--lc-space-3)",
+          paddingBottom: "var(--lc-space-2)",
+          scrollbarWidth: "none",
+        }}
       >
-        <div className="flex gap-2 w-max">
-          {/* width ~360 with tighter gaps -> denser “poster rows” */}
-          {React.Children.map(children, (child) => (
-            <div className="snap-start shrink-0 w-[360px]">{child}</div>
-          ))}
-        </div>
+        {React.Children.map(children, (child) => (
+          <div style={{ scrollSnapAlign: "start", flexShrink: 0, width: 360 }}>
+            {child}
+          </div>
+        ))}
       </div>
     </section>
   );

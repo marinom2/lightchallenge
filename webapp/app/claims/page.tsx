@@ -9,6 +9,8 @@ import type { Abi } from "viem";
 import { ABI, ADDR, EXPLORER_URL } from "@/lib/contracts";
 import { useToasts } from "@/lib/ui/toast";
 import { timeAgo as sharedTimeAgo } from "@/lib/formatTime";
+import Breadcrumb from "@/app/components/ui/Breadcrumb";
+import EmptyState from "@/app/components/ui/EmptyState";
 import {
   resolveLifecycle,
   toClaimSection,
@@ -313,16 +315,12 @@ function RewardBoard({ address }: { address: string }) {
 
   if (totalParticipated === 0) {
     return (
-      <div className="panel p-8 text-center">
-        <div className="text-lg font-semibold mb-2">No rewards yet</div>
-        <p className="text-sm text-(--text-muted) max-w-sm mx-auto">
-          Join challenges and win to earn rewards. Passed challenges appear here once finalized.
-        </p>
-        <div className="mt-5 flex flex-wrap gap-3 justify-center">
-          <Link href="/explore" className="btn btn-primary">Browse challenges</Link>
-          <Link href="/me/challenges" className="btn btn-ghost">My challenges</Link>
-        </div>
-      </div>
+      <EmptyState
+        title="No rewards yet"
+        description="Join challenges and win to earn rewards. Passed challenges appear here once finalized."
+        actionLabel="Browse challenges"
+        onAction={() => { window.location.href = "/explore"; }}
+      />
     );
   }
 
@@ -601,11 +599,15 @@ export default function ClaimsPage() {
   }
 
   return (
-    <div className="container-narrow mx-auto px-4 py-8 space-y-8">
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+      <Breadcrumb items={[{ label: "Claims" }]} />
+
       {/* Page header */}
       <div>
-        <h1 className="h1 h-gradient">Claim Rewards</h1>
-        <p className="mt-1 text-sm text-(--text-muted)">
+        <h1 style={{ fontSize: "var(--lc-text-title)", fontWeight: "var(--lc-weight-bold)" as any, color: "var(--lc-text)" }}>
+          Claim Rewards
+        </h1>
+        <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", marginTop: "var(--lc-space-1)" }}>
           Your reward board — claimable winnings, pending finalization, and history.
         </p>
       </div>
@@ -614,26 +616,22 @@ export default function ClaimsPage() {
       {isConnected && address ? (
         <RewardBoard address={address} />
       ) : (
-        <div className="panel p-8 text-center">
-          <div className="text-lg font-semibold mb-2">Connect your wallet</div>
-          <p className="text-sm text-(--text-muted) max-w-sm mx-auto">
-            Connect to see your claimable rewards, pending finalization, and reward history automatically.
-          </p>
-          <div className="mt-5 flex flex-wrap gap-3 justify-center">
-            <Link href="/explore" className="btn btn-primary">Browse challenges</Link>
-            <Link href="/challenges/create" className="btn btn-ghost">Create one</Link>
-          </div>
-        </div>
+        <EmptyState
+          title="Connect your wallet"
+          description="Connect to see your claimable rewards, pending finalization, and reward history."
+          actionLabel="Browse challenges"
+          onAction={() => { window.location.href = "/explore"; }}
+        />
       )}
 
       {/* Manual lookup */}
       <section>
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-(--text-muted) mb-3">
+        <h2 style={{ fontSize: "var(--lc-text-caption)", fontWeight: "var(--lc-weight-semibold)" as any, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--lc-text-muted)", marginBottom: "var(--lc-space-3)" }}>
           Look up a challenge
         </h2>
 
-        <div className="panel">
-          <div className="panel-body">
+        <div style={{ padding: "var(--lc-space-5)", borderRadius: "var(--lc-radius-lg)", border: "1px solid var(--lc-border)", backgroundColor: "var(--lc-bg-raised)" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-3)" }}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <input
                 className="input sm:max-w-[280px]"
@@ -667,7 +665,9 @@ export default function ClaimsPage() {
             </div>
 
             {err && (
-              <div className="mt-3 chip chip--bad">Error: {err}</div>
+              <div style={{ padding: "var(--lc-space-3)", borderRadius: "var(--lc-radius-md)", backgroundColor: "var(--lc-error-muted)", color: "var(--lc-error)", fontSize: "var(--lc-text-small)" }}>
+                Error: {err}
+              </div>
             )}
           </div>
         </div>

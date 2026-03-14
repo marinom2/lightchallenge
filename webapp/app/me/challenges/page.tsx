@@ -12,6 +12,8 @@ import type { Abi } from "viem";
 
 import { ABI, ADDR, EXPLORER_URL } from "@/lib/contracts";
 import { useToasts } from "@/lib/ui/toast";
+import Breadcrumb from "@/app/components/ui/Breadcrumb";
+import EmptyState from "@/app/components/ui/EmptyState";
 import {
   resolveLifecycle,
   toCardGroup,
@@ -815,42 +817,36 @@ export default function MyChallengesPage() {
 
   if (!isConnected) {
     return (
-      <main className="container-narrow mx-auto px-4 py-10 space-y-8">
-        <div>
-          <h1 className="h1 h-gradient">My Challenges</h1>
-          <p className="mt-1 text-sm text-(--text-muted)">
-            Connect your wallet to see your challenges.
-          </p>
-        </div>
-        <div className="panel p-10 text-center">
-          <div className="text-lg font-semibold mb-2">Connect your wallet</div>
-          <p className="text-sm text-(--text-muted) max-w-sm mx-auto">
-            See active challenges, pending proofs, and claimable rewards.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3 justify-center">
-            <Link href="/explore" className="btn btn-primary">
-              Browse challenges
-            </Link>
-            <Link href="/challenges/create" className="btn btn-ghost">
-              Create one
-            </Link>
-          </div>
-        </div>
-      </main>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+        <Breadcrumb items={[{ label: "My Challenges" }]} />
+        <h1 style={{ fontSize: "var(--lc-text-title)", fontWeight: "var(--lc-weight-bold)" as any, color: "var(--lc-text)" }}>
+          My Challenges
+        </h1>
+        <EmptyState
+          title="Connect your wallet"
+          description="Connect your wallet to see active challenges, pending proofs, and claimable rewards."
+          actionLabel="Browse challenges"
+          onAction={() => { window.location.href = "/explore"; }}
+        />
+      </div>
     );
   }
 
   return (
-    <main className="container-narrow mx-auto px-4 py-10 space-y-8">
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+      <Breadcrumb items={[{ label: "My Challenges" }]} />
+
       <div>
-        <h1 className="h1 h-gradient">My Challenges</h1>
-        <p className="mt-1.5 text-sm text-(--text-muted)">
+        <h1 style={{ fontSize: "var(--lc-text-title)", fontWeight: "var(--lc-weight-bold)" as any, color: "var(--lc-text)" }}>
+          My Challenges
+        </h1>
+        <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", marginTop: "var(--lc-space-1)" }}>
           Track progress, submit evidence, and claim rewards.
         </p>
       </div>
 
       {loading && (
-        <div className="space-y-2">
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-2)" }}>
           {[1, 2, 3].map((i) => (
             <div key={i} className="mc-card" style={{ opacity: 1 - i * 0.2 }}>
               <div className="mc-card__row">
@@ -868,57 +864,60 @@ export default function MyChallengesPage() {
         </div>
       )}
 
-      {err && <div className="tone-warn text-sm">{err}</div>}
+      {err && (
+        <div style={{ padding: "var(--lc-space-3)", borderRadius: "var(--lc-radius-md)", backgroundColor: "var(--lc-warning-muted)", color: "var(--lc-warning)", fontSize: "var(--lc-text-small)" }}>
+          {err}
+        </div>
+      )}
 
       {!loading && !err && rows.length === 0 && (
-        <div className="panel p-10 text-center space-y-3">
-          <div className="text-xl font-bold">No challenges yet</div>
-          <p className="text-sm text-(--text-muted)">
-            Join a challenge and your progress will show up here.
-          </p>
-          <div className="flex justify-center gap-3 mt-5">
-            <Link href="/explore" className="btn btn-primary">
-              Browse challenges
-            </Link>
-            <Link href="/challenges/create" className="btn btn-ghost">
-              Create one
-            </Link>
-          </div>
-        </div>
+        <EmptyState
+          title="No challenges yet"
+          description="Join a challenge and your progress will show up here."
+          actionLabel="Browse challenges"
+          onAction={() => { window.location.href = "/explore"; }}
+        />
       )}
 
       {!loading && !err && rows.length > 0 && (
         <>
-          {/* Filter tiles */}
-          <div
-            className="mc-filter-row"
-            role="tablist"
-            aria-label="Filter challenges"
-          >
+          {/* Filter pills */}
+          <div style={{ display: "flex", gap: "var(--lc-space-2)", flexWrap: "wrap" }} role="tablist" aria-label="Filter challenges">
             {FILTERS.map(({ key, label }) => {
               const count = counts[key];
               const isActive = activeFilter === key;
-              const isUrgent =
-                key === "proof" && hasUrgentProof && !isActive;
+              const isUrgent = key === "proof" && hasUrgentProof && !isActive;
               return (
                 <button
                   key={key}
                   role="tab"
                   aria-selected={isActive}
-                  className={[
-                    "mc-filter-tile",
-                    isActive && "mc-filter-tile--active",
-                    isUrgent && "mc-filter-tile--urgent",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  onClick={() =>
-                    setActiveFilter(isActive ? "all" : key)
-                  }
+                  onClick={() => setActiveFilter(isActive ? "all" : key)}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: "var(--lc-radius-pill)",
+                    fontSize: "var(--lc-text-caption)",
+                    fontWeight: "var(--lc-weight-medium)" as any,
+                    color: isActive ? "var(--lc-accent-text)" : isUrgent ? "var(--lc-warning)" : "var(--lc-text-secondary)",
+                    backgroundColor: isActive ? "var(--lc-accent)" : isUrgent ? "var(--lc-warning-muted)" : "transparent",
+                    border: isActive ? "none" : isUrgent ? "1px solid var(--lc-warning)" : "1px solid var(--lc-border)",
+                    cursor: "pointer",
+                    transition: "all var(--lc-dur-fast) var(--lc-ease)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--lc-space-1)",
+                  }}
                 >
-                  <span className="mc-filter-tile__label">{label}</span>
+                  {label}
                   {key !== "all" && count > 0 && (
-                    <span className="mc-filter-tile__count">{count}</span>
+                    <span style={{
+                      fontSize: 11,
+                      padding: "1px 6px",
+                      borderRadius: "var(--lc-radius-pill)",
+                      backgroundColor: isActive ? "rgba(255,255,255,0.2)" : "var(--lc-bg-inset)",
+                    }}>
+                      {count}
+                    </span>
                   )}
                 </button>
               );
@@ -927,31 +926,22 @@ export default function MyChallengesPage() {
 
           {/* Card list */}
           {filteredRows.length === 0 ? (
-            <div className="panel p-8 text-center text-sm text-(--text-muted)">
+            <div style={{ padding: "var(--lc-space-8)", textAlign: "center", fontSize: "var(--lc-text-small)", color: "var(--lc-text-muted)", borderRadius: "var(--lc-radius-lg)", border: "1px solid var(--lc-border)", backgroundColor: "var(--lc-bg-raised)" }}>
               No challenges match this filter.
             </div>
           ) : (
-            <div className="space-y-8">
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-8)" }}>
               {actionRows.length > 0 && (
                 <section>
-                  <div className="mc-section-head">
-                    <span>Needs Action</span>
-                    <span
-                      className="mc-section-head__count"
-                      data-accent="action"
-                    >
+                  <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", marginBottom: "var(--lc-space-3)" }}>
+                    <span style={{ fontSize: "var(--lc-text-small)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)" }}>Needs Action</span>
+                    <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: "var(--lc-radius-pill)", backgroundColor: "var(--lc-warning-muted)", color: "var(--lc-warning)" }}>
                       {actionRows.length}
                     </span>
                   </div>
                   <div className="mc-card-list">
                     {actionRows.map(({ row, lc }) => (
-                      <ChallengeCard
-                        key={row.challenge_id}
-                        row={row}
-                        lc={lc}
-                        onClaim={handleClaim}
-                        claimingId={claimingId}
-                      />
+                      <ChallengeCard key={row.challenge_id} row={row} lc={lc} onClaim={handleClaim} claimingId={claimingId} />
                     ))}
                   </div>
                 </section>
@@ -959,21 +949,15 @@ export default function MyChallengesPage() {
 
               {progressRows.length > 0 && (
                 <section>
-                  <div className="mc-section-head">
-                    <span>In Progress</span>
-                    <span className="mc-section-head__count">
+                  <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", marginBottom: "var(--lc-space-3)" }}>
+                    <span style={{ fontSize: "var(--lc-text-small)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)" }}>In Progress</span>
+                    <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: "var(--lc-radius-pill)", backgroundColor: "var(--lc-accent-muted)", color: "var(--lc-accent)" }}>
                       {progressRows.length}
                     </span>
                   </div>
                   <div className="mc-card-list">
                     {progressRows.map(({ row, lc }) => (
-                      <ChallengeCard
-                        key={row.challenge_id}
-                        row={row}
-                        lc={lc}
-                        onClaim={handleClaim}
-                        claimingId={claimingId}
-                      />
+                      <ChallengeCard key={row.challenge_id} row={row} lc={lc} onClaim={handleClaim} claimingId={claimingId} />
                     ))}
                   </div>
                 </section>
@@ -981,21 +965,15 @@ export default function MyChallengesPage() {
 
               {doneRows.length > 0 && (
                 <section>
-                  <div className="mc-section-head">
-                    <span>Completed</span>
-                    <span className="mc-section-head__count">
+                  <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", marginBottom: "var(--lc-space-3)" }}>
+                    <span style={{ fontSize: "var(--lc-text-small)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)" }}>Completed</span>
+                    <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: "var(--lc-radius-pill)", backgroundColor: "var(--lc-bg-inset)", color: "var(--lc-text-muted)" }}>
                       {doneRows.length}
                     </span>
                   </div>
                   <div className="mc-card-list">
                     {doneRows.map(({ row, lc }) => (
-                      <ChallengeCard
-                        key={row.challenge_id}
-                        row={row}
-                        lc={lc}
-                        onClaim={handleClaim}
-                        claimingId={claimingId}
-                      />
+                      <ChallengeCard key={row.challenge_id} row={row} lc={lc} onClaim={handleClaim} claimingId={claimingId} />
                     ))}
                   </div>
                 </section>
@@ -1022,6 +1000,6 @@ export default function MyChallengesPage() {
             : undefined
         }
       />
-    </main>
+    </div>
   );
 }

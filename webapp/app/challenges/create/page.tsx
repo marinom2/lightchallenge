@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 
 import ClientOnly from "./components/ClientOnly";
 import { Toasts, useToasts } from "@/lib/ui/toast";
+import Breadcrumb from "@/app/components/ui/Breadcrumb";
 
 import { Stepper } from "./components/Stepper";
 import { InviteSheet } from "./components/InviteSheet";
@@ -260,38 +261,30 @@ function CreatePageInner() {
 
   return (
     <>
+      <div style={{ marginBottom: "var(--lc-space-4)" }}>
+        <Breadcrumb items={[{ label: "Create", href: "/challenges/create" }, { label: `Step ${ui.step}` }]} />
+      </div>
+
       {policy.error ? (
-        <div role="alert" className="section mt-4">
-          <div className="panel p-3" style={{ borderColor: "var(--border-strong)" }}>
-            <div className="text-sm" style={{ color: "var(--text)" }}>
-              Chain policy: {policy.error}
-            </div>
+        <div role="alert" style={{ marginTop: "var(--lc-space-4)" }}>
+          <div style={{ padding: "var(--lc-space-3)", borderRadius: "var(--lc-radius-md)", border: "1px solid var(--lc-warning)", backgroundColor: "var(--lc-warning-muted)", fontSize: "var(--lc-text-small)", color: "var(--lc-text)" }}>
+            Chain policy: {policy.error}
           </div>
         </div>
       ) : null}
 
       {policy.paused ? (
-        <div role="alert" className="section mt-4">
-          <div className="panel p-3" style={{ borderColor: "var(--border-strong)" }}>
-            <div className="text-sm" style={{ color: "var(--text)" }}>
-              Chain policy: challenge creation is currently paused on-chain.
-            </div>
+        <div role="alert" style={{ marginTop: "var(--lc-space-4)" }}>
+          <div style={{ padding: "var(--lc-space-3)", borderRadius: "var(--lc-radius-md)", border: "1px solid var(--lc-warning)", backgroundColor: "var(--lc-warning-muted)", fontSize: "var(--lc-text-small)", color: "var(--lc-text)" }}>
+            Chain policy: challenge creation is currently paused on-chain.
           </div>
         </div>
       ) : null}
 
       {ui.error ? (
-        <div role="alert" className="section mt-4">
-          <div
-            className="panel p-3"
-            style={{
-              borderColor:
-                "color-mix(in oklab, var(--error) 45%, var(--border-strong))",
-            }}
-          >
-            <div className="text-sm" style={{ color: "var(--text)" }}>
-              {ui.error}
-            </div>
+        <div role="alert" style={{ marginTop: "var(--lc-space-4)" }}>
+          <div style={{ padding: "var(--lc-space-3)", borderRadius: "var(--lc-radius-md)", border: "1px solid var(--lc-error)", backgroundColor: "var(--lc-error-muted)", fontSize: "var(--lc-text-small)", color: "var(--lc-text)" }}>
+            {ui.error}
           </div>
         </div>
       ) : null}
@@ -301,10 +294,10 @@ function CreatePageInner() {
           <div className="create-stepper__inner">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-xs uppercase tracking-widest text-(--text-muted)">
+                <div style={{ fontSize: "var(--lc-text-caption)", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--lc-text-muted)" }}>
                   Step {ui.step} / 4
                   {policy.loading ? (
-                    <span className="ml-2 opacity-70">· syncing policy…</span>
+                    <span style={{ marginLeft: 8, opacity: 0.7 }}>· syncing policy…</span>
                   ) : null}
                 </div>
 
@@ -312,23 +305,30 @@ function CreatePageInner() {
                   <span>{STEPS.find((s) => s.id === ui.step)?.name}</span>
                   {getBadge(ui.step)?.text ? (
                     <span
-                      className="text-[11px] font-semibold px-2 py-0.5 rounded-full border"
                       style={{
+                        fontSize: 11,
+                        fontWeight: "var(--lc-weight-semibold)" as any,
+                        padding: "2px 8px",
+                        borderRadius: "var(--lc-radius-pill)",
+                        border: "1px solid",
                         borderColor:
                           getBadge(ui.step)?.tone === "ok"
-                            ? "color-mix(in oklab, var(--accent) 55%, var(--border))"
+                            ? "var(--lc-success)"
                             : getBadge(ui.step)?.tone === "warn"
-                            ? "color-mix(in oklab, var(--warn) 55%, var(--border))"
-                            : getBadge(ui.step)?.tone === "pending"
-                            ? "color-mix(in oklab, var(--text) 20%, var(--border))"
-                            : "var(--border)",
-                        background:
+                            ? "var(--lc-warning)"
+                            : "var(--lc-border)",
+                        backgroundColor:
                           getBadge(ui.step)?.tone === "ok"
-                            ? "color-mix(in oklab, var(--accent) 12%, transparent)"
+                            ? "var(--lc-success-muted)"
                             : getBadge(ui.step)?.tone === "warn"
-                            ? "color-mix(in oklab, var(--warn) 12%, transparent)"
-                            : "color-mix(in oklab, var(--surface-2) 70%, transparent)",
-                        color: "var(--text)",
+                            ? "var(--lc-warning-muted)"
+                            : "var(--lc-bg-inset)",
+                        color:
+                          getBadge(ui.step)?.tone === "ok"
+                            ? "var(--lc-success)"
+                            : getBadge(ui.step)?.tone === "warn"
+                            ? "var(--lc-warning)"
+                            : "var(--lc-text-muted)",
                       }}
                     >
                       {getBadge(ui.step)?.text}

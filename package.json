@@ -3,20 +3,18 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-  "dev": "next dev -p 3000",
-  "build": "next build",
-  "start": "next start -p 3000",
-  "lint": "next lint",
-  "typecheck": "tsc --noEmit",
-  "postinstall": "node ./scripts/sync-abis.mjs || true",
-
-  "hh:clean": "hardhat clean",
-  "hh:compile": "hardhat compile",
-  "hh:deploy:lightchain": "hardhat deploy --network lightchain",
-  "deploy:aivm-poi-stack": "hardhat run scripts/deployment/deploy-challengepay-aivm-poi-stack.ts --network lightchain",
-
-  "indexer:aivm": "tsx offchain/indexers/aivmIndexer.ts"
-},
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "node ./scripts/sync-abis.mjs || true",
+    "hh:clean": "hardhat clean",
+    "hh:compile": "hardhat compile",
+    "hh:deploy:lightchain": "hardhat deploy --network lightchain",
+    "deploy:aivm-poi-stack": "hardhat run scripts/deployment/deploy-challengepay-aivm-poi-stack.ts --network lightchain",
+    "indexer:aivm": "tsx offchain/indexers/aivmIndexer.ts"
+  },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.906.0",
     "csv-parse": "^6.1.0",

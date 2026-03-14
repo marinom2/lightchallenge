@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#050712" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
   ],
 };
 
@@ -33,18 +33,12 @@ function initialThemeFromCookies(): Theme {
   return raw === "light" ? "light" : "dark";
 }
 
-/**
- * Background system:
- * - Global hero lives in CSS only: body::before + body::after
- * - Disable per-page by setting html.no-app-hero (your existing flag)
- */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const initialTheme = initialThemeFromCookies();
 
   return (
     <html lang="en" data-theme={initialTheme} suppressHydrationWarning>
-      <body className="min-h-[100dvh] antialiased">
-        {/* Resolve theme BEFORE paint; strict 2-theme policy */}
+      <body className="min-h-dvh antialiased">
         <script
           dangerouslySetInnerHTML={{
             __html: `(function () {
@@ -63,32 +57,74 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ThemeProvider storageKey={STORAGE_KEY} defaultTheme={initialTheme}>
             <Navbar />
 
-            <main className="flex min-h-[100dvh] flex-col">
-              <div className="flex-1 pt-[calc(var(--navbar-top)+env(safe-area-inset-top,0px))]">
-                <div className="container-narrow py-8">{children}</div>
+            <main
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                minHeight: "calc(100dvh - var(--lc-navbar-h))",
+              }}
+            >
+              <div style={{ flex: 1, paddingTop: "var(--lc-space-6)", paddingBottom: "var(--lc-space-8)" }}>
+                <div className="container-narrow">{children}</div>
               </div>
 
-              <footer className="ftr">
-                <div className="container-narrow py-7 text-center text-sm text-(--text-muted)">
-                  <div>
-                    © <YearNow /> LightChallenge.
-                  </div>
-                  <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-2">
-                    <a href="/" className="link-soft">
-                      Home
-                    </a>
-                    <a href="/explore" className="link-soft">
-                      Explore
-                    </a>
-                    <a href="/challenges/create" className="link-soft">
-                      Create
-                    </a>
-                    <a href="/me/challenges" className="link-soft">
-                      My Challenges
-                    </a>
-                    <a href="/claims" className="link-soft">
-                      Claims
-                    </a>
+              {/* Footer */}
+              <footer
+                style={{
+                  borderTop: "1px solid var(--lc-border)",
+                  padding: "var(--lc-space-8) 0",
+                }}
+              >
+                <div className="container-narrow">
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: "var(--lc-space-4)",
+                    }}
+                  >
+                    {/* Footer links */}
+                    <nav
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        justifyContent: "center",
+                        gap: "var(--lc-space-6)",
+                      }}
+                    >
+                      <a href="/explore" className="link-soft" style={{ fontSize: "var(--lc-text-small)" }}>
+                        Explore
+                      </a>
+                      <a href="/challenges/create" className="link-soft" style={{ fontSize: "var(--lc-text-small)" }}>
+                        Create
+                      </a>
+                      <a href="/me/challenges" className="link-soft" style={{ fontSize: "var(--lc-text-small)" }}>
+                        My Challenges
+                      </a>
+                      <a href="/claims" className="link-soft" style={{ fontSize: "var(--lc-text-small)" }}>
+                        Claims
+                      </a>
+                      <a
+                        href="https://uat.docs.lightchallenge.app"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="link-soft"
+                        style={{ fontSize: "var(--lc-text-small)" }}
+                      >
+                        Docs
+                      </a>
+                    </nav>
+
+                    {/* Copyright */}
+                    <p
+                      style={{
+                        fontSize: "var(--lc-text-caption)",
+                        color: "var(--lc-text-muted)",
+                      }}
+                    >
+                      &copy; <YearNow /> LightChallenge &middot; Powered by Lightchain AI
+                    </p>
                   </div>
                 </div>
               </footer>

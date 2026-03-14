@@ -340,43 +340,32 @@ function ProofHomeInner() {
   }, []);
 
   return (
-    <div className="container-narrow py-8 space-y-8">
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
       {/* Hero header */}
-      <div className="panel overflow-hidden">
-        <div className="p-6 relative">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0"
-            style={{
-              opacity: 0.3,
-              background:
-                "radial-gradient(80% 60% at 50% -10%, color-mix(in oklab, var(--grad-1) 55%, transparent), transparent 72%)",
-            }}
-          />
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-3">
-              <ShieldCheck className="size-5 text-(--accent)" />
-              <span className="text-xs font-semibold uppercase tracking-widest text-(--text-muted)">
-                Submit Proof
-              </span>
-            </div>
-            <h1 className="h1 title-premium leading-tight mb-2">
-              Your proof obligations
-            </h1>
-            <p className="text-sm text-(--text-muted) max-w-lg leading-relaxed">
-              Track your active challenges and submit evidence when the proof window opens.
-              Evidence is evaluated by the AI pipeline and verified on-chain by the
-              Lightchain AIVM network.
-            </p>
-          </div>
+      <div style={{ padding: "var(--lc-space-6)", borderRadius: "var(--lc-radius-lg)", border: "1px solid var(--lc-border)", backgroundColor: "var(--lc-bg-raised)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", marginBottom: "var(--lc-space-3)" }}>
+          <ShieldCheck style={{ width: 20, height: 20, color: "var(--lc-accent)" }} />
+          <span style={{ fontSize: "var(--lc-text-caption)", fontWeight: "var(--lc-weight-semibold)" as any, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--lc-text-muted)" }}>
+            Submit Proof
+          </span>
         </div>
+        <h1 style={{ fontSize: "var(--lc-text-title)", fontWeight: "var(--lc-weight-bold)" as any, color: "var(--lc-text)", marginBottom: "var(--lc-space-2)" }}>
+          Your proof obligations
+        </h1>
+        <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", maxWidth: "32em", lineHeight: "var(--lc-leading-normal)" }}>
+          Track your active challenges and submit evidence when the proof window opens.
+          Evidence is evaluated by the AI pipeline and verified on-chain by the
+          Lightchain AIVM network.
+        </p>
+      </div>
+      <div style={{ borderRadius: "var(--lc-radius-lg)", border: "1px solid var(--lc-border)", backgroundColor: "var(--lc-bg-raised)", overflow: "hidden" }}>
 
         {/* Stats row */}
         {isConnected && !loading && challenges.length > 0 && (
           <div
             className="grid grid-cols-5 divide-x relative z-10"
             style={{
-              borderTop: "1px solid color-mix(in oklab, var(--border) 60%, transparent)",
+              borderTop: "1px solid var(--lc-border)",
               "--tw-divide-opacity": 1,
             } as React.CSSProperties}
           >
@@ -510,7 +499,7 @@ function ProofHomeInner() {
 export default function ValidatorsPage() {
   return (
     <Suspense fallback={
-      <div className="container-narrow py-12 text-center text-(--text-muted)">Loading…</div>
+      <div style={{ padding: "var(--lc-space-8)", textAlign: "center", color: "var(--lc-text-muted)" }}>Loading…</div>
     }>
       <ProofHomeInner />
     </Suspense>
