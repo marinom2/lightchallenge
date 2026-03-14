@@ -1,0 +1,1194 @@
+# API Reference
+
+All API routes are served from the Next.js webapp under `/api/`.
+
+**Base URL:**
+- UAT: `https://uat.lightchallenge.app/api`
+- Local: `http://localhost:3000/api`
+
+**Authentication:** State-mutating routes require wallet signature headers:
+- `x-lc-address` — the signer's wallet address (checksummed or lowercase)
+- `x-lc-signature` — EIP-191 `personal_sign` of the message `lightchallenge:{timestamp}`
+- `x-lc-timestamp` — Unix epoch milliseconds
+
+Signatures are valid for 5 minutes. Read-only endpoints are public.
+
+---
+
+## Challenges
+
+### GET /api/challenges
+
+List all challenges from the database with optional filters.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `subject` | string | Filter by creator wallet address |
+| `status` | string | Filter by status (`Active`, `Finalized`, `Canceled`) |
+| `externalId` | string | Filter by external ID |
+
+**Response:**
+```json
+{
+  "items": [
+    {
+      "id": "42",
+      "title": "10k Steps Challenge",
+      "description": "Walk 10,000 steps per day for a week",
+      "category": "fitness",
+      "status": "Active",
+      "tags": ["fitness", "aivm"],
+      "modelId": "fitness-steps-v1",
+      "createdAt": 1710000000,
+      ...
+    }
+  ]
+}
+```
+
+### POST /api/challenges
+
+Create or upsert a challenge in the database. Also attempts an on-chain MetadataRegistry write.
+
+**Auth:** Wallet signature headers required. Wallet must match the `subject` field.
+
+**Request body:** JSON object with challenge metadata fields including `id`, `title`, `description`, `subject`, `txHash`, `modelId`, `modelHash`, `category`, `params`, `proof`, `timeline`, `funds`, `options`, etc.
+
+**Response (201):**
+```json
+{
+  "ok": true,
+  "item": { ... },
+  "registry": {
+    "registryStatus": "success",
+    "registryTxHash": "0x..."
+  }
+}
+```
+
+### PATCH /api/challenges
+
+Update an existing challenge. Same body shape as POST; `id` is required.
+
+**Auth:** Wallet signature headers required.
+
+### GET /api/challenge/[id]
+
+Get full challenge details including on-chain data, event timeline, snapshot, and metadata from IPFS/MetadataRegistry. This is the slow, comprehensive endpoint (5-15 seconds due to on-chain reads).
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `viewer` | string | Wallet address to check join status (`youJoined`) |
+| `span` | number | Block range to scan for events (default: 10000, max: 2000000) |
+
+**Response:** A rich object including `id`, `status`, `outcome`, `creator`, `startTs`, `endTs`, `joinClosesTs`, `money`, `pool`, `snapshot`, `timeline` (event array), `title`, `description`, `category`, `tags`, `proof`, `modelId`, `modelHash`, `youJoined`, and more.
+
+### GET /api/challenges/meta/[id]
+
+Get challenge metadata (title, description, category, model info, timeline dates) from the database only. Fast response (~100-300ms). Used for immediate display while the full on-chain data loads.
+
+**Response:**
+```json
+{
+  "title": "10k Steps Challenge",
+  "description": "Walk 10,000 steps daily",
+  "category": "fitness",
+  "verifier": "dapp",
+  "modelHash": "0x...",
+  "modelId": "fitness-steps-v1",
+  "params": { ... },
+  "tags": ["fitness"],
+  "startsAt": 1710000000,
+  "endsAt": 1710604800,
+  "proofDeadline": 1710691200
+}
+```
+
+### GET /api/challenges/[id]/progress
+
+Aggregate progress stats for a challenge based on off-chain tables.
+
+**Response:**
+```json
+{
+  "challenge_id": "42",
+  "participant_count": 15,
+  "evidence_count": 12,
+  "verdict_count": 10,
+  "pass_count": 8,
+  "fail_count": 2
+}
+```
+
+### GET /api/challenges/[id]/results
+
+Comprehensive challenge results: winners, losers, scores, verdicts, evidence providers, claims, and achievement mints.
+
+**Response:**
+```json
+{
+  "challenge_id": "42",
+  "title": "10k Steps Challenge",
+  "status": "Finalized",
+  "summary": {
+    "total_participants": 15,
+    "winners": 8,
+    "losers": 2,
+    "pending": 5,
+    "total_claimed_wei": "1500000000000000000",
+    "achievements_minted": 8
+  },
+  "participants": [
+    {
+      "subject": "0x...",
+      "pass": true,
+      "score": "95",
+      "evaluator": "fitness-evaluator",
+      "evidence_provider": "apple",
+      "achievements": ["completion"],
+      ...
+    }
+  ]
+}
+```
+
+### GET /api/challenges/[id]/rankings
+
+Competitive leaderboard for a challenge, ordered by verdict score.
+
+**Response:**
+```json
+{
+  "challenge_id": "42",
+  "title": "10k Steps Challenge",
+  "total_ranked": 10,
+  "rankings": [
+    {
+      "rank": 1,
+      "subject": "0x...",
+      "score": "98",
+      "pass": true,
+      "evaluator": "fitness-evaluator",
+      "evidence_provider": "apple",
+      "achievements": ["victory"]
+    }
+  ]
+}
+```
+
+### GET /api/challenges/[id]/evidence-summary
+
+Aggregate evidence summary for a challenge. Does not return raw evidence data.
+
+**Response:**
+```json
+{
+  "challenge_id": "42",
+  "total_submissions": 12,
+  "unique_subjects": 10,
+  "providers": {
+    "apple": { "submissions": 8, "total_records": 560, "unique_subjects": 8 },
+    "garmin": { "submissions": 4, "total_records": 280, "unique_subjects": 4 }
+  },
+  "time_window": {
+    "earliest": "2024-03-10T08:00:00.000Z",
+    "latest": "2024-03-14T16:00:00.000Z"
+  },
+  "fitness": {
+    "total_steps": 840000,
+    "total_distance_km": 672.5,
+    "total_duration_min": 4200,
+    "total_calories": 42000,
+    "activity_days": 35
+  },
+  "gaming": null
+}
+```
+
+### GET /api/challenges/[id]/claim
+
+Check claim eligibility for a (challenge, subject) pair.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `subject` | string | **Required.** Wallet address to check |
+
+**Response:**
+```json
+{
+  "challenge_id": "42",
+  "subject": "0x...",
+  "eligible": true,
+  "verdict_pass": true,
+  "challenge_status": "Finalized",
+  "reason": "Eligible to claim"
+}
+```
+
+---
+
+## Evidence
+
+### POST /api/aivm/intake
+
+Submit evidence for verification. Accepts `multipart/form-data`.
+
+**Form fields:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `json` | string | No | JSON evidence payload |
+| `file` | File | No | Evidence file (e.g., Apple Health export) |
+| `challengeId` | string | Yes | Challenge ID |
+| `subject` | string | Yes | Wallet address (0x) |
+| `modelHash` | string | Yes | Model hash (0x hex) for adapter selection |
+| `params` | string | No | JSON params for the adapter |
+| `evidenceToken` | string | No | Signed auth token (from mobile deep link) |
+| `evidenceExpires` | string | No | Token expiry timestamp |
+
+**Authentication (one of):**
+1. Wallet signature headers (`x-wallet-address`, `x-wallet-signature`, `x-wallet-message`)
+2. Evidence token form fields (`evidenceToken`, `evidenceExpires`)
+3. Unauthenticated (evidence is independently validated by evaluator)
+
+**Response:**
+```json
+{
+  "ok": true,
+  "provider": "apple",
+  "publicSignals": ["..."],
+  "dataHash": "0x...",
+  "recordCount": 168,
+  "previewCount": 50,
+  "preview": [...],
+  "evidenceId": "uuid"
+}
+```
+
+---
+
+## Participants
+
+### GET /api/challenge/[id]/participant
+
+Get the participant lifecycle status for a (challenge, subject) pair.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `subject` | string | **Required.** Wallet address |
+
+**Response:**
+```json
+{
+  "challenge_id": "42",
+  "subject": "0x...",
+  "has_evidence": true,
+  "verdict_pass": true,
+  "verdict_reasons": ["met_threshold"],
+  "verdict_evaluator": "fitness-evaluator",
+  "verdict_updated_at": "2024-03-14T12:00:00Z"
+}
+```
+
+### POST /api/challenge/[id]/participant
+
+Record a challenge join in the database. Called by the frontend after a successful on-chain transaction.
+
+**Auth:** Wallet signature headers required. Wallet must match `subject`.
+
+**Request body:**
+```json
+{
+  "subject": "0x...",
+  "txHash": "0x..."
+}
+```
+
+**Response:**
+```json
+{ "ok": true, "id": "uuid" }
+```
+
+---
+
+## Claims
+
+### GET /api/me/claims
+
+Get all persisted claim records for a wallet.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `subject` | string | **Required.** Wallet address |
+
+**Response:**
+```json
+{
+  "ok": true,
+  "claims": [
+    {
+      "challenge_id": "42",
+      "subject": "0x...",
+      "claim_type": "principal",
+      "amount_wei": "500000000000000000",
+      "tx_hash": "0x...",
+      ...
+    }
+  ]
+}
+```
+
+### POST /api/me/claims
+
+Persist a claim record after a successful on-chain claim transaction.
+
+**Auth:** Wallet signature headers required. Wallet must match `subject`.
+
+**Request body:**
+```json
+{
+  "challengeId": "42",
+  "subject": "0x...",
+  "claimType": "principal",
+  "amountWei": "500000000000000000",
+  "txHash": "0x...",
+  "blockNumber": "123456"
+}
+```
+
+Valid `claimType` values: `principal`, `cashback`, `validator_reward`, `validator_reject`, `reject_creator`, `reject_contribution`, `treasury_eth`.
+
+---
+
+## User (Me)
+
+### GET /api/me/challenges
+
+Get all challenges a wallet has participated in, with evidence and verdict status.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `subject` | string | **Required.** Wallet address |
+
+**Response:**
+```json
+{
+  "ok": true,
+  "challenges": [
+    {
+      "challenge_id": "42",
+      "has_evidence": true,
+      "verdict_pass": true,
+      ...
+    }
+  ]
+}
+```
+
+### GET /api/me/achievements
+
+Get all achievement NFT mints for a wallet, with challenge metadata.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `address` | string | **Required.** Wallet address |
+
+**Response:**
+```json
+{
+  "achievements": [
+    {
+      "token_id": "1",
+      "challenge_id": "42",
+      "recipient": "0x...",
+      "achievement_type": "completion",
+      "tx_hash": "0x...",
+      "minted_at": "2024-03-14T12:00:00Z",
+      "title": "10k Steps Challenge",
+      "description": "Walk 10,000 steps daily"
+    }
+  ]
+}
+```
+
+### POST /api/me/achievements
+
+Record a new achievement mint after an on-chain transaction.
+
+**Auth:** Wallet signature headers required. Wallet must match `recipient`.
+
+**Request body:**
+```json
+{
+  "tokenId": "1",
+  "challengeId": "42",
+  "recipient": "0x...",
+  "achievementType": "completion",
+  "txHash": "0x...",
+  "blockNumber": "123456"
+}
+```
+
+Valid `achievementType` values: `completion`, `victory`.
+
+**Response:**
+```json
+{ "ok": true, "mint": { ... }, "reputation": { ... } }
+```
+
+### GET /api/me/reputation
+
+Get the reputation profile for a wallet address.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `address` | string | **Required.** Wallet address |
+
+**Response:**
+```json
+{
+  "subject": "0x...",
+  "points": 200,
+  "level": 2,
+  "levelName": "Challenger",
+  "completions": 3,
+  "victories": 1
+}
+```
+
+---
+
+## Achievements (Protocol-wide)
+
+### GET /api/achievements
+
+Protocol-wide achievement listing with optional filters, enriched with challenge metadata.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `type` | string | Filter by type: `completion` or `victory` |
+| `challenge` | string | Filter by challenge ID |
+| `limit` | number | Max results (default: 50, max: 200) |
+| `offset` | number | Pagination offset (default: 0) |
+
+**Response:**
+```json
+{
+  "achievements": [...],
+  "total": 120,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+### GET /api/achievements/[tokenId]
+
+Returns ERC-721 metadata JSON for a soulbound achievement token. This is the `tokenURI` target -- wallets and block explorers fetch this URL.
+
+**Response:**
+```json
+{
+  "name": "Completion: 10k Steps Challenge",
+  "description": "Completion achievement for \"10k Steps Challenge\" on LightChallenge, verified by AIVM Proof of Inference.",
+  "image": "https://app.lightchallenge.ai/api/achievements/1/image",
+  "external_url": "https://app.lightchallenge.ai/challenge/42",
+  "attributes": [
+    { "trait_type": "Achievement", "value": "Completion" },
+    { "trait_type": "Challenge ID", "value": "42", "display_type": "number" },
+    { "trait_type": "Category", "value": "fitness" },
+    { "trait_type": "Verified At", "value": 1710432000, "display_type": "date" }
+  ]
+}
+```
+
+**Cache:** `public, max-age=3600` (1 hour).
+
+---
+
+## Accounts & Identity
+
+### GET /api/accounts/link
+
+List all linked provider accounts for a wallet (tokens redacted).
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `subject` | string | **Required.** Wallet address |
+
+**Response:**
+```json
+{
+  "ok": true,
+  "accounts": [
+    { "id": "uuid", "subject": "0x...", "provider": "strava", "external_id": "12345", ... }
+  ]
+}
+```
+
+### POST /api/accounts/link
+
+Link a provider account to a wallet address by storing OAuth tokens or an external ID.
+
+**Auth:** Wallet signature headers required. Wallet must match `subject`.
+
+**Request body:**
+```json
+{
+  "subject": "0x...",
+  "provider": "strava",
+  "externalId": "12345",
+  "accessToken": "...",
+  "refreshToken": "...",
+  "expiresAt": 1710000000
+}
+```
+
+Supported providers: `strava`, `opendota`, `riot`, `apple`.
+
+### DELETE /api/accounts/link
+
+Unlink a provider account.
+
+**Auth:** Wallet signature headers required. Wallet must match `subject`.
+
+**Request body:**
+```json
+{ "subject": "0x...", "provider": "strava" }
+```
+
+### GET /api/accounts/resolve-riot
+
+Resolve a Riot ID (gameName#tagLine) to a PUUID via Riot's account-v1 API.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `gameName` | string | **Required.** Riot game name |
+| `tagLine` | string | **Required.** Riot tag line (e.g., `NA1`) |
+
+**Response:**
+```json
+{
+  "puuid": "abc-def-...",
+  "gameName": "Player",
+  "tagLine": "NA1"
+}
+```
+
+**Requires:** `RIOT_API_KEY` env var on the server.
+
+### GET /api/linked-accounts
+
+Look up a single identity binding in the DB-backed identity registry.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `wallet` | string | **Required.** Wallet address |
+| `platform` | string | Platform to look up (default: `steam`) |
+
+**Response:**
+```json
+{
+  "binding": {
+    "platform": "steam",
+    "wallet": "0x...",
+    "platformId": "76561198...",
+    "handle": "PlayerName",
+    "ts": 1710000000
+  }
+}
+```
+
+### DELETE /api/linked-accounts
+
+Delete an identity binding.
+
+**Auth:** Wallet signature headers required. Wallet must match `wallet` param.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `wallet` | string | **Required.** Wallet address |
+| `platform` | string | Platform to unlink (default: `steam`) |
+
+---
+
+## Authentication (OAuth Flows)
+
+### GET /api/auth/steam
+
+Initiate Steam OpenID authentication flow. Redirects to Steam's login page. Stores the wallet address in a cookie for the callback.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `subject` | string | Wallet address to bind after authentication |
+
+**Behavior:** 303 redirect to Steam OpenID.
+
+### GET /api/auth/steam/return
+
+Steam OpenID callback. Verifies the OpenID response, extracts the Steam64 ID, consumes a replay-prevention nonce, fetches the Steam persona name, and creates an identity binding in the database. Redirects to `/proofs?steam=ok` on success.
+
+### GET /api/auth/strava
+
+Initiate Strava OAuth authorization flow. Redirects to Strava's authorization page. Stores the wallet address in a cookie for the callback.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `subject` | string | Wallet address to bind after authentication |
+
+**Requires:** `STRAVA_CLIENT_ID` env var.
+
+**Behavior:** 303 redirect to Strava OAuth.
+
+### GET /api/auth/strava/callback
+
+Strava OAuth callback. Exchanges the authorization code for access/refresh tokens, stores them in `linked_accounts`, and binds the Strava athlete ID. Redirects to `/settings/linked-accounts?strava=ok` on success.
+
+**Requires:** `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` env vars.
+
+### GET /api/auth/fitbit
+
+Initiate Fitbit OAuth authorization flow. Redirects to Fitbit's authorization page. Stores the wallet address in a cookie for the callback.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `subject` | string | Wallet address to bind after authentication |
+
+**Requires:** `FITBIT_CLIENT_ID` env var.
+
+**Behavior:** 303 redirect to Fitbit OAuth.
+
+### GET /api/auth/fitbit/callback
+
+Fitbit OAuth callback. Exchanges the authorization code for access/refresh tokens using Basic auth, stores them in `linked_accounts`, and binds the Fitbit user ID. Redirects to `/settings/linked-accounts?fitbit=ok` on success.
+
+**Requires:** `FITBIT_CLIENT_ID`, `FITBIT_CLIENT_SECRET` env vars.
+
+---
+
+## Platforms (Dota 2)
+
+### GET /api/platforms/dota2/card
+
+Returns a presentation-ready Dota 2 player card (for use with the `<DotaCard>` component).
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `steam64` or `steamId` | string | **Required.** Steam64 ID |
+
+**Response:**
+```json
+{
+  "uiCard": {
+    "title": "PlayerName",
+    "subtitle": "Dota 2 profile",
+    "avatar": "https://...",
+    "lines": [
+      { "label": "MMR (est.)", "value": "3500" },
+      { "label": "Record", "value": "1200-1100" },
+      { "label": "Win rate", "value": "52.2%" }
+    ]
+  },
+  "profile": { ... },
+  "success": true,
+  "steam32": "12345"
+}
+```
+
+### GET /api/platforms/dota2/heroes
+
+Returns the full Dota 2 hero list from OpenDota. Cached in-memory for 30 minutes.
+
+**Response:**
+```json
+{
+  "ok": true,
+  "heroes": [
+    { "id": 1, "name": "npc_dota_hero_antimage", "localized_name": "Anti-Mage", "img": "https://..." }
+  ]
+}
+```
+
+### GET /api/platforms/dota2/summary
+
+Returns a rich Dota 2 player summary with stats, rank medal, MMR, featured hero, and avatar.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `steam64` or `steamId` | string | **Required.** Steam64 ID |
+
+**Response:**
+```json
+{
+  "steam32": "12345",
+  "profileName": "PlayerName",
+  "avatar": "https://...",
+  "rank_tier": 52,
+  "medal": { "medal": "Legend", "stars": 2 },
+  "mmr": 3500,
+  "win": 1200,
+  "loss": 1100,
+  "winrate": 52.17,
+  "featuredHero": {
+    "id": 1,
+    "name": "npc_dota_hero_antimage",
+    "localized": "Anti-Mage",
+    "image": "https://..."
+  }
+}
+```
+
+---
+
+## Protocol & Analytics
+
+### GET /api/stats
+
+Protocol-wide statistics for homepage display. Reads from on-chain contract and DB.
+
+**Response:**
+```json
+{
+  "ok": true,
+  "totalChallenges": 49,
+  "validatorStake": "1.5",
+  "modelsCount": 10
+}
+```
+
+**Cache:** 30 seconds.
+
+### GET /api/protocol/metrics
+
+Comprehensive protocol-wide achievement, reputation, and activity metrics. Suitable for dashboards, analytics, AI agents, and docs.
+
+**Response:**
+```json
+{
+  "timestamp": "2024-03-14T12:00:00.000Z",
+  "achievements": { "total": 120, "completions": 80, "victories": 40 },
+  "reputation": {
+    "total_users": 50,
+    "levels": [
+      { "level": 1, "name": "Newcomer", "users": 20, "total_points": 1000 }
+    ]
+  },
+  "challenges": {
+    "total": 49, "active": 10, "finalized": 35, "canceled": 4,
+    "with_verdicts": 30, "with_evidence": 35
+  },
+  "claims": { "total": 25, "total_wei": "5000000000000000000", "unique_claimants": 20 },
+  "providers": [
+    { "provider": "apple", "submissions": 100, "unique_subjects": 30 }
+  ],
+  "categories": [
+    { "category": "fitness", "count": 30 }
+  ],
+  "leaderboard": [
+    { "rank": 1, "subject": "0x...", "points": 500, "level": 3, "level_name": "Competitor", ... }
+  ],
+  "recent_achievements": [...]
+}
+```
+
+**Cache:** 30 seconds.
+
+### GET /api/health
+
+Network and service health check. Tests RPC connectivity and database access.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "rpc": true,
+  "db": true,
+  "blockNumber": "0x1a2b3c",
+  "blockAge": 12,
+  "timestamp": 1710000000
+}
+```
+
+Possible `status` values: `healthy` (RPC + DB + block age < 300s), `degraded` (partial), `down` (both failing).
+
+### GET /api/status
+
+Get on-chain status for specific challenge IDs via multicall.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `ids` | string | **Required.** Comma-separated challenge IDs (max 256) |
+
+**Response:**
+```json
+{
+  "items": [
+    { "id": "42", "statusNum": 1, "status": "Finalized" },
+    { "id": "43", "statusNum": 0, "status": "Active" }
+  ]
+}
+```
+
+### GET /api/dashboard
+
+On-chain dashboard data: scans a block window for ChallengePay events and returns KPIs and challenge rows with canonical on-chain status.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `span` | string | Block window size (default: 10000, max: 50000) |
+| `toBlock` | string | End block number (default: latest) |
+
+**Response:**
+```json
+{
+  "kpis": { "active": 10, "unclaimed": 3, "finalized": 35, "canceled": 4 },
+  "items": [
+    {
+      "id": "49",
+      "creator": "0x...",
+      "startTs": "1710000000",
+      "blockNumber": "123456",
+      "txHash": "0x...",
+      "status": "Active"
+    }
+  ],
+  "fromBlock": "113456",
+  "toBlock": "123456",
+  "hasMore": true,
+  "range": { "fromBlock": "113456", "toBlock": "123456", "span": "10000" },
+  "recent": [...]
+}
+```
+
+### GET /api/blocks
+
+Get block timestamps for a list of block numbers.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `ids` | string | Comma-separated block numbers (max 50) |
+
+**Response:** A JSON object mapping block numbers to Unix timestamps.
+```json
+{ "123456": 1710000000, "123457": 1710000012 }
+```
+
+**Cache:** `public, max-age=10`.
+
+### GET /api/events/created
+
+Get `ChallengeCreated` event logs from the ChallengePay contract.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `from` | string | Start block number (default: 0) |
+| `to` | string | End block number (default: latest) |
+
+**Response:**
+```json
+{
+  "data": [
+    { "blockNumber": "123456", "tx": "0x...", "args": { "id": "42", "creator": "0x...", "stake": "1000000000000000000" } }
+  ]
+}
+```
+
+---
+
+## AI Context
+
+### GET /api/ai/context/achievements
+
+AI-ready structured achievement context. Designed for AI agents, developer tools, and profile integrations.
+
+**Without `address` parameter:** Returns the protocol schema, supported providers, reputation level definitions, available endpoints, and aggregate protocol stats.
+
+**With `address` parameter:** Returns a comprehensive, machine-readable user profile including:
+- Reputation summary with level/points/progress to next level
+- Achievement history with challenge metadata
+- Challenge participation summary (wins/losses/pending)
+- Evidence provider usage
+- Aggregated fitness and gaming performance metrics
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `address` | string | Wallet address (optional) |
+
+---
+
+## Invites
+
+### POST /api/invites
+
+Create a challenge invitation.
+
+**Auth:** Wallet signature headers required (any authenticated wallet).
+
+**Request body:**
+```json
+{
+  "challengeId": 42,
+  "method": "email",
+  "value": "user@example.com"
+}
+```
+
+Valid `method` values: `email`, `wallet`, `steam`.
+
+**Response:**
+```json
+{
+  "ok": true,
+  "invite": {
+    "id": "uuid",
+    "challengeId": 42,
+    "method": "email",
+    "value": "user@example.com",
+    "status": "queued"
+  }
+}
+```
+
+### GET /api/invites
+
+List invites, optionally filtered by challenge. Email values are partially redacted.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `challengeId` | number | Filter by challenge ID (optional) |
+
+**Response:**
+```json
+{
+  "ok": true,
+  "invites": [
+    { "id": "uuid", "challengeId": 42, "method": "email", "value": "us***@example.com", "status": "queued", "createdAt": 1710000000 }
+  ]
+}
+```
+
+---
+
+## Reminders
+
+### POST /api/reminders
+
+Create a reminder notification request for a challenge event.
+
+**Auth:** Wallet signature headers required (any authenticated wallet).
+
+**Request body:**
+```json
+{
+  "email": "user@example.com",
+  "challengeId": "42",
+  "type": "proof_window_open"
+}
+```
+
+Valid `type` values: `proof_window_open`, `proof_closing_soon`, `verification_complete`.
+
+**Response:**
+```json
+{ "ok": true }
+```
+
+Duplicate (email, challengeId, type) combinations are silently ignored.
+
+---
+
+## Uploads
+
+### GET /api/uploads/session
+
+Issue a one-time upload token. Used to authorize file uploads from mobile/QR flows.
+
+**Response:**
+```json
+{ "token": "abc123...", "expiresIn": 300 }
+```
+
+### POST /api/uploads
+
+Upload evidence files (e.g., Apple Health exports). Requires a valid one-time session token.
+
+**Content-Type:** `multipart/form-data`
+
+**Form fields:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `token` | string | Yes | One-time upload token from `/api/uploads/session` |
+| `file` | File | Yes | One or more files to upload |
+
+**Allowed file types:** `.zip`, `.xml`, `.json`, `.csv`, `.txt`
+
+**Max file size:** 25 MB
+
+**Response:**
+```json
+{
+  "ok": true,
+  "files": [
+    {
+      "originalName": "export.zip",
+      "size": 1048576,
+      "sha256": "abcdef...",
+      "storedAs": "abcdef012345-1710000000.zip",
+      "url": "/uploads/abcdef012345-1710000000.zip"
+    }
+  ]
+}
+```
+
+---
+
+## Admin
+
+### GET /api/admin/models
+
+List all AIVM models from the database. Public (no auth required) -- models are non-sensitive metadata needed by the create-challenge UI. Admins see additional fields.
+
+**Auth (optional):** `x-admin-key` header for admin-level detail.
+
+**Response:**
+```json
+{
+  "models": [
+    {
+      "id": "fitness-steps-v1",
+      "label": "Fitness Steps",
+      "kind": "aivm",
+      "modelHash": "0x...",
+      "verifier": "0x...",
+      "binding": "...",
+      "signals": [...],
+      "params": {...},
+      "sources": [...],
+      "fileAccept": ".zip,.xml"
+    }
+  ]
+}
+```
+
+### PUT /api/admin/models
+
+Replace the entire model catalog (atomic transaction).
+
+**Auth:** `x-admin-key` header required.
+
+**Request body:**
+```json
+{
+  "models": [
+    {
+      "id": "fitness-steps-v1",
+      "kind": "aivm",
+      "modelHash": "0x...",
+      "verifier": "0x...",
+      ...
+    }
+  ]
+}
+```
+
+### GET /api/admin/templates
+
+List all challenge templates from the database.
+
+**Auth:** `x-admin-key` header required.
+
+**Response:** Array of template objects with `id`, `name`, `hint`, `kind`, `modelId`, `fields`, `ruleConfig`, `active`, `createdAt`, `updatedAt`.
+
+Valid `kind` values: `steps`, `running`, `cycling`, `hiking`, `swimming`, `dota`, `cs`, `lol`.
+
+### PUT /api/admin/templates
+
+Replace all challenge templates (bulk upsert in transaction).
+
+**Auth:** `x-admin-key` header required.
+
+**Request body:** Array of template objects.
+
+**Response:**
+```json
+{ "ok": true, "count": 5 }
+```
+
+---
+
+## RPC Proxy
+
+### GET /api/rpc
+
+Health check for the RPC proxy.
+
+**Query parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `ping` | any | If present, returns proxy health |
+
+**Response:**
+```json
+{ "ok": true, "upstream": "https://light-testnet-rpc.lightchain.ai" }
+```
+
+### POST /api/rpc
+
+Proxies JSON-RPC calls to the Lightchain node. Used by the webapp to avoid CORS issues.
+
+**Allowed methods:** `eth_call`, `eth_getBalance`, `eth_blockNumber`, `eth_chainId`, `eth_getLogs`, `eth_getTransactionReceipt`, `eth_getTransactionByHash`, `eth_getBlockByNumber`, `eth_getBlockByHash`, `eth_estimateGas`, `eth_gasPrice`, `eth_getCode`, `eth_getStorageAt`, `net_version`.
+
+**Request body:** Standard JSON-RPC 2.0 request.
+
+**Timeout:** 25 seconds.
+
+### POST /api/relay
+
+EIP-2771 meta-transaction relay for gasless transactions via TrustedForwarder.
+
+**Rate limit:** 20 requests per IP per minute.
+
+**Request body:**
+```json
+{
+  "req": {
+    "from": "0x...",
+    "to": "0x...",
+    "value": "0",
+    "gas": "200000",
+    "nonce": "0",
+    "deadline": "1710086400",
+    "data": "0x..."
+  },
+  "sig": "0x..."
+}
+```
+
+**Requires:** `RELAY_ENABLED=true`, `RELAYER_PRIVATE_KEY`, `NEXT_PUBLIC_TRUSTED_FORWARDER` env vars.
+
+**Response:**
+```json
+{ "hash": "0x..." }
+```

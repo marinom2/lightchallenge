@@ -45,6 +45,7 @@ type Props = {
   state: ChallengeFormState;
   dispatch: React.Dispatch<Action>;
   nativeBalanceFormatted?: string;
+  onComplete?: () => void;
 };
 
 type BuilderCardProps = {
@@ -134,6 +135,7 @@ export default function Step2_Essentials({
   state,
   dispatch,
   nativeBalanceFormatted,
+  onComplete,
 }: Props) {
   const [tagDraft, setTagDraft] = React.useState(state.essentials.tags.join(", "));
   const [activeCard, setActiveCard] = React.useState<CardKey>("basics");
@@ -348,7 +350,7 @@ export default function Step2_Essentials({
         done={fundsDone}
         active={activeCard === "funds"}
         onExpand={() => setActiveCard("funds")}
-        onDone={fundsDone ? () => setActiveCard("funds") : undefined}
+        onDone={fundsDone ? onComplete : undefined}
         summary={
           <div className="grid gap-1 text-sm sm:grid-cols-2">
             <div><span className="text-(--text-muted)">Currency:</span> {currency.type}</div>

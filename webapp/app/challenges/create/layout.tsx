@@ -29,35 +29,6 @@ export default function CreateChallengeLayout({
       <NoAppHeroFlag />
 
       <div className="create-layout">
-        <section className="section create-hero-shell">
-          <div aria-hidden className="create-hero-bg">
-            <div className="page-hero" />
-            <div className="content-scrim" />
-          </div>
-
-          <div className="create-hero">
-            <div className="create-hero__copy">
-              <div className="create-hero__eyebrow">Builder</div>
-
-              <h1 className="create-hero__title">Create a Challenge</h1>
-
-              <p className="create-hero__subtitle">
-                Define intent, stake funds, set the timeline, and publish. The network
-                verifies proofs and the contract finalizes on-chain.
-              </p>
-            </div>
-
-            <aside className="create-hero__aside">
-              <div className="create-hero__tip">
-                <span className="create-hero__tip-label">Tip</span>
-                <span className="create-hero__tip-text">
-                  Clear title, fair stake, short timeline.
-                </span>
-              </div>
-            </aside>
-          </div>
-        </section>
-
         <div className="create-layout__body">{children}</div>
       </div>
     </>

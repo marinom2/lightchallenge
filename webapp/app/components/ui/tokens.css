@@ -16,15 +16,15 @@
 /* ── Color Palette ────────────────────────────────────────────────── */
 
 :root {
-  /* Surfaces (cosmic dark) */
-  --lc-bg:          #03040c;
-  --lc-bg-raised:   #0b0f1a;
-  --lc-bg-overlay:  #111525;
-  --lc-bg-inset:    #070b22;
+  /* Surfaces (deep cosmic grey — metallic depth) */
+  --lc-bg:          #020308;
+  --lc-bg-raised:   #0a0d16;
+  --lc-bg-overlay:  #10131e;
+  --lc-bg-inset:    #060920;
 
-  /* Borders (blue-silver) */
-  --lc-border:        rgba(185, 195, 215, 0.14);
-  --lc-border-strong: rgba(185, 195, 215, 0.24);
+  /* Borders (cool silver-chrome) */
+  --lc-border:        rgba(160, 175, 200, 0.12);
+  --lc-border-strong: rgba(170, 185, 210, 0.22);
   --lc-border-focus:  var(--lc-accent);
 
   /* Text (warm white / blue-silver muted) */
@@ -73,17 +73,17 @@
   --lc-status-finalized: var(--lc-info);
   --lc-status-canceled:  var(--lc-text-muted);
 
-  /* Glass system */
-  --lc-glass:         rgba(255, 255, 255, 0.06);
-  --lc-glass-border:  rgba(185, 195, 215, 0.12);
-  --lc-glass-hover:   rgba(255, 255, 255, 0.09);
-  --lc-glass-blur:    14px;
+  /* Glass system (silver-chrome tint) */
+  --lc-glass:         rgba(180, 195, 220, 0.05);
+  --lc-glass-border:  rgba(160, 175, 200, 0.10);
+  --lc-glass-hover:   rgba(180, 195, 220, 0.08);
+  --lc-glass-blur:    16px;
 
-  /* Shadows (dramatic depth) */
-  --lc-shadow-sm:  0 4px 12px rgba(0, 0, 0, 0.28);
-  --lc-shadow-md:  0 10px 26px rgba(0, 0, 0, 0.34);
-  --lc-shadow-lg:  0 18px 48px rgba(0, 0, 0, 0.44);
-  --lc-shadow-card: 0 16px 46px rgba(0, 0, 0, 0.46);
+  /* Shadows (deep metallic depth) */
+  --lc-shadow-sm:  0 4px 12px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.18);
+  --lc-shadow-md:  0 10px 28px rgba(0, 0, 0, 0.42), 0 4px 10px rgba(0, 0, 0, 0.22);
+  --lc-shadow-lg:  0 20px 52px rgba(0, 0, 0, 0.52), 0 8px 20px rgba(0, 0, 0, 0.28);
+  --lc-shadow-card: 0 18px 50px rgba(0, 0, 0, 0.54), 0 6px 16px rgba(0, 0, 0, 0.26);
 
   /* Overlay / scrims */
   --lc-overlay-bg:     rgba(0, 0, 0, 0.52);
@@ -153,32 +153,38 @@
 /* ── Light Theme ──────────────────────────────────────────────── */
 
 html[data-theme="light"] {
-  --lc-bg:            #ffffff;
-  --lc-bg-raised:     #f8f8fa;
-  --lc-bg-overlay:    #f0f1f5;
-  --lc-bg-inset:      #f4f5f9;
+  /* Icy blue-white surfaces */
+  --lc-bg:            #f4f7fc;
+  --lc-bg-raised:     #edf1f9;
+  --lc-bg-overlay:    #e5eaf4;
+  --lc-bg-inset:      #e9eef7;
 
-  --lc-border:        rgba(0, 0, 0, 0.08);
-  --lc-border-strong: rgba(0, 0, 0, 0.14);
+  /* Cool blue-grey borders */
+  --lc-border:        rgba(80, 100, 140, 0.12);
+  --lc-border-strong: rgba(60, 80, 120, 0.18);
 
-  --lc-text:           #0a0a12;
-  --lc-text-secondary: #555566;
-  --lc-text-muted:     #888899;
-  --lc-text-inverse:   #fafafa;
+  /* Text — deep navy for contrast on icy surfaces */
+  --lc-text:           #0a0e1a;
+  --lc-text-secondary: #475068;
+  --lc-text-muted:     #7080a0;
+  --lc-text-inverse:   #f4f7fc;
 
-  --lc-accent:       #111525;
-  --lc-accent-hover: #1a1f35;
-  --lc-accent-muted: rgba(17, 21, 37, 0.08);
+  /* Accent — deep navy-blue */
+  --lc-accent:       #0f1830;
+  --lc-accent-hover: #1a2545;
+  --lc-accent-muted: rgba(15, 24, 48, 0.08);
   --lc-accent-text:  #ffffff;
 
-  --lc-glass:         rgba(255, 255, 255, 0.76);
-  --lc-glass-border:  rgba(18, 18, 20, 0.12);
-  --lc-glass-hover:   rgba(255, 255, 255, 0.88);
+  /* Glass — icy translucent with blue tint */
+  --lc-glass:         rgba(235, 242, 255, 0.72);
+  --lc-glass-border:  rgba(60, 80, 130, 0.10);
+  --lc-glass-hover:   rgba(235, 242, 255, 0.88);
 
-  --lc-shadow-sm:  0 1px 4px rgba(0, 0, 0, 0.06);
-  --lc-shadow-md:  0 4px 12px rgba(0, 0, 0, 0.08);
-  --lc-shadow-lg:  0 8px 24px rgba(0, 0, 0, 0.10);
-  --lc-shadow-card: 0 10px 32px rgba(0, 0, 0, 0.08);
+  /* Smokey blue shadows */
+  --lc-shadow-sm:  0 2px 6px rgba(40, 60, 100, 0.08), 0 1px 2px rgba(40, 60, 100, 0.04);
+  --lc-shadow-md:  0 6px 16px rgba(40, 60, 100, 0.10), 0 2px 6px rgba(40, 60, 100, 0.06);
+  --lc-shadow-lg:  0 12px 32px rgba(40, 60, 100, 0.12), 0 4px 12px rgba(40, 60, 100, 0.08);
+  --lc-shadow-card: 0 14px 40px rgba(40, 60, 100, 0.10), 0 4px 10px rgba(40, 60, 100, 0.06);
 }
 
 /* ── Animations ──────────────────────────────────────────────── */

@@ -78,13 +78,13 @@ export async function saveLocalMeta(payload: {
   };
   proofSource?: "API" | "HYBRID" | string;
   invites?: { roster: Array<{ id: string; team?: string | null; wallet?: string | null }> };
-}) {
+}, authHeaders?: Record<string, string>) {
   const safeSubject = isHex(payload.subject ?? null) ? payload.subject : undefined;
   const safeTxHash = isHex(payload.txHash ?? null) ? payload.txHash : undefined;
 
   const res = await fetch("/api/challenges", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       ...payload,
       createdAt: payload.createdAt ?? Math.floor(Date.now() / 1000),

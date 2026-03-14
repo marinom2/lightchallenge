@@ -339,6 +339,7 @@ function CreatePageInner() {
                 state={state}
                 dispatch={dispatch}
                 nativeBalanceFormatted={nativeBal?.formatted}
+                onComplete={next}
               />
             </motion.div>
           )}

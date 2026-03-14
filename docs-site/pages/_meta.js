@@ -6,6 +6,6 @@ export default {
   "aivm": "AI Verification",
   "guides": "Guides",
   "ios": "iOS Collector",
-  "api": "API Reference",
+  "api-reference": "API Reference",
   "faq": "FAQ"
 }

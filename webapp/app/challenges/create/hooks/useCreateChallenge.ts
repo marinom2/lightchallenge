@@ -37,6 +37,7 @@ import {
   saveLocalMeta,
   triggerAivmPipeline,
 } from "../lib/afterCreate";
+import { buildAuthHeaders } from "@/lib/authHeaders";
 
 const TX_FEE_CAP_WEI = parseEther("0.95");
 
@@ -399,6 +400,8 @@ export function useCreateChallenge() {
           benchmarkHash: aivmMeta.benchmarkHash,
         });
 
+        const authHeaders = await buildAuthHeaders(wc);
+
         await saveLocalMeta({
           id: String(challengeId),
           title: state.essentials.title,
@@ -466,7 +469,7 @@ export function useCreateChallenge() {
               taskId: null,
             },
           },
-        });
+        }, authHeaders);
 
         await triggerAivmPipeline(String(challengeId));
       }
