@@ -570,23 +570,31 @@ export default function CreateCompetitionPage() {
                       textAlign: "left",
                       position: "relative",
                       overflow: "hidden",
-                      border: selected ? "2px solid var(--lc-select-border)" : "1px solid var(--lc-border)",
-                      backgroundColor: selected ? "var(--lc-select)" : "var(--lc-bg-raised)",
-                      boxShadow: selected ? "var(--lc-shadow-md)" : "var(--lc-shadow-sm)",
-                      transition: "all 0.2s ease",
+                      border: selected
+                        ? "2px solid var(--lc-select-border)"
+                        : "1px solid var(--lc-border)",
+                      backgroundColor: selected
+                        ? "var(--lc-select)"
+                        : "var(--lc-glass)",
+                      boxShadow: selected
+                        ? "0 0 0 3px var(--lc-select-ring), var(--lc-shadow-md)"
+                        : "none",
+                      transition: "all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)",
                     }}
                     onMouseEnter={(e) => {
                       if (!selected) {
-                        (e.currentTarget as HTMLElement).style.borderColor = "var(--lc-border-strong)";
+                        (e.currentTarget as HTMLElement).style.borderColor = "var(--lc-select-border)";
                         (e.currentTarget as HTMLElement).style.boxShadow = "var(--lc-shadow-md)";
-                        (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
+                        (e.currentTarget as HTMLElement).style.transform = "translateY(-3px)";
+                        (e.currentTarget as HTMLElement).style.backgroundColor = "var(--lc-glass-hover)";
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!selected) {
                         (e.currentTarget as HTMLElement).style.borderColor = "var(--lc-border)";
-                        (e.currentTarget as HTMLElement).style.boxShadow = "var(--lc-shadow-sm)";
+                        (e.currentTarget as HTMLElement).style.boxShadow = "none";
                         (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+                        (e.currentTarget as HTMLElement).style.backgroundColor = "var(--lc-glass)";
                       }
                     }}
                   >
