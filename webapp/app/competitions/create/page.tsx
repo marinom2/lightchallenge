@@ -768,7 +768,7 @@ export default function CreateCompetitionPage() {
                       type="checkbox"
                       checked={form.isPublic}
                       onChange={(e) => update("isPublic", e.target.checked)}
-                      style={{ accentColor: "var(--lc-accent)" }}
+                      style={{ accentColor: "var(--lc-select-text)" }}
                     />
                     <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text)" }}>Public tournament</span>
                   </label>
@@ -777,7 +777,7 @@ export default function CreateCompetitionPage() {
                       type="checkbox"
                       checked={form.requireCheckin}
                       onChange={(e) => update("requireCheckin", e.target.checked)}
-                      style={{ accentColor: "var(--lc-accent)" }}
+                      style={{ accentColor: "var(--lc-select-text)" }}
                     />
                     <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text)" }}>Require check-in</span>
                   </label>

@@ -163,7 +163,7 @@
   }
 
   :where(a, button, input, select, textarea, [role="button"], [tabindex]):focus-visible {
-    outline: 2px solid var(--lc-accent);
+    outline: 2px solid var(--lc-select-border);
     outline-offset: 2px;
   }
 
@@ -269,9 +269,9 @@ html[data-theme="light"] .cw-template-card:hover:not(.is-selected) {
   box-shadow: var(--lc-shadow-sm);
 }
 html[data-theme="light"] .cw-template-card.is-selected {
-  background: rgba(60, 100, 180, 0.06);
-  border-color: var(--lc-accent);
-  box-shadow: 0 0 0 1px var(--glow-accent), var(--lc-shadow-sm);
+  background: var(--lc-select);
+  border-color: var(--lc-select-border);
+  box-shadow: 0 0 0 3px var(--lc-select-ring), var(--lc-shadow-sm);
 }
 
 /* Light: DTP overrides */
@@ -295,9 +295,9 @@ html[data-theme="light"] .dtp-popover__nav:hover {
 
 /* Light: chip override */
 html[data-theme="light"] .chip--on {
-  background: var(--lc-accent);
-  color: var(--lc-accent-text);
-  border-color: var(--lc-accent);
+  background: var(--lc-select);
+  color: var(--lc-select-text);
+  border-color: var(--lc-select-border);
 }
 
 /* Light: text selection */

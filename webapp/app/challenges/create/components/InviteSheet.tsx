@@ -67,14 +67,14 @@ export function InviteSheet({ onClose, onSendInvite }: Props) {
       <motion.div
         className="fixed inset-0 z-[1500]"
         style={{
-          background:
-            "radial-gradient(circle at top, rgba(25,32,68,0.24), transparent 38%), rgba(3,6,18,0.84)",
+          background: "var(--lc-overlay-bg)",
           backdropFilter: "blur(18px) saturate(118%)",
           WebkitBackdropFilter: "blur(18px) saturate(118%)",
         }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        onClick={onClose}
       />
 
       <motion.div
@@ -85,26 +85,37 @@ export function InviteSheet({ onClose, onSendInvite }: Props) {
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
       >
         <div
-          className="mx-auto w-full max-w-4xl overflow-hidden rounded-[30px] border"
+          className="mx-auto w-full max-w-4xl overflow-hidden"
           style={{
-            background:
-              "linear-gradient(180deg, rgba(8,12,24,0.988), rgba(10,14,28,0.996))",
-            borderColor: "rgba(255,255,255,0.10)",
-            boxShadow:
-              "0 30px 90px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)",
+            background: "var(--lc-bg-raised)",
+            border: "1px solid var(--lc-border)",
+            borderRadius: "var(--lc-radius-lg)",
+            boxShadow: "var(--lc-shadow-lg)",
           }}
           onClick={(e) => e.stopPropagation()}
         >
+          {/* Header */}
           <div
-            className="border-b px-5 py-5 sm:px-6"
-            style={{ borderColor: "rgba(255,255,255,0.08)" }}
+            style={{
+              borderBottom: "1px solid var(--lc-border)",
+              padding: "20px 24px",
+            }}
           >
-            <div className="flex items-start justify-between gap-3">
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
               <div>
-                <h3 className="text-[1.25rem] font-semibold tracking-[-0.02em] text-white">
+                <h3 style={{
+                  fontSize: "var(--lc-text-subhead)",
+                  fontWeight: 600,
+                  color: "var(--lc-text)",
+                  margin: 0,
+                }}>
                   Invite someone
                 </h3>
-                <div className="mt-1 text-sm text-white/70">
+                <div style={{
+                  marginTop: 4,
+                  fontSize: "var(--lc-text-small)",
+                  color: "var(--lc-text-secondary)",
+                }}>
                   Queue an invite for this challenge using email, wallet, or Steam ID.
                 </div>
               </div>
@@ -120,65 +131,81 @@ export function InviteSheet({ onClose, onSendInvite }: Props) {
             </div>
           </div>
 
-          <div className="px-5 py-5 sm:px-6">
+          {/* Body */}
+          <div style={{ padding: "20px 24px" }}>
+            {/* Tab bar */}
             <div
-              className="rounded-[20px] border p-1"
               style={{
-                background: "rgba(255,255,255,0.03)",
-                borderColor: "rgba(255,255,255,0.08)",
+                display: "flex",
+                gap: 8,
+                padding: 4,
+                borderRadius: "var(--lc-radius-lg)",
+                border: "1px solid var(--lc-border)",
+                backgroundColor: "var(--lc-bg-inset)",
               }}
             >
-              <div className="flex items-center gap-2">
-                {TABS.map((tab) => {
-                  const active = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setActiveTab(tab.id)}
-                      className="relative flex-1 rounded-[16px] px-4 py-3 text-sm font-medium transition"
-                      style={{
-                        color: active ? "white" : "rgba(255,255,255,0.65)",
-                      }}
-                    >
-                      {active ? (
-                        <motion.div
-                          layoutId="invite-tab-highlight"
-                          className="absolute inset-0 rounded-[16px]"
-                          style={{
-                            background:
-                              "linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.05))",
-                            border: "1px solid rgba(255,255,255,0.10)",
-                            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
-                          }}
-                        />
-                      ) : null}
-
-                      <span className="relative z-10 flex items-center justify-center gap-2">
-                        {tab.icon} {tab.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              {TABS.map((tab) => {
+                const active = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      padding: "10px 16px",
+                      borderRadius: "var(--lc-radius-md)",
+                      fontSize: "var(--lc-text-small)",
+                      fontWeight: 500,
+                      color: active ? "var(--lc-select-text)" : "var(--lc-text-secondary)",
+                      backgroundColor: active ? "var(--lc-select)" : "transparent",
+                      border: active ? "1px solid var(--lc-select-border)" : "1px solid transparent",
+                      boxShadow: active ? "var(--lc-shadow-sm)" : "none",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    {tab.icon} {tab.label}
+                  </button>
+                );
+              })}
             </div>
 
-            <form onSubmit={handleSubmit} className="mt-5">
+            {/* Input form */}
+            <form onSubmit={handleSubmit} style={{ marginTop: 20 }}>
               <div
-                className="rounded-[22px] border p-3"
                 style={{
-                  borderColor: "rgba(255,255,255,0.08)",
-                  background:
-                    "linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.02))",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
+                  padding: 12,
+                  borderRadius: "var(--lc-radius-lg)",
+                  border: "1px solid var(--lc-border)",
+                  backgroundColor: "var(--lc-bg-inset)",
                 }}
               >
-                <div className="flex flex-col gap-3 sm:flex-row">
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                   <input
                     type="text"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     placeholder={currentTab?.placeholder}
-                    className="input flex-1 font-mono text-sm"
+                    style={{
+                      flex: 1,
+                      minWidth: 200,
+                      padding: "10px 14px",
+                      fontSize: "var(--lc-text-small)",
+                      fontFamily: "var(--lc-font-mono)",
+                      color: "var(--lc-text)",
+                      backgroundColor: "var(--lc-bg-raised)",
+                      border: "1px solid var(--lc-border)",
+                      borderRadius: "var(--lc-radius-md)",
+                      outline: "none",
+                    }}
                     autoFocus
                   />
 
@@ -188,7 +215,7 @@ export function InviteSheet({ onClose, onSendInvite }: Props) {
                     disabled={!inputValue.trim() || sending}
                     aria-label="Send invite"
                   >
-                    <span className="inline-flex items-center gap-2">
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                       <Send size={16} />
                       {sending ? "Sending..." : "Send"}
                     </span>

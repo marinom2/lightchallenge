@@ -128,8 +128,8 @@ export default function ChallengeCard({
         minHeight: 200,
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "var(--lc-accent)";
-        e.currentTarget.style.boxShadow = "0 0 0 1px var(--lc-accent)";
+        e.currentTarget.style.borderColor = "var(--lc-border-strong)";
+        e.currentTarget.style.boxShadow = "var(--lc-shadow-md)";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = "var(--lc-border)";

@@ -93,9 +93,9 @@ function IconCopyButton({
       title={copied ? "Copied" : "Copy"}
       className="inline-grid h-9 w-9 place-items-center rounded-full border transition"
       style={{
-        borderColor: copied ? "rgba(120,255,180,0.24)" : "rgba(255,255,255,0.12)",
-        background: copied ? "rgba(120,255,180,0.10)" : "rgba(255,255,255,0.04)",
-        color: "rgba(255,255,255,0.88)",
+        borderColor: copied ? "var(--lc-success-border, rgba(120,255,180,0.24))" : "var(--lc-border)",
+        background: copied ? "var(--lc-success-bg, rgba(120,255,180,0.10))" : "var(--lc-bg-inset)",
+        color: "var(--lc-text)",
       }}
     >
       {copied ? <Check size={15} /> : <Copy size={15} />}
@@ -124,24 +124,39 @@ function InfoCard({
 }) {
   return (
     <div
-      className="rounded-[22px] border px-4 py-4"
       style={{
-        borderColor: "rgba(255,255,255,0.08)",
-        background:
-          "linear-gradient(180deg, rgba(255,255,255,0.040), rgba(255,255,255,0.022))",
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
+        borderRadius: "var(--lc-radius-lg)",
+        border: "1px solid var(--lc-border)",
+        padding: "16px",
+        background: "var(--lc-bg-inset)",
+        boxShadow: "var(--lc-shadow-sm)",
       }}
     >
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-white/45">
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          fontSize: "11px",
+          textTransform: "uppercase",
+          letterSpacing: "0.14em",
+          color: "var(--lc-text-muted)",
+        }}
+      >
         {icon}
         <span>{label}</span>
       </div>
 
-      <div className="mt-2 flex items-start justify-between gap-3">
+      <div style={{ marginTop: 8, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
         <div
-          className={`min-w-0 text-white ${
-            mono ? "font-mono text-xs break-all" : "text-sm font-semibold"
-          }`}
+          style={{
+            minWidth: 0,
+            color: "var(--lc-text)",
+            fontFamily: mono ? "var(--lc-font-mono)" : "inherit",
+            fontSize: mono ? "var(--lc-text-small)" : "var(--lc-text-body)",
+            fontWeight: mono ? 400 : 600,
+            wordBreak: mono ? "break-all" : undefined,
+          }}
         >
           {value}
         </div>
@@ -156,7 +171,7 @@ function InfoCard({
       </div>
 
       {copyValue && onCopy && !valueCopyInline ? (
-        <div className="mt-3 flex justify-end">
+        <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
           <IconCopyButton
             copied={!!copied}
             onClick={onCopy}
@@ -176,9 +191,9 @@ function ScheduleRow({
   value?: string | null;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 text-sm">
-      <span className="text-white/52">{label}</span>
-      <span className="text-right font-medium text-white/90">{value || "—"}</span>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, fontSize: "var(--lc-text-body)" }}>
+      <span style={{ color: "var(--lc-text-muted)" }}>{label}</span>
+      <span style={{ textAlign: "right", fontWeight: 500, color: "var(--lc-text)" }}>{value || "—"}</span>
     </div>
   );
 }
@@ -221,8 +236,7 @@ export function SuccessSheet({
           <motion.div
             className="fixed inset-0 z-[1400]"
             style={{
-              background:
-                "radial-gradient(circle at top, rgba(24,34,76,0.22), transparent 34%), rgba(3,6,18,0.86)",
+              background: "var(--lc-overlay-bg)",
               backdropFilter: "blur(18px) saturate(118%)",
               WebkitBackdropFilter: "blur(18px) saturate(118%)",
             }}
@@ -239,37 +253,57 @@ export function SuccessSheet({
             transition={{ type: "spring", stiffness: 320, damping: 30 }}
           >
             <div
-              className="mx-auto w-full max-w-[1240px] overflow-hidden rounded-[34px] border"
+              className="mx-auto w-full max-w-[1240px] overflow-hidden"
               style={{
-                background:
-                  "linear-gradient(180deg, rgba(7,11,24,0.992), rgba(10,14,28,0.998))",
-                borderColor: "rgba(255,255,255,0.10)",
-                boxShadow:
-                  "0 34px 100px rgba(0,0,0,0.58), inset 0 1px 0 rgba(255,255,255,0.05)",
+                background: "var(--lc-bg-raised)",
+                border: "1px solid var(--lc-border)",
+                borderRadius: "var(--lc-radius-lg)",
+                boxShadow: "var(--lc-shadow-lg)",
               }}
             >
+              {/* Header */}
               <div
-                className="border-b px-5 py-5 sm:px-7 sm:py-6"
-                style={{ borderColor: "rgba(255,255,255,0.08)" }}
+                style={{
+                  borderBottom: "1px solid var(--lc-border)",
+                  padding: "20px 24px",
+                }}
               >
-                <div className="flex items-start gap-4">
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
                   <div
-                    className="grid h-12 w-12 shrink-0 place-items-center rounded-full border"
                     style={{
-                      borderColor: "rgba(255,255,255,0.10)",
-                      background:
-                        "linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03))",
-                      boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
+                      display: "grid",
+                      placeItems: "center",
+                      width: 48,
+                      height: 48,
+                      flexShrink: 0,
+                      borderRadius: "50%",
+                      border: "1px solid var(--lc-border)",
+                      background: "var(--lc-bg-inset)",
+                      boxShadow: "var(--lc-shadow-sm)",
+                      color: "var(--lc-select-text)",
                     }}
                   >
                     <CheckCircle2 size={22} />
                   </div>
 
-                  <div className="min-w-0">
-                    <div className="text-[1.55rem] font-semibold tracking-[-0.03em] text-white">
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: "1.55rem",
+                        fontWeight: 600,
+                        letterSpacing: "-0.03em",
+                        color: "var(--lc-text)",
+                      }}
+                    >
                       Challenge created
                     </div>
-                    <div className="mt-1 text-sm text-white/70">
+                    <div
+                      style={{
+                        marginTop: 4,
+                        fontSize: "var(--lc-text-body)",
+                        color: "var(--lc-text-secondary)",
+                      }}
+                    >
                       Your transaction was confirmed on-chain.
                       {challengeId != null
                         ? ` Challenge #${challengeId} is now live and ready to share.`
@@ -279,10 +313,12 @@ export function SuccessSheet({
                 </div>
               </div>
 
-              <div className="px-5 py-5 sm:px-7 sm:py-6">
-                <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
-                  <div className="grid gap-4">
-                    <div className="grid gap-4 sm:grid-cols-3">
+              {/* Body */}
+              <div style={{ padding: "20px 24px" }}>
+                <div style={{ display: "grid", gap: 16 }} className="lg:grid-cols-[1.3fr_1fr]">
+                  {/* Left column */}
+                  <div style={{ display: "grid", gap: 16 }}>
+                    <div style={{ display: "grid", gap: 16 }} className="sm:grid-cols-3">
                       {challengeId != null ? (
                         <InfoCard
                           icon={<Hash size={13} />}
@@ -308,33 +344,74 @@ export function SuccessSheet({
                       />
                     </div>
 
+                    {/* Title / Type card */}
                     <div
-                      className="rounded-[24px] border px-5 py-5"
                       style={{
-                        borderColor: "rgba(255,255,255,0.08)",
-                        background:
-                          "linear-gradient(180deg, rgba(255,255,255,0.040), rgba(255,255,255,0.022))",
-                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
+                        borderRadius: "var(--lc-radius-lg)",
+                        border: "1px solid var(--lc-border)",
+                        padding: "20px",
+                        background: "var(--lc-bg-inset)",
+                        boxShadow: "var(--lc-shadow-sm)",
                       }}
                     >
-                      <div className="text-[11px] uppercase tracking-[0.14em] text-white/45">
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.14em",
+                          color: "var(--lc-text-muted)",
+                        }}
+                      >
                         Title
                       </div>
 
-                      <div className="mt-2 text-[1.08rem] font-semibold tracking-[-0.02em] text-white">
+                      <div
+                        style={{
+                          marginTop: 8,
+                          fontSize: "1.08rem",
+                          fontWeight: 600,
+                          letterSpacing: "-0.02em",
+                          color: "var(--lc-text)",
+                        }}
+                      >
                         {summary?.title || "Untitled challenge"}
                       </div>
 
-                      <div className="mt-4">
-                        <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-white/45">
+                      <div style={{ marginTop: 16 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            fontSize: "11px",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.14em",
+                            color: "var(--lc-text-muted)",
+                          }}
+                        >
                           <Sparkles size={13} />
                           <span>Type</span>
                         </div>
-                        <div className="mt-2 text-sm font-semibold text-white">
+                        <div
+                          style={{
+                            marginTop: 8,
+                            fontSize: "var(--lc-text-body)",
+                            fontWeight: 600,
+                            color: "var(--lc-text)",
+                          }}
+                        >
                           {typePrimary}
                         </div>
                         {typeSecondary ? (
-                          <div className="mt-1 text-sm text-white/62">{typeSecondary}</div>
+                          <div
+                            style={{
+                              marginTop: 4,
+                              fontSize: "var(--lc-text-body)",
+                              color: "var(--lc-text-secondary)",
+                            }}
+                          >
+                            {typeSecondary}
+                          </div>
                         ) : null}
                       </div>
                     </div>
@@ -350,20 +427,33 @@ export function SuccessSheet({
                     />
                   </div>
 
+                  {/* Right column — Schedule */}
                   <div
-                    className="rounded-[24px] border p-4"
                     style={{
-                      borderColor: "rgba(255,255,255,0.08)",
-                      background:
-                        "linear-gradient(180deg, rgba(255,255,255,0.040), rgba(255,255,255,0.022))",
+                      borderRadius: "var(--lc-radius-lg)",
+                      border: "1px solid var(--lc-border)",
+                      padding: "16px",
+                      background: "var(--lc-bg-inset)",
+                      boxShadow: "var(--lc-shadow-sm)",
                     }}
                   >
-                    <div className="mb-3 flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-white/45">
+                    <div
+                      style={{
+                        marginBottom: 12,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        fontSize: "11px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.14em",
+                        color: "var(--lc-text-muted)",
+                      }}
+                    >
                       <CalendarClock size={13} />
                       <span>Schedule snapshot</span>
                     </div>
 
-                    <div className="space-y-2.5">
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                       <ScheduleRow
                         label="Join closes"
                         value={summary?.schedule.joinCloses}
@@ -384,9 +474,17 @@ export function SuccessSheet({
                   </div>
                 </div>
 
+                {/* Action buttons */}
                 <div
-                  className="mt-6 flex flex-wrap items-center gap-2.5 border-t pt-5"
-                  style={{ borderColor: "rgba(255,255,255,0.08)" }}
+                  style={{
+                    marginTop: 24,
+                    display: "flex",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                    gap: 10,
+                    borderTop: "1px solid var(--lc-border)",
+                    paddingTop: 20,
+                  }}
                 >
                   <button
                     type="button"

@@ -173,7 +173,7 @@ export default function MobileDrawer({
                             width: 6,
                             height: 6,
                             borderRadius: "50%",
-                            backgroundColor: "var(--lc-accent)",
+                            backgroundColor: "var(--lc-select-text)",
                           }}
                         />
                       )}

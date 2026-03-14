@@ -894,9 +894,9 @@ export default function MyChallengesPage() {
                     borderRadius: "var(--lc-radius-pill)",
                     fontSize: "var(--lc-text-caption)",
                     fontWeight: "var(--lc-weight-medium)" as any,
-                    color: isActive ? "var(--lc-accent-text)" : isUrgent ? "var(--lc-warning)" : "var(--lc-text-secondary)",
-                    backgroundColor: isActive ? "var(--lc-accent)" : isUrgent ? "var(--lc-warning-muted)" : "transparent",
-                    border: isActive ? "none" : isUrgent ? "1px solid var(--lc-warning)" : "1px solid var(--lc-border)",
+                    color: isActive ? "var(--lc-select-text)" : isUrgent ? "var(--lc-warning)" : "var(--lc-text-secondary)",
+                    backgroundColor: isActive ? "var(--lc-select)" : isUrgent ? "var(--lc-warning-muted)" : "transparent",
+                    border: isActive ? "1px solid var(--lc-select-border)" : isUrgent ? "1px solid var(--lc-warning)" : "1px solid var(--lc-border)",
                     cursor: "pointer",
                     transition: "all var(--lc-dur-fast) var(--lc-ease)",
                     display: "flex",
@@ -947,7 +947,7 @@ export default function MyChallengesPage() {
                 <section>
                   <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", marginBottom: "var(--lc-space-3)" }}>
                     <span style={{ fontSize: "var(--lc-text-small)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)" }}>In Progress</span>
-                    <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: "var(--lc-radius-pill)", backgroundColor: "var(--lc-accent-muted)", color: "var(--lc-accent)" }}>
+                    <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: "var(--lc-radius-pill)", backgroundColor: "var(--lc-info-muted)", color: "var(--lc-info)" }}>
                       {progressRows.length}
                     </span>
                   </div>

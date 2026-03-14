@@ -180,7 +180,7 @@ export default function NavBar({
               left: indicator.left,
               width: indicator.width,
               height: 2,
-              backgroundColor: "var(--lc-accent)",
+              backgroundColor: "var(--lc-select-text)",
               borderRadius: 1,
               opacity: indicator.visible ? 1 : 0,
               transition: `left var(--lc-dur-base) var(--lc-ease), width var(--lc-dur-base) var(--lc-ease), opacity var(--lc-dur-fast) var(--lc-ease)`,
