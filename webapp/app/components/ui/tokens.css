@@ -1,45 +1,54 @@
 /**
- * LightChallenge Design Tokens — v2
+ * LightChallenge Design Tokens — v3
  *
- * Organized, single-accent token system derived from DESIGN_BLUEPRINT.md.
- * Import this file in globals.css to layer the new tokens alongside existing styles.
+ * Restored: original cosmic-glass aesthetic with deep blue surfaces,
+ * ice-white accent, warm gold + blue-lavender gradients, glass depth.
  *
  * Philosophy:
- *   - Single accent color (brand purple) for ALL interactive elements
- *   - Color = semantics only (status, urgency, action — never decorative)
+ *   - Accent = ice-white (#f6f7ff) for interactive elements, warm gold for CTAs
+ *   - Deep cosmic blue surfaces with subtle blue undertones
+ *   - Glass surfaces with blur, transparency, depth
+ *   - Color = semantics (status, urgency) — decorative via gradients only
  *   - 4-level typography hierarchy
  *   - Structured spacing scale (4→64px)
- *   - Reduced visual noise (subtle borders, minimal shadows, no heavy glass)
- *
- * Usage: reference these tokens via var(--lc-*) in new components.
- * The --lc prefix avoids collisions with the legacy token set.
  */
 
 /* ── Color Palette ────────────────────────────────────────────────── */
 
 :root {
-  /* Surfaces (dark default) */
-  --lc-bg:          #0a0a0a;
-  --lc-bg-raised:   #141414;
-  --lc-bg-overlay:  #1a1a1a;
-  --lc-bg-inset:    #0e0e0e;
+  /* Surfaces (cosmic dark) */
+  --lc-bg:          #03040c;
+  --lc-bg-raised:   #0b0f1a;
+  --lc-bg-overlay:  #111525;
+  --lc-bg-inset:    #070b22;
 
-  /* Borders */
-  --lc-border:        rgba(255, 255, 255, 0.08);
-  --lc-border-strong: rgba(255, 255, 255, 0.14);
+  /* Borders (blue-silver) */
+  --lc-border:        rgba(185, 195, 215, 0.14);
+  --lc-border-strong: rgba(185, 195, 215, 0.24);
   --lc-border-focus:  var(--lc-accent);
 
-  /* Text */
-  --lc-text:          #fafafa;
-  --lc-text-secondary: #888888;
-  --lc-text-muted:    #555555;
-  --lc-text-inverse:  #0a0a0a;
+  /* Text (warm white / blue-silver muted) */
+  --lc-text:          rgba(255, 255, 255, 0.92);
+  --lc-text-secondary: rgba(255, 255, 255, 0.74);
+  --lc-text-muted:    rgba(143, 152, 182, 0.72);
+  --lc-text-inverse:  #03040c;
 
-  /* Brand accent (single color — used for ALL interactive elements) */
-  --lc-accent:       #6B5CFF;
-  --lc-accent-hover: #7E71FF;
-  --lc-accent-muted: rgba(107, 92, 255, 0.15);
-  --lc-accent-text:  #ffffff;
+  /* Brand accent (ice-white — original) */
+  --lc-accent:       #f6f7ff;
+  --lc-accent-hover: #ffffff;
+  --lc-accent-muted: rgba(246, 247, 255, 0.10);
+  --lc-accent-text:  #03040c;
+
+  /* Warm accent (gold — CTAs, highlights) */
+  --lc-warm:         #d6a24a;
+  --lc-warm-deep:    #b7791f;
+  --lc-warm-muted:   rgba(214, 162, 74, 0.12);
+
+  /* Gradient palette (blue-lavender) */
+  --lc-grad-1:       #d6a24a;
+  --lc-grad-2:       #5f86ff;
+  --lc-grad-3:       #b9a7ff;
+  --lc-gradient:     linear-gradient(135deg, var(--lc-grad-2), var(--lc-grad-3));
 
   /* Semantic status */
   --lc-success:       #22c55e;
@@ -50,35 +59,48 @@
   --lc-danger-muted:  rgba(239, 68, 68, 0.12);
   --lc-info:          #3b82f6;
   --lc-info-muted:    rgba(59, 130, 246, 0.12);
+  --lc-error:         var(--lc-danger);
+  --lc-error-muted:   var(--lc-danger-muted);
 
-  /* Urgency scale (for deadline countdowns) */
-  --lc-urgency-safe:    var(--lc-success);      /* > 3 days */
-  --lc-urgency-soon:    var(--lc-warning);      /* 1-3 days */
-  --lc-urgency-imminent: var(--lc-danger);      /* < 24 hours */
-  --lc-urgency-ended:   var(--lc-text-muted);   /* past deadline */
+  /* Urgency scale */
+  --lc-urgency-safe:    var(--lc-success);
+  --lc-urgency-soon:    var(--lc-warning);
+  --lc-urgency-imminent: var(--lc-danger);
+  --lc-urgency-ended:   var(--lc-text-muted);
 
-  /* Challenge status */
+  /* Challenge status (legacy compat) */
   --lc-status-active:    var(--lc-success);
   --lc-status-finalized: var(--lc-info);
   --lc-status-canceled:  var(--lc-text-muted);
 
-  /* Shadows (minimal — used sparingly) */
-  --lc-shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.3);
-  --lc-shadow-md:  0 4px 12px rgba(0, 0, 0, 0.3);
-  --lc-shadow-lg:  0 8px 24px rgba(0, 0, 0, 0.3);
+  /* Glass system */
+  --lc-glass:         rgba(255, 255, 255, 0.06);
+  --lc-glass-border:  rgba(185, 195, 215, 0.12);
+  --lc-glass-hover:   rgba(255, 255, 255, 0.09);
+  --lc-glass-blur:    14px;
+
+  /* Shadows (dramatic depth) */
+  --lc-shadow-sm:  0 4px 12px rgba(0, 0, 0, 0.28);
+  --lc-shadow-md:  0 10px 26px rgba(0, 0, 0, 0.34);
+  --lc-shadow-lg:  0 18px 48px rgba(0, 0, 0, 0.44);
+  --lc-shadow-card: 0 16px 46px rgba(0, 0, 0, 0.46);
+
+  /* Overlay / scrims */
+  --lc-overlay-bg:     rgba(0, 0, 0, 0.52);
+  --lc-scrim-strong:   rgba(0, 0, 0, 0.72);
 
   /* ── Typography ────────────────────────────────────────────── */
 
-  --lc-font-sans:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --lc-font-sans:  'Inter var', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --lc-font-mono:  'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
 
   /* 4-level type scale */
-  --lc-text-title:    clamp(1.75rem, 3vw, 2rem);      /* 28-32px  — page titles */
-  --lc-text-heading:  clamp(1.25rem, 2vw, 1.5rem);    /* 20-24px  — section headings */
-  --lc-text-subhead:  1.125rem;                         /* 18px     — subsections */
-  --lc-text-body:     1rem;                             /* 16px     — body text */
-  --lc-text-small:    0.875rem;                         /* 14px     — secondary text */
-  --lc-text-caption:  0.75rem;                          /* 12px     — captions, labels */
+  --lc-text-title:    clamp(1.75rem, 3vw, 2rem);
+  --lc-text-heading:  clamp(1.25rem, 2vw, 1.5rem);
+  --lc-text-subhead:  1.125rem;
+  --lc-text-body:     1rem;
+  --lc-text-small:    0.875rem;
+  --lc-text-caption:  0.75rem;
 
   --lc-weight-normal:   400;
   --lc-weight-medium:   500;
@@ -107,15 +129,15 @@
 
   /* ── Radii ─────────────────────────────────────────────────── */
 
-  --lc-radius-sm:   6px;
-  --lc-radius-md:  10px;
-  --lc-radius-lg:  14px;
-  --lc-radius-xl:  20px;
+  --lc-radius-sm:   10px;
+  --lc-radius-md:   14px;
+  --lc-radius-lg:   18px;
+  --lc-radius-xl:   22px;
   --lc-radius-pill: 999px;
 
   /* ── Layout ────────────────────────────────────────────────── */
 
-  --lc-navbar-h:       56px;
+  --lc-navbar-h:       68px;
   --lc-content-max-w:  1180px;
   --lc-content-narrow: 760px;
   --lc-sidebar-w:      260px;
@@ -132,25 +154,31 @@
 
 html[data-theme="light"] {
   --lc-bg:            #ffffff;
-  --lc-bg-raised:     #f8f8f8;
-  --lc-bg-overlay:    #f0f0f0;
-  --lc-bg-inset:      #f4f4f4;
+  --lc-bg-raised:     #f8f8fa;
+  --lc-bg-overlay:    #f0f1f5;
+  --lc-bg-inset:      #f4f5f9;
 
   --lc-border:        rgba(0, 0, 0, 0.08);
   --lc-border-strong: rgba(0, 0, 0, 0.14);
 
-  --lc-text:           #0a0a0a;
-  --lc-text-secondary: #666666;
-  --lc-text-muted:     #999999;
+  --lc-text:           #0a0a12;
+  --lc-text-secondary: #555566;
+  --lc-text-muted:     #888899;
   --lc-text-inverse:   #fafafa;
 
-  --lc-accent:       #5B4CD9;
-  --lc-accent-hover: #4E3FC9;
-  --lc-accent-muted: rgba(91, 76, 217, 0.10);
+  --lc-accent:       #111525;
+  --lc-accent-hover: #1a1f35;
+  --lc-accent-muted: rgba(17, 21, 37, 0.08);
+  --lc-accent-text:  #ffffff;
 
-  --lc-shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.06);
+  --lc-glass:         rgba(255, 255, 255, 0.76);
+  --lc-glass-border:  rgba(18, 18, 20, 0.12);
+  --lc-glass-hover:   rgba(255, 255, 255, 0.88);
+
+  --lc-shadow-sm:  0 1px 4px rgba(0, 0, 0, 0.06);
   --lc-shadow-md:  0 4px 12px rgba(0, 0, 0, 0.08);
   --lc-shadow-lg:  0 8px 24px rgba(0, 0, 0, 0.10);
+  --lc-shadow-card: 0 10px 32px rgba(0, 0, 0, 0.08);
 }
 
 /* ── Animations ──────────────────────────────────────────────── */
@@ -162,4 +190,9 @@ html[data-theme="light"] {
 
 @keyframes lc-spin {
   to { transform: rotate(360deg); }
+}
+
+@keyframes lc-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
 }

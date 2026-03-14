@@ -4,6 +4,23 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import Badge from "./components/ui/Badge";
+import {
+  Shield,
+  Cpu,
+  Globe,
+  Zap,
+  Trophy,
+  Heart,
+  Gamepad2,
+  Mountain,
+  ArrowRight,
+  Code,
+  ExternalLink,
+  CheckCircle2,
+  Target,
+  Sparkles,
+  Activity,
+} from "lucide-react";
 
 /* ── Data hooks ────────────────────────────────────────────────────────────── */
 
@@ -89,294 +106,148 @@ function inferCategory(c: ChallengeMeta): string {
 /* ── Page ──────────────────────────────────────────────────────────────────── */
 
 export default function HomePage() {
-  useAccount(); // keep provider hydrated
+  useAccount();
   const stats = useStats();
   const challenges = useRecentChallenges();
   const health = useHealth();
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-16)" }}>
-      {/* ── Hero ──────────────────────────────────────────────────── */}
-      <section
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          textAlign: "center",
-          paddingTop: "var(--lc-space-16)",
-          paddingBottom: "var(--lc-space-12)",
-          gap: "var(--lc-space-6)",
-        }}
-      >
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "var(--lc-space-2)",
-            padding: "4px 12px",
-            borderRadius: "var(--lc-radius-pill)",
-            border: "1px solid var(--lc-border)",
-            fontSize: "var(--lc-text-caption)",
-            color: "var(--lc-text-secondary)",
-          }}
-        >
+    <div className="hp">
+      {/* ─────────────────────────────── HERO ─────────────────────────────── */}
+      <section className="hp-hero">
+        {/* Status pill */}
+        <div className="hp-hero__pill">
           <span
+            className="hp-hero__dot"
             style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
               backgroundColor: health?.status === "healthy" ? "var(--lc-success)" : "var(--lc-text-muted)",
+              boxShadow: health?.status === "healthy" ? "0 0 6px rgba(34,197,94,0.4)" : "none",
             }}
           />
           Lightchain Testnet
         </div>
 
-        <h1
-          style={{
-            fontSize: "clamp(2rem, 5vw, 3.25rem)",
-            fontWeight: 800,
-            letterSpacing: "-0.03em",
-            lineHeight: 1.1,
-            color: "var(--lc-text)",
-            maxWidth: 640,
-          }}
-        >
-          Stake your reputation.{"\n"}
-          <span style={{ color: "var(--lc-accent)" }}>Prove it on-chain.</span>
+        {/* Headline */}
+        <h1 className="hp-hero__headline">
+          Stake your reputation.
+          <br />
+          <span className="hp-hero__headline-accent">Prove it on-chain.</span>
         </h1>
 
-        <p
-          style={{
-            fontSize: "var(--lc-text-body)",
-            color: "var(--lc-text-secondary)",
-            lineHeight: "var(--lc-leading-relaxed)" as any,
-            maxWidth: 520,
-          }}
-        >
+        {/* Subtext */}
+        <p className="hp-hero__sub">
           Create challenges with real stakes. Submit evidence from fitness trackers
-          or gaming platforms. AI verifies your results. Winners get paid.
+          or gaming platforms. AI verifies the results. Winners get paid.
         </p>
 
-        <div style={{ display: "flex", gap: "var(--lc-space-3)", flexWrap: "wrap", justifyContent: "center" }}>
-          <Link
-            href="/explore"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              padding: "12px 24px",
-              borderRadius: "var(--lc-radius-md)",
-              backgroundColor: "var(--lc-accent)",
-              color: "var(--lc-accent-text)",
-              fontSize: "var(--lc-text-body)",
-              fontWeight: "var(--lc-weight-semibold)" as any,
-              textDecoration: "none",
-              transition: "background-color var(--lc-dur-fast) var(--lc-ease)",
-            }}
-          >
+        {/* CTA */}
+        <div className="hp-hero__cta">
+          <Link href="/explore" className="btn btn-primary btn-lg">
             Explore Challenges
           </Link>
-          <Link
-            href="/challenges/create"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              padding: "12px 24px",
-              borderRadius: "var(--lc-radius-md)",
-              border: "1px solid var(--lc-border-strong)",
-              color: "var(--lc-text)",
-              fontSize: "var(--lc-text-body)",
-              fontWeight: "var(--lc-weight-medium)" as any,
-              textDecoration: "none",
-              backgroundColor: "transparent",
-              transition: "border-color var(--lc-dur-fast) var(--lc-ease)",
-            }}
-          >
+          <Link href="/challenges/create" className="btn btn-outline btn-lg">
             Create Challenge
           </Link>
         </div>
-      </section>
 
-      {/* ── Stats Row ─────────────────────────────────────────────── */}
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-          gap: "var(--lc-space-4)",
-        }}
-      >
-        {[
-          { value: fmtNumber(stats?.totalChallenges), label: "Challenges", sub: "Created on-chain" },
-          { value: fmtStake(stats?.validatorStake), label: "LCAI Staked", sub: "Total pool value" },
-          { value: stats ? String(stats.modelsCount) : "\u2014", label: "AI Models", sub: "Verification models" },
-          {
-            value: health?.status === "healthy" ? "Live" : health?.status === "degraded" ? "Degraded" : "\u2014",
-            label: "Network",
-            sub: "Lightchain testnet",
-            dot: health?.status === "healthy",
-          },
-        ].map((s) => (
-          <div
-            key={s.label}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 4,
-              padding: "var(--lc-space-5)",
-              borderRadius: "var(--lc-radius-lg)",
-              border: "1px solid var(--lc-border)",
-              backgroundColor: "var(--lc-bg-raised)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              {s.dot && (
-                <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "var(--lc-success)" }} />
-              )}
-              <span
-                style={{
-                  fontSize: "var(--lc-text-heading)",
-                  fontWeight: "var(--lc-weight-bold)" as any,
-                  color: "var(--lc-text)",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {s.value}
-              </span>
-            </div>
-            <span style={{ fontSize: "var(--lc-text-caption)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              {s.label}
-            </span>
-            <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>
-              {s.sub}
-            </span>
-          </div>
-        ))}
-      </section>
-
-      {/* ── How It Works ──────────────────────────────────────────── */}
-      <section>
-        <SectionHeading>How it works</SectionHeading>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: "var(--lc-space-4)",
-          }}
-        >
+        {/* Metrics */}
+        <div className="hp-metrics">
           {[
+            { value: fmtNumber(stats?.totalChallenges), label: "Challenges", sub: "Created on-chain" },
+            { value: fmtStake(stats?.validatorStake), label: "LCAI Staked", sub: "Total pool value" },
+            { value: stats ? String(stats.modelsCount) : "\u2014", label: "AI Models", sub: "Verification models" },
             {
-              step: "01",
-              title: "Pick your challenge",
-              desc: "Browse open challenges or create your own. Set the goal, stake LCAI, and lock the deadline.",
-            },
-            {
-              step: "02",
-              title: "Do the work",
-              desc: "Run the miles. Win the match. Hit the target. Your deadline is immutable — the chain doesn't care about excuses.",
-            },
-            {
-              step: "03",
-              title: "Prove it, get paid",
-              desc: "Submit your evidence. The Lightchain AI network verifies it. Pass the check and claim your reward.",
+              value: health?.status === "healthy" ? "Live" : health?.status === "degraded" ? "Degraded" : "\u2014",
+              label: "Network",
+              sub: "Lightchain testnet",
+              dot: health?.status === "healthy",
             },
           ].map((s) => (
-            <div
-              key={s.step}
-              style={{
-                padding: "var(--lc-space-6)",
-                borderRadius: "var(--lc-radius-lg)",
-                border: "1px solid var(--lc-border)",
-                backgroundColor: "var(--lc-bg-raised)",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "var(--lc-text-title)",
-                  fontWeight: "var(--lc-weight-bold)" as any,
-                  color: "var(--lc-text-muted)",
-                  opacity: 0.3,
-                  marginBottom: "var(--lc-space-3)",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {s.step}
+            <div key={s.label} className="hp-metric">
+              <div className="hp-metric__value">
+                {s.dot && <span className="hp-metric__live-dot" />}
+                {s.value}
               </div>
-              <h3
-                style={{
-                  fontSize: "var(--lc-text-body)",
-                  fontWeight: "var(--lc-weight-semibold)" as any,
-                  color: "var(--lc-text)",
-                  marginBottom: "var(--lc-space-2)",
-                }}
-              >
-                {s.title}
-              </h3>
-              <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", lineHeight: "var(--lc-leading-normal)" as any }}>
-                {s.desc}
-              </p>
+              <div className="hp-metric__label">{s.label}</div>
+              <div className="hp-metric__sub">{s.sub}</div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── Categories ────────────────────────────────────────────── */}
-      <section>
-        <SectionHeading>Categories</SectionHeading>
-        <div style={{ display: "flex", gap: "var(--lc-space-3)", flexWrap: "wrap" }}>
-          {[
-            { label: "Gaming", desc: "Dota 2, CS2, LoL, Valorant" },
-            { label: "Fitness", desc: "Steps, running, cycling" },
-            { label: "Esports", desc: "Win streaks, ranked climbs" },
-            { label: "Custom", desc: "Anything verifiable" },
-          ].map((cat) => (
-            <Link
-              key={cat.label}
-              href={`/explore?category=${cat.label.toLowerCase()}`}
-              style={{
-                flex: "1 1 140px",
-                padding: "var(--lc-space-5)",
-                borderRadius: "var(--lc-radius-lg)",
-                border: "1px solid var(--lc-border)",
-                backgroundColor: "var(--lc-bg-raised)",
-                textDecoration: "none",
-                textAlign: "center",
-                transition: "border-color var(--lc-dur-fast) var(--lc-ease)",
-              }}
-            >
-              <div style={{ fontSize: "var(--lc-text-body)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)", marginBottom: 4 }}>
-                {cat.label}
-              </div>
-              <div style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>
-                {cat.desc}
-              </div>
-            </Link>
-          ))}
+      {/* ──────────────────────── TRUST / SOCIAL PROOF ────────────────────── */}
+      <section className="hp-section">
+        <SectionLabel>Why LightChallenge</SectionLabel>
+        <h2 className="hp-section__title">
+          Verified results. Real stakes. No trust required.
+        </h2>
+        <p className="hp-section__sub">
+          Every challenge outcome is verified by AI models and recorded immutably on-chain.
+          No central authority decides who wins.
+        </p>
+
+        <div className="hp-trust-grid">
+          <TrustCard
+            icon={<Cpu size={20} />}
+            title="AI Verification"
+            desc="Specialized models analyze your fitness data, match results, or activity logs to verify challenge completion."
+          />
+          <TrustCard
+            icon={<Shield size={20} />}
+            title="On-chain Proof"
+            desc="Verification results are recorded on Lightchain. Transparent, tamper-proof, and auditable by anyone."
+          />
+          <TrustCard
+            icon={<Globe size={20} />}
+            title="Decentralized Validation"
+            desc="Lightchain AIVM validators reach consensus on inference results. No single point of failure."
+          />
         </div>
       </section>
 
-      {/* ── Recent Challenges ─────────────────────────────────────── */}
+      {/* ─────────────────────────── HOW IT WORKS ─────────────────────────── */}
+      <section className="hp-section">
+        <SectionLabel>How it works</SectionLabel>
+        <h2 className="hp-section__title">Three steps to victory</h2>
+
+        <div className="hp-steps">
+          <StepCard
+            step="01"
+            icon={<Target size={20} />}
+            title="Create a challenge"
+            desc="Set the goal, stake LCAI, and lock the deadline. Anyone can join by putting their own stake on the line."
+          />
+          <StepCard
+            step="02"
+            icon={<Zap size={20} />}
+            title="Do the work"
+            desc="Run the miles. Win the match. Hit the target. Your deadline is immutable — the chain doesn't care about excuses."
+          />
+          <StepCard
+            step="03"
+            icon={<Trophy size={20} />}
+            title="Prove it, get paid"
+            desc="Submit evidence. The Lightchain AI network verifies it. Pass the check and claim your reward."
+          />
+        </div>
+      </section>
+
+      {/* ────────────────────── EXPLORE CHALLENGES ────────────────────────── */}
       {challenges.length > 0 && (
-        <section>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--lc-space-4)" }}>
-            <SectionHeading style={{ marginBottom: 0 }}>Recent Challenges</SectionHeading>
-            <Link
-              href="/explore"
-              style={{
-                fontSize: "var(--lc-text-small)",
-                color: "var(--lc-text-secondary)",
-                textDecoration: "none",
-              }}
-            >
-              View all &rarr;
+        <section className="hp-section">
+          <div className="hp-section__header-row">
+            <div>
+              <SectionLabel>Explore</SectionLabel>
+              <h2 className="hp-section__title" style={{ marginBottom: 0 }}>
+                Active challenges
+              </h2>
+            </div>
+            <Link href="/explore" className="hp-view-all">
+              View all <ArrowRight size={14} />
             </Link>
           </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: "var(--lc-space-4)",
-            }}
-          >
+
+          <div className="hp-challenge-grid">
             {challenges.map((c) => (
               <ChallengePreviewCard key={c.id} c={c} />
             ))}
@@ -384,99 +255,156 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* ── Quick Links ───────────────────────────────────────────── */}
-      <section>
-        <SectionHeading>Quick links</SectionHeading>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-            gap: "var(--lc-space-4)",
-          }}
-        >
-          {[
-            { href: "/explore", title: "Explore", desc: "Browse active challenges. Find one worth your stake." },
-            { href: "/challenges/create", title: "Create", desc: "Launch a challenge — rules, stake, and deadline." },
-            { href: "/me/challenges", title: "My Challenges", desc: "Your active and completed challenges." },
-            { href: "/claims", title: "Claims", desc: "Claim your winnings from finalized challenges." },
-            { href: "/proofs", title: "Submit Proof", desc: "Upload evidence for AIVM verification." },
-            { href: "/settings/linked-accounts", title: "Link Accounts", desc: "Connect Steam, Garmin, Strava, and more." },
-          ].map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              style={{
-                display: "block",
-                padding: "var(--lc-space-5)",
-                borderRadius: "var(--lc-radius-lg)",
-                border: "1px solid var(--lc-border)",
-                backgroundColor: "var(--lc-bg-raised)",
-                textDecoration: "none",
-                transition: "border-color var(--lc-dur-base) var(--lc-ease)",
-              }}
+      {/* ─────────────────────── INTEGRATIONS ─────────────────────────────── */}
+      <section className="hp-section">
+        <SectionLabel>Integrations</SectionLabel>
+        <h2 className="hp-section__title">Connect your platforms</h2>
+        <p className="hp-section__sub">
+          Link your accounts and we'll pull your data automatically.
+          No screenshots. No manual entry.
+        </p>
+
+        <div className="hp-integrations">
+          <IntegrationCard icon={<Gamepad2 size={24} />} name="Steam" desc="Dota 2, CS2, and more" />
+          <IntegrationCard icon={<Activity size={24} />} name="Strava" desc="Running, cycling, swimming" />
+          <IntegrationCard icon={<Heart size={24} />} name="Apple Health" desc="Steps, workouts, activity" />
+          <IntegrationCard icon={<Mountain size={24} />} name="Garmin" desc="GPS activities and fitness" />
+        </div>
+      </section>
+
+      {/* ──────────────────────── AI VERIFICATION ─────────────────────────── */}
+      <section className="hp-section">
+        <div className="hp-aivm">
+          <div className="hp-aivm__content">
+            <SectionLabel>Powered by Lightchain AIVM</SectionLabel>
+            <h2 className="hp-section__title">
+              AI that verifies. A network that validates.
+            </h2>
+            <p className="hp-section__sub" style={{ maxWidth: "none" }}>
+              When you submit evidence, a specialized AI model analyzes it and produces a
+              verification result. Lightchain AIVM validators independently attest to
+              the inference through Proof-of-Intelligence consensus. The result is recorded
+              on-chain — transparent and immutable.
+            </p>
+
+            <div className="hp-aivm__features">
+              <AivmFeature text="Evidence analyzed by specialized AI models" />
+              <AivmFeature text="Validator consensus via Proof-of-Intelligence" />
+              <AivmFeature text="Results recorded on-chain for full transparency" />
+              <AivmFeature text="No human judgment — algorithmic and deterministic" />
+            </div>
+          </div>
+          <div className="hp-aivm__visual">
+            <div className="hp-aivm__glyph">
+              <Sparkles size={32} />
+            </div>
+            <div className="hp-aivm__ring hp-aivm__ring--1" />
+            <div className="hp-aivm__ring hp-aivm__ring--2" />
+            <div className="hp-aivm__ring hp-aivm__ring--3" />
+          </div>
+        </div>
+      </section>
+
+      {/* ──────────────────────────── DEVELOPERS ──────────────────────────── */}
+      <section className="hp-section">
+        <div className="hp-dev">
+          <div className="hp-dev__text">
+            <SectionLabel>Developers</SectionLabel>
+            <h2 className="hp-section__title">Build on LightChallenge</h2>
+            <p className="hp-section__sub" style={{ maxWidth: "none" }}>
+              Explore the protocol, integrate AI verification, or build your own challenge types.
+              Full documentation and smart contract references available.
+            </p>
+          </div>
+          <div className="hp-dev__actions">
+            <a
+              href="https://uat.docs.lightchallenge.app"
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-outline btn-lg"
             >
-              <div style={{ fontSize: "var(--lc-text-body)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)", marginBottom: 4 }}>
-                {item.title}
-              </div>
-              <div style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", lineHeight: "var(--lc-leading-normal)" as any }}>
-                {item.desc}
-              </div>
-              <div style={{ marginTop: "var(--lc-space-3)", fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>
-                Open &rarr;
-              </div>
-            </Link>
-          ))}
+              <Code size={16} />
+              Documentation
+              <ExternalLink size={12} style={{ opacity: 0.5 }} />
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ───────────────────────────── FINAL CTA ──────────────────────────── */}
+      <section className="hp-final-cta">
+        <h2 className="hp-final-cta__title">
+          Ready to prove yourself?
+        </h2>
+        <p className="hp-final-cta__sub">
+          Create a challenge, stake your claim, and let AI be the judge.
+        </p>
+        <div className="hp-hero__cta">
+          <Link href="/challenges/create" className="btn btn-primary btn-lg">
+            Create a Challenge <ArrowRight size={16} />
+          </Link>
+          <Link href="/explore" className="btn btn-ghost btn-lg">
+            Browse Challenges
+          </Link>
         </div>
       </section>
     </div>
   );
 }
 
-/* ── Shared sub-components ─────────────────────────────────────────────────── */
+/* ── Sub-components ────────────────────────────────────────────────────────── */
 
-function SectionHeading({
-  children,
-  style,
-}: {
-  children: React.ReactNode;
-  style?: React.CSSProperties;
-}) {
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h2
-      style={{
-        fontSize: "var(--lc-text-caption)",
-        fontWeight: "var(--lc-weight-semibold)" as any,
-        color: "var(--lc-text-muted)",
-        textTransform: "uppercase",
-        letterSpacing: "0.08em",
-        marginBottom: "var(--lc-space-4)",
-        ...style,
-      }}
-    >
-      {children}
-    </h2>
+    <div className="hp-section__label">{children}</div>
+  );
+}
+
+function TrustCard({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
+  return (
+    <div className="hp-trust-card">
+      <div className="hp-trust-card__icon">{icon}</div>
+      <h3 className="hp-trust-card__title">{title}</h3>
+      <p className="hp-trust-card__desc">{desc}</p>
+    </div>
+  );
+}
+
+function StepCard({ step, icon, title, desc }: { step: string; icon: React.ReactNode; title: string; desc: string }) {
+  return (
+    <div className="hp-step">
+      <div className="hp-step__number">{step}</div>
+      <div className="hp-step__icon">{icon}</div>
+      <h3 className="hp-step__title">{title}</h3>
+      <p className="hp-step__desc">{desc}</p>
+    </div>
+  );
+}
+
+function IntegrationCard({ icon, name, desc }: { icon: React.ReactNode; name: string; desc: string }) {
+  return (
+    <div className="hp-integration">
+      <div className="hp-integration__icon">{icon}</div>
+      <div className="hp-integration__name">{name}</div>
+      <div className="hp-integration__desc">{desc}</div>
+    </div>
+  );
+}
+
+function AivmFeature({ text }: { text: string }) {
+  return (
+    <div className="hp-aivm__feature">
+      <CheckCircle2 size={16} />
+      <span>{text}</span>
+    </div>
   );
 }
 
 function ChallengePreviewCard({ c }: { c: ChallengeMeta }) {
   const category = inferCategory(c);
   return (
-    <Link
-      href={`/challenge/${c.id}`}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "var(--lc-space-3)",
-        padding: "var(--lc-space-5)",
-        borderRadius: "var(--lc-radius-lg)",
-        border: "1px solid var(--lc-border)",
-        backgroundColor: "var(--lc-bg-raised)",
-        textDecoration: "none",
-        transition: "border-color var(--lc-dur-base) var(--lc-ease)",
-      }}
-    >
-      {/* Top row */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <Link href={`/challenge/${c.id}`} className="hp-challenge">
+      <div className="hp-challenge__top">
         <Badge variant="category" size="sm">{category}</Badge>
         <Badge
           variant="status"
@@ -488,54 +416,19 @@ function ChallengePreviewCard({ c }: { c: ChallengeMeta }) {
         </Badge>
       </div>
 
-      {/* Title */}
-      <div
-        style={{
-          fontSize: "var(--lc-text-body)",
-          fontWeight: "var(--lc-weight-semibold)" as any,
-          color: "var(--lc-text)",
-          lineHeight: "var(--lc-leading-tight)" as any,
-          display: "-webkit-box",
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: "vertical" as any,
-          overflow: "hidden",
-        }}
-      >
+      <div className="hp-challenge__title">
         {c.title || `Challenge #${c.id}`}
       </div>
 
-      {/* Description */}
       {c.description && (
-        <p
-          style={{
-            fontSize: "var(--lc-text-small)",
-            color: "var(--lc-text-secondary)",
-            lineHeight: "var(--lc-leading-normal)" as any,
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical" as any,
-            overflow: "hidden",
-            margin: 0,
-          }}
-        >
-          {c.description}
-        </p>
+        <p className="hp-challenge__desc">{c.description}</p>
       )}
 
-      {/* Metrics */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--lc-space-3)",
-          fontSize: "var(--lc-text-caption)",
-          color: "var(--lc-text-muted)",
-        }}
-      >
+      <div className="hp-challenge__meta">
         {c.intent && <span style={{ textTransform: "capitalize" }}>{c.intent.replace(/-/g, " ")}</span>}
         {c.stake && (
           <span>
-            <strong style={{ color: "var(--lc-text)", fontWeight: "var(--lc-weight-semibold)" as any }}>{c.stake}</strong> LCAI
+            <strong>{c.stake}</strong> LCAI
           </span>
         )}
       </div>
