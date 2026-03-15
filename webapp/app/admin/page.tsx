@@ -1,175 +1,280 @@
 "use client";
 
-import { useState } from "react";
-import { useAccount, useBalance, usePublicClient, useReadContract, useWriteContract } from "wagmi";
-import type { Abi, Address, Hex } from "viem";
-import { ABI, ADDR } from "@/lib/contracts";
-import { Chrome, Hero, Tabs, Panel } from "./components/ui";
-import { GovernancePanel } from "./panels/GovernancePanel";
-import { FeesPanel } from "./panels/FeesPanel";
-import { ProofsPanel } from "./panels/ProofsPanel";
-// ValidatorsPanel removed — V1 has no validator staking/voting
-import { TokensPanel } from "./panels/TokensPanel";
-import { ChallengesPanel } from "./panels/ChallengesPanel";
-import { TreasuryPanel } from "./panels/TreasuryPanel";
-import { RolesPanel } from "./panels/RolesPanel";
-import { ModelsPanel } from "./panels/ModelsPanel";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useBalance, useReadContract } from "wagmi";
+import { formatEther } from "viem";
+import { ABI, ADDR, EXPLORER_URL } from "@/lib/contracts";
+import AdminPageHeader from "./components/AdminPageHeader";
+import { short } from "./lib/utils";
 
-type Tab =
-  | "governance"
-  | "fees"
-  | "proofs"
-  | "tokens"
-  | "challenges"
-  | "treasury"
-  | "roles"
-  | "models";
+/* ── Types ────────────────────────────────────────────────────────────────── */
 
-export default function AdminConsole() {
-  const { address } = useAccount();
-  const pc = usePublicClient();
-  const { writeContractAsync } = useWriteContract();
+type DashboardData = {
+  kpis?: { active: number; finalized: number; canceled: number; unclaimed: number };
+  items?: { id: string; status: string; txHash: string; blockNumber: string }[];
+};
 
-  const [toast, setToast] = useState<{ kind: "info" | "ok" | "bad"; text: string } | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("governance");
+type StatsData = {
+  totalChallenges?: number;
+  modelsCount?: number;
+};
 
-  const push = (text: string, kind: "info" | "ok" | "bad" = "info") => {
-    setToast({ kind, text });
-    setTimeout(() => setToast(null), 3600);
-  };
+type MetricsData = {
+  challenges?: { total?: number; active?: number; finalized?: number; with_evidence?: number; with_verdicts?: number };
+  evidence_providers?: { provider: string; submissions: number }[];
+  reputation_levels?: { level: number; count: number }[];
+  achievements?: { type: string; count: number }[];
+};
 
-  const waitReceipt = async (hash: Hex) => {
-    if (!pc) return;
-    setBusy("Waiting for confirmation…");
-    await pc.waitForTransactionReceipt({ hash });
-    setBusy(null);
-  };
+/* ── Dashboard ────────────────────────────────────────────────────────────── */
 
-  const cpWrite = async (fn: string, args: any[], successMsg: string) => {
-    try {
-      setBusy("Sending transaction…");
-      const tx = await writeContractAsync({
-        address: ADDR.ChallengePay,
-        abi: ABI.ChallengePay as Abi,
-        functionName: fn as any,
-        args,
-      });
-      await waitReceipt(tx);
-      push(successMsg, "ok");
-    } catch (e: any) {
-      setBusy(null);
-      push(e?.shortMessage || e?.message || "Transaction failed", "bad");
-    }
-  };
+export default function DashboardPage() {
+  const [dashboard, setDashboard] = useState<DashboardData>({});
+  const [stats, setStats] = useState<StatsData>({});
+  const [metrics, setMetrics] = useState<MetricsData>({});
 
-  /* ── READ — basics / status ── */
   const { data: adminAddr } = useReadContract({
     address: ADDR.ChallengePay, abi: ABI.ChallengePay, functionName: "admin",
   });
-
-  const isAdmin =
-    !!adminAddr && !!address && (adminAddr as string).toLowerCase() === address.toLowerCase();
-
+  const { data: globalPaused } = useReadContract({
+    address: ADDR.ChallengePay, abi: ABI.ChallengePay, functionName: "globalPaused",
+  });
   const { data: treasuryNative } = useBalance({
     address: ADDR.Treasury,
-    query: { refetchInterval: 12_000, refetchOnWindowFocus: false },
+    query: { refetchInterval: 15_000, refetchOnWindowFocus: false },
   });
 
-  // V1 contract reads — only fields that exist in ChallengePay V1
-  const { data: globalPaused } = useReadContract({ address: ADDR.ChallengePay, abi: ABI.ChallengePay, functionName: "globalPaused" });
-  const { data: useTokenAllowlist } = useReadContract({ address: ADDR.ChallengePay, abi: ABI.ChallengePay, functionName: "useTokenAllowlist" });
-  const { data: minLeadTime } = useReadContract({ address: ADDR.ChallengePay, abi: ABI.ChallengePay, functionName: "minLeadTime" });
-  const { data: maxLeadTime } = useReadContract({ address: ADDR.ChallengePay, abi: ABI.ChallengePay, functionName: "maxLeadTime" });
-  const { data: proofTightenOnly } = useReadContract({ address: ADDR.ChallengePay, abi: ABI.ChallengePay, functionName: "proofTightenOnly" });
-  const { data: feeCaps } = useReadContract({ address: ADDR.ChallengePay, abi: ABI.ChallengePay, functionName: "feeCaps" }) as { data?: { forfeitFeeMaxBps: bigint; cashbackMaxBps: bigint } };
-  const { data: feeConfig } = useReadContract({ address: ADDR.ChallengePay, abi: ABI.ChallengePay, functionName: "feeConfig" }) as { data?: { forfeitFeeBps: bigint; protocolBps: bigint; creatorBps: bigint; cashbackBps: bigint } };
+  useEffect(() => {
+    fetch("/api/dashboard?span=500").then((r) => r.json()).then(setDashboard).catch(() => {});
+    fetch("/api/stats").then((r) => r.json()).then(setStats).catch(() => {});
+    fetch("/api/protocol/metrics").then((r) => r.json()).then(setMetrics).catch(() => {});
+  }, []);
 
-  /* ── Guards ── */
-  if (!address) {
-    return (
-      <Chrome>
-        <Hero />
-        <Panel title="Admin Console">
-          <div className="p-6 text-sm">Connect a wallet to access the Admin Console.</div>
-        </Panel>
-      </Chrome>
-    );
-  }
-  if (!isAdmin) {
-    return (
-      <Chrome>
-        <Hero />
-        <Panel title="Admin Console">
-          <div className="p-6 text-sm">403 — This wallet is not the ChallengePay admin.</div>
-        </Panel>
-      </Chrome>
-    );
-  }
+  const kpis = dashboard.kpis;
 
   return (
-    <Chrome toast={toast} busy={busy}>
-      <Hero
-        items={[
-          { label: "ChallengePay", value: ADDR.ChallengePay },
-          { label: "Treasury", value: ADDR.Treasury },
-          { label: "Admin", value: adminAddr as Address },
-        ]}
-        right={[
-          <div key="native" className="rounded-xl border p-3">
-            <div className="text-xs opacity-70">Treasury Native</div>
-            <div className="font-semibold">
-              {treasuryNative ? `${treasuryNative.formatted} ${treasuryNative.symbol}` : "—"}
+    <>
+      <AdminPageHeader
+        title="Dashboard"
+        description="System overview and quick actions"
+      />
+
+      {/* ── System status banner ── */}
+      {globalPaused && (
+        <div
+          className="panel"
+          style={{
+            marginBottom: "var(--lc-space-4)",
+            borderColor: "var(--lc-warning)",
+            background: "rgba(255, 180, 50, 0.06)",
+          }}
+        >
+          <div className="panel-body" style={{ padding: "var(--lc-space-3) var(--lc-space-4)", display: "flex", alignItems: "center", gap: "var(--lc-space-3)" }}>
+            <span style={{ fontSize: "1.25rem" }}>&#9888;</span>
+            <div>
+              <strong>System Paused</strong>
+              <span style={{ color: "var(--lc-text-muted)", marginLeft: "var(--lc-space-2)", fontSize: "var(--lc-text-small)" }}>
+                All challenge operations are globally paused.
+                <Link href="/admin/config/governance" style={{ marginLeft: "var(--lc-space-2)", color: "var(--lc-select-text)" }}>
+                  Unpause →
+                </Link>
+              </span>
             </div>
-          </div>,
-        ]}
-      />
-
-      <Tabs
-        value={tab}
-        onChange={setTab}
-        items={[
-          { key: "governance", label: "Governance" },
-          { key: "fees", label: "Fees" },
-          { key: "proofs", label: "Proofs" },
-          { key: "tokens", label: "Tokens" },
-          { key: "challenges", label: "Challenges" },
-          { key: "treasury", label: "Treasury" },
-          { key: "roles", label: "Roles" },
-          { key: "models", label: "Models & Templates" },
-        ]}
-      />
-
-      {tab === "governance" && (
-        <GovernancePanel
-          values={{ globalPaused: !!globalPaused, minLeadTime: minLeadTime as bigint | undefined, maxLeadTime: maxLeadTime as bigint | undefined }}
-          onWrite={cpWrite}
-        />
+          </div>
+        </div>
       )}
 
-      {tab === "fees" && (
-        <FeesPanel
-          caps={{ forfeit: feeCaps?.forfeitFeeMaxBps, cashback: feeCaps?.cashbackMaxBps }}
-          cfg={{ forfeit: feeConfig?.forfeitFeeBps, protocol: feeConfig?.protocolBps, creator: feeConfig?.creatorBps, cashback: feeConfig?.cashbackBps }}
-          onWrite={cpWrite}
-        />
-      )}
+      {/* ── Contract addresses ── */}
+      <div className="panel" style={{ marginBottom: "var(--lc-space-5)" }}>
+        <div className="panel-body" style={{ padding: "var(--lc-space-3) var(--lc-space-4)" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--lc-space-4)", fontSize: "var(--lc-text-caption)" }}>
+            {([
+              ["ChallengePay", ADDR.ChallengePay],
+              ["Treasury", ADDR.Treasury],
+              ["Admin", adminAddr as string],
+            ] as const).map(([label, addr]) => (
+              <div key={label}>
+                <span style={{ color: "var(--lc-text-muted)" }}>{label}: </span>
+                <a
+                  href={`${EXPLORER_URL}/address/${addr}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mono link"
+                >
+                  {short(addr)}
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
-      {tab === "proofs" && (
-        <ProofsPanel
-          current={{ tightenOnly: !!proofTightenOnly }}
-          onWrite={cpWrite}
-        />
-      )}
+      {/* ── KPI Cards ── */}
+      <div className="admin-kpi-grid" style={{ marginBottom: "var(--lc-space-6)" }}>
+        <div className="admin-kpi">
+          <div className="admin-kpi__label">Active Challenges</div>
+          <div className="admin-kpi__value">{kpis?.active ?? "—"}</div>
+        </div>
+        <div className="admin-kpi">
+          <div className="admin-kpi__label">Finalized</div>
+          <div className="admin-kpi__value">{kpis?.finalized ?? "—"}</div>
+        </div>
+        <div className="admin-kpi">
+          <div className="admin-kpi__label">Treasury Balance</div>
+          <div className="admin-kpi__value">
+            {treasuryNative ? `${Number(treasuryNative.formatted).toFixed(2)}` : "—"}
+          </div>
+          <div className="admin-kpi__sub">{treasuryNative?.symbol ?? "ETH"}</div>
+        </div>
+        <div className="admin-kpi">
+          <div className="admin-kpi__label">Unclaimed Rewards</div>
+          <div className="admin-kpi__value">{kpis?.unclaimed ?? "—"}</div>
+        </div>
+        <div className="admin-kpi">
+          <div className="admin-kpi__label">Total Challenges</div>
+          <div className="admin-kpi__value">{stats.totalChallenges ?? "—"}</div>
+        </div>
+        <div className="admin-kpi">
+          <div className="admin-kpi__label">Active Models</div>
+          <div className="admin-kpi__value">{stats.modelsCount ?? "—"}</div>
+        </div>
+        <div className="admin-kpi">
+          <div className="admin-kpi__label">With Evidence</div>
+          <div className="admin-kpi__value">{metrics.challenges?.with_evidence ?? "—"}</div>
+        </div>
+        <div className="admin-kpi">
+          <div className="admin-kpi__label">With Verdicts</div>
+          <div className="admin-kpi__value">{metrics.challenges?.with_verdicts ?? "—"}</div>
+        </div>
+      </div>
 
-      {tab === "tokens" && (
-        <TokensPanel current={{ useAllowlist: !!useTokenAllowlist }} onWrite={cpWrite} />
-      )}
+      {/* ── Quick Actions ── */}
+      <div style={{ marginBottom: "var(--lc-space-6)" }}>
+        <h2 style={{ fontSize: "var(--lc-text-body)", fontWeight: "var(--lc-weight-semibold)" as any, marginBottom: "var(--lc-space-3)" }}>
+          Quick Actions
+        </h2>
+        <div className="admin-quick-grid">
+          <Link href="/admin/config/governance" className="admin-quick-card">
+            <span className="admin-quick-card__icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.18V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </span>
+            <div>
+              <div className="admin-quick-card__label">Contract Config</div>
+              <div className="admin-quick-card__desc">Governance, fees, tokens</div>
+            </div>
+          </Link>
 
-      {tab === "challenges" && <ChallengesPanel onWrite={cpWrite} />}
-      {tab === "treasury" && <TreasuryPanel />}
-      {tab === "roles" && <RolesPanel />}
-      {tab === "models" && <ModelsPanel />}
-    </Chrome>
+          <Link href="/admin/models" className="admin-quick-card">
+            <span className="admin-quick-card__icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              </svg>
+            </span>
+            <div>
+              <div className="admin-quick-card__label">Models & Templates</div>
+              <div className="admin-quick-card__desc">Manage AIVM models</div>
+            </div>
+          </Link>
+
+          <Link href="/admin/treasury" className="admin-quick-card">
+            <span className="admin-quick-card__icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            </span>
+            <div>
+              <div className="admin-quick-card__label">Treasury</div>
+              <div className="admin-quick-card__desc">Grants, sweeps, allowances</div>
+            </div>
+          </Link>
+
+          <Link href="/admin/roles" className="admin-quick-card">
+            <span className="admin-quick-card__icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+            </span>
+            <div>
+              <div className="admin-quick-card__label">Roles</div>
+              <div className="admin-quick-card__desc">Grant and revoke access</div>
+            </div>
+          </Link>
+
+          <Link href="/admin/monitoring" className="admin-quick-card">
+            <span className="admin-quick-card__icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+            </span>
+            <div>
+              <div className="admin-quick-card__label">Monitoring</div>
+              <div className="admin-quick-card__desc">Workers, indexers, AIVM</div>
+            </div>
+          </Link>
+
+          <Link href="/admin/docs" className="admin-quick-card">
+            <span className="admin-quick-card__icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+              </svg>
+            </span>
+            <div>
+              <div className="admin-quick-card__label">Documentation</div>
+              <div className="admin-quick-card__desc">Guides and reference</div>
+            </div>
+          </Link>
+        </div>
+      </div>
+
+      {/* ── Recent Activity ── */}
+      {dashboard.items && dashboard.items.length > 0 && (
+        <div>
+          <h2 style={{ fontSize: "var(--lc-text-body)", fontWeight: "var(--lc-weight-semibold)" as any, marginBottom: "var(--lc-space-3)" }}>
+            Recent On-Chain Activity
+          </h2>
+          <div className="panel">
+            <div className="panel-body" style={{ padding: 0 }}>
+              <table className="table table--compact" style={{ width: "100%" }}>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Status</th>
+                    <th>Block</th>
+                    <th>Tx</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dashboard.items.slice(0, 10).map((item) => (
+                    <tr key={item.txHash}>
+                      <td className="mono">{item.id}</td>
+                      <td>
+                        <span className={`chip chip--${item.status === "Active" ? "info" : item.status === "Finalized" ? "ok" : "bad"}`}>
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="mono" style={{ fontSize: "var(--lc-text-caption)" }}>{item.blockNumber}</td>
+                      <td>
+                        <a
+                          href={`${EXPLORER_URL}/tx/${item.txHash}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mono link"
+                          style={{ fontSize: "var(--lc-text-caption)" }}
+                        >
+                          {short(item.txHash)}
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
