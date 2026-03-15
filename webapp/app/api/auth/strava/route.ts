@@ -42,16 +42,24 @@ export async function GET(req: NextRequest) {
   });
 
   const subj = (req.nextUrl.searchParams.get("subject") || "").trim().toLowerCase();
+  const redirectScheme = req.nextUrl.searchParams.get("redirect_scheme") || "";
   const res = NextResponse.redirect(`${STRAVA_AUTH_URL}?${params.toString()}`, 303);
 
+  const cookieOpts = {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: base.startsWith("https://"),
+    path: "/",
+    maxAge: 600, // 10 minutes — enough to complete OAuth flow
+  };
+
   if (/^0x[a-fA-F0-9]{40}$/.test(subj)) {
-    res.cookies.set("subject", subj, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: base.startsWith("https://"),
-      path: "/",
-      maxAge: 600, // 10 minutes — enough to complete OAuth flow
-    });
+    res.cookies.set("subject", subj, cookieOpts);
+  }
+
+  // Store redirect scheme for iOS app callback (e.g. "lightchallenge")
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*$/.test(redirectScheme)) {
+    res.cookies.set("redirect_scheme", redirectScheme, cookieOpts);
   }
 
   return res;

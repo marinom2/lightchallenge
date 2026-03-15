@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Dark background gradient -->
+    <radialGradient id="bg" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#2A2A2E"/>
+      <stop offset="100%" stop-color="#111113"/>
+    </radialGradient>
+
+    <!-- Shield body: titanium/silver metallic -->
+    <linearGradient id="shieldFill" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#D8DCE2"/>
+      <stop offset="25%" stop-color="#F0F1F3"/>
+      <stop offset="50%" stop-color="#A8B0BC"/>
+      <stop offset="75%" stop-color="#C8CDD5"/>
+      <stop offset="100%" stop-color="#8A939F"/>
+    </linearGradient>
+
+    <!-- Shield border: brighter silver edge -->
+    <linearGradient id="shieldStroke" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#E8EAED"/>
+      <stop offset="50%" stop-color="#9AA3AF"/>
+      <stop offset="100%" stop-color="#C0C5CC"/>
+    </linearGradient>
+
+    <!-- Inner shadow on shield -->
+    <linearGradient id="shieldInner" x1="0.3" y1="0" x2="0.7" y2="1">
+      <stop offset="0%" stop-color="#E0E3E8"/>
+      <stop offset="40%" stop-color="#B8BFC9"/>
+      <stop offset="60%" stop-color="#969EA9"/>
+      <stop offset="100%" stop-color="#7A838F"/>
+    </linearGradient>
+
+    <!-- Subtle highlight on upper-left of shield -->
+    <radialGradient id="shieldHighlight" cx="35%" cy="30%" r="50%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.35)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+
+    <!-- Drop shadow for shield -->
+    <filter id="shieldShadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="18" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+
+    <!-- Subtle inset glow on rounded rect -->
+    <radialGradient id="bgGlow" cx="50%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#3A3A40"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background (iOS will clip to superellipse, but we draw rounded rect for preview) -->
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#bg)"/>
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#bgGlow)" opacity="0.5"/>
+
+  <!-- Shield shape (centered, ~540px wide) -->
+  <g transform="translate(512, 480)" filter="url(#shieldShadow)">
+    <!-- Shield path: classic heraldic shape -->
+    <path id="shieldOuter" d="
+      M 0 -260
+      C 120 -260, 220 -240, 260 -210
+      L 260 -210
+      C 260 -100, 250 20, 200 120
+      C 150 220, 80 290, 0 330
+      C -80 290, -150 220, -200 120
+      C -250 20, -260 -100, -260 -210
+      C -220 -240, -120 -260, 0 -260
+      Z
+    " fill="url(#shieldFill)" stroke="url(#shieldStroke)" stroke-width="6"/>
+
+    <!-- Inner shield border -->
+    <path d="
+      M 0 -235
+      C 108 -235, 198 -218, 235 -190
+      C 235 -90, 226 20, 180 110
+      C 135 200, 72 262, 0 298
+      C -72 262, -135 200, -180 110
+      C -226 20, -235 -90, -235 -190
+      C -198 -218, -108 -235, 0 -235
+      Z
+    " fill="none" stroke="#6A727E" stroke-width="2.5" opacity="0.5"/>
+
+    <!-- Highlight overlay -->
+    <path d="
+      M 0 -260
+      C 120 -260, 220 -240, 260 -210
+      L 260 -210
+      C 260 -100, 250 20, 200 120
+      C 150 220, 80 290, 0 330
+      C -80 290, -150 220, -200 120
+      C -250 20, -260 -100, -260 -210
+      C -220 -240, -120 -260, 0 -260
+      Z
+    " fill="url(#shieldHighlight)"/>
+
+    <!-- Center dividing line (vertical seam) -->
+    <line x1="0" y1="-240" x2="0" y2="320" stroke="#5A6270" stroke-width="2" opacity="0.4"/>
+
+    <!-- Lightning bolt -->
+    <path d="
+      M 12 -175
+      L -65 15
+      L -8 15
+      L -12 175
+      L 65 -15
+      L 8 -15
+      Z
+    " fill="#1A1C20" opacity="0.88"/>
+
+    <!-- Lightning bolt subtle highlight edge -->
+    <path d="
+      M 12 -175
+      L -65 15
+      L -8 15
+      L -12 175
+      L 65 -15
+      L 8 -15
+      Z
+    " fill="none" stroke="#3A3E45" stroke-width="2" opacity="0.4"/>
+  </g>
+</svg>

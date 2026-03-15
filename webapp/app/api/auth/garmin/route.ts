@@ -1,10 +1,13 @@
 /**
- * webapp/app/api/auth/fitbit/route.ts
+ * webapp/app/api/auth/garmin/route.ts
  *
- * GET /api/auth/fitbit?subject=0x...
+ * GET /api/auth/garmin?subject=0x...
  *
- * Redirects to Fitbit OAuth authorization page.
- * Stores the wallet address in a httpOnly cookie so the callback can bind it.
+ * Redirects to Garmin Connect OAuth2 authorization page.
+ * Stores the wallet address in a cookie so the callback can bind it.
+ *
+ * Garmin Health API uses OAuth 2.0 with PKCE-optional flow.
+ * Requires GARMIN_CLIENT_ID and GARMIN_CLIENT_SECRET.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -12,7 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const FITBIT_AUTH_URL = "https://www.fitbit.com/oauth2/authorize";
+const GARMIN_AUTH_URL = "https://connect.garmin.com/oauthConfirm";
 
 function validBase(u?: string | null) {
   if (!u) return null;
@@ -21,42 +24,41 @@ function validBase(u?: string | null) {
 }
 
 export async function GET(req: NextRequest) {
-  const clientId = process.env.FITBIT_CLIENT_ID;
+  const clientId = process.env.GARMIN_CLIENT_ID;
   if (!clientId) {
     return NextResponse.json(
-      { error: "FITBIT_CLIENT_ID not configured" },
+      { error: "GARMIN_CLIENT_ID not configured" },
       { status: 500 }
     );
   }
 
   const envBase = validBase(process.env.NEXT_PUBLIC_BASE_URL);
   const base = (envBase ?? req.nextUrl.origin).replace(/\/+$/, "");
-  const redirectUri = `${base}/api/auth/fitbit/callback`;
+  const redirectUri = `${base}/api/auth/garmin/callback`;
 
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "activity heartrate profile",
+    scope: "activity:read",
   });
 
   const subj = (req.nextUrl.searchParams.get("subject") || "").trim().toLowerCase();
   const redirectScheme = req.nextUrl.searchParams.get("redirect_scheme") || "";
-  const res = NextResponse.redirect(`${FITBIT_AUTH_URL}?${params.toString()}`, 303);
+  const res = NextResponse.redirect(`${GARMIN_AUTH_URL}?${params.toString()}`, 303);
 
   const cookieOpts = {
     httpOnly: true,
     sameSite: "lax" as const,
     secure: base.startsWith("https://"),
     path: "/",
-    maxAge: 600, // 10 minutes — enough to complete OAuth flow
+    maxAge: 600,
   };
 
   if (/^0x[a-fA-F0-9]{40}$/.test(subj)) {
     res.cookies.set("subject", subj, cookieOpts);
   }
 
-  // Store redirect scheme for iOS app callback (e.g. "lightchallenge")
   if (/^[a-zA-Z][a-zA-Z0-9+.-]*$/.test(redirectScheme)) {
     res.cookies.set("redirect_scheme", redirectScheme, cookieOpts);
   }

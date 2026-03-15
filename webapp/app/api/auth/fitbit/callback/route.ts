@@ -31,7 +31,13 @@ function isHexAddress(s: string): s is `0x${string}` {
   return /^0x[a-fA-F0-9]{40}$/.test(s);
 }
 
-function redirect(req: NextRequest, pathQuery: string) {
+function redirect(req: NextRequest, pathQuery: string, provider = "fitbit") {
+  const scheme = req.cookies.get("redirect_scheme")?.value;
+  // If an iOS/mobile redirect scheme was set, redirect back to the app
+  if (scheme && /^[a-zA-Z][a-zA-Z0-9+.-]*$/.test(scheme)) {
+    const status = pathQuery.includes("=ok") ? "ok" : "error";
+    return NextResponse.redirect(`${scheme}://callback?status=${status}&provider=${provider}`, 303);
+  }
   const base = req.nextUrl.origin.replace(/\/+$/, "");
   return NextResponse.redirect(`${base}${pathQuery}`, 303);
 }

@@ -9,6 +9,12 @@ settings:
   base:
     SWIFT_VERSION: "5.9"
     GENERATE_INFOPLIST_FILE: false
+    SWIFT_ENABLE_EXPLICIT_MODULES: NO
+
+packages:
+  reown-swift:
+    url: https://github.com/reown-com/reown-swift
+    from: "1.0.0"
 
 targets:
   LightChallengeApp:
@@ -18,17 +24,16 @@ targets:
       - path: Sources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: io.lightchallenge.healthcollector
+        PRODUCT_BUNDLE_IDENTIFIER: io.lightchallenge.app
         INFOPLIST_FILE: Sources/Info.plist
         CODE_SIGN_ENTITLEMENTS: Sources/LightChallengeApp.entitlements
-        DEVELOPMENT_TEAM: ""  # ← SET YOUR APPLE TEAM ID HERE
+        DEVELOPMENT_TEAM: "84SJ6FKXLJ"
         CODE_SIGN_STYLE: Automatic
-        MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: "1.2.0"
+        CURRENT_PROJECT_VERSION: 3
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     entitlements:
       path: Sources/LightChallengeApp.entitlements
-    info:
-      path: Sources/Info.plist
-    capabilities:
-      - HealthKit
+    dependencies:
+      - package: reown-swift
+        product: ReownAppKit

@@ -7,25 +7,97 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		01327086E394D16E346FE8C3 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD8D4367DFBB21CB51AFDB57 /* APIClient.swift */; };
+		017AD46480304DEDF9E06460 /* CreateChallengeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82F0C2BA1499A50D05A49354 /* CreateChallengeView.swift */; };
+		1D5FFD1F3DA74E90F1820F1D /* WalletManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6ABAF1BACDB42FA19D56FC3 /* WalletManager.swift */; };
+		22A79E34A0431F1DE2454FD0 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEB4377B08B897795FF6447F /* DesignTokens.swift */; };
+		22C7BD51A23BA1663439FA74 /* NotificationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 585BC1959D4139EB7E5DF876 /* NotificationsView.swift */; };
+		2D0FCA3E5F088B4D5B1A30B1 /* ClaimsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CED0C0C6160E432CAB20B6DC /* ClaimsView.swift */; };
+		4229DDC4AB359F338A1BE4BB /* ReownAppKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1541795F8BBD0D69D53472F0 /* ReownAppKit */; };
+		43D74F474BAE2BA81DAD7ECF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64FC4B6EF61438B2E4A3AE31 /* SettingsView.swift */; };
 		48FAAEDC96D1E02C612F09FC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 624797A8117791825134D824 /* Assets.xcassets */; };
+		4A20EA813815461B21C21A79 /* ABIEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2F019245CD055010D611B44 /* ABIEncoder.swift */; };
+		4AD8C59641FB78BE317B0182 /* ContractService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6701EC73D4D4666031B738F0 /* ContractService.swift */; };
+		54F145E38FD99962111F5ED5 /* Contracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2B368DB02FABEB0FE873AF1 /* Contracts.swift */; };
+		550797D0D12E07537CE166AB /* MyActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48C119618E8F45A5DC431D0D /* MyActivityView.swift */; };
+		6B4E5569D04D48C05EF068BF /* FitnessProofView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 956AFB8941781516AFD70596 /* FitnessProofView.swift */; };
 		6DD3E7EA277C23205F11159F /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 298F5D66E50BE0DF0E93605E /* ContentView.swift */; };
+		7390A5A61D7A174AA9DC2EBE /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E3E79186C4B7E5200EF6791 /* MainTabView.swift */; };
 		7972D072E170841590FC276F /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C854B2A77F15DDCCB5856BAC /* HealthKitService.swift */; };
+		79B0FA11187316181EBBA291 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F96382A6786E825D5D51804 /* NotificationService.swift */; };
+		AE34E10980EB1777EF9B796A /* Templates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC47CBD7AC0CC24C0ED5661 /* Templates.swift */; };
+		C99732FF05C96BF08272CD05 /* Challenge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6718450D0B114CD3CDB048BB /* Challenge.swift */; };
+		CF3E4B50FF79FA9FE4F9A8F3 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2386C28BB1920D7EE693D754 /* AppState.swift */; };
+		D0F90181D6CFF43A2E6E14D4 /* CacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED219551AFC2F563795F7780 /* CacheService.swift */; };
+		D12B98D622D360BFD4F09C4C /* OAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 056B46502BB7A0127704ABD6 /* OAuthService.swift */; };
+		D9B09F9D0D1924CF11D29A54 /* GamingHandoffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 262C604C08756AF00CE8B815 /* GamingHandoffView.swift */; };
+		DB612A03EB280A97BE0AF778 /* ChallengeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEE7B27C2A3DF0F5E387AD12 /* ChallengeDetailView.swift */; };
 		DFFE19E2E45331BE9EBF4483 /* LightChallengeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD15E3C529E1B744F2F63518 /* LightChallengeApp.swift */; };
+		E4ADD5075FF83E61FB7A5EBE /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 204B2D7C9B26D8265BDA995C /* OnboardingView.swift */; };
+		E76C1AC9F1CD842862BB0C50 /* ChallengeRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92616EA76D9D58987F97E9DF /* ChallengeRow.swift */; };
+		F1C3E639A403E8D788DDE525 /* ExploreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C4E66B51FC904BB6E695BA1 /* ExploreView.swift */; };
+		F2019051977E76405C534A6E /* WalletSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50CE8C299A1C5AF3873473EC /* WalletSheet.swift */; };
+		F23286C4F4D1FBA4A08BAC95 /* SplashPortal.swift in Sources */ = {isa = PBXBuildFile; fileRef = D87902ED5A3D3F2F9DAB1626 /* SplashPortal.swift */; };
 		F9488F78D6C8C500096F8717 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 940344AA346043032B852F8B /* Models.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		04648F9975C483F7D4596C37 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		056B46502BB7A0127704ABD6 /* OAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthService.swift; sourceTree = "<group>"; };
+		204B2D7C9B26D8265BDA995C /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		2386C28BB1920D7EE693D754 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		262C604C08756AF00CE8B815 /* GamingHandoffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamingHandoffView.swift; sourceTree = "<group>"; };
 		298F5D66E50BE0DF0E93605E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		48C119618E8F45A5DC431D0D /* MyActivityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyActivityView.swift; sourceTree = "<group>"; };
+		4E3E79186C4B7E5200EF6791 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		50CE8C299A1C5AF3873473EC /* WalletSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletSheet.swift; sourceTree = "<group>"; };
+		585BC1959D4139EB7E5DF876 /* NotificationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsView.swift; sourceTree = "<group>"; };
+		5C4E66B51FC904BB6E695BA1 /* ExploreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExploreView.swift; sourceTree = "<group>"; };
 		624797A8117791825134D824 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		6C9F9B4D909FEAE5EC4A1D5B /* LightChallengeApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LightChallengeApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		64FC4B6EF61438B2E4A3AE31 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		6701EC73D4D4666031B738F0 /* ContractService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContractService.swift; sourceTree = "<group>"; };
+		6718450D0B114CD3CDB048BB /* Challenge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Challenge.swift; sourceTree = "<group>"; };
+		6C9F9B4D909FEAE5EC4A1D5B /* LightChallengeApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = LightChallengeApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6F96382A6786E825D5D51804 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		7CC47CBD7AC0CC24C0ED5661 /* Templates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Templates.swift; sourceTree = "<group>"; };
+		82F0C2BA1499A50D05A49354 /* CreateChallengeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateChallengeView.swift; sourceTree = "<group>"; };
+		92616EA76D9D58987F97E9DF /* ChallengeRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeRow.swift; sourceTree = "<group>"; };
 		940344AA346043032B852F8B /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		956AFB8941781516AFD70596 /* FitnessProofView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitnessProofView.swift; sourceTree = "<group>"; };
 		A5F8B27098BA0AFE20E650FA /* LightChallengeApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LightChallengeApp.entitlements; sourceTree = "<group>"; };
+		A6ABAF1BACDB42FA19D56FC3 /* WalletManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletManager.swift; sourceTree = "<group>"; };
+		AEE7B27C2A3DF0F5E387AD12 /* ChallengeDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeDetailView.swift; sourceTree = "<group>"; };
+		B2F019245CD055010D611B44 /* ABIEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ABIEncoder.swift; sourceTree = "<group>"; };
 		C854B2A77F15DDCCB5856BAC /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
+		CEB4377B08B897795FF6447F /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
+		CED0C0C6160E432CAB20B6DC /* ClaimsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaimsView.swift; sourceTree = "<group>"; };
+		D87902ED5A3D3F2F9DAB1626 /* SplashPortal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashPortal.swift; sourceTree = "<group>"; };
 		DD15E3C529E1B744F2F63518 /* LightChallengeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightChallengeApp.swift; sourceTree = "<group>"; };
+		DD8D4367DFBB21CB51AFDB57 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		E2B368DB02FABEB0FE873AF1 /* Contracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contracts.swift; sourceTree = "<group>"; };
+		ED219551AFC2F563795F7780 /* CacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFrameworksBuildPhase section */
+		21E2B1800FC204947470065B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4229DDC4AB359F338A1BE4BB /* ReownAppKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
 /* Begin PBXGroup section */
+		067B1C49757711FD1927026A /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				64FC4B6EF61438B2E4A3AE31 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
 		1148515955EEF48BCF0FDB29 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
@@ -35,9 +107,27 @@
 				DD15E3C529E1B744F2F63518 /* LightChallengeApp.swift */,
 				8DC618201643B52CEB2667F1 /* Models */,
 				B5942790EB29FD3641A4C612 /* Services */,
+				D1FC6BB1DF0BE05360A8959F /* Theme */,
 				976CED54ADAE209981085764 /* Views */,
 			);
 			path = Sources;
+			sourceTree = "<group>";
+		};
+		2A2299DCC32F1A501E300160 /* Activity */ = {
+			isa = PBXGroup;
+			children = (
+				48C119618E8F45A5DC431D0D /* MyActivityView.swift */,
+			);
+			path = Activity;
+			sourceTree = "<group>";
+		};
+		2BCDFC9F4DA1B1134EB1148F /* Explore */ = {
+			isa = PBXGroup;
+			children = (
+				92616EA76D9D58987F97E9DF /* ChallengeRow.swift */,
+				5C4E66B51FC904BB6E695BA1 /* ExploreView.swift */,
+			);
+			path = Explore;
 			sourceTree = "<group>";
 		};
 		6358672D8E0CF8BAB62D6C68 /* Products */ = {
@@ -48,10 +138,46 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		725D60F7D3F9206ED82050A9 /* Claims */ = {
+			isa = PBXGroup;
+			children = (
+				CED0C0C6160E432CAB20B6DC /* ClaimsView.swift */,
+			);
+			path = Claims;
+			sourceTree = "<group>";
+		};
+		730A933ED138FB94A39D2BA1 /* Create */ = {
+			isa = PBXGroup;
+			children = (
+				82F0C2BA1499A50D05A49354 /* CreateChallengeView.swift */,
+			);
+			path = Create;
+			sourceTree = "<group>";
+		};
+		76F0153026A1BD94A8537307 /* Wallet */ = {
+			isa = PBXGroup;
+			children = (
+				50CE8C299A1C5AF3873473EC /* WalletSheet.swift */,
+			);
+			path = Wallet;
+			sourceTree = "<group>";
+		};
+		78B5C597F57E733ADAAF075C /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				204B2D7C9B26D8265BDA995C /* OnboardingView.swift */,
+				D87902ED5A3D3F2F9DAB1626 /* SplashPortal.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
 		8DC618201643B52CEB2667F1 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				6718450D0B114CD3CDB048BB /* Challenge.swift */,
+				E2B368DB02FABEB0FE873AF1 /* Contracts.swift */,
 				940344AA346043032B852F8B /* Models.swift */,
+				7CC47CBD7AC0CC24C0ED5661 /* Templates.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -60,6 +186,16 @@
 			isa = PBXGroup;
 			children = (
 				298F5D66E50BE0DF0E93605E /* ContentView.swift */,
+				4E3E79186C4B7E5200EF6791 /* MainTabView.swift */,
+				2A2299DCC32F1A501E300160 /* Activity */,
+				725D60F7D3F9206ED82050A9 /* Claims */,
+				730A933ED138FB94A39D2BA1 /* Create */,
+				FBE801438E3EE5A241389698 /* Detail */,
+				2BCDFC9F4DA1B1134EB1148F /* Explore */,
+				C42833E44A155643F82279BC /* Notifications */,
+				78B5C597F57E733ADAAF075C /* Onboarding */,
+				067B1C49757711FD1927026A /* Settings */,
+				76F0153026A1BD94A8537307 /* Wallet */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -67,9 +203,25 @@
 		B5942790EB29FD3641A4C612 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				B2F019245CD055010D611B44 /* ABIEncoder.swift */,
+				DD8D4367DFBB21CB51AFDB57 /* APIClient.swift */,
+				2386C28BB1920D7EE693D754 /* AppState.swift */,
+				ED219551AFC2F563795F7780 /* CacheService.swift */,
+				6701EC73D4D4666031B738F0 /* ContractService.swift */,
 				C854B2A77F15DDCCB5856BAC /* HealthKitService.swift */,
+				6F96382A6786E825D5D51804 /* NotificationService.swift */,
+				056B46502BB7A0127704ABD6 /* OAuthService.swift */,
+				A6ABAF1BACDB42FA19D56FC3 /* WalletManager.swift */,
 			);
 			path = Services;
+			sourceTree = "<group>";
+		};
+		C42833E44A155643F82279BC /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				585BC1959D4139EB7E5DF876 /* NotificationsView.swift */,
+			);
+			path = Notifications;
 			sourceTree = "<group>";
 		};
 		CD706F489E4E330AB70FCECA = {
@@ -78,6 +230,24 @@
 				1148515955EEF48BCF0FDB29 /* Sources */,
 				6358672D8E0CF8BAB62D6C68 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		D1FC6BB1DF0BE05360A8959F /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				CEB4377B08B897795FF6447F /* DesignTokens.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		FBE801438E3EE5A241389698 /* Detail */ = {
+			isa = PBXGroup;
+			children = (
+				AEE7B27C2A3DF0F5E387AD12 /* ChallengeDetailView.swift */,
+				956AFB8941781516AFD70596 /* FitnessProofView.swift */,
+				262C604C08756AF00CE8B815 /* GamingHandoffView.swift */,
+			);
+			path = Detail;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -89,6 +259,7 @@
 			buildPhases = (
 				851AF03820E8F80E7A4082DA /* Sources */,
 				286F3FD69E2FC97AB91D6D30 /* Resources */,
+				21E2B1800FC204947470065B /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -96,6 +267,7 @@
 			);
 			name = LightChallengeApp;
 			packageProductDependencies = (
+				1541795F8BBD0D69D53472F0 /* ReownAppKit */,
 			);
 			productName = LightChallengeApp;
 			productReference = 6C9F9B4D909FEAE5EC4A1D5B /* LightChallengeApp.app */;
@@ -108,9 +280,10 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2630;
+				LastUpgradeCheck = 1500;
 				TargetAttributes = {
 					84B7B1FC6E8B024E9ACD1DF5 = {
+						DevelopmentTeam = 84SJ6FKXLJ;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -124,6 +297,9 @@
 			);
 			mainGroup = CD706F489E4E330AB70FCECA;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C452FA2BC6DC779FA1B0C5BD /* XCRemoteSwiftPackageReference "reown-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6358672D8E0CF8BAB62D6C68 /* Products */;
 			projectDirPath = "";
@@ -150,10 +326,36 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4A20EA813815461B21C21A79 /* ABIEncoder.swift in Sources */,
+				01327086E394D16E346FE8C3 /* APIClient.swift in Sources */,
+				CF3E4B50FF79FA9FE4F9A8F3 /* AppState.swift in Sources */,
+				D0F90181D6CFF43A2E6E14D4 /* CacheService.swift in Sources */,
+				C99732FF05C96BF08272CD05 /* Challenge.swift in Sources */,
+				DB612A03EB280A97BE0AF778 /* ChallengeDetailView.swift in Sources */,
+				E76C1AC9F1CD842862BB0C50 /* ChallengeRow.swift in Sources */,
+				2D0FCA3E5F088B4D5B1A30B1 /* ClaimsView.swift in Sources */,
 				6DD3E7EA277C23205F11159F /* ContentView.swift in Sources */,
+				4AD8C59641FB78BE317B0182 /* ContractService.swift in Sources */,
+				54F145E38FD99962111F5ED5 /* Contracts.swift in Sources */,
+				017AD46480304DEDF9E06460 /* CreateChallengeView.swift in Sources */,
+				22A79E34A0431F1DE2454FD0 /* DesignTokens.swift in Sources */,
+				F1C3E639A403E8D788DDE525 /* ExploreView.swift in Sources */,
+				6B4E5569D04D48C05EF068BF /* FitnessProofView.swift in Sources */,
+				D9B09F9D0D1924CF11D29A54 /* GamingHandoffView.swift in Sources */,
 				7972D072E170841590FC276F /* HealthKitService.swift in Sources */,
 				DFFE19E2E45331BE9EBF4483 /* LightChallengeApp.swift in Sources */,
+				7390A5A61D7A174AA9DC2EBE /* MainTabView.swift in Sources */,
 				F9488F78D6C8C500096F8717 /* Models.swift in Sources */,
+				550797D0D12E07537CE166AB /* MyActivityView.swift in Sources */,
+				79B0FA11187316181EBBA291 /* NotificationService.swift in Sources */,
+				22C7BD51A23BA1663439FA74 /* NotificationsView.swift in Sources */,
+				D12B98D622D360BFD4F09C4C /* OAuthService.swift in Sources */,
+				E4ADD5075FF83E61FB7A5EBE /* OnboardingView.swift in Sources */,
+				43D74F474BAE2BA81DAD7ECF /* SettingsView.swift in Sources */,
+				F23286C4F4D1FBA4A08BAC95 /* SplashPortal.swift in Sources */,
+				AE34E10980EB1777EF9B796A /* Templates.swift in Sources */,
+				1D5FFD1F3DA74E90F1820F1D /* WalletManager.swift in Sources */,
+				F2019051977E76405C534A6E /* WalletSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -195,10 +397,8 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = 84SJ6FKXLJ;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -220,8 +420,8 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.9;
 			};
@@ -234,14 +434,15 @@
 				CODE_SIGN_ENTITLEMENTS = Sources/LightChallengeApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = 84SJ6FKXLJ;
 				INFOPLIST_FILE = Sources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = io.lightchallenge.healthcollector;
+				MARKETING_VERSION = 1.2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.lightchallenge.app;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -282,10 +483,8 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = 84SJ6FKXLJ;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -300,8 +499,8 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.9;
 			};
@@ -314,14 +513,15 @@
 				CODE_SIGN_ENTITLEMENTS = Sources/LightChallengeApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = 84SJ6FKXLJ;
 				INFOPLIST_FILE = Sources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = io.lightchallenge.healthcollector;
+				MARKETING_VERSION = 1.2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.lightchallenge.app;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -349,6 +549,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		C452FA2BC6DC779FA1B0C5BD /* XCRemoteSwiftPackageReference "reown-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/reown-com/reown-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		1541795F8BBD0D69D53472F0 /* ReownAppKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C452FA2BC6DC779FA1B0C5BD /* XCRemoteSwiftPackageReference "reown-swift" */;
+			productName = ReownAppKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 5B2A9953DC234C80040C08BF /* Project object */;
 }

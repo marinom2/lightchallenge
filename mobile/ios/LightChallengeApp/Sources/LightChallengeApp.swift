@@ -1,53 +1,100 @@
 // LightChallengeApp.swift
-// LightChallenge iOS — HealthKit evidence collector
+// LightChallenge iOS — native fitness challenge app.
 //
-// Handles deep links: lightchallenge://challenge/{id}?subject={wallet}
-// and universal links: https://app.lightchallenge.io/proofs/{id}
+// Deep links:
+//   lightchallenge://challenge/{id}?subject={wallet}&token={token}&expires={expiry}
+//   lightchallenge://auth/callback?provider={strava|fitbit}&status=ok
+//   https://app.lightchallenge.io/proofs/{id}?subject={wallet}
 
 import SwiftUI
 
 @main
 struct LightChallengeApp: App {
+    @StateObject private var appState = AppState()
     @StateObject private var healthService = HealthKitService()
+    @StateObject private var walletManager = WalletManager.shared
+    @StateObject private var oauthService = OAuthService.shared
+    @StateObject private var notificationService = NotificationService.shared
+    @State private var showSplash = true
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            rootView
+                .environmentObject(appState)
                 .environmentObject(healthService)
+                .environmentObject(walletManager)
+                .environmentObject(oauthService)
+                .environmentObject(notificationService)
+                .preferredColorScheme(.dark) // Default to dark (cosmic-glass)
                 .onOpenURL { url in
-                    handleDeepLink(url)
+                    appState.handleDeepLink(url)
+                    walletManager.handleDeepLink(url)
+                    propagateToHealthService(url)
+                }
+                .onChange(of: walletManager.isConnected) { _, connected in
+                    if connected {
+                        appState.walletAddress = walletManager.connectedAddress
+                    }
+                }
+                .task {
+                    // Initialize services
+                    walletManager.configure()
+                    oauthService.detectInstalledApps()
+
+                    // Auto-prompt HealthKit authorization
+                    if !healthService.isAuthorized {
+                        await healthService.requestAuthorization()
+                    }
+
+                    await notificationService.checkPermission()
+
+                    // Restore wallet connection if address is saved
+                    if appState.hasWallet && !walletManager.isConnected {
+                        walletManager.connectManually(address: appState.walletAddress)
+                    }
+
+                    // Refresh linked accounts
+                    if appState.hasWallet {
+                        await oauthService.refreshLinkedAccounts(
+                            baseURL: appState.serverURL,
+                            wallet: appState.walletAddress
+                        )
+                    }
+
+                    // Fetch notifications
+                    if appState.hasWallet {
+                        await notificationService.fetchNotifications(
+                            baseURL: appState.serverURL,
+                            wallet: appState.walletAddress
+                        )
+                    }
                 }
         }
     }
 
-    private func handleDeepLink(_ url: URL) {
-        // lightchallenge://challenge/42?subject=0xABC...&token=0x...&expires=123456
-        // or https://app.lightchallenge.io/proofs/42?subject=0xABC...
-        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: true) else { return }
-
-        var challengeId: String?
-        var subject: String?
-
-        // Custom scheme: lightchallenge://challenge/{id}
-        if url.scheme == "lightchallenge" {
-            let pathParts = url.pathComponents.filter { $0 != "/" }
-            if pathParts.count >= 1 {
-                challengeId = pathParts.last
+    @ViewBuilder
+    private var rootView: some View {
+        if showSplash {
+            SplashPortal {
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    showSplash = false
+                }
             }
+        } else if appState.hasCompletedOnboarding {
+            MainTabView()
+                .transition(.opacity)
+        } else {
+            OnboardingView()
+                .transition(.opacity)
         }
-        // Universal link: /proofs/{id}
-        else if let path = components.path.split(separator: "/").last {
-            challengeId = String(path)
-        }
+    }
 
-        subject = components.queryItems?.first(where: { $0.name == "subject" })?.value
+    private func propagateToHealthService(_ url: URL) {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: true) else { return }
         let token = components.queryItems?.first(where: { $0.name == "token" })?.value
         let expires = components.queryItems?.first(where: { $0.name == "expires" })?.value
-
-        if let cid = challengeId {
-            healthService.pendingChallengeId = cid
-            healthService.pendingSubject = subject ?? ""
-            healthService.pendingToken = token ?? ""
+        if let token, !token.isEmpty {
+            healthService.pendingToken = token
             healthService.pendingExpires = expires ?? ""
         }
     }
