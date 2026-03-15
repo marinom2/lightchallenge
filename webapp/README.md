@@ -46,10 +46,16 @@ webapp/
 
 All visual values are in `app/components/ui/tokens.css`. Both themes share the same token names:
 
+- `--lc-bg` / `--lc-bg-raised` / `--lc-bg-overlay` / `--lc-bg-inset` — 4-level surface hierarchy with ~6 L* delta between bg and raised (dark theme)
 - `--lc-accent` — CTA buttons only (dark navy in light theme, ice-white in dark)
 - `--lc-select-*` — Selection states: tabs, filters, nav indicators, focus outlines
-- `--lc-shadow-sm/md/lg` — 3-level shadow hierarchy
-- `--lc-glass` — Translucent card surfaces (light theme)
+- `--lc-shadow-sm/md/lg` — 3-level shadow hierarchy (blue-tinted in dark theme)
+- `--lc-glass` — Translucent card surfaces with `backdrop-filter: blur()`
+- `--lc-border` / `--lc-border-strong` — Blue-tinted separator hierarchy
+
+**Tailwind v4 class conventions:** Use `text-(--lc-text-muted)` not `text-[var(--lc-text-muted)]`, `z-80` not `z-[80]`, `py-0.5` not `py-[2px]`, `prefix!` not `!prefix`.
+
+**Surface rendering:** Cards/panels use `color-mix(in oklab, var(--lc-bg-raised) ...)` gradients instead of hardcoded `rgba()` values. This ensures theme tokens propagate correctly to both light and dark themes.
 
 See [DESIGN_BLUEPRINT.md](../DESIGN_BLUEPRINT.md) Section 7 for the full reference.
 

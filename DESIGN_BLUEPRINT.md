@@ -233,15 +233,15 @@ The design must communicate: "This protocol is serious, trustworthy, and simple 
 
 | # | Weakness | Status | Resolution |
 |---|----------|--------|------------|
-| 21-25 | Visual excess | **DONE** | Design token system (v4): 3-level shadow hierarchy, restrained borders, single accent color, Lucide icons throughout, light/dark theme with consistent token usage |
+| 21-25 | Visual excess | **DONE** | Design token system (v5): 3-level shadow hierarchy, blue-tinted borders, single accent color, Lucide icons throughout, elevated dark theme (~6 L* surface delta), comprehensive light/dark theme |
 
 ### Remaining Gaps
 
-| # | Gap | Priority |
-|---|-----|----------|
-| R1 | Command palette (Cmd+K) | Low |
-| R2 | Confetti/celebration on claim success | Low |
-| R3 | Inline tooltips on complex concepts | Medium |
+| # | Gap | Priority | Status |
+|---|-----|----------|--------|
+| R1 | Command palette (Cmd+K) | Low | **DONE** — `CommandPalette.tsx` with search, favorites, copy hash, keyboard navigation |
+| R2 | Confetti/celebration on claim success | Low | Open |
+| R3 | Inline tooltips on complex concepts | Medium | Open |
 
 ---
 
@@ -296,10 +296,14 @@ lightchallenge.app/
 
 #### Mobile Top Bar
 ```
-[Logo]                                    [ConnectWallet] [☰ Hamburger]
+[spacer]  [Logo — centered]  [☰ Hamburger]
 ```
 
-Hamburger opens full-screen drawer with grouped sections: Discover (Explore, Achievements), Challenges (Create, My Challenges, Submit Proof, Claims), Tournaments (Browse, Create), + wallet/theme controls in footer.
+Brand is horizontally centered on mobile via a spacer that balances the hamburger width. Hamburger toggles between ☰ and ✕ with animated crossfade.
+
+Mobile drawer renders **outside** `<header>` (avoids `backdrop-filter` containing block bug). Sheet slides down from navbar with `z-90` (above header `z-80`), includes safe-area insets for iOS notch devices.
+
+Sheet layout: wallet CTA at top, grouped nav sections (Discover, Challenges, Tournaments, More), theme/remember settings footer. All touch targets meet 44px minimum. `overscroll-behavior: contain` prevents background scrolling.
 
 #### Wallet Pill Dropdown (when connected)
 ```
@@ -603,21 +607,27 @@ Inspired by Apple's semantic color architecture with 4-level label opacity hiera
 
 **Dark theme (default):**
 ```
-Surfaces:
-  --lc-bg:          #030509     (base — near-black, OLED-friendly)
-  --lc-bg-raised:   #0b0e17     (L1 elevated — cards, panels)
-  --lc-bg-overlay:  #11141f     (L2 — popovers, sheets)
-  --lc-bg-inset:    #07091a     (recessed — inputs, wells)
+Surfaces (blue-shifted undertone, ~6 L* delta between bg and raised):
+  --lc-bg:          #080a12     (base — deep blue-black)
+  --lc-bg-raised:   #151a2a     (L1 elevated — cards, panels)
+  --lc-bg-overlay:  #1c2236     (L2 — popovers, sheets)
+  --lc-bg-inset:    #0d1018     (recessed — inputs, wells)
 
-Text (Apple-style opacity hierarchy):
+Text (Apple-style 4-level opacity hierarchy):
   --lc-text:          rgba(255,255,255, 0.93)    (primary — 93%)
   --lc-text-secondary: rgba(255,255,255, 0.60)   (secondary — 60%)
-  --lc-text-tertiary:  rgba(255,255,255, 0.32)   (tertiary — 32%)
-  --lc-text-muted:     rgba(140,150,180, 0.45)   (quaternary — weakest)
+  --lc-text-tertiary:  rgba(255,255,255, 0.38)   (tertiary — 38%)
+  --lc-text-muted:     rgba(140,150,180, 0.55)   (quaternary — weakest)
 
-Borders (separator hierarchy):
-  --lc-border:        rgba(150,165,195, 0.10)    (standard separator)
-  --lc-border-strong: rgba(150,165,195, 0.18)    (emphasized separator)
+Borders (blue-tinted separator hierarchy):
+  --lc-border:        rgba(140,160,200, 0.13)    (standard separator)
+  --lc-border-strong: rgba(140,160,200, 0.22)    (emphasized separator)
+
+Glass (translucent surfaces with frosted effect):
+  --lc-glass:         rgba(160,175,210, 0.06)
+  --lc-glass-border:  rgba(150,165,195, 0.12)
+  --lc-glass-hover:   rgba(160,175,210, 0.10)
+  --lc-glass-blur:    16px
 
 Accent (ice-white, CTAs only):
   --lc-accent:       #f6f7ff
@@ -643,7 +653,7 @@ Surfaces:
 Text:
   --lc-text:           #0c1020   (deep navy)
   --lc-text-secondary: #4a5370   (60% equivalent)
-  --lc-text-tertiary:  #8494b4   (32% equivalent)
+  --lc-text-tertiary:  #6575a0   (38% equivalent)
   --lc-text-muted:     #7585a5   (quaternary)
 
 Glass (Apple-style translucent material):
@@ -662,14 +672,14 @@ Mapped to Apple's type style hierarchy with Inter as the primary face:
 
 | Token | Size | Weight | Line Height | Tracking | Apple Equivalent |
 |-------|------|--------|-------------|----------|-----------------|
-| `--lc-text-display` | clamp(2rem, 4vw, 2.75rem) | 800 | 1.1 | -0.035em | Large Title |
-| `--lc-text-title` | clamp(1.75rem, 3vw, 2rem) | 700 | 1.2 | -0.025em | Title 1 |
+| `--lc-text-display` | clamp(2rem, 4vw, 2.5rem) | 700 | 1.3 | -0.02em | Large Title |
+| `--lc-text-title` | clamp(1.75rem, 3vw, 2rem) | 700 | 1.3 | -0.02em | Title 1 |
 | `--lc-text-heading` | clamp(1.25rem, 2vw, 1.5rem) | 600 | 1.3 | -0.02em | Title 2 |
-| `--lc-text-subhead` | 1.0625rem | 600 | 1.4 | -0.01em | Headline |
+| `--lc-text-subhead` | 1.125rem | 600 | 1.3 | -0.02em | Title 3 |
 | `--lc-text-body` | 1rem | 400 | 1.6 | 0 | Body |
-| `--lc-text-small` | 0.875rem | 400 | 1.5 | 0 | Callout |
-| `--lc-text-caption` | 0.75rem | 500 | 1.4 | 0.01em | Caption 1 |
-| `--lc-text-micro` | 0.6875rem | 500 | 1.3 | 0.02em | Caption 2 |
+| `--lc-text-small` | 0.875rem | 400 | 1.6 | 0 | Callout |
+| `--lc-text-caption` | 0.75rem | 500 | 1.3 | 0 | Caption 1 |
+| `--lc-text-micro` | 0.6875rem | 500 | 1.3 | 0 | Caption 2 (11px) |
 
 **Font stack:** `'Inter var', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`
 **Mono:** `'JetBrains Mono', 'Fira Code', 'SF Mono', monospace`
@@ -723,9 +733,12 @@ Example: Panel (18px) with 16px padding → inner card should use 10px radius (1
 ### 7.7 Shadow Hierarchy (3 Levels + Glow)
 
 ```
---lc-shadow-sm    L1: Cards at rest — tonal definition, barely visible
---lc-shadow-md    L2: Hover emphasis — interactive feedback
---lc-shadow-lg    L3: Floating UI — dropdowns, modals, popovers
+--lc-shadow-sm    L1: Cards at rest — blue-tinted, 3-layer (blur + ambient + ring)
+--lc-shadow-md    L2: Hover emphasis — stronger blur for interactive feedback
+--lc-shadow-lg    L3: Floating UI — deep blur for dropdowns, modals, popovers
+
+Dark theme shadows are blue-tinted so they read against dark backgrounds.
+Light theme shadows use smokey blue-grey, restrained.
 
 Glow variants (for accent elements):
 --glow-accent     Soft brand glow
@@ -737,12 +750,12 @@ Glow variants (for accent elements):
 
 | Material | Blur | Opacity | Usage |
 |----------|------|---------|-------|
-| Ultra-thin | 6px | 0.04 | Background ambient |
-| Regular | 12px | 0.65 (light) / 0.04 (dark) | Cards, surfaces |
-| Thick | 16px | 0.82 (light) / 0.78 (dark) | Navbar, sheets |
-| Chrome | 24px | 0.92 (light) / 0.92 (dark) | Modal overlay |
+| Ultra-thin | 6px | 0.06 | Background ambient |
+| Regular | 16px | 0.65 (light) / 0.06 (dark) | Cards, surfaces |
+| Thick | 24px | 0.85 (light) / 0.80 (dark) | Navbar |
+| Chrome | 32px | 0.95 (light) / 0.95 (dark) | Mobile sheet, modals |
 
-All glass materials include `saturate(1.15-1.3)` to prevent muddy blur (Apple technique).
+All glass materials include `saturate(1.2-1.3)` to prevent muddy blur (Apple technique).
 
 ### 7.9 Motion System
 
@@ -837,6 +850,7 @@ All 5 original phases + Apple HIG refinement complete. Design token system v5 is
 | Phase 4: Homepage | **COMPLETE** | Hero + stats + "How It Works" + featured challenges |
 | Phase 5: Polish + Celebration | **COMPLETE** | Success/Invite sheets, 14 achievements, reputation levels |
 | Phase 6: Apple HIG Refinement | **COMPLETE** | Token v5, utility classes, inline style cleanup, 4-level text hierarchy, concentric radii, 44px touch targets, motion system, comprehensive light/dark theme |
+| Phase 7: Dark Theme Elevation + Mobile | **COMPLETE** | ~6 L* surface delta, `color-mix(in oklab)` gradients, mobile navbar fix (backdrop-filter containing block), centered brand, redesigned mobile sheet, safe-area insets, canonical Tailwind v4 classes |
 
 ### Additional features shipped:
 
@@ -856,10 +870,11 @@ All 5 original phases + Apple HIG refinement complete. Design token system v5 is
 
 | Item | Priority | Notes |
 |---|---|---|
-| Command palette (Cmd+K) | Low | Power user feature |
+| Command palette (Cmd+K) | Low | **DONE** — `proofs/components/CommandPalette.tsx` |
 | Confetti on claim success | Low | Polish |
 | Bracket tournament visual UI | Medium | DB + API exists |
 | Discord bot integration | Medium | API-first approach |
+| General mobile page polish | Medium | Cards, spacing, responsive grids need mobile tuning |
 
 ---
 

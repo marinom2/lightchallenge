@@ -118,7 +118,7 @@ export default function CommandPalette({
         onMouseDown={(e) => e.stopPropagation()}
         role="dialog" aria-modal="true" aria-label="Command palette"
       >
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border)]">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-(--border)">
           <Search size={16} />
           <input
             ref={inputRef}
@@ -143,7 +143,7 @@ export default function CommandPalette({
                     onClick={() => { onSelect(m.modelHash); onClose(); }}
                   >
                     <div className="font-semibold">{m.name}</div>
-                    <div className="text-xs text-[var(--text-muted)] mono">{m.modelHash}</div>
+                    <div className="text-xs text-(--text-muted) mono">{m.modelHash}</div>
                   </button>
 
                   {/* Copy hash */}
@@ -174,7 +174,7 @@ export default function CommandPalette({
             );
           })}
           {filtered.length === 0 && (
-            <li className="px-4 py-6 text-[var(--text-muted)]">No matches.</li>
+            <li className="px-4 py-6 text-(--text-muted)">No matches.</li>
           )}
         </ul>
       </motion.div>

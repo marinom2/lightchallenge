@@ -141,7 +141,7 @@ export default function RightDrawer({
           {model.providers?.includes("steam") && (
             <ul className="mt-4 text-sm space-y-1 opacity-90">
               <li className="flex items-center gap-2">
-                <span className="inline-block size-2 rounded-full bg-[var(--warn)]" aria-hidden />
+                <span className="inline-block size-2 rounded-full bg-(--warn)" aria-hidden />
                 Requires Steam link
               </li>
             </ul>
