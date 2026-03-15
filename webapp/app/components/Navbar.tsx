@@ -18,6 +18,9 @@ import {
   ExternalLink,
   Settings,
   Link2,
+  User,
+  LogOut,
+  ChevronDown,
 } from "lucide-react";
 import ThemeSwitcher from "./theme/ThemeIconToggle";
 import NetworkStatus from "./NetworkStatus";
@@ -44,6 +47,8 @@ const Icons = {
     </svg>
   ),
   linkedAccounts: <Link2 size={16} strokeWidth={1.8} />,
+  profile: <User size={16} strokeWidth={1.8} />,
+  logout: <LogOut size={16} strokeWidth={1.8} />,
 };
 
 /* ── Nav structure ─────────────────────────────────────────────────────────── */
@@ -117,11 +122,6 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Achievements",
     href: "/me/achievements",
-  },
-  {
-    label: "Docs",
-    href: "https://uat.docs.lightchallenge.app",
-    external: true,
   },
 ];
 
@@ -237,6 +237,108 @@ function WalletButton({ onConnect }: { onConnect?: () => void } = {}) {
         );
       }}
     </ConnectButton.Custom>
+  );
+}
+
+/* ── Profile dropdown (desktop) ───────────────────────────────────────────── */
+
+function ProfileDropdown({ isAdmin }: { isAdmin: boolean }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const { address, isConnected } = useAccount();
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="profile-dropdown" ref={ref}>
+      <button
+        type="button"
+        className="profile-dropdown__trigger"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-haspopup="true"
+        aria-label="Profile menu"
+      >
+        <span className="profile-dropdown__avatar">
+          <User size={16} strokeWidth={1.8} />
+        </span>
+        <ChevronDown size={12} className={`profile-dropdown__chevron${open ? " is-open" : ""}`} />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className="profile-dropdown__menu"
+            initial={{ opacity: 0, y: -6, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.97 }}
+            transition={{ duration: 0.15, ease: [0.2, 0.8, 0.2, 1] }}
+          >
+            {isConnected && address && (
+              <div className="profile-dropdown__wallet-info">
+                <span className="profile-dropdown__addr mono">
+                  {address.slice(0, 6)}…{address.slice(-4)}
+                </span>
+              </div>
+            )}
+
+            <div className="profile-dropdown__section">
+              <Link href="/me/challenges" className="profile-dropdown__item" onClick={() => setOpen(false)}>
+                {Icons.myChallenges}
+                <span>My Challenges</span>
+              </Link>
+              <Link href="/me/achievements" className="profile-dropdown__item" onClick={() => setOpen(false)}>
+                {Icons.achievements}
+                <span>Achievements</span>
+              </Link>
+              <Link href="/claims" className="profile-dropdown__item" onClick={() => setOpen(false)}>
+                {Icons.claims}
+                <span>Claims</span>
+              </Link>
+            </div>
+
+            <div className="profile-dropdown__divider" />
+
+            <div className="profile-dropdown__section">
+              <Link href="/settings/linked-accounts" className="profile-dropdown__item" onClick={() => setOpen(false)}>
+                {Icons.linkedAccounts}
+                <span>Linked Accounts</span>
+              </Link>
+              {isAdmin && (
+                <Link href="/admin" className="profile-dropdown__item" onClick={() => setOpen(false)}>
+                  {Icons.admin}
+                  <span>Admin Console</span>
+                </Link>
+              )}
+            </div>
+
+            <div className="profile-dropdown__divider" />
+
+            <div className="profile-dropdown__section">
+              <div className="profile-dropdown__item profile-dropdown__item--row">
+                <span className="text-xs color-muted">Theme</span>
+                <ThemeSwitcher />
+              </div>
+              <RememberSwitch />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
@@ -621,49 +723,15 @@ export default function Navbar() {
                 );
               })}
 
-              {/* Admin link */}
-              {isAdmin && (
-                <li className="relative shrink-0">
-                  <Link
-                    href="/admin"
-                    className={`nav-pill nav-pill--glow ${isActive("/admin") ? "is-active" : ""}`}
-                    aria-current={isActive("/admin") ? "page" : undefined}
-                  >
-                    <span className="nav-pill__admin-icon">{Icons.admin}</span>
-                    Admin
-                  </Link>
-                  <AnimatePresence>
-                    {isActive("/admin") && (
-                      <motion.span
-                        layoutId="nav-underline"
-                        className="nav-underline"
-                        initial={{ opacity: 0, scaleX: 0 }}
-                        animate={{
-                          opacity: 1,
-                          scaleX: 1,
-                          transformOrigin: "0% 100%",
-                        }}
-                        exit={{ opacity: 0, scaleX: 0 }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 400,
-                          damping: 30,
-                          mass: 0.8,
-                        }}
-                      />
-                    )}
-                  </AnimatePresence>
-                </li>
-              )}
+              {/* Admin link moved to profile dropdown */}
             </ul>
           </nav>
 
           {/* Desktop right controls */}
           <div className="hidden md:flex items-center gap-3 shrink-0">
             <NetworkStatus />
-            <ThemeSwitcher />
-            <RememberSwitch />
             <WalletButton />
+            <ProfileDropdown isAdmin={isAdmin} />
           </div>
 
           {/* Mobile hamburger */}

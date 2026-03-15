@@ -39,16 +39,25 @@ function SelectCards<T extends string>({
             type="button"
             onClick={() => onChange(o.value)}
             aria-pressed={active}
-            className="select-card"
+            className="select-card select-card--type"
             data-selected={active ? "true" : undefined}
           >
-            <div className="select-card__label">
-              {o.label}
-            </div>
-            {o.sub ? (
-              <div className="select-card__sub">
-                {o.sub}
+            <div>
+              <div className="select-card__label">
+                {o.label}
               </div>
+              {o.sub ? (
+                <div className="select-card__sub">
+                  {o.sub}
+                </div>
+              ) : null}
+            </div>
+            {active ? (
+              <span className="select-card__check" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M11.5 4L5.5 10L2.5 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </span>
             ) : null}
           </button>
         );
