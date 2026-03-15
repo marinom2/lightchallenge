@@ -264,11 +264,10 @@ export default function LinkedAccountsPage() {
 
     try {
       if (provider.linkedProvider) {
-        await fetch("/api/accounts/link", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ subject: address, provider: provider.linkedProvider }),
-        });
+        await fetch(
+          `/api/linked-accounts?wallet=${address}&platform=${provider.linkedProvider}`,
+          { method: "DELETE" }
+        );
       }
       if (provider.identityPlatform) {
         await fetch(
