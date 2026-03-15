@@ -79,6 +79,7 @@ export async function GET(req: NextRequest) {
       return redirect(req, "/settings/linked-accounts?strava=server_config", "strava", stateParams.redirect_scheme);
     }
 
+    console.log("[strava:callback] Exchanging code for subject:", subject, "code length:", code.length);
     // Exchange code for tokens
     const tokenRes = await fetch(STRAVA_TOKEN_URL, {
       method: "POST",
@@ -95,7 +96,7 @@ export async function GET(req: NextRequest) {
     const data: TokenResponse = await tokenRes.json();
 
     if (!data.access_token || !data.refresh_token) {
-      console.error("[strava:callback] Token exchange failed:", data.message ?? tokenRes.status);
+      console.error("[strava:callback] Token exchange failed:", tokenRes.status, JSON.stringify(data));
       return redirect(req, "/settings/linked-accounts?strava=token_error", "strava", stateParams.redirect_scheme);
     }
 

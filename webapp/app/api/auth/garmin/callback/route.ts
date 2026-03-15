@@ -31,8 +31,22 @@ function isHexAddress(s: string): s is `0x${string}` {
   return /^0x[a-fA-F0-9]{40}$/.test(s);
 }
 
-function redirect(req: NextRequest, pathQuery: string, provider = "garmin") {
-  const scheme = req.cookies.get("redirect_scheme")?.value;
+/**
+ * Parse the OAuth state param: "subject:0xABC...,redirect_scheme:lightchallengeapp"
+ */
+function parseState(state: string | null): Record<string, string> {
+  if (!state) return {};
+  const result: Record<string, string> = {};
+  for (const pair of state.split(",")) {
+    const idx = pair.indexOf(":");
+    if (idx > 0) result[pair.slice(0, idx)] = pair.slice(idx + 1);
+  }
+  return result;
+}
+
+function redirect(req: NextRequest, pathQuery: string, provider = "garmin", stateScheme?: string) {
+  // Check cookie first, then state param fallback (native app OAuth has no cookies)
+  const scheme = req.cookies.get("redirect_scheme")?.value ?? stateScheme;
   if (scheme && /^[a-zA-Z][a-zA-Z0-9+.-]*$/.test(scheme)) {
     const status = pathQuery.includes("=ok") ? "ok" : "error";
     return NextResponse.redirect(`${scheme}://callback?status=${status}&provider=${provider}`, 303);
@@ -45,22 +59,24 @@ export async function GET(req: NextRequest) {
   try {
     const code = req.nextUrl.searchParams.get("code");
     const error = req.nextUrl.searchParams.get("error");
+    const stateParams = parseState(req.nextUrl.searchParams.get("state"));
 
     if (error || !code) {
-      return redirect(req, `/settings/linked-accounts?garmin=${error || "no_code"}`);
+      return redirect(req, `/settings/linked-accounts?garmin=${error || "no_code"}`, "garmin", stateParams.redirect_scheme);
     }
 
-    const subjectCookie = (req.cookies.get("subject")?.value || "").trim().toLowerCase();
-    if (!isHexAddress(subjectCookie)) {
-      return redirect(req, "/settings/linked-accounts?garmin=missing_wallet");
+    // Try cookie first, then state param (native app OAuth skips the auth route where cookies are set)
+    const subjectRaw = (req.cookies.get("subject")?.value || stateParams.subject || "").trim().toLowerCase();
+    if (!isHexAddress(subjectRaw)) {
+      return redirect(req, "/settings/linked-accounts?garmin=missing_wallet", "garmin", stateParams.redirect_scheme);
     }
-    const subject = subjectCookie as `0x${string}`;
+    const subject = subjectRaw as `0x${string}`;
 
     const clientId = process.env.GARMIN_CLIENT_ID;
     const clientSecret = process.env.GARMIN_CLIENT_SECRET;
     if (!clientId || !clientSecret) {
       console.error("[garmin:callback] Missing GARMIN_CLIENT_ID or GARMIN_CLIENT_SECRET");
-      return redirect(req, "/settings/linked-accounts?garmin=server_config");
+      return redirect(req, "/settings/linked-accounts?garmin=server_config", "garmin", stateParams.redirect_scheme);
     }
 
     // Build redirect_uri (must match the one used in the auth request)
@@ -91,7 +107,7 @@ export async function GET(req: NextRequest) {
     if (!data.access_token) {
       const errMsg = data.error_description ?? data.error ?? String(tokenRes.status);
       console.error("[garmin:callback] Token exchange failed:", errMsg);
-      return redirect(req, "/settings/linked-accounts?garmin=token_error");
+      return redirect(req, "/settings/linked-accounts?garmin=token_error", "garmin", stateParams.redirect_scheme);
     }
 
     const userId = data.user_id ?? undefined;
@@ -110,9 +126,9 @@ export async function GET(req: NextRequest) {
     });
 
     console.log("[garmin:callback] OK", subject, userId ? `user:${userId}` : "no-user-id");
-    return redirect(req, "/settings/linked-accounts?garmin=ok");
+    return redirect(req, "/settings/linked-accounts?garmin=ok", "garmin", stateParams.redirect_scheme);
   } catch (e) {
     console.error("[garmin:callback] Error:", e);
-    return redirect(req, "/settings/linked-accounts?garmin=exception");
+    return redirect(req, "/settings/linked-accounts?garmin=exception", "garmin");
   }
 }
