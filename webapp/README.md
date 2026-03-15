@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LightChallenge Webapp
 
-## Getting Started
+Next.js 14 full-stack web application for the LightChallenge protocol.
 
-First, run the development server:
+## Quick Start
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# → http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Environment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Copy `.env.example` from the repo root to `webapp/.env.local` and fill in required values.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+At minimum: `DATABASE_URL`, `NEXT_PUBLIC_CHAIN_ID=504`, `NEXT_PUBLIC_RPC_URL`.
 
-## Learn More
+## Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+webapp/
+├── app/                    Next.js app router
+│   ├── page.tsx            Homepage (hero + stats + featured challenges)
+│   ├── explore/            Challenge browser (grid + filters)
+│   ├── challenge/[id]/     Challenge detail (tabbed, modular)
+│   ├── challenges/create/  Create challenge wizard
+│   ├── competitions/       Tournament browser + create wizard
+│   ├── me/                 My Challenges, Achievements, Claims
+│   ├── proofs/             Evidence submission
+│   ├── claims/             Reward claims
+│   ├── player/[wallet]/    Player profile
+│   ├── org/                Organizations
+│   ├── admin/              Admin console (9 panels)
+│   ├── settings/           Linked accounts
+│   ├── components/         Shared components (Navbar, ThemeProvider, etc.)
+│   ├── components/ui/      Design system (Badge, Tabs, ChallengeCard, etc.)
+│   ├── api/                Server-side API routes
+│   └── globals.css         Global styles + light/dark theme overrides
+├── lib/                    Shared libraries (contracts, templates, formatters)
+├── public/                 Static assets, ABIs, deployment manifests
+└── .env.local              Environment variables (not committed)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Design Tokens
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+All visual values are in `app/components/ui/tokens.css`. Both themes share the same token names:
 
-## Deploy on Vercel
+- `--lc-accent` — CTA buttons only (dark navy in light theme, ice-white in dark)
+- `--lc-select-*` — Selection states: tabs, filters, nav indicators, focus outlines
+- `--lc-shadow-sm/md/lg` — 3-level shadow hierarchy
+- `--lc-glass` — Translucent card surfaces (light theme)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+See [DESIGN_BLUEPRINT.md](../DESIGN_BLUEPRINT.md) Section 7 for the full reference.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Build
+
+```bash
+npm run build    # Production build
+npx tsc --noEmit # Type check only
+```
+
+## API Routes
+
+Key server-side routes:
+
+| Route | Method | Purpose |
+|---|---|---|
+| `/api/challenges` | GET/POST | Challenge CRUD |
+| `/api/challenges/meta/[id]` | GET | Fast DB metadata |
+| `/api/challenge/[id]` | GET | Full on-chain + DB data |
+| `/api/me/challenges` | GET | User's challenges |
+| `/api/me/achievements` | GET | User's achievement mints |
+| `/api/me/reputation` | GET | User's reputation/level |
+| `/api/v1/competitions` | GET/POST | Competition/tournament CRUD |
+| `/api/aivm/intake` | POST | Evidence intake (multipart) |
+| `/api/admin/*` | GET/PUT | Admin model/template management |
+
+See the root [README.md](../README.md) for full architecture documentation.

@@ -303,6 +303,7 @@ npx tsx offchain/dispatchers/challengeDispatcher.ts
 npx tsx offchain/workers/challengeWorker.ts
 npx tsx offchain/indexers/aivmIndexer.ts
 npx tsx offchain/indexers/claimsIndexer.ts
+npx tsx offchain/indexers/statusIndexer.ts
 
 # Webapp
 cd webapp && npm run build && npm start

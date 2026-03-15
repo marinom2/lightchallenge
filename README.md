@@ -88,6 +88,11 @@ Next.js 14 full-stack application. Contains both the React frontend and server-s
 | Submit Proof | `/proofs` | `app/proofs/` | `/api/me/challenges` + lifecycle resolver |
 | Create Challenge | `/challenges/create` | `app/challenges/create/` | Template registry + contract policy hints |
 | Achievements | `/me/achievements` | `app/me/achievements/` | `/api/me/achievements` + `/api/me/reputation` |
+| Browse Tournaments | `/competitions` | `app/competitions/` | `/api/v1/competitions` |
+| Tournament Detail | `/competitions/[id]` | `app/competitions/[id]/` | `/api/v1/competitions/{id}` |
+| Create Tournament | `/competitions/create` | `app/competitions/create/` | `/api/v1/competitions` (POST) |
+| Player Profile | `/player/[wallet]` | `app/player/[wallet]/` | On-chain reads + DB meta |
+| Organization | `/org/[slug]` | `app/org/[slug]/` | `/api/v1/organizations` |
 
 > **Route rename:** `/validators` was renamed to `/proofs` — users submit proofs, they are not validators. A middleware redirect preserves backward compatibility for old links.
 
@@ -141,10 +146,23 @@ Modular admin area for protocol governance, treasury management, and AIVM model/
 | Location | Scope | Examples |
 |---|---|---|
 | `app/components/` | True shared (2+ consumers) | Navbar, ThemeProvider, GlassIcon, DotaCard |
-| `app/{page}/components/` | Page-local | ChallengeCard (explore), ProofChallengeCard (proofs) |
+| `app/components/ui/` | Design system components | Badge, Tabs, ChallengeCard, Countdown, EmptyState, TransformingCTA, WalletPill, NavBar, MobileDrawer, Breadcrumb, Skeleton, StatCard |
+| `app/{page}/components/` | Page-local | ChallengeCard (explore), ProofChallengeCard (proofs), InviteSheet, SuccessSheet |
 | `lib/ui/` | Shared UI primitives | toast, useInterval |
 
 > **Convention:** A component belongs in `app/components/` only if it has 2+ consumers across different pages. Single-consumer components must live in their page directory.
+
+**Design token system** (`app/components/ui/tokens.css`):
+
+All visual values (colors, typography, spacing, shadows, radii, transitions) are centralized as CSS custom properties. Both light and dark themes share the same token names with different values. Key design rule: `--lc-accent` is for CTA buttons only; selection states (tabs, filters, nav indicators, focus outlines) use `--lc-select-*` tokens. See [DESIGN_BLUEPRINT.md](DESIGN_BLUEPRINT.md) Section 7 for the full token reference.
+
+**Navigation structure** (`app/components/Navbar.tsx`):
+
+5 nav groups: Explore (link) | Challenges (dropdown: Create, My Challenges, Submit Proof, Claims) | Tournaments (dropdown: Browse, Create) | Achievements (link) | Docs (external). Wallet pill with dropdown on the right. Mobile: hamburger → full-screen drawer with grouped sections.
+
+**Competition/Tournament API** (`app/api/v1/competitions/`):
+
+RESTful API for creating and listing competitions (tournaments, leagues, circuits). Supports both API key auth (`Bearer lc_...`) and wallet auth (`x-lc-address` header). Types: `challenge`, `bracket`, `league`, `circuit`, `ladder`. See [COMPETITION_PLATFORM_BLUEPRINT.md](COMPETITION_PLATFORM_BLUEPRINT.md) for the full API design.
 
 **Metadata source-of-truth:** Challenge titles and descriptions come from the DB (`public.challenges` via `/api/challenges/meta/{id}`), which is fast (~100-300ms). On-chain data via `/api/challenge/{id}` (5-15s RPC) is secondary. The `normalizeApi` function merges both with `||` precedence (API title wins if non-empty, else DB meta). The Explore page and challenge detail page both use a "fast-meta-first" pattern: show DB title immediately, then enrich with chain data when it arrives.
 
@@ -422,6 +440,8 @@ npx tsx scripts/admin/sync-webapp-deployments.ts  # sync ABIs after deploy
 | [SECURITY.md](SECURITY.md) | Security policy, architecture, audit status, known limitations |
 | [DEPLOY.md](DEPLOY.md) | Full contract deployment guide |
 | [OPERATIONS.md](OPERATIONS.md) | Off-chain pipeline operations and runbook |
+| [DESIGN_BLUEPRINT.md](DESIGN_BLUEPRINT.md) | UX/UI design reference — research, tokens, page blueprints |
+| [COMPETITION_PLATFORM_BLUEPRINT.md](COMPETITION_PLATFORM_BLUEPRINT.md) | Competition platform strategy — API design, market analysis, roadmap |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines, code standards, PR process |
 | [db/DATABASE.md](db/DATABASE.md) | Full database schema reference |
 | [docs/SCRIPTS.md](docs/SCRIPTS.md) | Catalog of all operational scripts |

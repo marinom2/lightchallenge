@@ -136,12 +136,12 @@ The design must communicate: "This protocol is serious, trustworthy, and simple 
 ### 7 Core Principles
 
 #### 1. Navigation Philosophy
-- **Minimal top bar**: 4-5 items max + primary CTA
-- Primary nav: **Explore**, **Create**, **My Challenges**, **Claims**
-- Secondary items ("More"): Achievements, Linked Accounts, Admin
-- Primary CTA: **Connect Wallet** (if disconnected) or **wallet pill** (if connected)
+- **Grouped top bar**: 5 items — 2 simple links + 2 mega-dropdowns + 1 external link
+- Primary nav: **Explore** (link) | **Challenges** (dropdown: Create Challenge, My Challenges, Submit Proof, Claims) | **Tournaments** (dropdown: Browse Tournaments, Create Tournament) | **Achievements** (link) | **Docs** (external link)
+- Primary CTA: **Connect Wallet** (if disconnected) or **wallet pill** (if connected) — far right with theme toggle and network status
+- Wallet pill dropdown: My Challenges, Achievements, Claims, Linked Accounts, Admin (if admin), Disconnect
 - No sidebar for primary navigation — only for browse filters on Explore
-- Mobile: hamburger menu with the same item order
+- Mobile: hamburger menu opens full-screen drawer with all nav items grouped by category
 
 #### 2. Homepage Structure Philosophy
 - **Hybrid Model A+C**: Vision hero with stats, then product showcase
@@ -188,107 +188,118 @@ The design must communicate: "This protocol is serious, trustworthy, and simple 
 
 ---
 
-## 5. LightChallenge UX Weaknesses (Current State vs. Best-in-Class)
+## 5. LightChallenge UX Weaknesses — Status Tracker
+
+> Most original weaknesses have been addressed. Status: DONE = implemented, OPEN = still pending.
 
 ### Critical Issues
 
-| # | Weakness | Best Practice Violated | Severity |
-|---|----------|----------------------|----------|
-| 1 | **Homepage is a marketing page, not a product** | Lido/OpenSea show product immediately; Uniswap centers the swap card | High |
-| 2 | **"More" dropdown hides key pages** (Achievements, Submit Proof, Linked Accounts) | All critical user flows should be ≤1 click from any page | High |
-| 3 | **No deadline urgency on challenge cards** | Kaggle, Devpost: countdown is the #1 scanning element | High |
-| 4 | **No transforming CTA on challenge detail** | Kaggle: "Join" becomes "Submit"; Uniswap: button text adapts to state | Medium |
-| 5 | **Dual data loading (meta + chain)** causes 5-15s wait | Aave/Uniswap: skeleton loading with near-instant useful state | Medium |
+| # | Weakness | Status | Resolution |
+|---|----------|--------|------------|
+| 1 | Homepage is a marketing page, not a product | **DONE** | Homepage now shows hero + live stats + "How It Works" + featured challenges + categories |
+| 2 | "More" dropdown hides key pages | **DONE** | Nav restructured: Explore, Challenges (dropdown), Tournaments (dropdown), Achievements (top-level), Docs |
+| 3 | No deadline urgency on challenge cards | **DONE** | Countdown component with green/yellow/red urgency coloring on all cards |
+| 4 | No transforming CTA on challenge detail | **DONE** | TransformingCTA component: connect → join → submit → verifying → awaiting → claim → claimed |
+| 5 | Dual data loading (meta + chain) causes 5-15s wait | **DONE** | Fast-meta-first pattern: DB meta loads ~100-300ms, chain data enriches in background |
 
 ### Navigation Issues
 
-| # | Weakness | Fix Direction |
-|---|----------|--------------|
-| 6 | 4 primary + "More" dropdown = buried secondary pages | Flatten to 5 visible items, move Admin to settings |
-| 7 | No breadcrumbs on deep pages (challenge detail, proofs) | Add breadcrumbs for context |
-| 8 | No "back" affordance from challenge detail to explore | Breadcrumb: Explore > Challenge #42 |
-| 9 | Footer duplicates nav without adding value | Footer should have: Docs, GitHub, API, Status, Discord links |
+| # | Weakness | Status | Resolution |
+|---|----------|--------|------------|
+| 6 | Buried secondary pages | **DONE** | 5 visible nav groups with mega-dropdowns; admin in wallet pill dropdown |
+| 7 | No breadcrumbs on deep pages | **DONE** | Breadcrumb component added to challenge detail + proofs |
+| 8 | No "back" affordance | **DONE** | Breadcrumbs on detail pages |
+| 9 | Footer duplicates nav | **DONE** | Footer removed; docs link in nav |
 
-### Explore Page Issues
+### Explore / Card Issues
 
-| # | Weakness | Fix Direction |
-|---|----------|--------------|
-| 10 | **Sidebar filters invisible on mobile** | Collapsible filter sheet (bottom sheet on mobile) |
-| 11 | Grid/table toggle adds cognitive load | Default to cards; table view for power users only |
-| 12 | Category sections (Dota 2, CS2, etc.) feel like browsing a game store, not challenges | Unified card grid with category pills on cards instead |
-| 13 | No sort options visible (only tabs) | Add explicit sort: Newest, Ending Soon, Highest Pool |
-| 14 | Challenge cards don't show pool amount or participant count prominently | These are the #1 and #2 social proof signals |
+| # | Weakness | Status | Resolution |
+|---|----------|--------|------------|
+| 10-14 | Filter/sort/card issues | **DONE** | Horizontal filter pills, sort dropdown, unified card grid with pool + participants + deadline countdown |
 
 ### Challenge Detail Issues
 
-| # | Weakness | Fix Direction |
-|---|----------|--------------|
-| 15 | No tabbed content — details/rules/activity are in panels | Adopt Kaggle's tab pattern: Overview / Participants / Evidence / Activity |
-| 16 | Hero section shows too many metrics initially | Show 3 max: Pool, Participants, Time Left |
-| 17 | No participant list or leaderboard visible | Add Participants tab with scores/rankings |
-| 18 | Achievement claim is a separate component, not part of the flow | Integrate into the transforming CTA |
+| # | Weakness | Status | Resolution |
+|---|----------|--------|------------|
+| 15-18 | Tabs, hero metrics, participants, achievements | **DONE** | Tabbed detail (Overview/Participants/Evidence/Activity), 3-metric hero, ranked participant list, AchievementClaim integrated |
 
 ### Create Challenge Issues
 
-| # | Weakness | Fix Direction |
-|---|----------|--------------|
-| 19 | 4-step flow is already good, but step naming is generic | Use human labels: "What" → "Stakes" → "Rules" → "Review" |
-| 20 | No template/quick-start option | "Start from template" for common challenge types |
+| # | Weakness | Status | Resolution |
+|---|----------|--------|------------|
+| 19-20 | Step naming, templates | **DONE** | Wizard with template picker, category cards, schedule presets, auto-advance on type selection |
 
 ### Visual/Polish Issues
 
-| # | Weakness | Fix Direction |
-|---|----------|--------------|
-| 21 | "Cosmic glass" aesthetic is unique but inconsistent with premium patterns | Move toward Vercel/Linear dark theme: cleaner, less glow, more structure |
-| 22 | Too many visual effects (gradients, glows, backdrop blur stacking) | Reduce to: dark bg + single accent + subtle borders |
-| 23 | Card shadows are heavy (46px blur) | Lighter shadows or none; use border for card definition |
-| 24 | Multiple accent colors used (warm gold, accent blue, etc.) | Single accent color throughout |
-| 25 | Emoji icons in Use Cases section feel casual | Use clean line icons or filled icons (Lucide, Heroicons) |
+| # | Weakness | Status | Resolution |
+|---|----------|--------|------------|
+| 21-25 | Visual excess | **DONE** | Design token system (v4): 3-level shadow hierarchy, restrained borders, single accent color, Lucide icons throughout, light/dark theme with consistent token usage |
+
+### Remaining Gaps
+
+| # | Gap | Priority |
+|---|-----|----------|
+| R1 | Command palette (Cmd+K) | Low |
+| R2 | Confetti/celebration on claim success | Low |
+| R3 | Inline tooltips on complex concepts | Medium |
 
 ---
 
 ## 6. Full UX/UI Design Blueprint
 
-### 6.1 Page Hierarchy
+### 6.1 Page Hierarchy (Current)
 
 ```
 lightchallenge.app/
-├── /                          → Homepage (hero + stats + featured challenges)
-├── /explore                   → Challenge browser (grid + filters)
+├── /                          → Homepage (hero + stats + "How It Works" + featured challenges)
+├── /explore                   → Challenge browser (grid + filters + on-chain table)
 ├── /challenge/[id]            → Challenge detail (tabbed: Overview/Participants/Evidence/Activity)
-├── /challenges/create         → Create wizard (4-step)
+├── /challenges/create         → Create challenge wizard (template + type + config + review)
+├── /competitions/             → Tournament browser (grid + filters)
+├── /competitions/create       → Create tournament wizard (type + config + schedule + review)
+├── /competitions/[id]         → Tournament detail page
 ├── /me/
-│   ├── /challenges            → My participated challenges
-│   ├── /achievements          → Achievements + reputation profile
+│   ├── /challenges            → My participated challenges (grouped: Needs Action / In Progress / Completed)
+│   ├── /achievements          → Achievements + reputation profile (14 types, milestones, breakdown)
 │   └── /claims                → Reward claims dashboard
-├── /proofs/[challengeId]      → Evidence submission page
+├── /claims                    → Claims page (alternate route)
+├── /proofs                    → Evidence submission page
+├── /player/[wallet]           → Player profile page
+├── /org/[slug]                → Organization page
+├── /org/new                   → Create organization
+├── /organizations             → Organizations directory
 ├── /settings/
-│   ├── /linked-accounts       → Platform connections
+│   ├── /linked-accounts       → Platform connections (Strava, Fitbit, Steam, Riot)
 │   └── /admin                 → Admin panel (admin-only)
+├── /admin/                    → Admin console (panels: Governance, Fees, Proofs, etc.)
 └── /docs → redirect to uat.docs.lightchallenge.app
 ```
 
-### 6.2 Navigation Architecture
+### 6.2 Navigation Architecture (Implemented)
 
 #### Desktop Top Bar (left to right)
 ```
-[Logo: LightChallenge]  [Explore] [Create] [My Challenges] [Claims] [Achievements]    [NetworkStatus] [ThemeToggle] [ConnectWallet]
+[Logo: LightChallenge]  [Explore] [Challenges v] [Tournaments v] [Achievements] [Docs]    [NetworkStatus] [ThemeToggle] [ConnectWallet]
 ```
 
-- **5 visible nav items** (no "More" dropdown)
+- **5 nav groups**: 2 simple links + 2 mega-dropdowns + 1 external link
+- **Explore**: direct link to `/explore`
+- **Challenges** (dropdown): Create Challenge, My Challenges, Submit Proof, Claims
+- **Tournaments** (dropdown): Browse Tournaments, Create Tournament
+- **Achievements**: direct link to `/me/achievements`
+- **Docs**: external link to `uat.docs.lightchallenge.app`
 - **Logo** links to homepage
-- **Active route** indicated by underline or filled background
-- **ConnectWallet** button: primary CTA when disconnected (accent color, filled). When connected: wallet pill showing truncated address + chain icon
-- **Admin** access: moved to `/settings/admin`, accessible from user menu (click connected wallet pill)
-- **Linked Accounts**: moved to settings, accessible from wallet pill dropdown
-- **Submit Proof**: removed from nav (accessed via challenge detail or My Challenges)
+- **Active route** indicated by cool-blue underline (`var(--lc-select-text)`)
+- **ConnectWallet** button: primary CTA when disconnected (accent-filled). When connected: wallet pill showing truncated address + balance + chain
+- **Admin** access: in wallet pill dropdown (visible only for admin wallets)
+- Mega-dropdowns: each item has label + description + icon, with smooth animation
 
 #### Mobile Top Bar
 ```
 [Logo]                                    [ConnectWallet] [☰ Hamburger]
 ```
 
-Hamburger opens full-screen drawer with all nav items + theme toggle.
+Hamburger opens full-screen drawer with grouped sections: Discover (Explore, Achievements), Challenges (Create, My Challenges, Submit Proof, Claims), Tournaments (Browse, Create), + wallet/theme controls in footer.
 
 #### Wallet Pill Dropdown (when connected)
 ```
@@ -462,55 +473,71 @@ Every challenge card in explore/homepage/my-challenges should show:
 - Mobile: filters as horizontal scroll pills, no hidden sidebar
 - Each card shows: title, category pill, pool amount, participants, deadline countdown, status
 
-### 6.7 Create Challenge Blueprint
+### 6.7 Create Challenge Blueprint (Implemented)
 
-Keep the 4-step wizard but with improved labels and a template option:
-
-```
-Step 0 (optional): Choose a template
-  → "10K Steps Daily" / "Dota 2 Win Streak" / "Marathon Distance" / "Custom"
-
-Step 1: "What" — Challenge Type
-  → Intent (Gaming/Fitness), specific game/activity, mode
-
-Step 2: "Stakes" — Budget & Timeline
-  → Stake amount, currency, join deadline, start/end dates, proof deadline
-
-Step 3: "Rules" — Verification
-  → Verification model, thresholds, allowlist
-
-Step 4: "Review" — Confirm & Create
-  → Full summary, estimated gas, create button
-```
-
-### 6.8 Achievements Page Blueprint
+Multi-step wizard with template-first approach:
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ Achievements                                                      │
-│                                                                    │
-│ ┌─────────────────────────────────────────────────────────────┐  │
-│ │ ★ Competitor  ·  Level 3                                     │  │
-│ │                                                               │  │
-│ │ 350 points  ·  5 completions  ·  2 victories                 │  │
-│ │                                                               │  │
-│ │ [████████████████░░░░░░░░] 350/800 → Champion               │  │
-│ └─────────────────────────────────────────────────────────────┘  │
-│                                                                    │
-│ [All] [Victories 🏆] [Completions ✓]                             │
-│                                                                    │
-│ ┌───────────────────────────────────────────────────────────┐    │
-│ │ 🏆 Victory: 10K Steps Challenge                            │    │
-│ │    Challenge #42  ·  Fitness  ·  Mar 10, 2026              │    │
-│ ├───────────────────────────────────────────────────────────┤    │
-│ │ ✓ Completion: Dota 2 Win Streak                            │    │
-│ │    Challenge #38  ·  Gaming  ·  Mar 8, 2026                │    │
-│ ├───────────────────────────────────────────────────────────┤    │
-│ │ ✓ Completion: Marathon Prep                                │    │
-│ │    Challenge #35  ·  Fitness  ·  Mar 5, 2026               │    │
-│ └───────────────────────────────────────────────────────────┘    │
-└──────────────────────────────────────────────────────────────────┘
+Step 1: Template Selection
+  → Category cards (Gaming/Fitness/Custom) with emoji icons
+  → Template grid filtered by category
+  → Auto-advance to Step 2 on template click (350ms delay)
+
+Step 2: Challenge Configuration
+  → Title, description, stake amount, participant limits
+  → Schedule presets (Quick 24h / Weekend / Week / Month)
+  → Date/time pickers for custom schedule
+  → Visibility and verification options
+
+Step 3: Review & Create
+  → Full summary with timeline preview visualization
+  → On-chain transaction confirmation
+  → Success animation → SuccessSheet with tx details + invite option
 ```
+
+**Stepper** hidden on Step 1 (clean entry), appears from Step 2 onward.
+
+### 6.7b Create Tournament Blueprint (Implemented)
+
+Separate wizard at `/competitions/create`:
+
+```
+Step 1: Tournament Type
+  → Type cards (Single Elimination / Round Robin / League / Circuit)
+  → Glass background, shadow-lift hover, select-ring on click
+  → Auto-advance on selection
+
+Step 2: Configuration
+  → Title, description, category (Gaming/Fitness/Custom)
+  → Schedule with date pickers
+  → Max participants, prize distribution
+  → Public/private toggle, check-in requirement
+
+Step 3: Optional Rules
+  → Expandable details section
+
+Step 4: Review & Create
+  → Summary → API call → success redirect
+```
+
+### 6.8 Achievements Page Blueprint (Implemented)
+
+Full achievements + reputation system with 14 achievement types, 5 levels, milestones, and analytics.
+
+**Achievement types (14):** completion, victory, streak, first_win, participation, top_scorer, undefeated, comeback, speedrun, social, early_adopter, veteran, perfectionist, explorer — each with unique icon, color, and point value.
+
+**Level system (5 tiers):**
+- Newcomer (0 pts) → Challenger (100) → Competitor (300) → Champion (800) → Legend (2000)
+- Color-coded gradient level badges
+
+**Page sections:**
+1. **Reputation hero card** — Level badge, XP progress bar, total points, unique types count
+2. **Stat cards** — Total Points, Unique Types, Win Rate, Latest achievement
+3. **Type breakdown** — Horizontal bar chart showing achievement distribution
+4. **Milestone tracker** — 9 milestone goals with progress bars (e.g. "First Blood", "Hat Trick", "Centurion")
+5. **Points guide** — Expandable reference table with all types and level thresholds
+6. **Filter tabs** (pills variant) — only show types the user has earned
+7. **Achievement card grid** — shadow-sm base, shadow-md + lift on hover
 
 ### 6.9 Wallet Connection Blueprint
 
@@ -551,93 +578,129 @@ Step 4: "Review" — Confirm & Create
 
 ---
 
-## 7. Visual Philosophy
+## 7. Visual Philosophy (Implemented — Design Token System v4)
+
+All visual values are centralized in `webapp/app/components/ui/tokens.css`. Both light and dark themes share the same token names with different values.
 
 ### Color System
 
+**Dark theme (default):**
 ```
-Background:    #0a0a0a (near-black, not pure black)
-Surface:       #141414 (cards, panels)
-Border:        #1f1f1f (subtle, barely visible)
-Text primary:  #fafafa (high contrast)
-Text secondary:#888888 (muted)
-Accent:        #6B5CFF (brand purple — single accent throughout)
-Success:       #22c55e (green — pass, active, healthy)
-Warning:       #eab308 (yellow — ending soon, pending)
-Danger:        #ef4444 (red — failed, ended, error)
-Info:          #3b82f6 (blue — informational badges)
-```
-
-### Typography
-
-```
-Font:          Inter (already in use)
-Title:         32px / 700 weight / -0.02em tracking
-Heading:       24px / 600 weight
-Subheading:    18px / 500 weight
-Body:          16px / 400 weight / 1.6 line height
-Small:         14px / 400 weight
-Caption:       12px / 400 weight / muted color
-Mono:          14px / JetBrains Mono or similar (addresses, hashes)
+Background:       #030509  (--lc-bg)
+Surface raised:   #0b0e17  (--lc-bg-raised)
+Surface inset:    #07091a  (--lc-bg-inset)
+Border:           rgba(150,165,195, 0.10)  (--lc-border)
+Text primary:     rgba(255,255,255, 0.93)  (--lc-text)
+Text secondary:   rgba(255,255,255, 0.60)  (--lc-text-secondary)
+Text muted:       rgba(140,150,180, 0.55)  (--lc-text-muted)
+Accent (CTAs):    #f6f7ff  (--lc-accent — ice-white, used for primary buttons)
+Accent text:      #03040c  (--lc-accent-text — dark text on accent buttons)
+Selection:        rgba(80,140,255, 0.07) bg / rgba(80,140,255, 0.22) border / #7eb4ff text
+Success:          #22c55e
+Warning:          #eab308
+Danger:           #ef4444
+Info:             #3b82f6
 ```
 
-### Spacing Scale
+**Light theme:**
+```
+Background:       #f5f7fb  (icy blue-white)
+Surface raised:   #eef1f8
+Surface inset:    #eaeff7
+Border:           rgba(80,100,140, 0.10)
+Text primary:     #0c1020  (deep navy)
+Accent (CTAs):    #111d3a  (deep navy — white text on accent buttons)
+Selection:        rgba(50,120,255, 0.06) bg / rgba(50,120,255, 0.20) border / #2563eb text
+Glass:            rgba(255,255,255, 0.65)  (clean translucent white for cards)
+```
+
+**Key design rule:** `--lc-accent` is for CTA buttons only (primary action). Selection states (tabs, filters, cards, checkboxes, nav indicators, focus outlines) use `--lc-select-*` tokens. This prevents dark navy borders in light theme.
+
+### Typography (tokens)
 
 ```
-4px  — tight (icon margins, inline spacing)
-8px  — compact (between related items)
-12px — default (card padding, list gaps)
-16px — comfortable (section internals)
-24px — spacious (between card groups)
-32px — section gap (between page sections)
-48px — major section gap (hero to content)
-64px — page-level separation
+Font sans:     Inter var, Inter, system stack
+Font mono:     JetBrains Mono, Fira Code, SF Mono
+Title:         clamp(1.75rem, 3vw, 2rem) / 700 weight
+Heading:       clamp(1.25rem, 2vw, 1.5rem) / 600 weight
+Subhead:       1.125rem / 500 weight
+Body:          1rem / 400 weight / 1.6 line height
+Small:         0.875rem / 400 weight
+Caption:       0.75rem / 400 weight / muted color
 ```
 
-### Interactive States
+### Shadow Hierarchy (3 levels)
 
-- **Hover**: subtle background brightening (+5% white overlay), optional border accent
-- **Focus**: 2px ring in accent color (accessibility)
-- **Active**: background fills to accent color (for selected tabs, active nav)
-- **Disabled**: 50% opacity, cursor not-allowed
-- **Loading**: skeleton shimmer (not spinners, except inline in buttons)
-- **Success**: green checkmark + brief toast, optional confetti for claims
-- **Error**: red text inline, button text changes ("Insufficient Balance")
+```
+--lc-shadow-sm   Cards at rest (barely visible, tonal definition)
+--lc-shadow-md   Hover / emphasis (interactive feedback)
+--lc-shadow-lg   Floating UI (dropdowns, modals, popovers)
+```
+
+### Interactive States (token-driven)
+
+- **Hover (cards)**: `border-color: var(--lc-border-strong); box-shadow: var(--lc-shadow-md)` + optional translateY(-1px)
+- **Selected**: `background: var(--lc-select); border: var(--lc-select-border); color: var(--lc-select-text); box-shadow: var(--lc-select-ring)`
+- **Focus-visible**: `outline: 2px solid var(--lc-select-border)` (cool blue, not accent)
+- **Disabled**: 50-70% opacity, cursor not-allowed
+- **Loading**: skeleton shimmer (`lc-shimmer` keyframe)
+- **Success**: green badge + toast
+- **Error**: red text inline, button text changes
+
+### UI Component Library
+
+Shared components in `webapp/app/components/ui/`:
+
+| Component | Purpose | Variants |
+|---|---|---|
+| `Badge` | Status/category/urgency indicator | status, category, urgency, tone (6 colors) |
+| `Tabs` | Tab navigation with animated indicator | underline, pills |
+| `ChallengeCard` | Unified challenge card | category pill, status badge, metrics, CTA |
+| `Countdown` | Deadline countdown with urgency colors | sm, md |
+| `EmptyState` | Empty list guidance | icon + title + description + CTA |
+| `TransformingCTA` | State-aware action button | 7 states (connect → claimed) |
+| `WalletPill` | Wallet address + dropdown | connected, disconnected |
+| `NavBar` | Flat nav with underline indicator | 5-item default |
+| `MobileDrawer` | Full-screen mobile nav | grouped items |
+| `Breadcrumb` | Page hierarchy breadcrumb | — |
+| `Skeleton` | Loading placeholder | shimmer animation |
+| `StatCard` | Metric display card | — |
 
 ---
 
-## 8. Implementation Priority
+## 8. Implementation Status
 
-### Phase 1: Navigation + Visual Foundation
-1. Flatten navbar (5 visible items, no "More" dropdown)
-2. Add wallet pill dropdown with user links
-3. Standardize color system (single accent, reduce visual effects)
-4. Add breadcrumbs to detail pages
+All 5 original phases are complete. The design token system (v4) is the current foundation.
 
-### Phase 2: Explore + Cards
-1. Redesign challenge cards (pool, participants, deadline prominent)
-2. Horizontal filter pills (replace sidebar)
-3. Sort dropdown
-4. Deadline countdown with color urgency
+| Phase | Status | Key deliverables |
+|---|---|---|
+| Phase 1: Nav + Visual Foundation | **COMPLETE** | Grouped navbar with mega-dropdowns, wallet pill dropdown, design token system v4, breadcrumbs |
+| Phase 2: Explore + Cards | **COMPLETE** | Challenge cards with pool/participants/deadline, horizontal filter pills, sort dropdown, urgency colors |
+| Phase 3: Challenge Detail | **COMPLETE** | Tabbed content, TransformingCTA, 3-metric hero, participant rankings, AchievementClaim |
+| Phase 4: Homepage | **COMPLETE** | Hero with stats, "How It Works", trending challenges, category cards |
+| Phase 5: Polish + Celebration | **COMPLETE** | SuccessSheet + InviteSheet (theme-aware), achievement system (14 types), template picker, reputation levels |
 
-### Phase 3: Challenge Detail
-1. Tabbed content (Overview / Participants / Evidence / Activity)
-2. Transforming CTA button
-3. 3-metric hero (Pool, Participants, Time Left)
-4. Participants tab with rankings
+### Additional features shipped (post-blueprint):
 
-### Phase 4: Homepage
-1. Tighten hero copy
-2. Live trending challenges from API
-3. Category cards with challenge counts
-4. Clean footer with docs/GitHub/API/status links
+| Feature | Status |
+|---|---|
+| Tournament/competition creation wizard | **COMPLETE** — `/competitions/create` with type cards, schedule presets |
+| Competition API (`/api/v1/competitions`) | **COMPLETE** — CRUD with API key + wallet auth |
+| Organizations + teams | **COMPLETE** — `/org/new`, `/org/[slug]`, org members |
+| Light/dark theme toggle | **COMPLETE** — full token-based theming with `var(--lc-select-*)` for selection states |
+| 14 achievement types + milestones | **COMPLETE** — expanded from 2 types to 14 |
+| Reputation level system (5 tiers) | **COMPLETE** — Newcomer → Legend progression |
+| Competitive challenge ranking | **COMPLETE** — score-based, top-N, tie-breaking |
 
-### Phase 5: Polish + Celebration
-1. Success/celebration states for claims and wins
-2. Achievement claim integrated into challenge detail flow
-3. Template picker on create challenge
-4. Command palette (Cmd+K) for power users
+### Remaining work:
+
+| Item | Priority | Notes |
+|---|---|---|
+| Command palette (Cmd+K) | Low | Power user feature |
+| Confetti on claim success | Low | Polish |
+| Bracket/elimination tournament UI | Medium | DB + API exists; needs visual bracket component |
+| Discord bot integration | Medium | API-first approach enables this |
 
 ---
 
-*This blueprint is research and planning only. No code was modified.*
+*This blueprint was originally research-only. It now serves as the living design reference for the LightChallenge platform. Last updated: March 2026.*
