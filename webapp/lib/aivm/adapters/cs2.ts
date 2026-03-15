@@ -49,6 +49,7 @@ function normalizeCs2(json: any, userIdHash: string): CanonicalRecord[] {
 
 export const cs2Adapter: Adapter = {
   name: "cs2.faceit_wins",
+  category: "gaming",
   supports(modelHash: string) {
     return modelHash.toLowerCase() === CS2_FACEIT_WINS_MODEL.toLowerCase();
   },

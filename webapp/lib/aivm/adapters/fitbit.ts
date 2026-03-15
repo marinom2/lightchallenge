@@ -73,6 +73,7 @@ function normalizeFitbit(json: any, userIdHash: string): CanonicalRecord[] {
 
 export const fitbitAdapter: Adapter = {
   name: "fitbit.multi",
+  category: "fitness",
   supports(modelHash: string) {
     const h = modelHash.toLowerCase();
     return h === FITBIT_STEPS_DAY_MODEL.toLowerCase() || h === FITBIT_DISTANCE_WINDOW_MODEL.toLowerCase();

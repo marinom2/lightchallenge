@@ -5,6 +5,14 @@ import { useEffect, useState, useCallback } from "react";
 import { useAccount } from "wagmi";
 import { useSearchParams } from "next/navigation";
 import DotaCard, { type DotaEvalPayload } from "@/app/components/dota/DotaCard";
+import {
+  FITNESS_PROVIDERS,
+  GAMING_PROVIDERS,
+  getDefaultFitnessProvider,
+  setDefaultFitnessProvider,
+  getDefaultGamingProvider,
+  setDefaultGamingProvider,
+} from "@/lib/fitnessProviders";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -96,6 +104,14 @@ export default function LinkedAccountsPage() {
   const [manualInputs, setManualInputs] = useState<Record<string, string>>({});
   const [manualSaving, setManualSaving] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Tracking preference
+  const [fitnessPref, setFitnessPref] = useState<string | null>(null);
+  const [gamingPref, setGamingPref] = useState<string | null>(null);
+  useEffect(() => {
+    setFitnessPref(getDefaultFitnessProvider());
+    setGamingPref(getDefaultGamingProvider());
+  }, []);
 
   // ── Fetch all linked data ──────────────────────────────────────────────
 
@@ -444,6 +460,54 @@ export default function LinkedAccountsPage() {
           );
         })}
       </div>
+
+      {/* Default tracking preference */}
+      <section className="panel mt-6">
+        <div className="panel-header">
+          <div className="font-semibold">Default Tracking Apps</div>
+        </div>
+        <div className="panel-body space-y-4">
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+            Choose your preferred apps for proof submission. These will be pre-selected when you submit evidence for challenges.
+          </p>
+
+          <div>
+            <label className="label text-sm mb-2 block">Fitness tracker</label>
+            <div className="flex flex-wrap gap-2">
+              {FITNESS_PROVIDERS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`select-card px-3 py-2 text-sm transition-all`}
+                  data-selected={fitnessPref === p.id ? "" : undefined}
+                  onClick={() => { setFitnessPref(p.id); setDefaultFitnessProvider(p.id); }}
+                >
+                  <span className="mr-1.5">{p.icon}</span>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="label text-sm mb-2 block">Gaming platform</label>
+            <div className="flex flex-wrap gap-2">
+              {GAMING_PROVIDERS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`select-card px-3 py-2 text-sm transition-all`}
+                  data-selected={gamingPref === p.id ? "" : undefined}
+                  onClick={() => { setGamingPref(p.id); setDefaultGamingProvider(p.id); }}
+                >
+                  <span className="mr-1.5">{p.icon}</span>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
 
       {loading && (
         <div className="mt-4 text-sm text-center" style={{ color: "var(--text-muted)" }}>

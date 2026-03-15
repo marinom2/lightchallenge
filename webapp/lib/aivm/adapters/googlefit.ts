@@ -109,6 +109,7 @@ function normalizeGoogleFit(json: any, userIdHash: string): CanonicalRecord[] {
 
 export const googleFitAdapter: Adapter = {
   name: "googlefit.multi",
+  category: "fitness",
   supports(modelHash: string) {
     const h = modelHash.toLowerCase();
     return h === GFIT_STEPS_DAY_MODEL.toLowerCase() || h === GFIT_DISTANCE_WINDOW_MODEL.toLowerCase();

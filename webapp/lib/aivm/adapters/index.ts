@@ -32,3 +32,11 @@ export const adapters: Adapter[] = [
   fitbitAdapter,
   cs2Adapter,
 ];
+
+/** All fitness adapters — used by proof submission to let users pick their tracker */
+export const fitnessAdapters = adapters.filter((a) => a.category === "fitness");
+
+/** Find adapter by name (e.g. "strava.distance_in_window") */
+export function adapterByName(name: string): Adapter | undefined {
+  return adapters.find((a) => a.name === name);
+}

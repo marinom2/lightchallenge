@@ -11,11 +11,17 @@ import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import {
   ShieldCheck, ArrowLeft, Trophy, Upload, Smartphone,
-  FileUp, AlertTriangle, CheckCircle, ExternalLink, Loader2,
+  FileUp, AlertTriangle, CheckCircle, ExternalLink, Loader2, ChevronDown,
 } from "lucide-react";
 
 import { useProofCapability } from "../hooks/useProofCapability";
 import SubmissionResult, { type SubmissionState } from "../components/SubmissionResult";
+import {
+  FITNESS_PROVIDERS,
+  type FitnessProvider,
+  getDefaultFitnessProvider,
+  setDefaultFitnessProvider,
+} from "@/lib/fitnessProviders";
 
 const QrHandoff = dynamic(() => import("../components/QrHandoff"), { ssr: false });
 
@@ -96,6 +102,31 @@ function ChallengeProofInner() {
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ── Fitness provider picker ──
+  const isFitness = meta?.category?.toLowerCase() === "fitness";
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const [providerPickerOpen, setProviderPickerOpen] = useState(false);
+
+  // Auto-select default provider from localStorage once meta loads
+  useEffect(() => {
+    if (!isFitness) return;
+    const saved = getDefaultFitnessProvider();
+    if (saved && FITNESS_PROVIDERS.some((p) => p.id === saved)) {
+      setSelectedProvider(saved);
+    }
+  }, [isFitness]);
+
+  const activeProvider: FitnessProvider | null = isFitness
+    ? FITNESS_PROVIDERS.find((p) => p.id === selectedProvider) ?? null
+    : null;
+
+  const handleSelectProvider = (id: string) => {
+    setSelectedProvider(id);
+    setDefaultFitnessProvider(id);
+    setProviderPickerOpen(false);
+    setFile(null); // clear file when changing provider
+  };
+
   useEffect(() => {
     if (!challengeId) return;
     setMetaLoading(true);
@@ -134,6 +165,8 @@ function ChallengeProofInner() {
       fd.set("subject", address);
       if (Object.keys(challengeParams).length) fd.set("params", JSON.stringify(challengeParams));
       if (file) fd.set("file", file);
+      // Pass provider override for fitness challenges so the correct adapter is used
+      if (activeProvider) fd.set("provider", activeProvider.adapterPrefix);
       const res = await fetch("/api/aivm/intake", { method: "POST", body: fd });
       const json = await res.json();
       if (!res.ok || !json?.ok) {
@@ -144,7 +177,7 @@ function ChallengeProofInner() {
     } catch (e: any) {
       setSubmissionState({ kind: "error", message: e?.message || "Network error", retryable: true });
     }
-  }, [modelHash, address, challengeId, challengeParams, file]);
+  }, [modelHash, address, challengeId, challengeParams, file, activeProvider]);
 
   const handleRetry = useCallback(() => { setSubmissionState(null); setFile(null); }, []);
 
@@ -173,11 +206,22 @@ function ChallengeProofInner() {
     );
   }
 
-  const isUnsupported = capability.mode === "unsupported" || capability.mode === "unknown";
-  const canUploadFile =
-    capability.mode === "file_upload" ||
-    capability.mode === "mobile_upload" ||
-    ((capability.mode === "account_required" || capability.mode === "linked_submit") && capability.accountConnected);
+  const isUnsupported = !isFitness && (capability.mode === "unsupported" || capability.mode === "unknown");
+  const canUploadFile = isFitness
+    ? !!activeProvider
+    : capability.mode === "file_upload" ||
+      capability.mode === "mobile_upload" ||
+      ((capability.mode === "account_required" || capability.mode === "linked_submit") && capability.accountConnected);
+
+  // Resolved file accept and hints based on provider or VCE capability
+  const resolvedFileAccept = isFitness && activeProvider
+    ? activeProvider.fileAccept.join(",")
+    : capability.mode === "account_required" || capability.mode === "linked_submit"
+      ? ".json"
+      : capability.fileAccept.join(",");
+  const resolvedFileHint = isFitness && activeProvider
+    ? activeProvider.fileHint
+    : capability.fileHint;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
@@ -219,11 +263,18 @@ function ChallengeProofInner() {
             </div>
           )}
           <div className="mt-4 flex flex-wrap gap-2">
-            <span className="vce-source-badge vce-source-badge--lg">
-              <span>{capability.icon}</span>
-              <span>{capability.name}</span>
-            </span>
-            {modelName && <span className="chip chip--soft text-xs">{modelName}</span>}
+            {isFitness ? (
+              <span className="vce-source-badge vce-source-badge--lg">
+                <span>🏃</span>
+                <span>Fitness Challenge</span>
+              </span>
+            ) : (
+              <span className="vce-source-badge vce-source-badge--lg">
+                <span>{capability.icon}</span>
+                <span>{capability.name}</span>
+              </span>
+            )}
+            {meta?.category && <span className="chip chip--soft text-xs capitalize">{meta.category}</span>}
           </div>
         </div>
       </motion.div>
@@ -231,9 +282,53 @@ function ChallengeProofInner() {
       {/* Verification method panel */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="panel overflow-hidden">
         <div className="p-6">
-          <div className="text-xs font-semibold uppercase tracking-widest text-(--text-muted) mb-4">Verification method</div>
+          <div className="text-xs font-semibold uppercase tracking-widest text-(--text-muted) mb-4">
+            {isFitness ? "Choose your tracking app" : "Verification method"}
+          </div>
 
-          {isUnsupported && (
+          {/* ── Fitness provider picker ── */}
+          {isFitness && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {FITNESS_PROVIDERS.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={`select-card text-left transition-all ${selectedProvider === p.id ? "" : ""}`}
+                    data-selected={selectedProvider === p.id ? "" : undefined}
+                    onClick={() => handleSelectProvider(p.id)}
+                  >
+                    <div className="flex items-center gap-2 p-3">
+                      <span className="text-xl">{p.icon}</span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold leading-tight">{p.name}</div>
+                        <div className="text-xs text-(--text-muted) mt-0.5 truncate">{p.fileHint}</div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {activeProvider && (
+                <div className="vce-state-block vce-state-block--info">
+                  <span className="text-2xl shrink-0">{activeProvider.icon}</span>
+                  <div>
+                    <div className="font-semibold">Upload your {activeProvider.name} export</div>
+                    <p className="text-sm mt-1 text-(--text-muted)">{activeProvider.instructions}</p>
+                  </div>
+                </div>
+              )}
+
+              {!selectedProvider && (
+                <p className="text-sm text-(--text-muted)">
+                  Select the app you used to track your activity. Your choice will be remembered for future submissions.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ── Non-fitness: original VCE flow ── */}
+          {!isFitness && isUnsupported && (
             <div className="vce-state-block vce-state-block--warn">
               <AlertTriangle className="size-5 shrink-0 mt-0.5" />
               <div>
@@ -248,7 +343,7 @@ function ChallengeProofInner() {
             </div>
           )}
 
-          {capability.mode === "mobile_upload" && (
+          {!isFitness && capability.mode === "mobile_upload" && (
             <div className="space-y-4">
               <div className="vce-state-block vce-state-block--info">
                 <span className="text-2xl shrink-0">{capability.icon}</span>
@@ -257,27 +352,11 @@ function ChallengeProofInner() {
                   <p className="text-sm mt-1 text-(--text-muted)">{capability.instructions}</p>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <span className="chip chip--soft text-xs">ZIP file</span>
-                <span className="chip chip--soft text-xs">Health app export</span>
-                <span className="chip chip--soft text-xs">iPhone preferred</span>
-              </div>
             </div>
           )}
 
-          {capability.mode === "file_upload" && (
+          {!isFitness && capability.mode === "file_upload" && (
             <div className="space-y-3">
-              {capability.oauthLinked && (
-                <div className="vce-state-block vce-state-block--ok">
-                  <CheckCircle className="size-5 shrink-0" />
-                  <div>
-                    <div className="font-semibold">{capability.name} connected — auto-collection active</div>
-                    <p className="text-sm mt-1 text-(--text-muted)">
-                      Your {capability.name} data is being collected automatically. You can also upload manually below.
-                    </p>
-                  </div>
-                </div>
-              )}
               <div className="vce-state-block vce-state-block--info">
                 <span className="text-2xl shrink-0">{capability.icon}</span>
                 <div>
@@ -293,7 +372,7 @@ function ChallengeProofInner() {
             </div>
           )}
 
-          {(capability.mode === "account_required" || capability.mode === "linked_submit") && (
+          {!isFitness && (capability.mode === "account_required" || capability.mode === "linked_submit") && (
             <div className="space-y-4">
               {capability.accountLoading ? (
                 <div className="flex items-center gap-2 text-sm text-(--text-muted)">
@@ -365,11 +444,7 @@ function ChallengeProofInner() {
                   ref={fileInputRef}
                   type="file"
                   className="hidden"
-                  accept={
-                    capability.mode === "account_required" || capability.mode === "linked_submit"
-                      ? ".json"
-                      : capability.fileAccept.join(",")
-                  }
+                  accept={resolvedFileAccept}
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 />
                 <FileUp className="size-8 mx-auto text-(--text-muted) mb-3" />
@@ -378,15 +453,14 @@ function ChallengeProofInner() {
                 ) : (
                   <>
                     <div className="text-sm font-semibold">
-                      {capability.mode === "account_required" || capability.mode === "linked_submit"
-                        ? "Drop match data JSON here"
-                        : `Drop ${capability.fileHint || "your file"} here`}
+                      {isFitness && activeProvider
+                        ? `Drop ${activeProvider.fileHint} here`
+                        : capability.mode === "account_required" || capability.mode === "linked_submit"
+                          ? "Drop match data JSON here"
+                          : `Drop ${resolvedFileHint || "your file"} here`}
                     </div>
                     <div className="text-xs text-(--text-muted) mt-1">
-                      or click to browse ·{" "}
-                      {capability.mode === "account_required" || capability.mode === "linked_submit"
-                        ? ".json"
-                        : capability.fileAccept.join(", ")}
+                      or click to browse · {resolvedFileAccept.replace(/,/g, ", ")}
                     </div>
                   </>
                 )}
@@ -395,8 +469,14 @@ function ChallengeProofInner() {
 
             {address && (
               <div className="flex flex-wrap gap-3">
-                {/* QR for Apple Health (primary) */}
-                {capability.mode === "mobile_upload" && (
+                {/* Fitness: QR for Apple Health when selected */}
+                {isFitness && activeProvider?.mobilePreferred && (
+                  <button className="btn btn-primary flex items-center gap-2" onClick={() => setShowQr(true)}>
+                    <Smartphone className="size-4" /> Continue on mobile
+                  </button>
+                )}
+                {/* Non-fitness: QR for Apple Health (primary) */}
+                {!isFitness && capability.mode === "mobile_upload" && (
                   <button className="btn btn-primary flex items-center gap-2" onClick={() => setShowQr(true)}>
                     <Smartphone className="size-4" /> Continue on mobile
                   </button>
@@ -408,13 +488,13 @@ function ChallengeProofInner() {
                   </button>
                 )}
                 {/* Upload prompt (no file selected) */}
-                {canUploadFile && !file && capability.mode !== "mobile_upload" && (
+                {canUploadFile && !file && !(isFitness && activeProvider?.mobilePreferred) && !((!isFitness) && capability.mode === "mobile_upload") && (
                   <button className="btn btn-primary flex items-center gap-2" onClick={() => fileInputRef.current?.click()}>
-                    <Upload className="size-4" /> {capability.primaryLabel}
+                    <Upload className="size-4" /> Upload {activeProvider?.name ?? capability.name} data
                   </button>
                 )}
-                {/* QR option for file-based sources */}
-                {capability.mode === "file_upload" && (
+                {/* Secondary: mobile option for non-Apple fitness or file-based */}
+                {((isFitness && activeProvider && !activeProvider.mobilePreferred) || (!isFitness && capability.mode === "file_upload")) && (
                   <button className="btn btn-ghost flex items-center gap-2" onClick={() => setShowQr(true)}>
                     <Smartphone className="size-4" /> Continue on mobile
                   </button>

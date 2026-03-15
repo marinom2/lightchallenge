@@ -15,6 +15,8 @@ export interface AdapterContext {
 
 export interface Adapter {
   name: string;
+  /** Category: "fitness" | "gaming" — used for provider selection */
+  category?: "fitness" | "gaming";
   supports(modelHash: string): boolean;
   ingest(input: { file?: Buffer; json?: any; context: AdapterContext }): Promise<AdapterResult>;
 }

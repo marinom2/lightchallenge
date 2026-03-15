@@ -50,6 +50,7 @@ type ApiOut = {
   joinClosesTs?: string;
   createdBlock?: string;
   createdTx?: `0x${string}`;
+  participantsCount?: number;
   winnersClaimed?: number;
   youJoined?: boolean;
   youAlreadyJoined?: boolean;
@@ -249,6 +250,7 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
     const joinClosesTs = cv?.joinClosesTs ?? cv?.[8] ? String(cv.joinClosesTs ?? cv[8]) : undefined;
     const stakeWei = BigInt(cv?.stake ?? cv?.[7] ?? 0n);
     const poolWei = BigInt(cv?.pool ?? cv?.[12] ?? 0n);
+    const participantsCount = Number(cv?.participantsCount ?? cv?.[13] ?? 0);
 
     const rawSnapshot: any = await client
       .readContract({
@@ -322,6 +324,7 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
 
     let winnersClaimed = 0;
     let joinedTotal = 0n;
+    const joinedAddresses = new Set<string>();
 
     function push(
       name: string,
@@ -411,6 +414,8 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
             const who =
               args?.who && isAddress(args.who)
                 ? (args.who as `0x${string}`)
+                : args?.user && isAddress(args.user)
+                ? (args.user as `0x${string}`)
                 : undefined;
 
             const amt =
@@ -420,7 +425,16 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
               0n;
 
             if (amt > 0n) joinedTotal += amt;
-            push("Joined", "Joined", tx, bn, t, who);
+
+            const whoKey = who?.toLowerCase() ?? "";
+            const isTopUp = whoKey ? joinedAddresses.has(whoKey) : false;
+            if (whoKey) joinedAddresses.add(whoKey);
+
+            push(
+              isTopUp ? "ToppedUp" : "Joined",
+              isTopUp ? "Topped up" : "Joined",
+              tx, bn, t, who,
+            );
             break;
           }
 
@@ -437,7 +451,7 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
     if (viewer) {
       youJoined = timeline.some(
         (t) =>
-          t.name === "Joined" &&
+          (t.name === "Joined" || t.name === "ToppedUp") &&
           typeof t.who === "string" &&
           t.who.toLowerCase() === viewer.toLowerCase()
       );
@@ -469,6 +483,7 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
       joinClosesTs,
       createdBlock: created?.block,
       createdTx: created?.tx,
+      participantsCount,
       winnersClaimed,
       youJoined,
       youAlreadyJoined: youJoined,

@@ -79,6 +79,28 @@ const TREAS = (ADDR?.Treasury ?? ZERO) as `0x${string}`;
 
 // Types, utilities, decoders, and hooks are imported from ./lib/* and ./hooks/*
 
+/** Format raw modelId like "apple_health.steps@1" to human-readable "Steps (Apple Health)" */
+function formatModelDisplay(modelId: string): string {
+  const MODEL_LABELS: Record<string, string> = {
+    "apple_health.steps": "Steps (Apple Health)",
+    "garmin.steps": "Steps (Garmin)",
+    "garmin.distance_window": "Distance (Garmin)",
+    "strava.distance_in_window": "Distance (Strava)",
+    "strava.cycling_distance_in_window": "Cycling Distance (Strava)",
+    "strava.elevation_gain_window": "Elevation Gain (Strava)",
+    "strava.swimming_laps_window": "Swimming Laps (Strava)",
+    "fitbit.steps_day": "Steps (Fitbit)",
+    "fitbit.distance_window": "Distance (Fitbit)",
+    "googlefit.steps_day": "Steps (Google Fit)",
+    "googlefit.distance_window": "Distance (Google Fit)",
+    "dota.opendota_match": "Dota 2 Match (OpenDota)",
+    "lol.winrate_next_n": "LoL Win Rate",
+    "cs2.faceit_wins": "CS2 Wins (FACEIT)",
+  };
+  const base = modelId.split("@")[0] ?? modelId;
+  return MODEL_LABELS[base] ?? base.replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Page
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1445,7 +1467,7 @@ const primaryAction = React.useMemo(() => {
               ["Proof status", data?.proofOk ? "Verified" : "Pending"],
               ["Verifier", shortOrDash((data as any)?.verifierUsed ?? data?.verifier)],
               ["Verification type", safe(data?.modelKind, "Standard")],
-              ...(data?.modelId ? [["Model ID", safe(data.modelId)] as [string, string]] : []),
+              ...(data?.modelId ? [["Verification model", formatModelDisplay(data.modelId)] as [string, string]] : []),
               ["Challenge type", enumLabel("kind", kindFromChain)],
               ["Outcome", enumLabel("outcome", outcomeFromChain)],
               ...(decoded.duration ? [["Duration", formatDuration(decoded.duration)] as [string, string]] : []),

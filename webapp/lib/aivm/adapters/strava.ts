@@ -127,6 +127,7 @@ function parseCsv(csvText: string, userIdHash: `0x${string}`): CanonicalRecord[]
 
 export const stravaAdapter: Adapter = {
   name: "strava.distance_in_window",
+  category: "fitness",
   supports(modelHash: string) {
     return modelHash.toLowerCase() === STRAVA_DISTANCE_MODEL.toLowerCase();
   },

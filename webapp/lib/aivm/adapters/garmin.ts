@@ -86,6 +86,7 @@ function dayUTC(ts: number) { return new Date(ts * 1000).toISOString().slice(0,1
 
 export const garminAdapter: Adapter = {
   name: "garmin.multi",
+  category: "fitness",
   supports(modelHash: string) {
     const h = modelHash.toLowerCase();
     return h === GARMIN_STEPS_DAY_MODEL.toLowerCase() ||

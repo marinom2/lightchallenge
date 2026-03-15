@@ -36,6 +36,7 @@ function teamFor(platformId: string, radiant32: string[], dire32: string[]): Tea
 
 export const dotaAdapter: Adapter = {
   name: "dota.opendota_match",
+  category: "gaming",
   supports(modelHash: string) {
     return modelHash.toLowerCase() === DOTA_MATCH_MODEL.toLowerCase();
   },

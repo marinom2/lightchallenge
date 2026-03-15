@@ -63,9 +63,11 @@ export default function ChallengeCard({
 
         if (dead) return;
 
-        const participants = Array.isArray(j?.timeline)
-          ? j.timeline.filter((x: any) => x?.name === "Joined").length
-          : null;
+        const participants = typeof j?.participantsCount === "number"
+          ? j.participantsCount
+          : Array.isArray(j?.timeline)
+            ? new Set(j.timeline.filter((x: any) => x?.name === "Joined").map((x: any) => x?.who?.toLowerCase?.())).size
+            : null;
 
         const pool = j?.snapshot?.committedPool ?? j?.pool?.committedWei ?? null;
 

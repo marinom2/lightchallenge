@@ -116,6 +116,7 @@ function totalStepsOnDay(records: CanonicalRecord[], yyyy_mm_dd: string) {
 
 export const appleAdapter: Adapter = {
   name: "apple_health.steps_on_day",
+  category: "fitness",
   supports(modelHash: string) {
     return modelHash.toLowerCase() === APPLE_STEPS_MODEL.toLowerCase();
   },

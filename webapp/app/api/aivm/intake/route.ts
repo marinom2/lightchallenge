@@ -79,7 +79,21 @@ export async function POST(req: NextRequest) {
     const file = form.get("file") as File | null;
     const jsonText = form.get("json") as string | null;
 
-    const adapter = adapters.find((a) => a.supports(modelHash));
+    // Provider override: allows selecting a specific adapter by name
+    // (e.g. "strava" for a fitness challenge originally created with apple_health modelHash)
+    const providerOverride = String(form.get("provider") ?? "").trim();
+    const { adapterByName } = await import("@/lib/aivm/adapters");
+
+    let adapter: (typeof adapters)[number] | undefined;
+    if (providerOverride) {
+      // Try exact name match first, then prefix match
+      adapter = adapterByName(providerOverride) ??
+        adapters.find((a) => a.name.startsWith(providerOverride + ".")) ??
+        adapters.find((a) => a.name.startsWith(providerOverride));
+    }
+    if (!adapter) {
+      adapter = adapters.find((a) => a.supports(modelHash));
+    }
     if (!adapter) {
       return NextResponse.json({ error: "No adapter for modelHash" }, { status: 400 });
     }

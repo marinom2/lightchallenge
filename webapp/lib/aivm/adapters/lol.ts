@@ -11,6 +11,7 @@ function sha256hex(buf: Buffer | string): `0x${string}` {
 
 export const lolAdapter: Adapter = {
   name: "lol.ranked_wins_window",
+  category: "gaming",
   supports(modelHash: string) {
     return modelHash.toLowerCase() === LOL_WINS_MODEL.toLowerCase();
   },

@@ -237,10 +237,11 @@ html[data-theme="light"] .input {
   box-shadow: inset 0 1px 3px rgba(40, 60, 100, 0.06);
 }
 html[data-theme="light"] .input:focus {
+  border-color: rgba(50, 120, 255, 0.35);
   background: rgba(245, 248, 255, 0.95);
   box-shadow:
     inset 0 1px 3px rgba(40, 60, 100, 0.06),
-    0 0 0 3px rgba(60, 100, 180, 0.10);
+    0 0 0 3px rgba(50, 120, 255, 0.10);
 }
 
 html[data-theme="light"] .chip {
@@ -588,6 +589,9 @@ html[data-theme="light"] .mobile-link__desc {
 .btn:focus-visible {
   outline: 2px solid var(--lc-accent);
   outline-offset: 2px;
+}
+html[data-theme="light"] .btn:focus-visible {
+  outline-color: var(--lc-select-border);
 }
 
 .btn:disabled,
@@ -4736,7 +4740,7 @@ html[data-theme="light"] .builder-card__ring--active {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.45);
+    background: var(--lc-overlay-bg, rgba(0, 0, 0, 0.45));
     z-index: 55;
   }
   .admin-main {
@@ -4823,6 +4827,23 @@ html[data-theme="light"] .builder-card__ring--active {
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 0 20px rgba(34, 197, 94, 0.1),
     0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* Light theme: softer card glow shadows */
+html[data-theme="light"] .card--glow-blue {
+  box-shadow:
+    0 0 16px rgba(50, 120, 255, 0.08),
+    0 4px 12px rgba(30, 50, 90, 0.08);
+}
+html[data-theme="light"] .card--glow-warm {
+  box-shadow:
+    0 0 16px rgba(214, 162, 74, 0.10),
+    0 4px 12px rgba(30, 50, 90, 0.08);
+}
+html[data-theme="light"] .card--glow-ok {
+  box-shadow:
+    0 0 16px rgba(34, 197, 94, 0.08),
+    0 4px 12px rgba(30, 50, 90, 0.08);
 }
 
 /* ── Scrollbar (Webkit) ────────────────────────────────────────────────────── */
