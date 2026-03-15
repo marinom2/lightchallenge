@@ -8,7 +8,7 @@ type Props = { name?: string | null; className?: string };
 function SI({ svg, hex, title, className }: { svg: string; hex: string; title: string; className?: string }) {
   return (
     <span
-      className={`inline-flex items-center justify-center rounded-md p-[2px] bg-white/10 ${className ?? "w-5 h-5"}`}
+      className={`inline-flex items-center justify-center rounded-md p-0.5 bg-white/10 ${className ?? "w-5 h-5"}`}
       title={title}
       aria-label={title}
       // eslint-disable-next-line react/no-danger

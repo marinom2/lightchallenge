@@ -641,12 +641,16 @@ export default function Navbar() {
   }, []);
 
   return (
+    <>
     <header
       className={`hdr ${scrolled ? "hdr--scrolled" : ""}`}
       role="banner"
     >
       <div className="container-narrow">
         <div className="navbar-row">
+          {/* Mobile spacer — balances hamburger for centered brand */}
+          <div className="mobile-nav-spacer md:hidden" style={{ width: "var(--ctl-h)" }} aria-hidden="true" />
+
           {/* Brand */}
           <Link href="/" className="brand" aria-label="LightChallenge Home">
             <span className="brand-dot" aria-hidden />
@@ -788,13 +792,14 @@ export default function Navbar() {
           </button>
         </div>
       </div>
+    </header>
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer — outside header to avoid backdrop-filter containing block */}
       <AnimatePresence>
         {mobileOpen && (
           <>
             <motion.div
-              className="md:hidden fixed inset-0 z-30"
+              className="md:hidden fixed inset-0 z-85"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -806,7 +811,12 @@ export default function Navbar() {
             />
 
             <motion.div
-              className="md:hidden fixed inset-x-0 top-[calc(var(--navbar-top)+12px)] bottom-0 z-40 overflow-y-auto"
+              className="md:hidden fixed inset-x-0 z-90 overflow-y-auto"
+              style={{
+                top: "calc(var(--navbar-top) + env(safe-area-inset-top, 0px))",
+                bottom: "0",
+                paddingBottom: "env(safe-area-inset-bottom, 0px)",
+              }}
               initial={{ y: -10, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -10, opacity: 0 }}
@@ -815,27 +825,14 @@ export default function Navbar() {
               aria-modal="true"
               id="mobile-nav-sheet"
             >
-              <div className="mobile-sheet mx-3 mb-6 overflow-hidden">
-                <div className="p-3 space-y-1">
-                  {/* Header row */}
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-xs tracking-widest uppercase text-(--text-muted)">
-                      Navigation
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setMobileOpen(false)}
-                      className="btn btn-ghost btn-sm"
-                    >
-                      Close
-                    </button>
+              <div className="mobile-sheet mx-3 mb-6">
+                <div className="mobile-sheet__inner">
+                  {/* Wallet — primary action at top */}
+                  <div className="mobile-wallet-row">
+                    <WalletButton onConnect={() => setMobileOpen(false)} />
                   </div>
 
-                  {/* Theme row */}
-                  <div className="panel p-2 flex items-center justify-between">
-                    <div className="text-xs text-(--text-muted)">Theme</div>
-                    <ThemeSwitcher />
-                  </div>
+                  <div className="mobile-nav-divider" aria-hidden />
 
                   {/* Nav sections */}
                   {mobileGroups.map((section, idx) => (
@@ -852,11 +849,16 @@ export default function Navbar() {
                     </div>
                   ))}
 
-                  {/* Wallet row */}
+                  {/* Settings footer */}
                   <div className="mobile-nav-divider" aria-hidden />
-                  <div className="panel flex items-center justify-between gap-3 p-3">
-                    <RememberSwitch />
-                    <WalletButton onConnect={() => setMobileOpen(false)} />
+                  <div className="mobile-settings-row">
+                    <div className="mobile-settings-item">
+                      <span className="mobile-settings-label">Theme</span>
+                      <ThemeSwitcher />
+                    </div>
+                    <div className="mobile-settings-item">
+                      <RememberSwitch />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -864,6 +866,6 @@ export default function Navbar() {
           </>
         )}
       </AnimatePresence>
-    </header>
+    </>
   );
 }

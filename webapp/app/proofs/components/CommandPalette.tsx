@@ -106,13 +106,13 @@ export default function CommandPalette({
   return createPortal(
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-[140] bg-black/45 backdrop-blur-sm"
+        className="fixed inset-0 z-140 bg-black/45 backdrop-blur-sm"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         onClick={onClose}
         aria-hidden
       />
       <motion.div
-        className="fixed z-[141] inset-x-0 top-[10dvh] mx-auto w-[min(92vw,800px)] rounded-2xl overflow-hidden"
+        className="fixed z-141 inset-x-0 top-[10dvh] mx-auto w-[min(92vw,800px)] rounded-2xl overflow-hidden"
         style={{ background: "var(--card-elev)", border: "1px solid var(--border)" }}
         initial={{ y: 18, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 18, opacity: 0 }}
         onMouseDown={(e) => e.stopPropagation()}
@@ -123,7 +123,7 @@ export default function CommandPalette({
           <input
             ref={inputRef}
             autoFocus
-            className="input !py-2 flex-1"
+            className="input py-2! flex-1"
             placeholder="Search models…  (↑/↓ move, Enter select, ⌘F fav, ⌘C copy hash)"
             value={q}
             onChange={(e) => setQ(e.target.value)}

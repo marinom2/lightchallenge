@@ -65,7 +65,7 @@ export function InviteSheet({ onClose, onSendInvite }: Props) {
   return (
     <>
       <motion.div
-        className="fixed inset-0 z-[1500]"
+        className="fixed inset-0 z-1500"
         style={{
           background: "var(--lc-overlay-bg)",
           backdropFilter: "blur(18px) saturate(118%)",
@@ -78,7 +78,7 @@ export function InviteSheet({ onClose, onSendInvite }: Props) {
       />
 
       <motion.div
-        className="fixed inset-x-0 bottom-0 z-[1510] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6"
+        className="fixed inset-x-0 bottom-0 z-1510 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6"
         initial={{ y: "100%" }}
         animate={{ y: "0%" }}
         exit={{ y: "100%" }}

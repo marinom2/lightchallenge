@@ -240,7 +240,7 @@ export default function Step1_SelectTask({
   }) => (
     <button
       type="button"
-      className={cx("icon-btn star z-[3]", fav && "is-fav", className)}
+      className={cx("icon-btn star z-3", fav && "is-fav", className)}
       title={fav ? "Unfavorite" : "Favorite"}
       aria-pressed={fav}
       onMouseDown={(e) => e.preventDefault()}
@@ -289,7 +289,7 @@ export default function Step1_SelectTask({
           }}
         />
 
-        <div className="flex items-start gap-3 relative z-[2]">
+        <div className="flex items-start gap-3 relative z-2">
           <div className="model-row__icon shrink-0">
             {m.verifierKind === "ZK" ? <Atom size={16} /> : <Cpu size={16} />}
           </div>
@@ -346,7 +346,7 @@ export default function Step1_SelectTask({
           }}
         />
 
-        <div className="relative z-[2] flex flex-col items-center justify-center w-full">
+        <div className="relative z-2 flex flex-col items-center justify-center w-full">
           <div className="model-card__title">{m.name}</div>
           <div className="model-type">{m.verifierKind}</div>
         </div>
@@ -439,7 +439,7 @@ export default function Step1_SelectTask({
                 onClick={() => setCatKey("all")} // optional: you can route this to a separate Recent view if you want
               >
                 <span>Recent</span>
-                <span className="count text-[11px] px-1.5 py-[2px] rounded-full">
+                <span className="count text-[11px] px-1.5 py-0.5 rounded-full">
                   {recents.length}
                 </span>
               </button>
@@ -478,7 +478,7 @@ export default function Step1_SelectTask({
                 value={searchQuery}
                 onChange={(e) => onSearch(e.target.value)}
                 placeholder="Name, hash, provider…  (⌘K)"
-                className="input !pl-9 !py-2 text-sm"
+                className="input pl-9! py-2! text-sm"
               />
             </div>
 
@@ -537,7 +537,7 @@ export default function Step1_SelectTask({
                   <select
                     value={sort}
                     onChange={(e) => setSort(e.target.value as "AZ" | "ZA")}
-                    className="input !py-1.5 !pr-7 !pl-2 text-xs"
+                    className="input py-1.5! pr-7! pl-2! text-xs"
                     aria-label="Sort"
                   >
                     <option value="AZ">A–Z</option>
@@ -599,7 +599,7 @@ export default function Step1_SelectTask({
           </section>
 
           {/* RIGHT */}
-          <aside className="relative z-[5]">
+          <aside className="relative z-5">
             <RightDrawer
               open={!!preview}
               model={preview}

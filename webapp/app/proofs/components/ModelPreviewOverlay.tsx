@@ -51,14 +51,14 @@ export default function ModelPreviewOverlay({
   return createPortal(
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-[120] bg-black/50 backdrop-blur-sm md:hidden"
+        className="fixed inset-0 z-120 bg-black/50 backdrop-blur-sm md:hidden"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
       />
       <motion.div
-        className="fixed md:hidden z-[121] inset-x-0 bottom-0 rounded-t-3xl p-5"
+        className="fixed md:hidden z-121 inset-x-0 bottom-0 rounded-t-3xl p-5"
         style={{
           background:
             "linear-gradient(180deg, color-mix(in oklab, var(--grad-1) 8%, transparent), color-mix(in oklab, #000 26%, var(--card)))",

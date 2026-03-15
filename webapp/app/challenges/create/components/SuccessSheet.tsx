@@ -216,7 +216,7 @@ export function SuccessSheet({
       {open ? (
         <>
           <motion.div
-            className="fixed inset-0 z-[1400]"
+            className="fixed inset-0 z-1400"
             style={{
               background: "var(--lc-overlay-bg)",
               backdropFilter: "blur(18px) saturate(118%)",
@@ -228,7 +228,7 @@ export function SuccessSheet({
           />
 
           <motion.div
-            className="fixed inset-x-0 bottom-0 z-[1410] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6"
+            className="fixed inset-x-0 bottom-0 z-1410 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6"
             initial={{ y: "100%" }}
             animate={{ y: "0%" }}
             exit={{ y: "100%" }}

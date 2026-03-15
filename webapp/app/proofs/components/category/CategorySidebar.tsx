@@ -244,7 +244,7 @@ export default function CategorySidebar({
               className={cx(pillBase, active && "is-active")}
             >
               <span className="label truncate">{label}</span>
-              <span className="count text-[11px] px-1.5 py-[2px] rounded-full">
+              <span className="count text-[11px] px-1.5 py-0.5 rounded-full">
                 {cnt}
               </span>
             </button>
