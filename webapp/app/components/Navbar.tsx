@@ -226,7 +226,7 @@ function RememberSwitch() {
   );
 }
 
-function WalletButton() {
+function WalletButton({ onConnect }: { onConnect?: () => void } = {}) {
   return (
     <ConnectButton.Custom>
       {({
@@ -237,44 +237,59 @@ function WalletButton() {
         openConnectModal,
         mounted,
       }) => {
-        const connected = mounted && account && chain;
-
-        if (!connected) {
-          return (
-            <button
-              type="button"
-              onClick={openConnectModal}
-              className="btn btn-primary btn-sm"
-            >
-              Connect
-            </button>
-          );
-        }
-
-        if (chain?.unsupported) {
-          return (
-            <button
-              type="button"
-              onClick={openChainModal}
-              className="btn btn-outline btn-sm"
-            >
-              Wrong network
-            </button>
-          );
-        }
+        const ready = mounted;
+        const connected = ready && account && chain;
 
         return (
-          <button
-            type="button"
-            onClick={openAccountModal}
-            className="btn btn-ghost btn-sm"
-            title={account?.displayName}
+          <div
+            {...(!ready && {
+              "aria-hidden": true,
+              style: { opacity: 0, pointerEvents: "none" as const, userSelect: "none" as const },
+            })}
           >
-            <span className="font-semibold">{account?.displayName}</span>
-            {account?.displayBalance ? (
-              <span className="ml-2 opacity-80">{account.displayBalance}</span>
-            ) : null}
-          </button>
+            {(() => {
+              if (!connected) {
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onConnect?.();
+                      openConnectModal?.();
+                    }}
+                    className="btn btn-primary btn-sm"
+                  >
+                    Connect
+                  </button>
+                );
+              }
+
+              if (chain?.unsupported) {
+                return (
+                  <button
+                    type="button"
+                    onClick={openChainModal}
+                    className="btn btn-outline btn-sm"
+                  >
+                    Wrong network
+                  </button>
+                );
+              }
+
+              return (
+                <button
+                  type="button"
+                  onClick={openAccountModal}
+                  className="btn btn-ghost btn-sm"
+                  title={account?.displayName}
+                >
+                  <span className="font-semibold">{account?.displayName}</span>
+                  {account?.displayBalance ? (
+                    <span className="ml-2 opacity-80">{account.displayBalance}</span>
+                  ) : null}
+                </button>
+              );
+            })()}
+          </div>
         );
       }}
     </ConnectButton.Custom>
@@ -610,7 +625,7 @@ export default function Navbar() {
                           href={group.href!}
                           target="_blank"
                           rel="noreferrer"
-                          className="nav-pill nav-pill--glow"
+                          className="nav-pill nav-pill--glow nav-pill--external"
                         >
                           {group.label}
                           <span className="nav-pill__ext">{Icons.external}</span>
@@ -829,7 +844,7 @@ export default function Navbar() {
                   <div className="mobile-nav-divider" aria-hidden />
                   <div className="panel flex items-center justify-between gap-3 p-3">
                     <RememberSwitch />
-                    <WalletButton />
+                    <WalletButton onConnect={() => setMobileOpen(false)} />
                   </div>
                 </div>
               </div>

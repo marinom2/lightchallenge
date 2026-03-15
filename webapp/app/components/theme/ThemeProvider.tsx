@@ -2,72 +2,96 @@
 
 import * as React from "react";
 
-type Theme = "light" | "dark";
+export type ThemePreference = "light" | "dark" | "system";
+type ResolvedTheme = "light" | "dark";
 
 const ThemeContext = React.createContext<{
-  theme: Theme;
-  setTheme: (t: Theme) => void;
+  theme: ResolvedTheme;
+  preference: ThemePreference;
+  setPreference: (p: ThemePreference) => void;
   cycle: () => void;
 } | null>(null);
 
-function normalizeTheme(value: unknown, fallback: Theme): Theme {
-  if (value === "light" || value === "dark") return value;
-    return fallback;
+function resolveTheme(pref: ThemePreference): ResolvedTheme {
+  if (pref === "light" || pref === "dark") return pref;
+  // system: check media query
+  if (typeof window !== "undefined") {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  return "light";
+}
+
+function normalizePreference(value: unknown): ThemePreference {
+  if (value === "light" || value === "dark" || value === "system") return value;
+  return "system";
 }
 
 export function ThemeProvider({
   children,
   storageKey = "lc-theme",
-  defaultTheme = "dark",
 }: {
   children: React.ReactNode;
   storageKey?: string;
-  defaultTheme?: Theme;
 }) {
-  const [theme, setThemeState] = React.useState<Theme>(defaultTheme);
+  const [preference, setPreferenceState] = React.useState<ThemePreference>("system");
+  const [resolved, setResolved] = React.useState<ResolvedTheme>("light");
 
-  const apply = React.useCallback(
-    (next: Theme) => {
-      setThemeState(next);
+  const applyResolved = React.useCallback((theme: ResolvedTheme) => {
+    setResolved(theme);
+    document.documentElement.setAttribute("data-theme", theme);
+  }, []);
 
+  const setPref = React.useCallback(
+    (next: ThemePreference) => {
+      setPreferenceState(next);
       try {
-        // Persist for client-side
         localStorage.setItem(storageKey, next);
-
-        // Persist for SSR reads (Next cookies)
         document.cookie = `${storageKey}=${next}; Path=/; Max-Age=31536000; SameSite=Lax`;
       } catch {
-        // ignore storage errors (private mode, etc.)
+        // ignore storage errors
       }
-
-      // Apply rendered theme
-      document.documentElement.setAttribute("data-theme", next);
+      applyResolved(resolveTheme(next));
     },
-    [storageKey]
+    [storageKey, applyResolved]
   );
 
-  // Hydrate from storage once on mount (and auto-migrate legacy values)
+  // Hydrate from storage on mount
   React.useEffect(() => {
     let stored: string | null = null;
-
     try {
       stored = localStorage.getItem(storageKey);
     } catch {
       // ignore
     }
-
-    const next = normalizeTheme(stored, defaultTheme);
-    apply(next);
+    const pref = normalizePreference(stored);
+    setPreferenceState(pref);
+    applyResolved(resolveTheme(pref));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const api = React.useMemo(() => {
-    return {
-      theme,
-      setTheme: apply,
-      cycle: () => apply(theme === "light" ? "dark" : "light"),
+  // Listen for system theme changes when preference is "system"
+  React.useEffect(() => {
+    if (preference !== "system") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e: MediaQueryListEvent) => {
+      applyResolved(e.matches ? "dark" : "light");
     };
-  }, [theme, apply]);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, [preference, applyResolved]);
+
+  const api = React.useMemo(() => {
+    const order: ThemePreference[] = ["system", "light", "dark"];
+    return {
+      theme: resolved,
+      preference,
+      setPreference: setPref,
+      cycle: () => {
+        const idx = order.indexOf(preference);
+        setPref(order[(idx + 1) % order.length]);
+      },
+    };
+  }, [resolved, preference, setPref]);
 
   return <ThemeContext.Provider value={api}>{children}</ThemeContext.Provider>;
 }

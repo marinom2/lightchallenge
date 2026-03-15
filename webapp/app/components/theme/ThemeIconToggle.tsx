@@ -25,32 +25,40 @@ function MoonIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-export default function ThemeIconToggle() {
-  const { theme, cycle } = useTheme();
-  const [burst, setBurst] = React.useState<{ x: number; y: number; key: number } | null>(null);
+function SystemIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden {...props}>
+      <path
+        fill="currentColor"
+        d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v10h16V6H4Zm4 14h8v2H8v-2Z"
+      />
+    </svg>
+  );
+}
 
-  const nextLabel = theme === "light" ? "Switch to dark theme" : "Switch to light theme";
+const LABELS = {
+  system: "System theme",
+  light: "Light theme",
+  dark: "Dark theme",
+} as const;
+
+export default function ThemeIconToggle() {
+  const { preference, cycle } = useTheme();
+
+  const icon =
+    preference === "system" ? <SystemIcon /> :
+    preference === "light" ? <SunIcon /> :
+    <MoonIcon />;
 
   return (
     <button
       type="button"
       className="theme-btn"
-      aria-label={nextLabel}
-      onClick={(e) => {
-        const r = e.currentTarget.getBoundingClientRect();
-        setBurst({ x: e.clientX - r.left, y: e.clientY - r.top, key: Date.now() });
-        cycle();
-      }}
+      aria-label={LABELS[preference]}
+      title={LABELS[preference]}
+      onClick={cycle}
     >
-      {theme === "light" ? <SunIcon /> : <MoonIcon />}
-      {burst ? (
-        <span
-          key={burst.key}
-          className="theme-burst"
-          style={{ left: burst.x, top: burst.y }}
-          aria-hidden
-        />
-      ) : null}
+      {icon}
     </button>
   );
 }

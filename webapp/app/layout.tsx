@@ -26,11 +26,15 @@ export const viewport: Viewport = {
 };
 
 const STORAGE_KEY = "lc-theme";
-type Theme = "light" | "dark";
+type ResolvedTheme = "light" | "dark";
 
-function initialThemeFromCookies(): Theme {
+function initialThemeFromCookies(): ResolvedTheme {
   const raw = cookies().get(STORAGE_KEY)?.value;
-  return raw === "light" ? "light" : "dark";
+  if (raw === "light") return "light";
+  if (raw === "dark") return "dark";
+  // "system" or no cookie → default to light (SSR can't read prefers-color-scheme;
+  // the inline script below will correct on client before paint)
+  return "light";
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -44,9 +48,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: `(function () {
   try {
     var KEY = "${STORAGE_KEY}";
-    var fallback = "${initialTheme}";
-    var v = localStorage.getItem(KEY) || fallback;
-    if (v !== "light" && v !== "dark") v = "dark";
+    var pref = localStorage.getItem(KEY) || "system";
+    var v;
+    if (pref === "light" || pref === "dark") {
+      v = pref;
+    } else {
+      v = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
     document.documentElement.setAttribute("data-theme", v);
   } catch (e) {}
 })();`,
@@ -54,7 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
 
         <Providers>
-          <ThemeProvider storageKey={STORAGE_KEY} defaultTheme={initialTheme}>
+          <ThemeProvider storageKey={STORAGE_KEY}>
             <Navbar />
 
             <main
