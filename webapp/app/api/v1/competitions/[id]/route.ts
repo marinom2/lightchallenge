@@ -84,8 +84,9 @@ export async function GET(
 
     const { rows } = await pool.query(
       `SELECT c.*,
-        (SELECT count(*)::int FROM competition_registrations WHERE competition_id = c.id) AS registration_count,
-        (SELECT count(*)::int FROM bracket_matches WHERE competition_id = c.id) AS match_count
+        (SELECT count(*)::int FROM competition_registrations WHERE competition_id = c.id) AS participant_count,
+        (SELECT count(*)::int FROM bracket_matches WHERE competition_id = c.id) AS match_count,
+        (c.settings->>'max_participants')::int AS max_participants
        FROM competitions c
        WHERE c.id = $1
        LIMIT 1`,

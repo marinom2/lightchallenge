@@ -17,19 +17,19 @@ type Competition = {
   id: string;
   title: string;
   description: string;
-  type: "single" | "bracket" | "round_robin" | "circuit";
+  type: "challenge" | "bracket" | "league" | "circuit" | "ladder";
   status: "draft" | "registration" | "active" | "completed" | "canceled";
   category: string;
-  max_participants: number;
-  team_size: number;
+  max_participants: number | null;
+  team_size?: number;
   rules: Record<string, unknown>;
-  prize_pool_wei: string;
-  prize_distribution: {
-    type: "winner_takes_all" | "top_n" | "proportional" | "custom";
+  settings: Record<string, unknown>;
+  prize_config: {
+    type?: "winner_takes_all" | "top_n" | "proportional" | "custom";
     splits?: number[];
   };
-  registration_opens: string;
-  registration_closes: string;
+  registration_opens_at: string;
+  registration_closes_at: string;
   starts_at: string;
   ends_at: string;
   created_at: string;
@@ -91,15 +91,6 @@ function formatDate(iso: string | null | undefined): string {
   }
 }
 
-function formatPool(wei: string): string {
-  try {
-    const eth = Number(BigInt(wei)) / 1e18;
-    return eth % 1 === 0 ? eth.toFixed(0) : eth.toFixed(2);
-  } catch {
-    return "0";
-  }
-}
-
 const STATUS_TONE: Record<string, "success" | "accent" | "warning" | "danger" | "muted" | "info"> = {
   draft: "muted",
   registration: "info",
@@ -109,10 +100,13 @@ const STATUS_TONE: Record<string, "success" | "accent" | "warning" | "danger" | 
 };
 
 const TYPE_LABELS: Record<string, string> = {
-  single: "Single Challenge",
+  challenge: "Challenge",
+  single: "Challenge",
   bracket: "Bracket",
-  round_robin: "Round Robin",
+  league: "League",
+  round_robin: "League",
   circuit: "Circuit",
+  ladder: "Ladder",
 };
 
 /* ── SVG Icons ─────────────────────────────────────────────────────────────── */
@@ -329,7 +323,7 @@ export default function CompetitionDetailPage() {
         const res = await fetch(`/api/v1/competitions/${id}`);
         if (!res.ok) throw new Error(`Failed to load competition (${res.status})`);
         const data = await res.json();
-        if (!stop) setComp(data);
+        if (!stop) setComp(data?.competition || data);
       } catch (e: any) {
         if (!stop) setError(e?.message || String(e));
       } finally {
@@ -777,10 +771,9 @@ export default function CompetitionDetailPage() {
           icon={<span style={{ color: "var(--lc-success)" }}>&#9679;</span>}
         />
         <StatCard
-          label="Prize Pool"
-          value={formatPool(comp.prize_pool_wei)}
-          unit="LCAI"
-          icon={<TrophyIcon />}
+          label="Created"
+          value={formatDate(comp.created_at)}
+          icon={<CalendarIcon />}
         />
       </div>
 
@@ -813,8 +806,8 @@ export default function CompetitionDetailPage() {
               </h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "var(--lc-space-4)" }}>
                 {[
-                  { label: "Registration Opens", value: comp.registration_opens },
-                  { label: "Registration Closes", value: comp.registration_closes },
+                  { label: "Registration Opens", value: comp.registration_opens_at },
+                  { label: "Registration Closes", value: comp.registration_closes_at },
                   { label: "Competition Starts", value: comp.starts_at },
                   { label: "Competition Ends", value: comp.ends_at },
                 ].map((t) => (
@@ -913,20 +906,20 @@ export default function CompetitionDetailPage() {
                     Distribution Type
                   </span>
                   <Badge variant="tone" tone="accent" size="sm">
-                    {(comp.prize_distribution?.type || "winner_takes_all").replace(/_/g, " ")}
+                    {(comp.prize_config?.type || "winner_takes_all").replace(/_/g, " ")}
                   </Badge>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)" }}>
-                    Total Pool
+                    Status
                   </span>
-                  <span style={{ fontSize: "var(--lc-text-small)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)" }}>
-                    {formatPool(comp.prize_pool_wei)} LCAI
-                  </span>
+                  <Badge variant="tone" tone={STATUS_TONE[comp.status] || "muted"} size="sm">
+                    {comp.status.charAt(0).toUpperCase() + comp.status.slice(1)}
+                  </Badge>
                 </div>
-                {comp.prize_distribution?.splits && comp.prize_distribution.splits.length > 0 && (
+                {comp.prize_config?.splits && comp.prize_config.splits.length > 0 && (
                   <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-2)", marginTop: "var(--lc-space-2)" }}>
-                    {comp.prize_distribution.splits.map((pct, i) => (
+                    {comp.prize_config.splits.map((pct, i) => (
                       <div
                         key={i}
                         style={{
@@ -995,10 +988,10 @@ export default function CompetitionDetailPage() {
               </h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "var(--lc-space-4)" }}>
                 {[
-                  { label: "Max Participants", value: String(comp.max_participants) },
-                  { label: "Team Size", value: comp.team_size > 1 ? `${comp.team_size} per team` : "Solo" },
+                  { label: "Max Participants", value: String(comp.max_participants ?? "Unlimited") },
+                  { label: "Category", value: comp.category || "—" },
                   { label: "Type", value: TYPE_LABELS[comp.type] || comp.type },
-                  { label: "Registered", value: `${registrations.length} / ${comp.max_participants}` },
+                  { label: "Registered", value: `${registrations.length}${comp.max_participants ? ` / ${comp.max_participants}` : ""}` },
                 ].map((s) => (
                   <div key={s.label} style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-1)" }}>
                     <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>{s.label}</span>

@@ -213,8 +213,11 @@ export async function GET(req: NextRequest) {
 
     const pool = getPool();
     const { rows } = await pool.query(
-      `SELECT * FROM competitions ${whereClause}
-       ORDER BY created_at DESC
+      `SELECT c.*,
+        (SELECT count(*)::int FROM competition_registrations WHERE competition_id = c.id) AS participant_count,
+        (c.settings->>'max_participants')::int AS max_participants
+       FROM competitions c ${whereClause}
+       ORDER BY c.created_at DESC
        LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       values
     );
@@ -225,7 +228,7 @@ export async function GET(req: NextRequest) {
     );
 
     return NextResponse.json({
-      items: rows,
+      competitions: rows,
       total: countRes.rows[0]?.total ?? 0,
       limit,
       offset,

@@ -170,7 +170,7 @@ export async function GET(
     const { rows } = await pool.query(
       `SELECT * FROM competition_registrations
        WHERE competition_id = $1
-       ORDER BY seed ASC NULLS LAST, created_at ASC`,
+       ORDER BY seed ASC NULLS LAST, registered_at ASC`,
       [id]
     );
 

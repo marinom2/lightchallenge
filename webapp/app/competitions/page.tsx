@@ -13,15 +13,15 @@ import { useAuthFetch } from "@/lib/useAuthFetch";
 type CompetitionSummary = {
   id: string;
   title: string;
-  type: "single" | "bracket" | "round_robin" | "circuit";
+  type: "challenge" | "bracket" | "league" | "circuit" | "ladder";
   status: "draft" | "registration" | "active" | "completed" | "canceled";
   category: string;
   participant_count: number;
-  max_participants: number;
+  max_participants: number | null;
   starts_at: string;
   ends_at: string;
-  registration_opens: string;
-  registration_closes: string;
+  registration_opens_at: string;
+  registration_closes_at: string;
   created_at: string;
 };
 
@@ -38,10 +38,13 @@ const STATUS_TONE: Record<string, "success" | "accent" | "warning" | "danger" | 
 };
 
 const TYPE_LABELS: Record<string, string> = {
-  single: "Single",
+  challenge: "Challenge",
+  single: "Challenge",
   bracket: "Bracket",
-  round_robin: "Round Robin",
+  league: "League",
+  round_robin: "League",
   circuit: "Circuit",
+  ladder: "Ladder",
 };
 
 function formatDate(iso: string | null | undefined): string {
@@ -115,7 +118,7 @@ export default function CompetitionsPage() {
         const res = await authFetch("/api/v1/competitions?limit=20");
         if (!res.ok) throw new Error(`Failed to load competitions (${res.status})`);
         const data = await res.json();
-        const list = Array.isArray(data?.competitions) ? data.competitions : Array.isArray(data) ? data : [];
+        const list = Array.isArray(data?.competitions) ? data.competitions : Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
         if (!stop) setCompetitions(list);
       } catch (e: any) {
         if (!stop) setError(e?.message || String(e));
@@ -341,7 +344,7 @@ export default function CompetitionsPage() {
                     }}
                   >
                     <UsersIcon />
-                    {comp.participant_count}/{comp.max_participants}
+                    {comp.participant_count ?? 0}{comp.max_participants ? `/${comp.max_participants}` : ""}
                   </span>
 
                   {/* Dates */}
