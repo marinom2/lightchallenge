@@ -79,7 +79,6 @@ export async function GET(req: NextRequest) {
       return redirect(req, "/settings/linked-accounts?strava=server_config", "strava", stateParams.redirect_scheme);
     }
 
-    console.log("[strava:callback] Exchanging code for subject:", subject, "code length:", code.length);
     // Exchange code for tokens
     const tokenRes = await fetch(STRAVA_TOKEN_URL, {
       method: "POST",
@@ -93,10 +92,17 @@ export async function GET(req: NextRequest) {
       cache: "no-store",
     });
 
-    const data: TokenResponse = await tokenRes.json();
+    const rawText = await tokenRes.text();
+    let data: TokenResponse;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      console.error(`[strava:callback] subject=${subject} status=${tokenRes.status} body=${rawText}`);
+      return redirect(req, "/settings/linked-accounts?strava=token_error", "strava", stateParams.redirect_scheme);
+    }
 
     if (!data.access_token || !data.refresh_token) {
-      console.error("[strava:callback] Token exchange failed:", tokenRes.status, JSON.stringify(data));
+      console.error(`[strava:callback] FAIL subject=${subject} status=${tokenRes.status} body=${rawText.slice(0, 300)}`);
       return redirect(req, "/settings/linked-accounts?strava=token_error", "strava", stateParams.redirect_scheme);
     }
 
@@ -112,10 +118,10 @@ export async function GET(req: NextRequest) {
       tokenExpiresAt: data.expires_at ? new Date(data.expires_at * 1000) : null,
     });
 
-    console.log("[strava:callback] OK", subject, athleteId ? `athlete:${athleteId}` : "no-athlete-id");
+    console.log(`[strava:callback] OK subject=${subject} athlete=${athleteId ?? "none"}`);
     return redirect(req, "/settings/linked-accounts?strava=ok", "strava", stateParams.redirect_scheme);
-  } catch (e) {
-    console.error("[strava:callback] Error:", e);
+  } catch (e: any) {
+    console.error(`[strava:callback] EXCEPTION ${e?.message ?? e}`);
     return redirect(req, "/settings/linked-accounts?strava=exception", "strava");
   }
 }
