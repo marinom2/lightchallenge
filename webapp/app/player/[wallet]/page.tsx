@@ -239,7 +239,7 @@ export default function PlayerProfilePage() {
 
   if (!wallet) {
     return (
-      <div style={{ maxWidth: "var(--lc-content-narrow)", margin: "0 auto" }}>
+      <div className="mx-auto" style={{ maxWidth: "var(--lc-content-narrow)" }}>
         <Breadcrumb items={[{ label: "Player" }]} />
         <EmptyState
           title="Player not found"
@@ -250,15 +250,8 @@ export default function PlayerProfilePage() {
   }
 
   return (
-    <div
-      style={{
-        maxWidth: "var(--lc-content-narrow)",
-        margin: "0 auto",
-        display: "flex",
-        flexDirection: "column",
-        gap: "var(--lc-space-6)",
-      }}
-    >
+    <div className="mx-auto stack-6" style={{ maxWidth: "var(--lc-content-narrow)" }}>
+
       <Breadcrumb
         items={[
           { label: "Explore", href: "/explore" },
@@ -267,118 +260,46 @@ export default function PlayerProfilePage() {
       />
 
       {/* ── Hero Card ──────────────────────────────────────────────────── */}
-      <div
-        style={{
-          padding: "var(--lc-space-6)",
-          borderRadius: "var(--lc-radius-lg)",
-          border: "1px solid var(--lc-glass-border)",
-          background: "var(--lc-glass)",
-          backdropFilter: "var(--lc-glass-blur)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "var(--lc-space-4)",
-        }}
-      >
+      <div className="glass-card p-6 stack-4" style={{ border: "1px solid var(--lc-glass-border)" }}>
+
         {loading ? (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "var(--lc-space-4)",
-            }}
-          >
+          <div className="stack-4">
             <Skeleton variant="card" height="100px" />
           </div>
         ) : (
           <>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                flexWrap: "wrap",
-                gap: "var(--lc-space-3)",
-              }}
-            >
+            <div className="d-flex justify-between items-start flex-wrap gap-3">
+
               {/* Left: avatar + address + level */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "var(--lc-space-4)",
-                }}
-              >
+              <div className="row-4">
                 {/* Blocky avatar */}
-                <div
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: "50%",
-                    backgroundColor: "var(--lc-accent-muted)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "var(--lc-text-title)",
-                    fontWeight: "var(--lc-weight-bold)" as unknown as number,
-                    color: "var(--lc-accent)",
-                    flexShrink: 0,
-                  }}
-                >
+                <div className="circle-icon bg-accent-muted color-accent text-title font-bold"
+                  style={{ width: 56, height: 56 }}>
+
                   {reputation?.level ?? "?"}
                 </div>
                 <div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "var(--lc-space-2)",
-                    }}
-                  >
+                  <div className="row-2">
                     <button
                       onClick={copyAddress}
                       title="Copy full address"
-                      style={{
-                        fontSize: "var(--lc-text-heading)",
-                        fontWeight:
-                          "var(--lc-weight-bold)" as unknown as number,
-                        color: "var(--lc-text)",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        padding: 0,
-                      }}
+                      className="text-heading font-bold cursor-pointer"
+                      style={{ background: "none", border: "none", padding: 0, color: "var(--lc-text)" }}
                     >
                       {truncateAddress(wallet)}
                     </button>
-                    <span
-                      style={{
-                        fontSize: "var(--lc-text-caption)",
-                        color: "var(--lc-text-muted)",
-                        transition: "opacity var(--lc-dur-fast) var(--lc-ease)",
-                        opacity: copied ? 1 : 0,
-                      }}
-                    >
+                    <span className="text-caption color-muted transition-fast" style={{ opacity: copied ? 1 : 0 }}>
+
                       Copied!
                     </span>
                   </div>
                   {reputation && (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "var(--lc-space-2)",
-                        marginTop: "var(--lc-space-1)",
-                      }}
-                    >
+                    <div className="row-2 mt-1">
+
                       <Badge variant="tone" tone="accent" size="sm">
                         Lvl {reputation.level} &middot; {reputation.levelName}
                       </Badge>
-                      <span
-                        style={{
-                          fontSize: "var(--lc-text-caption)",
-                          color: "var(--lc-text-muted)",
-                        }}
-                      >
+                      <span className="text-caption color-muted">
                         {reputation.points} pts
                       </span>
                     </div>
@@ -390,15 +311,8 @@ export default function PlayerProfilePage() {
             {/* Progress bar */}
             {reputation && (
               <div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: 6,
-                    fontSize: "var(--lc-text-caption)",
-                    color: "var(--lc-text-muted)",
-                  }}
-                >
+                <div className="flex-between text-caption color-muted" style={{ marginBottom: 6 }}>
+
                   <span>{reputation.points} pts</span>
                   {nextLevel && <span>{nextLevel} pts to next level</span>}
                 </div>
@@ -416,47 +330,16 @@ export default function PlayerProfilePage() {
 
       {/* ── Stats Row ──────────────────────────────────────────────────── */}
       {!loading && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: "var(--lc-space-3)",
-          }}
-        >
+        <div className="d-grid gap-3" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
           {[
             { label: "Competitions", value: stats.entered },
             { label: "Wins", value: stats.wins },
             { label: "Losses", value: stats.losses },
             { label: "Achievements", value: stats.achievementCount },
           ].map((s) => (
-            <div
-              key={s.label}
-              style={{
-                padding: "var(--lc-space-4)",
-                borderRadius: "var(--lc-radius-lg)",
-                border: "1px solid var(--lc-border)",
-                backgroundColor: "var(--lc-bg-raised)",
-                textAlign: "center",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "var(--lc-text-heading)",
-                  fontWeight: "var(--lc-weight-bold)" as unknown as number,
-                  color: "var(--lc-text)",
-                }}
-              >
-                {s.value}
-              </div>
-              <div
-                style={{
-                  fontSize: "var(--lc-text-caption)",
-                  color: "var(--lc-text-muted)",
-                  marginTop: 2,
-                }}
-              >
-                {s.label}
-              </div>
+            <div key={s.label} className="p-4 rounded-lg border bg-raised text-center">
+              <div className="text-heading font-bold">{s.value}</div>
+              <div className="text-caption color-muted" style={{ marginTop: 2 }}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -481,48 +364,18 @@ export default function PlayerProfilePage() {
               description="This player has not joined any challenges."
             />
           ) : (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "var(--lc-space-2)",
-              }}
-            >
+            <div className="stack-2">
               {challenges.map((c) => (
                 <Link
                   key={c.challenge_id}
                   href={`/challenge/${c.challenge_id}`}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: "var(--lc-space-3)",
-                    padding: "var(--lc-space-4)",
-                    borderRadius: "var(--lc-radius-lg)",
-                    border: "1px solid var(--lc-border)",
-                    backgroundColor: "var(--lc-bg-raised)",
-                    textDecoration: "none",
-                    transition:
-                      "border-color var(--lc-dur-fast) var(--lc-ease)",
-                  }}
+                  className="d-flex items-center justify-between gap-3 p-4 rounded-lg border bg-raised transition-fast"
+                  style={{ textDecoration: "none" }}
                 >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "var(--lc-space-2)",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: "var(--lc-text-small)",
-                          fontWeight:
-                            "var(--lc-weight-medium)" as unknown as number,
-                          color: "var(--lc-text)",
-                        }}
-                      >
+                  <div className="flex-1 min-w-0">
+                    <div className="row-2 flex-wrap">
+                      <span className="text-small font-medium">
+
                         {c.title ?? `Challenge #${c.challenge_id}`}
                       </span>
                       {c.challenge_status && (
@@ -541,28 +394,15 @@ export default function PlayerProfilePage() {
                         </Badge>
                       )}
                     </div>
-                    <div
-                      style={{
-                        fontSize: "var(--lc-text-caption)",
-                        color: "var(--lc-text-muted)",
-                        marginTop: 2,
-                      }}
-                    >
+                    <div className="text-caption color-muted" style={{ marginTop: 2 }}>
                       #{c.challenge_id}
                       {c.joined_at && (
                         <> &middot; Joined {shortDate(c.joined_at)}</>
                       )}
                     </div>
                     {c.verdict_pass !== null && (
-                      <div
-                        style={{
-                          marginTop: 4,
-                          fontSize: "var(--lc-text-caption)",
-                          color: c.verdict_pass
-                            ? "var(--lc-success)"
-                            : "var(--lc-danger)",
-                        }}
-                      >
+                      <div className={`text-caption ${c.verdict_pass ? "color-success" : "color-danger"}`} style={{ marginTop: 4 }}>
+
                         Verdict: {c.verdict_pass ? "Passed" : "Failed"}
                         {!c.verdict_pass &&
                           c.verdict_reasons?.length &&
@@ -570,15 +410,7 @@ export default function PlayerProfilePage() {
                       </div>
                     )}
                   </div>
-                  <span
-                    style={{
-                      color: "var(--lc-text-muted)",
-                      fontSize: "var(--lc-text-small)",
-                      flexShrink: 0,
-                    }}
-                  >
-                    &rsaquo;
-                  </span>
+                  <span className="color-muted text-small shrink-0">&rsaquo;</span>
                 </Link>
               ))}
             </div>
@@ -595,83 +427,35 @@ export default function PlayerProfilePage() {
               description="This player hasn't earned any achievement tokens."
             />
           ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-                gap: "var(--lc-space-3)",
-              }}
-            >
+            <div className="d-grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
               {achievements.map((a) => (
                 <Link
                   key={a.token_id}
                   href={`/challenge/${a.challenge_id}`}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "var(--lc-space-3)",
-                    padding: "var(--lc-space-5)",
-                    borderRadius: "var(--lc-radius-lg)",
-                    border: "1px solid var(--lc-glass-border)",
-                    background: "var(--lc-glass)",
-                    backdropFilter: "var(--lc-glass-blur)",
-                    textDecoration: "none",
-                    transition:
-                      "border-color var(--lc-dur-fast) var(--lc-ease), transform var(--lc-dur-fast) var(--lc-ease)",
-                  }}
+                  className="glass-card stack-3 p-5 transition-fast"
+                  style={{ border: "1px solid var(--lc-glass-border)", textDecoration: "none" }}
                 >
                   {/* Icon */}
-                  <div
+                  <div className="d-flex items-center justify-center rounded-md text-heading"
                     style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: "var(--lc-radius-md)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor:
-                        a.achievement_type === "victory"
-                          ? "var(--lc-success-muted)"
-                          : "var(--lc-accent-muted)",
-                      color:
-                        a.achievement_type === "victory"
-                          ? "var(--lc-success)"
-                          : "var(--lc-accent)",
-                      fontSize: "var(--lc-text-heading)",
+                      width: 44, height: 44,
+                      backgroundColor: a.achievement_type === "victory" ? "var(--lc-success-muted)" : "var(--lc-accent-muted)",
+                      color: a.achievement_type === "victory" ? "var(--lc-success)" : "var(--lc-accent)",
                     }}
                   >
                     {a.achievement_type === "victory" ? "\u2605" : "\u2713"}
                   </div>
                   <div>
-                    <div
-                      style={{
-                        fontSize: "var(--lc-text-small)",
-                        fontWeight:
-                          "var(--lc-weight-medium)" as unknown as number,
-                        color: "var(--lc-text)",
-                      }}
-                    >
+                    <div className="text-small font-medium">
                       {a.achievement_type === "victory"
                         ? "Victory"
                         : "Completion"}
                       {a.title ? `: ${a.title}` : ` #${a.challenge_id}`}
                     </div>
-                    <div
-                      style={{
-                        fontSize: "var(--lc-text-caption)",
-                        color: "var(--lc-text-muted)",
-                        marginTop: 4,
-                      }}
-                    >
+                    <div className="text-caption color-muted" style={{ marginTop: 4 }}>
                       Token #{a.token_id}
                     </div>
-                    <div
-                      style={{
-                        fontSize: "var(--lc-text-caption)",
-                        color: "var(--lc-text-muted)",
-                        marginTop: 2,
-                      }}
-                    >
+                    <div className="text-caption color-muted" style={{ marginTop: 2 }}>
                       {shortDate(a.minted_at)}
                     </div>
                   </div>
@@ -686,13 +470,7 @@ export default function PlayerProfilePage() {
       {!loading && activeTab === "seasons" && (
         <>
           {seasonsLoading ? (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "var(--lc-space-3)",
-              }}
-            >
+            <div className="stack-3">
               <Skeleton variant="card" height="80px" />
               <Skeleton variant="card" height="80px" />
             </div>
@@ -702,116 +480,31 @@ export default function PlayerProfilePage() {
               description="Season rankings will appear here when seasons are active."
             />
           ) : (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "var(--lc-space-3)",
-              }}
-            >
+            <div className="stack-3">
               {seasonStandings.map((ss) => (
-                <div
-                  key={ss.id}
-                  style={{
-                    padding: "var(--lc-space-4) var(--lc-space-5)",
-                    borderRadius: "var(--lc-radius-lg)",
-                    border: "1px solid var(--lc-border)",
-                    backgroundColor: "var(--lc-bg-raised)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                    gap: "var(--lc-space-3)",
-                  }}
-                >
+                <div key={ss.id} className="px-5 py-4 rounded-lg border bg-raised d-flex justify-between items-center flex-wrap gap-3">
                   <div>
-                    <div
-                      style={{
-                        fontSize: "var(--lc-text-small)",
-                        fontWeight:
-                          "var(--lc-weight-semibold)" as unknown as number,
-                        color: "var(--lc-text)",
-                      }}
-                    >
-                      {ss.name}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "var(--lc-text-caption)",
-                        color: "var(--lc-text-muted)",
-                        marginTop: 2,
-                      }}
-                    >
-                      {shortDate(ss.startDate)} &ndash;{" "}
-                      {shortDate(ss.endDate)}
+                    <div className="text-small font-semibold">{ss.name}</div>
+                    <div className="text-caption color-muted" style={{ marginTop: 2 }}>
+                      {shortDate(ss.startDate)} &ndash; {shortDate(ss.endDate)}
                     </div>
                   </div>
                   {ss.standing ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "var(--lc-space-4)",
-                      }}
-                    >
-                      <div style={{ textAlign: "center" }}>
-                        <div
-                          style={{
-                            fontSize: "var(--lc-text-heading)",
-                            fontWeight:
-                              "var(--lc-weight-bold)" as unknown as number,
-                            color: "var(--lc-accent)",
-                          }}
-                        >
-                          #{ss.standing.rank}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "var(--lc-text-caption)",
-                            color: "var(--lc-text-muted)",
-                          }}
-                        >
-                          Rank
-                        </div>
+                    <div className="row-4">
+                      <div className="text-center">
+                        <div className="text-heading font-bold color-accent">#{ss.standing.rank}</div>
+                        <div className="text-caption color-muted">Rank</div>
                       </div>
-                      <div style={{ textAlign: "center" }}>
-                        <div
-                          style={{
-                            fontSize: "var(--lc-text-subhead)",
-                            fontWeight:
-                              "var(--lc-weight-semibold)" as unknown as number,
-                            color: "var(--lc-text)",
-                          }}
-                        >
-                          {ss.standing.points}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "var(--lc-text-caption)",
-                            color: "var(--lc-text-muted)",
-                          }}
-                        >
-                          pts
-                        </div>
+                      <div className="text-center">
+                        <div className="text-subhead font-semibold">{ss.standing.points}</div>
+                        <div className="text-caption color-muted">pts</div>
                       </div>
-                      <div
-                        style={{
-                          fontSize: "var(--lc-text-caption)",
-                          color: "var(--lc-text-secondary)",
-                        }}
-                      >
+                      <div className="text-caption color-secondary">
                         {ss.standing.wins}W / {ss.standing.losses}L
                       </div>
                     </div>
                   ) : (
-                    <span
-                      style={{
-                        fontSize: "var(--lc-text-caption)",
-                        color: "var(--lc-text-muted)",
-                      }}
-                    >
-                      Not ranked
-                    </span>
+                    <span className="text-caption color-muted">Not ranked</span>
                   )}
                 </div>
               ))}

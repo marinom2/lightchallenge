@@ -95,27 +95,13 @@ export function InviteSheet({ onClose, onSendInvite }: Props) {
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div
-            style={{
-              borderBottom: "1px solid var(--lc-border)",
-              padding: "20px 24px",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div className="border-b" style={{ padding: "20px 24px" }}>
+            <div className="d-flex items-start justify-between" style={{ gap: 12 }}>
               <div>
-                <h3 style={{
-                  fontSize: "var(--lc-text-subhead)",
-                  fontWeight: 600,
-                  color: "var(--lc-text)",
-                  margin: 0,
-                }}>
+                <h3 className="text-subhead font-semibold m-0">
                   Invite someone
                 </h3>
-                <div style={{
-                  marginTop: 4,
-                  fontSize: "var(--lc-text-small)",
-                  color: "var(--lc-text-secondary)",
-                }}>
+                <div className="text-small color-secondary" style={{ marginTop: 4 }}>
                   Queue an invite for this challenge using email, wallet, or Steam ID.
                 </div>
               </div>
@@ -134,16 +120,7 @@ export function InviteSheet({ onClose, onSendInvite }: Props) {
           {/* Body */}
           <div style={{ padding: "20px 24px" }}>
             {/* Tab bar */}
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                padding: 4,
-                borderRadius: "var(--lc-radius-lg)",
-                border: "1px solid var(--lc-border)",
-                backgroundColor: "var(--lc-bg-inset)",
-              }}
-            >
+            <div className="segmented-control w-full rounded-lg border bg-inset" style={{ gap: 8, padding: 4 }}>
               {TABS.map((tab) => {
                 const active = activeTab === tab.id;
                 return (
@@ -151,22 +128,12 @@ export function InviteSheet({ onClose, onSendInvite }: Props) {
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
+                    className={`segmented-control__btn ${active ? "segmented-control__btn--active" : ""} d-flex items-center justify-center flex-1 transition-fast`}
                     style={{
-                      flex: 1,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
                       gap: 8,
                       padding: "10px 16px",
-                      borderRadius: "var(--lc-radius-md)",
                       fontSize: "var(--lc-text-small)",
-                      fontWeight: 500,
-                      color: active ? "var(--lc-select-text)" : "var(--lc-text-secondary)",
-                      backgroundColor: active ? "var(--lc-select)" : "transparent",
-                      border: active ? "1px solid var(--lc-select-border)" : "1px solid transparent",
-                      boxShadow: active ? "var(--lc-shadow-sm)" : "none",
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
+                      ...(active ? { boxShadow: "var(--lc-shadow-sm)" } : {}),
                     }}
                   >
                     {tab.icon} {tab.label}
@@ -177,18 +144,8 @@ export function InviteSheet({ onClose, onSendInvite }: Props) {
 
             {/* Input form */}
             <form onSubmit={handleSubmit} style={{ marginTop: 20 }}>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 12,
-                  padding: 12,
-                  borderRadius: "var(--lc-radius-lg)",
-                  border: "1px solid var(--lc-border)",
-                  backgroundColor: "var(--lc-bg-inset)",
-                }}
-              >
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <div className="rounded-lg border bg-inset" style={{ display: "flex", flexDirection: "column", gap: 12, padding: 12 }}>
+                <div className="d-flex flex-wrap" style={{ gap: 12 }}>
                   <input
                     type="text"
                     value={inputValue}
@@ -215,7 +172,7 @@ export function InviteSheet({ onClose, onSendInvite }: Props) {
                     disabled={!inputValue.trim() || sending}
                     aria-label="Send invite"
                   >
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <span className="d-inline-flex items-center" style={{ gap: 8 }}>
                       <Send size={16} />
                       {sending ? "Sending..." : "Send"}
                     </span>

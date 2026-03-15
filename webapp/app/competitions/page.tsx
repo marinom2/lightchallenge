@@ -127,69 +127,39 @@ export default function CompetitionsPage() {
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-8)" }}>
+    <div className="stack-8">
       {/* ── Hero ─────────────────────────────────────────────────────────────── */}
-      <section style={{ textAlign: "center", padding: "var(--lc-space-8) 0 var(--lc-space-4)" }}>
+      <section className="text-center py-8 pb-4" style={{ paddingBottom: "var(--lc-space-4)" }}>
         <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "var(--lc-space-2)",
-            padding: "4px 12px",
-            borderRadius: "var(--lc-radius-pill)",
-            backgroundColor: "var(--lc-accent-muted)",
-            color: "var(--lc-accent)",
-            fontSize: "var(--lc-text-caption)",
-            fontWeight: "var(--lc-weight-medium)" as any,
-            marginBottom: "var(--lc-space-4)",
-          }}
+          className="d-inline-flex row-2 rounded-pill bg-accent-muted color-accent text-caption font-medium mb-4"
+          style={{ padding: "4px 12px" }}
         >
           <TrophyIcon size={14} />
           Competitions
         </div>
 
-        <h1
-          style={{
-            fontSize: "var(--lc-text-title)",
-            fontWeight: "var(--lc-weight-bold)" as any,
-            color: "var(--lc-text)",
-            letterSpacing: "var(--lc-tracking-tight)",
-            marginBottom: "var(--lc-space-3)",
-            lineHeight: "var(--lc-leading-tight)" as any,
-          }}
-        >
+        <h1 className="text-title font-bold color-primary leading-tight mb-3">
           Verified Competitions.{" "}
-          <span style={{ color: "var(--lc-accent)" }}>Trustless Prizes.</span>
+          <span className="color-accent">Trustless Prizes.</span>
         </h1>
 
         <p
-          style={{
-            fontSize: "var(--lc-text-body)",
-            color: "var(--lc-text-secondary)",
-            maxWidth: 560,
-            margin: "0 auto var(--lc-space-6)",
-            lineHeight: "var(--lc-leading-normal)" as any,
-          }}
+          className="text-body color-secondary mx-auto leading-normal mb-6"
+          style={{ maxWidth: 560 }}
         >
           On-chain prize escrow, AI-powered evidence verification, and soulbound achievement
           tokens. Browse tournaments or create your own.
         </p>
 
-        <div style={{ display: "flex", gap: "var(--lc-space-3)", justifyContent: "center", flexWrap: "wrap" }}>
+        <div className="d-flex gap-3 justify-center flex-wrap">
           <Link
             href="/competitions/create"
+            className="d-inline-flex row-2 rounded-md text-small font-medium transition-fast"
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "var(--lc-space-2)",
               padding: "10px 20px",
-              borderRadius: "var(--lc-radius-md)",
               backgroundColor: "var(--lc-accent)",
               color: "var(--lc-accent-text)",
-              fontSize: "var(--lc-text-small)",
-              fontWeight: "var(--lc-weight-medium)" as any,
               textDecoration: "none",
-              transition: "opacity var(--lc-dur-fast) var(--lc-ease)",
             }}
           >
             <PlusIcon />
@@ -197,19 +167,12 @@ export default function CompetitionsPage() {
           </Link>
           <Link
             href="/explore"
+            className="d-inline-flex row-2 rounded-md text-small font-medium border transition-fast"
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "var(--lc-space-2)",
               padding: "10px 20px",
-              borderRadius: "var(--lc-radius-md)",
               backgroundColor: "transparent",
               color: "var(--lc-text)",
-              fontSize: "var(--lc-text-small)",
-              fontWeight: "var(--lc-weight-medium)" as any,
               textDecoration: "none",
-              border: "1px solid var(--lc-border)",
-              transition: "border-color var(--lc-dur-fast) var(--lc-ease)",
             }}
           >
             Explore Challenges
@@ -221,9 +184,9 @@ export default function CompetitionsPage() {
       <Tabs tabs={filterTabs} activeId={activeFilter} onTabChange={(id) => setActiveFilter(id as FilterTab)} />
 
       {/* ── Content ──────────────────────────────────────────────────────────── */}
-      <div style={{ marginTop: "var(--lc-space-2)" }}>
+      <div className="mt-2">
         {loading ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "var(--lc-space-4)" }}>
+          <div className="d-grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <Skeleton key={i} variant="card" height="180px" />
             ))}
@@ -253,25 +216,16 @@ export default function CompetitionsPage() {
             }}
           />
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "var(--lc-space-4)" }}>
+          <div className="d-grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
             {filtered.map((comp) => (
               <Link
                 key={comp.id}
                 href={`/competitions/${comp.id}`}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "var(--lc-space-3)",
-                  padding: "var(--lc-space-5)",
-                  borderRadius: "var(--lc-radius-lg)",
-                  border: "1px solid var(--lc-border)",
-                  backgroundColor: "var(--lc-bg-raised)",
-                  textDecoration: "none",
-                  transition: "border-color var(--lc-dur-fast) var(--lc-ease), box-shadow var(--lc-dur-fast) var(--lc-ease)",
-                }}
+                className="stack-3 p-5 rounded-lg border bg-raised transition-fast"
+                style={{ textDecoration: "none" }}
               >
                 {/* Badge Row */}
-                <div style={{ display: "flex", gap: "var(--lc-space-2)", flexWrap: "wrap", alignItems: "center" }}>
+                <div className="row-2 flex-wrap">
                   <Badge variant="tone" tone={STATUS_TONE[comp.status] || "muted"} dot size="sm">
                     {comp.status.charAt(0).toUpperCase() + comp.status.slice(1)}
                   </Badge>
@@ -287,12 +241,8 @@ export default function CompetitionsPage() {
 
                 {/* Title */}
                 <span
+                  className="text-body font-semibold color-primary leading-tight overflow-hidden"
                   style={{
-                    fontSize: "var(--lc-text-body)",
-                    fontWeight: "var(--lc-weight-semibold)" as any,
-                    color: "var(--lc-text)",
-                    lineHeight: "var(--lc-leading-tight)" as any,
-                    overflow: "hidden",
                     textOverflow: "ellipsis",
                     display: "-webkit-box",
                     WebkitLineClamp: 2,
@@ -303,23 +253,11 @@ export default function CompetitionsPage() {
                 </span>
 
                 {/* Meta Row */}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "var(--lc-space-4)",
-                    flexWrap: "wrap",
-                    marginTop: "auto",
-                  }}
-                >
+                <div className="d-flex gap-4 flex-wrap" style={{ marginTop: "auto" }}>
                   {/* Participants */}
                   <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      fontSize: "var(--lc-text-caption)",
-                      color: "var(--lc-text-secondary)",
-                    }}
+                    className="d-inline-flex items-center text-caption color-secondary"
+                    style={{ gap: "4px" }}
                   >
                     <UsersIcon />
                     {comp.participant_count ?? 0}{comp.max_participants ? `/${comp.max_participants}` : ""}
@@ -327,13 +265,8 @@ export default function CompetitionsPage() {
 
                   {/* Dates */}
                   <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      fontSize: "var(--lc-text-caption)",
-                      color: "var(--lc-text-muted)",
-                    }}
+                    className="d-inline-flex items-center text-caption color-muted"
+                    style={{ gap: "4px" }}
                   >
                     <CalendarIcon />
                     {formatDate(comp.starts_at)} &mdash; {formatDate(comp.ends_at)}
@@ -347,10 +280,10 @@ export default function CompetitionsPage() {
 
       {/* ── How It Works ─────────────────────────────────────────────────────── */}
       <section>
-        <h2 style={{ fontSize: "var(--lc-text-heading)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)", marginBottom: "var(--lc-space-4)" }}>
+        <h2 className="text-heading font-semibold color-primary mb-4">
           How Competitions Work
         </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "var(--lc-space-4)" }}>
+        <div className="d-grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
           {[
             { step: "01", title: "Create or Join", desc: "Pick a challenge and stake your entry. Funds are held in smart contract escrow." },
             { step: "02", title: "Compete & Submit", desc: "Complete the challenge. Upload evidence from fitness trackers or gaming APIs." },
@@ -359,30 +292,18 @@ export default function CompetitionsPage() {
           ].map((s) => (
             <div
               key={s.step}
-              style={{
-                padding: "var(--lc-space-5)",
-                borderRadius: "var(--lc-radius-lg)",
-                border: "1px solid var(--lc-border)",
-                backgroundColor: "var(--lc-bg-raised)",
-                display: "flex",
-                flexDirection: "column",
-                gap: "var(--lc-space-3)",
-              }}
+              className="stack-3 p-5 rounded-lg border bg-raised"
             >
               <span
-                style={{
-                  fontSize: "var(--lc-text-caption)",
-                  fontWeight: "var(--lc-weight-bold)" as any,
-                  color: "var(--lc-accent)",
-                  fontFamily: "var(--lc-font-mono)",
-                }}
+                className="text-caption font-bold color-accent"
+                style={{ fontFamily: "var(--lc-font-mono)" }}
               >
                 {s.step}
               </span>
-              <span style={{ fontSize: "var(--lc-text-small)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)" }}>
+              <span className="text-small font-semibold color-primary">
                 {s.title}
               </span>
-              <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-secondary)", lineHeight: "var(--lc-leading-normal)" as any }}>
+              <span className="text-caption color-secondary leading-normal">
                 {s.desc}
               </span>
             </div>
@@ -391,49 +312,24 @@ export default function CompetitionsPage() {
       </section>
 
       {/* ── CTA ──────────────────────────────────────────────────────────────── */}
-      <section
-        style={{
-          textAlign: "center",
-          padding: "var(--lc-space-8)",
-          borderRadius: "var(--lc-radius-lg)",
-          border: "1px solid var(--lc-border)",
-          backgroundColor: "var(--lc-bg-raised)",
-        }}
-      >
-        <h2
-          style={{
-            fontSize: "var(--lc-text-heading)",
-            fontWeight: "var(--lc-weight-semibold)" as any,
-            color: "var(--lc-text)",
-            marginBottom: "var(--lc-space-2)",
-          }}
-        >
+      <section className="text-center p-8 rounded-lg border bg-raised">
+        <h2 className="text-heading font-semibold color-primary mb-2">
           Ready to compete?
         </h2>
         <p
-          style={{
-            fontSize: "var(--lc-text-small)",
-            color: "var(--lc-text-secondary)",
-            marginBottom: "var(--lc-space-4)",
-            maxWidth: 400,
-            margin: "0 auto var(--lc-space-4)",
-          }}
+          className="text-small color-secondary mx-auto mb-4"
+          style={{ maxWidth: 400 }}
         >
           Create a tournament or join one. Prove your skills with AI-verified evidence and earn on-chain achievements.
         </p>
-        <div style={{ display: "flex", gap: "var(--lc-space-3)", justifyContent: "center", flexWrap: "wrap" }}>
+        <div className="d-flex gap-3 justify-center flex-wrap">
           <Link
             href="/competitions/create"
+            className="d-inline-flex row-2 rounded-md text-small font-medium"
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "var(--lc-space-2)",
               padding: "10px 24px",
-              borderRadius: "var(--lc-radius-md)",
               backgroundColor: "var(--lc-accent)",
               color: "var(--lc-accent-text)",
-              fontSize: "var(--lc-text-small)",
-              fontWeight: "var(--lc-weight-medium)" as any,
               textDecoration: "none",
             }}
           >
@@ -442,16 +338,12 @@ export default function CompetitionsPage() {
           </Link>
           <Link
             href="/explore"
+            className="d-inline-flex rounded-md text-small font-medium border"
             style={{
-              display: "inline-flex",
               padding: "10px 24px",
-              borderRadius: "var(--lc-radius-md)",
               backgroundColor: "transparent",
               color: "var(--lc-text)",
-              fontSize: "var(--lc-text-small)",
-              fontWeight: "var(--lc-weight-medium)" as any,
               textDecoration: "none",
-              border: "1px solid var(--lc-border)",
             }}
           >
             Browse Challenges

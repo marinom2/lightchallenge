@@ -341,25 +341,21 @@ function ProofHomeInner() {
   }, []);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+    <div className="stack-6">
       {/* Hero header */}
-      <div style={{ padding: "var(--lc-space-6)", borderRadius: "var(--lc-radius-lg)", border: "1px solid var(--lc-border)", backgroundColor: "var(--lc-bg-raised)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", marginBottom: "var(--lc-space-3)" }}>
+      <div className="p-6 rounded-lg border bg-raised">
+        <div className="row-2 mb-3">
           <ShieldCheck style={{ width: 20, height: 20, color: "var(--lc-accent)" }} />
-          <span style={{ fontSize: "var(--lc-text-caption)", fontWeight: "var(--lc-weight-semibold)" as any, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--lc-text-muted)" }}>
-            Submit Proof
-          </span>
+          <span className="label-text">Submit Proof</span>
         </div>
-        <h1 style={{ fontSize: "var(--lc-text-title)", fontWeight: "var(--lc-weight-bold)" as any, color: "var(--lc-text)", marginBottom: "var(--lc-space-2)" }}>
-          Your proof obligations
-        </h1>
-        <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", maxWidth: "32em", lineHeight: "var(--lc-leading-normal)" }}>
+        <h1 className="page-header__title mb-2">Your proof obligations</h1>
+        <p className="text-small color-secondary leading-normal" style={{ maxWidth: "32em" }}>
           Track your active challenges and submit evidence when the proof window opens.
           Evidence is evaluated by the AI pipeline and verified on-chain by the
           Lightchain AIVM network.
         </p>
       </div>
-      <div style={{ borderRadius: "var(--lc-radius-lg)", border: "1px solid var(--lc-border)", backgroundColor: "var(--lc-bg-raised)", overflow: "hidden" }}>
+      <div className="rounded-lg border bg-raised overflow-hidden">
 
         {/* Stats row */}
         {isConnected && !loading && challenges.length > 0 && (
@@ -490,7 +486,7 @@ function ProofHomeInner() {
 export default function ValidatorsPage() {
   return (
     <Suspense fallback={
-      <div style={{ padding: "var(--lc-space-8)", textAlign: "center", color: "var(--lc-text-muted)" }}>Loading…</div>
+      <div className="p-8 text-center color-muted">Loading…</div>
     }>
       <ProofHomeInner />
     </Suspense>

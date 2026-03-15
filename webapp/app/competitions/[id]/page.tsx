@@ -146,20 +146,17 @@ function MatchCard({ match }: { match: BracketMatch }) {
 
   return (
     <div
+      className="rounded-md overflow-hidden"
       style={{
         border: `1px solid ${borderColor}`,
-        borderRadius: "var(--lc-radius-md)",
-        overflow: "hidden",
         backgroundColor: bgColor,
         minWidth: 200,
       }}
     >
       {/* Participant A */}
       <div
+        className="flex-between"
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
           padding: "var(--lc-space-2) var(--lc-space-3)",
           backgroundColor:
             match.winner && match.winner === match.participant_a
@@ -168,12 +165,12 @@ function MatchCard({ match }: { match: BracketMatch }) {
         }}
       >
         <span
+          className="text-small"
           style={{
-            fontSize: "var(--lc-text-small)",
             fontWeight:
               match.winner === match.participant_a
-                ? ("var(--lc-weight-semibold)" as any)
-                : ("var(--lc-weight-normal)" as any),
+                ? "var(--lc-weight-semibold)"
+                : "var(--lc-weight-normal)",
             color:
               match.winner === match.participant_a
                 ? "var(--lc-success)"
@@ -181,20 +178,18 @@ function MatchCard({ match }: { match: BracketMatch }) {
                 ? "var(--lc-text)"
                 : "var(--lc-text-muted)",
             fontFamily: match.participant_a ? "var(--lc-font-mono)" : undefined,
-          }}
+          } as React.CSSProperties}
         >
           {match.participant_a ? truncAddr(match.participant_a) : "TBD"}
         </span>
         <span
+          className="text-small font-bold text-right"
           style={{
-            fontSize: "var(--lc-text-small)",
-            fontWeight: "var(--lc-weight-bold)" as any,
             color:
               match.winner === match.participant_a
                 ? "var(--lc-success)"
                 : "var(--lc-text-secondary)",
             minWidth: 20,
-            textAlign: "right",
           }}
         >
           {match.score_a ?? "-"}
@@ -206,10 +201,8 @@ function MatchCard({ match }: { match: BracketMatch }) {
 
       {/* Participant B */}
       <div
+        className="flex-between"
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
           padding: "var(--lc-space-2) var(--lc-space-3)",
           backgroundColor:
             match.winner && match.winner === match.participant_b
@@ -218,12 +211,12 @@ function MatchCard({ match }: { match: BracketMatch }) {
         }}
       >
         <span
+          className="text-small"
           style={{
-            fontSize: "var(--lc-text-small)",
             fontWeight:
               match.winner === match.participant_b
-                ? ("var(--lc-weight-semibold)" as any)
-                : ("var(--lc-weight-normal)" as any),
+                ? "var(--lc-weight-semibold)"
+                : "var(--lc-weight-normal)",
             color:
               match.winner === match.participant_b
                 ? "var(--lc-success)"
@@ -231,20 +224,18 @@ function MatchCard({ match }: { match: BracketMatch }) {
                 ? "var(--lc-text)"
                 : "var(--lc-text-muted)",
             fontFamily: match.participant_b ? "var(--lc-font-mono)" : undefined,
-          }}
+          } as React.CSSProperties}
         >
           {match.participant_b ? truncAddr(match.participant_b) : "TBD"}
         </span>
         <span
+          className="text-small font-bold text-right"
           style={{
-            fontSize: "var(--lc-text-small)",
-            fontWeight: "var(--lc-weight-bold)" as any,
             color:
               match.winner === match.participant_b
                 ? "var(--lc-success)"
                 : "var(--lc-text-secondary)",
             minWidth: 20,
-            textAlign: "right",
           }}
         >
           {match.score_b ?? "-"}
@@ -507,11 +498,11 @@ export default function CompetitionDetailPage() {
   /* Loading state */
   if (loading) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+      <div className="stack-6">
         <Skeleton variant="text" width="200px" />
         <Skeleton variant="text" width="60%" height="28px" />
         <Skeleton variant="text" width="80%" />
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--lc-space-4)" }}>
+        <div className="d-grid gap-4" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
           {[1, 2, 3, 4].map((i) => <Skeleton key={i} variant="card" height="80px" />)}
         </div>
         <Skeleton variant="card" height="300px" />
@@ -522,7 +513,7 @@ export default function CompetitionDetailPage() {
   /* Error state */
   if (error || !comp) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+      <div className="stack-6">
         <Breadcrumb items={[{ label: "Competitions", href: "/competitions" }, { label: `#${id}` }]} />
         <EmptyState
           title="Competition not found"
@@ -538,7 +529,7 @@ export default function CompetitionDetailPage() {
   const rulesEntries = Object.entries(comp.rules || {});
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+    <div className="stack-6">
       {/* Breadcrumb */}
       <Breadcrumb
         items={[
@@ -548,9 +539,9 @@ export default function CompetitionDetailPage() {
       />
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <section style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-3)" }}>
+      <section className="stack-3">
         {/* Badge row */}
-        <div style={{ display: "flex", gap: "var(--lc-space-2)", flexWrap: "wrap", alignItems: "center" }}>
+        <div className="row-2 flex-wrap">
           <Badge variant="tone" tone={STATUS_TONE[comp.status] || "muted"} dot size="md">
             {comp.status.charAt(0).toUpperCase() + comp.status.slice(1)}
           </Badge>
@@ -563,36 +554,22 @@ export default function CompetitionDetailPage() {
             </Badge>
           )}
           {comp.org_name && (
-            <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>
+            <span className="text-caption color-muted">
               by {comp.org_name}
             </span>
           )}
         </div>
 
         {/* Title */}
-        <h1
-          style={{
-            fontSize: "var(--lc-text-title)",
-            fontWeight: "var(--lc-weight-bold)" as any,
-            color: "var(--lc-text)",
-            letterSpacing: "var(--lc-tracking-tight)",
-            lineHeight: "var(--lc-leading-tight)" as any,
-            margin: 0,
-          }}
-        >
+        <h1 className="text-title font-bold color-primary leading-tight m-0">
           {comp.title}
         </h1>
 
         {/* Description */}
         {comp.description && (
           <p
-            style={{
-              fontSize: "var(--lc-text-body)",
-              color: "var(--lc-text-secondary)",
-              lineHeight: "var(--lc-leading-normal)" as any,
-              margin: 0,
-              maxWidth: 700,
-            }}
+            className="text-body color-secondary leading-normal m-0"
+            style={{ maxWidth: 700 }}
           >
             {comp.description}
           </p>
@@ -601,54 +578,31 @@ export default function CompetitionDetailPage() {
 
       {/* ── Action Feedback ────────────────────────────────────────────────── */}
       {actionError && (
-        <div
-          style={{
-            padding: "var(--lc-space-3) var(--lc-space-4)",
-            borderRadius: "var(--lc-radius-md)",
-            backgroundColor: "var(--lc-danger-muted)",
-            color: "var(--lc-danger)",
-            fontSize: "var(--lc-text-small)",
-          }}
-        >
+        <div className="alert-banner alert-banner--error text-small">
           {actionError}
         </div>
       )}
       {actionSuccess && (
-        <div
-          style={{
-            padding: "var(--lc-space-3) var(--lc-space-4)",
-            borderRadius: "var(--lc-radius-md)",
-            backgroundColor: "var(--lc-success-muted)",
-            color: "var(--lc-success)",
-            fontSize: "var(--lc-text-small)",
-          }}
-        >
+        <div className="alert-banner alert-banner--success text-small">
           {actionSuccess}
         </div>
       )}
 
       {/* ── Action Buttons ──────────────────────────────────────────────────── */}
       {address && (
-        <div style={{ display: "flex", gap: "var(--lc-space-3)", flexWrap: "wrap", alignItems: "center" }}>
+        <div className="row-3 flex-wrap">
           {/* Register button */}
           {comp.status === "registration" && !isRegistered && (
             <button
               onClick={handleRegister}
               disabled={registering}
+              className="d-inline-flex row-2 rounded-md border-none text-small font-medium transition-fast"
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "var(--lc-space-2)",
                 padding: "10px 20px",
-                borderRadius: "var(--lc-radius-md)",
-                border: "none",
                 backgroundColor: "var(--lc-accent)",
                 color: "var(--lc-accent-text)",
-                fontSize: "var(--lc-text-small)",
-                fontWeight: "var(--lc-weight-medium)" as any,
                 cursor: registering ? "not-allowed" : "pointer",
                 opacity: registering ? 0.7 : 1,
-                transition: "all var(--lc-dur-fast) var(--lc-ease)",
               }}
             >
               {registering ? "Registering..." : "Register"}
@@ -660,20 +614,13 @@ export default function CompetitionDetailPage() {
             <button
               onClick={handleCheckIn}
               disabled={checkingIn}
+              className="d-inline-flex row-2 rounded-md border-none text-small font-medium transition-fast"
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "var(--lc-space-2)",
                 padding: "10px 20px",
-                borderRadius: "var(--lc-radius-md)",
-                border: "none",
                 backgroundColor: "var(--lc-success)",
                 color: "#fff",
-                fontSize: "var(--lc-text-small)",
-                fontWeight: "var(--lc-weight-medium)" as any,
                 cursor: checkingIn ? "not-allowed" : "pointer",
                 opacity: checkingIn ? 0.7 : 1,
-                transition: "all var(--lc-dur-fast) var(--lc-ease)",
               }}
             >
               {checkingIn ? "Checking in..." : "Check In"}
@@ -697,20 +644,14 @@ export default function CompetitionDetailPage() {
             <button
               onClick={handleStart}
               disabled={starting}
+              className="d-inline-flex row-2 rounded-md text-small font-medium transition-fast"
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "var(--lc-space-2)",
                 padding: "10px 20px",
-                borderRadius: "var(--lc-radius-md)",
                 border: "1px solid var(--lc-warning)",
                 backgroundColor: "var(--lc-warning-muted)",
                 color: "var(--lc-warning)",
-                fontSize: "var(--lc-text-small)",
-                fontWeight: "var(--lc-weight-medium)" as any,
                 cursor: starting ? "not-allowed" : "pointer",
                 opacity: starting ? 0.7 : 1,
-                transition: "all var(--lc-dur-fast) var(--lc-ease)",
               }}
             >
               {starting ? "Starting..." : "Start Competition"}
@@ -721,22 +662,15 @@ export default function CompetitionDetailPage() {
 
       {/* ── Stats Row ───────────────────────────────────────────────────────── */}
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-          gap: "var(--lc-space-4)",
-          padding: "var(--lc-space-4)",
-          borderRadius: "var(--lc-radius-lg)",
-          border: "1px solid var(--lc-border)",
-          backgroundColor: "var(--lc-bg-raised)",
-        }}
+        className="d-grid gap-4 p-4 rounded-lg border bg-raised"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}
       >
         <StatCard label="Participants" value={comp.participant_count} icon={<UsersIcon />} />
         <StatCard label="Matches" value={comp.match_count} icon={<SwordsIcon />} />
         <StatCard
           label="Status"
           value={comp.status.charAt(0).toUpperCase() + comp.status.slice(1)}
-          icon={<span style={{ color: "var(--lc-success)" }}>&#9679;</span>}
+          icon={<span className="color-success">&#9679;</span>}
         />
         <StatCard
           label="Created"
@@ -748,43 +682,28 @@ export default function CompetitionDetailPage() {
       {/* ── Tabs ────────────────────────────────────────────────────────────── */}
       <Tabs tabs={tabs} activeId={activeTab} onTabChange={setActiveTab} />
 
-      <div style={{ marginTop: "var(--lc-space-2)" }}>
+      <div className="mt-2">
         {/* ── Overview Tab ──────────────────────────────────────────────────── */}
         {activeTab === "overview" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+          <div className="stack-6">
             {/* Timeline */}
-            <div
-              style={{
-                padding: "var(--lc-space-5)",
-                borderRadius: "var(--lc-radius-lg)",
-                border: "1px solid var(--lc-border)",
-                backgroundColor: "var(--lc-bg-raised)",
-              }}
-            >
-              <h3
-                style={{
-                  fontSize: "var(--lc-text-subhead)",
-                  fontWeight: "var(--lc-weight-semibold)" as any,
-                  color: "var(--lc-text)",
-                  marginBottom: "var(--lc-space-4)",
-                  margin: "0 0 var(--lc-space-4) 0",
-                }}
-              >
+            <div className="p-5 rounded-lg border bg-raised">
+              <h3 className="text-subhead font-semibold color-primary m-0 mb-4">
                 Timeline
               </h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "var(--lc-space-4)" }}>
+              <div className="d-grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
                 {[
                   { label: "Registration Opens", value: comp.registration_opens_at },
                   { label: "Registration Closes", value: comp.registration_closes_at },
                   { label: "Competition Starts", value: comp.starts_at },
                   { label: "Competition Ends", value: comp.ends_at },
                 ].map((t) => (
-                  <div key={t.label} style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-1)" }}>
-                    <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+                  <div key={t.label} className="stack-1">
+                    <span className="text-caption color-muted d-flex items-center" style={{ gap: 4 }}>
                       <CalendarIcon />
                       {t.label}
                     </span>
-                    <span style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text)", fontWeight: "var(--lc-weight-medium)" as any }}>
+                    <span className="text-small color-primary font-medium">
                       {formatDate(t.value)}
                     </span>
                   </div>
@@ -794,50 +713,23 @@ export default function CompetitionDetailPage() {
 
             {/* Rules */}
             {rulesEntries.length > 0 && (
-              <div
-                style={{
-                  padding: "var(--lc-space-5)",
-                  borderRadius: "var(--lc-radius-lg)",
-                  border: "1px solid var(--lc-border)",
-                  backgroundColor: "var(--lc-bg-raised)",
-                }}
-              >
-                <h3
-                  style={{
-                    fontSize: "var(--lc-text-subhead)",
-                    fontWeight: "var(--lc-weight-semibold)" as any,
-                    color: "var(--lc-text)",
-                    margin: "0 0 var(--lc-space-4) 0",
-                  }}
-                >
+              <div className="p-5 rounded-lg border bg-raised">
+                <h3 className="text-subhead font-semibold color-primary m-0 mb-4">
                   Rules
                 </h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-3)" }}>
+                <div className="stack-3">
                   {rulesEntries.map(([key, value]) => (
                     <div
                       key={key}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "baseline",
-                        padding: "var(--lc-space-2) 0",
-                        borderBottom: "1px solid var(--lc-border)",
-                      }}
+                      className="flex-between border-b py-2"
+                      style={{ alignItems: "baseline" }}
                     >
-                      <span
-                        style={{
-                          fontSize: "var(--lc-text-small)",
-                          color: "var(--lc-text-secondary)",
-                          textTransform: "capitalize",
-                        }}
-                      >
+                      <span className="text-small color-secondary text-capitalize">
                         {key.replace(/_/g, " ")}
                       </span>
                       <span
+                        className="text-small font-medium color-primary"
                         style={{
-                          fontSize: "var(--lc-text-small)",
-                          fontWeight: "var(--lc-weight-medium)" as any,
-                          color: "var(--lc-text)",
                           fontFamily: typeof value === "number" ? "var(--lc-font-mono)" : undefined,
                         }}
                       >
@@ -850,35 +742,21 @@ export default function CompetitionDetailPage() {
             )}
 
             {/* Prize Distribution */}
-            <div
-              style={{
-                padding: "var(--lc-space-5)",
-                borderRadius: "var(--lc-radius-lg)",
-                border: "1px solid var(--lc-border)",
-                backgroundColor: "var(--lc-bg-raised)",
-              }}
-            >
-              <h3
-                style={{
-                  fontSize: "var(--lc-text-subhead)",
-                  fontWeight: "var(--lc-weight-semibold)" as any,
-                  color: "var(--lc-text)",
-                  margin: "0 0 var(--lc-space-4) 0",
-                }}
-              >
+            <div className="p-5 rounded-lg border bg-raised">
+              <h3 className="text-subhead font-semibold color-primary m-0 mb-4">
                 Prize Distribution
               </h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-3)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)" }}>
+              <div className="stack-3">
+                <div className="flex-between">
+                  <span className="text-small color-secondary">
                     Distribution Type
                   </span>
                   <Badge variant="tone" tone="accent" size="sm">
                     {(comp.prize_config?.type || "winner_takes_all").replace(/_/g, " ")}
                   </Badge>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)" }}>
+                <div className="flex-between">
+                  <span className="text-small color-secondary">
                     Status
                   </span>
                   <Badge variant="tone" tone={STATUS_TONE[comp.status] || "muted"} size="sm">
@@ -886,20 +764,15 @@ export default function CompetitionDetailPage() {
                   </Badge>
                 </div>
                 {comp.prize_config?.splits && comp.prize_config.splits.length > 0 && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-2)", marginTop: "var(--lc-space-2)" }}>
+                  <div className="stack-2 mt-2">
                     {comp.prize_config.splits.map((pct, i) => (
                       <div
                         key={i}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "var(--lc-space-3)",
-                        }}
+                        className="row-3"
                       >
                         <span
+                          className="text-caption font-bold"
                           style={{
-                            fontSize: "var(--lc-text-caption)",
-                            fontWeight: "var(--lc-weight-bold)" as any,
                             color: i === 0 ? "var(--lc-warning)" : i === 1 ? "var(--lc-text-secondary)" : "var(--lc-text-muted)",
                             minWidth: 28,
                           }}
@@ -907,25 +780,23 @@ export default function CompetitionDetailPage() {
                           #{i + 1}
                         </span>
                         <div
-                          style={{
-                            flex: 1,
-                            height: 6,
-                            borderRadius: 3,
-                            backgroundColor: "var(--lc-bg-inset)",
-                            overflow: "hidden",
-                          }}
+                          className="flex-1 overflow-hidden"
+                          style={{ height: 6, borderRadius: 3, backgroundColor: "var(--lc-bg-inset)" }}
                         >
                           <div
+                            className="transition-slow"
                             style={{
                               width: `${pct}%`,
                               height: "100%",
                               borderRadius: 3,
                               backgroundColor: i === 0 ? "var(--lc-warning)" : i === 1 ? "var(--lc-accent)" : "var(--lc-text-muted)",
-                              transition: "width var(--lc-dur-slow) var(--lc-ease)",
                             }}
                           />
                         </div>
-                        <span style={{ fontSize: "var(--lc-text-caption)", fontFamily: "var(--lc-font-mono)", color: "var(--lc-text)", minWidth: 40, textAlign: "right" }}>
+                        <span
+                          className="text-caption color-primary text-right"
+                          style={{ fontFamily: "var(--lc-font-mono)", minWidth: 40 }}
+                        >
                           {pct}%
                         </span>
                       </div>
@@ -936,34 +807,20 @@ export default function CompetitionDetailPage() {
             </div>
 
             {/* Settings */}
-            <div
-              style={{
-                padding: "var(--lc-space-5)",
-                borderRadius: "var(--lc-radius-lg)",
-                border: "1px solid var(--lc-border)",
-                backgroundColor: "var(--lc-bg-raised)",
-              }}
-            >
-              <h3
-                style={{
-                  fontSize: "var(--lc-text-subhead)",
-                  fontWeight: "var(--lc-weight-semibold)" as any,
-                  color: "var(--lc-text)",
-                  margin: "0 0 var(--lc-space-4) 0",
-                }}
-              >
+            <div className="p-5 rounded-lg border bg-raised">
+              <h3 className="text-subhead font-semibold color-primary m-0 mb-4">
                 Settings
               </h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "var(--lc-space-4)" }}>
+              <div className="d-grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
                 {[
                   { label: "Max Participants", value: String(comp.max_participants ?? "Unlimited") },
-                  { label: "Category", value: comp.category || "—" },
+                  { label: "Category", value: comp.category || "\u2014" },
                   { label: "Type", value: TYPE_LABELS[comp.type] || comp.type },
                   { label: "Registered", value: `${registrations.length}${comp.max_participants ? ` / ${comp.max_participants}` : ""}` },
                 ].map((s) => (
-                  <div key={s.label} style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-1)" }}>
-                    <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>{s.label}</span>
-                    <span style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text)", fontWeight: "var(--lc-weight-medium)" as any }}>
+                  <div key={s.label} className="stack-1">
+                    <span className="text-caption color-muted">{s.label}</span>
+                    <span className="text-small color-primary font-medium">
                       {s.value}
                     </span>
                   </div>
@@ -988,37 +845,22 @@ export default function CompetitionDetailPage() {
               />
             ) : (
               <div
-                style={{
-                  display: "flex",
-                  gap: "var(--lc-space-6)",
-                  overflowX: "auto",
-                  padding: "var(--lc-space-4) 0",
-                  scrollbarWidth: "thin",
-                }}
+                className="d-flex gap-6 overflow-x-auto py-4"
+                style={{ scrollbarWidth: "thin" }}
               >
                 {rounds.map(({ round, matches }) => {
                   const matchGap = Math.max(16, Math.pow(2, round - 1) * 16);
                   return (
                     <div
                       key={round}
+                      className="flex-col justify-center"
                       style={{
-                        display: "flex",
-                        flexDirection: "column",
                         gap: matchGap,
                         minWidth: 220,
-                        justifyContent: "center",
+                        display: "flex",
                       }}
                     >
-                      <div
-                        style={{
-                          fontSize: "var(--lc-text-caption)",
-                          color: "var(--lc-text-muted)",
-                          fontWeight: "var(--lc-weight-medium)" as any,
-                          marginBottom: 8,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.04em",
-                        }}
-                      >
+                      <div className="label-text mb-1" style={{ marginBottom: 8 }}>
                         {rounds.length > 1 && round === rounds[rounds.length - 1].round
                           ? "Final"
                           : round === rounds[rounds.length - 1].round - 1
@@ -1030,77 +872,49 @@ export default function CompetitionDetailPage() {
                           <MatchCard match={match} />
                           {/* Report button for in_progress matches */}
                           {match.status === "in_progress" && address && (
-                            <div style={{ marginTop: "var(--lc-space-2)" }}>
+                            <div className="mt-2">
                               {reportingMatchId === match.id ? (
-                                <div
-                                  style={{
-                                    padding: "var(--lc-space-3)",
-                                    borderRadius: "var(--lc-radius-md)",
-                                    border: "1px solid var(--lc-border)",
-                                    backgroundColor: "var(--lc-bg-raised)",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: "var(--lc-space-2)",
-                                  }}
-                                >
-                                  <div style={{ display: "flex", gap: "var(--lc-space-2)", alignItems: "center" }}>
-                                    <label style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-secondary)", flex: 1 }}>
+                                <div className="stack-2 p-3 rounded-md border bg-raised">
+                                  <div className="row-2">
+                                    <label className="text-caption color-secondary flex-1">
                                       Score A
                                       <input
                                         type="number"
                                         min={0}
                                         value={reportForm.score_a}
                                         onChange={(e) => setReportForm((f) => ({ ...f, score_a: e.target.value }))}
+                                        className="d-block w-full text-caption color-primary bg-inset border rounded-sm"
                                         style={{
-                                          display: "block",
-                                          width: "100%",
                                           padding: "4px 8px",
-                                          fontSize: "var(--lc-text-caption)",
-                                          color: "var(--lc-text)",
-                                          backgroundColor: "var(--lc-bg-inset)",
-                                          border: "1px solid var(--lc-border)",
-                                          borderRadius: "var(--lc-radius-sm)",
                                           fontFamily: "var(--lc-font-mono)",
                                           marginTop: 2,
                                         }}
                                       />
                                     </label>
-                                    <label style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-secondary)", flex: 1 }}>
+                                    <label className="text-caption color-secondary flex-1">
                                       Score B
                                       <input
                                         type="number"
                                         min={0}
                                         value={reportForm.score_b}
                                         onChange={(e) => setReportForm((f) => ({ ...f, score_b: e.target.value }))}
+                                        className="d-block w-full text-caption color-primary bg-inset border rounded-sm"
                                         style={{
-                                          display: "block",
-                                          width: "100%",
                                           padding: "4px 8px",
-                                          fontSize: "var(--lc-text-caption)",
-                                          color: "var(--lc-text)",
-                                          backgroundColor: "var(--lc-bg-inset)",
-                                          border: "1px solid var(--lc-border)",
-                                          borderRadius: "var(--lc-radius-sm)",
                                           fontFamily: "var(--lc-font-mono)",
                                           marginTop: 2,
                                         }}
                                       />
                                     </label>
                                   </div>
-                                  <label style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-secondary)" }}>
+                                  <label className="text-caption color-secondary">
                                     Winner
                                     <select
                                       value={reportForm.winner}
                                       onChange={(e) => setReportForm((f) => ({ ...f, winner: e.target.value as "a" | "b" | "" }))}
+                                      className="d-block w-full text-caption color-primary bg-inset border rounded-sm"
                                       style={{
-                                        display: "block",
-                                        width: "100%",
                                         padding: "4px 8px",
-                                        fontSize: "var(--lc-text-caption)",
-                                        color: "var(--lc-text)",
-                                        backgroundColor: "var(--lc-bg-inset)",
-                                        border: "1px solid var(--lc-border)",
-                                        borderRadius: "var(--lc-radius-sm)",
                                         marginTop: 2,
                                       }}
                                     >
@@ -1109,17 +923,13 @@ export default function CompetitionDetailPage() {
                                       <option value="b">{match.participant_b ? truncAddr(match.participant_b) : "Participant B"}</option>
                                     </select>
                                   </label>
-                                  <div style={{ display: "flex", gap: "var(--lc-space-2)" }}>
+                                  <div className="row-2">
                                     <button
                                       onClick={() => handleReportResult(match.id)}
                                       disabled={reportSubmitting || !reportForm.winner}
+                                      className="flex-1 text-caption font-medium rounded-sm border-none"
                                       style={{
-                                        flex: 1,
                                         padding: "6px 12px",
-                                        fontSize: "var(--lc-text-caption)",
-                                        fontWeight: "var(--lc-weight-medium)" as any,
-                                        borderRadius: "var(--lc-radius-sm)",
-                                        border: "none",
                                         backgroundColor: !reportForm.winner || reportSubmitting ? "var(--lc-bg-overlay)" : "var(--lc-accent)",
                                         color: !reportForm.winner || reportSubmitting ? "var(--lc-text-muted)" : "var(--lc-accent-text)",
                                         cursor: !reportForm.winner || reportSubmitting ? "not-allowed" : "pointer",
@@ -1129,15 +939,8 @@ export default function CompetitionDetailPage() {
                                     </button>
                                     <button
                                       onClick={() => { setReportingMatchId(null); setReportForm({ score_a: "", score_b: "", winner: "" }); }}
-                                      style={{
-                                        padding: "6px 12px",
-                                        fontSize: "var(--lc-text-caption)",
-                                        borderRadius: "var(--lc-radius-sm)",
-                                        border: "1px solid var(--lc-border)",
-                                        backgroundColor: "transparent",
-                                        color: "var(--lc-text-secondary)",
-                                        cursor: "pointer",
-                                      }}
+                                      className="text-caption rounded-sm border bg-transparent color-secondary cursor-pointer"
+                                      style={{ padding: "6px 12px" }}
                                     >
                                       Cancel
                                     </button>
@@ -1146,18 +949,10 @@ export default function CompetitionDetailPage() {
                               ) : (
                                 <button
                                   onClick={() => { setReportingMatchId(match.id); setReportForm({ score_a: "", score_b: "", winner: "" }); }}
+                                  className="d-block w-full text-caption font-medium rounded-sm bg-accent-muted color-accent cursor-pointer transition-fast"
                                   style={{
-                                    display: "block",
-                                    width: "100%",
                                     padding: "6px 12px",
-                                    fontSize: "var(--lc-text-caption)",
-                                    fontWeight: "var(--lc-weight-medium)" as any,
-                                    borderRadius: "var(--lc-radius-sm)",
                                     border: "1px solid var(--lc-accent)",
-                                    backgroundColor: "var(--lc-accent-muted)",
-                                    color: "var(--lc-accent)",
-                                    cursor: "pointer",
-                                    transition: "all var(--lc-dur-fast) var(--lc-ease)",
                                   }}
                                 >
                                   Report Result
@@ -1184,83 +979,56 @@ export default function CompetitionDetailPage() {
                 description="Standings will appear once matches have been played."
               />
             ) : (
-              <div
-                style={{
-                  borderRadius: "var(--lc-radius-lg)",
-                  border: "1px solid var(--lc-border)",
-                  overflow: "hidden",
-                }}
-              >
+              <div className="rounded-lg border overflow-hidden">
                 {/* Header */}
                 <div
+                  className="d-grid bg-inset text-caption font-medium color-muted gap-2"
                   style={{
-                    display: "grid",
                     gridTemplateColumns: "48px 1fr 80px 80px 80px 80px",
                     padding: "var(--lc-space-3) var(--lc-space-4)",
-                    backgroundColor: "var(--lc-bg-inset)",
-                    fontSize: "var(--lc-text-caption)",
-                    fontWeight: "var(--lc-weight-medium)" as any,
-                    color: "var(--lc-text-muted)",
-                    gap: "var(--lc-space-2)",
                   }}
                 >
                   <span>#</span>
                   <span>Participant</span>
-                  <span style={{ textAlign: "right" }}>W</span>
-                  <span style={{ textAlign: "right" }}>L</span>
-                  <span style={{ textAlign: "right" }}>D</span>
-                  <span style={{ textAlign: "right" }}>Pts</span>
+                  <span className="text-right">W</span>
+                  <span className="text-right">L</span>
+                  <span className="text-right">D</span>
+                  <span className="text-right">Pts</span>
                 </div>
 
                 {/* Rows */}
                 {standings.map((entry, i) => (
                   <div
                     key={entry.participant}
+                    className="d-grid items-center border-t gap-2"
                     style={{
-                      display: "grid",
                       gridTemplateColumns: "48px 1fr 80px 80px 80px 80px",
                       padding: "var(--lc-space-3) var(--lc-space-4)",
                       backgroundColor: i % 2 === 0 ? "var(--lc-bg-raised)" : "var(--lc-bg)",
-                      borderTop: "1px solid var(--lc-border)",
-                      alignItems: "center",
-                      gap: "var(--lc-space-2)",
                     }}
                   >
                     <span
-                      style={{
-                        fontSize: "var(--lc-text-small)",
-                        fontWeight: "var(--lc-weight-bold)" as any,
-                        color: i < 3 ? "var(--lc-accent)" : "var(--lc-text-muted)",
-                      }}
+                      className="text-small font-bold"
+                      style={{ color: i < 3 ? "var(--lc-accent)" : "var(--lc-text-muted)" }}
                     >
                       {i < 3 ? ["1st", "2nd", "3rd"][i] : entry.rank}
                     </span>
                     <span
-                      style={{
-                        fontSize: "var(--lc-text-small)",
-                        color: "var(--lc-text)",
-                        fontFamily: "var(--lc-font-mono)",
-                      }}
+                      className="text-small color-primary"
+                      style={{ fontFamily: "var(--lc-font-mono)" }}
                     >
                       {truncAddr(entry.participant)}
                     </span>
-                    <span style={{ textAlign: "right", fontSize: "var(--lc-text-small)", color: "var(--lc-success)" }}>
+                    <span className="text-right text-small color-success">
                       {entry.wins}
                     </span>
-                    <span style={{ textAlign: "right", fontSize: "var(--lc-text-small)", color: "var(--lc-danger)" }}>
+                    <span className="text-right text-small color-danger">
                       {entry.losses}
                     </span>
-                    <span style={{ textAlign: "right", fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)" }}>
+                    <span className="text-right text-small color-secondary">
                       {entry.draws}
                     </span>
-                    <span
-                      style={{
-                        textAlign: "right",
-                        fontSize: "var(--lc-text-small)",
-                        fontWeight: "var(--lc-weight-semibold)" as any,
-                        color: "var(--lc-text)",
-                      }}
-                    >
+                    <span className="text-right text-small font-semibold color-primary">
                       {entry.points}
                     </span>
                   </div>
@@ -1279,19 +1047,12 @@ export default function CompetitionDetailPage() {
                 description="Completed match results will appear here."
               />
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-3)" }}>
+              <div className="stack-3">
                 {completedMatches.map((m) => (
                   <div
                     key={m.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "var(--lc-space-4)",
-                      padding: "var(--lc-space-3) var(--lc-space-4)",
-                      borderRadius: "var(--lc-radius-md)",
-                      border: "1px solid var(--lc-border)",
-                      backgroundColor: "var(--lc-bg-raised)",
-                    }}
+                    className="row-4 rounded-md border bg-raised"
+                    style={{ padding: "var(--lc-space-3) var(--lc-space-4)" }}
                   >
                     {/* Round badge */}
                     <Badge variant="tone" tone="muted" size="sm">
@@ -1300,66 +1061,40 @@ export default function CompetitionDetailPage() {
 
                     {/* Participant A */}
                     <span
+                      className="flex-1 text-small text-right min-w-0 text-ellipsis"
                       style={{
-                        flex: 1,
-                        fontSize: "var(--lc-text-small)",
                         fontFamily: "var(--lc-font-mono)",
                         color: m.winner === m.participant_a ? "var(--lc-success)" : "var(--lc-text)",
-                        fontWeight: m.winner === m.participant_a ? ("var(--lc-weight-semibold)" as any) : ("var(--lc-weight-normal)" as any),
-                        textAlign: "right",
-                        minWidth: 0,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
+                        fontWeight: m.winner === m.participant_a ? "var(--lc-weight-semibold)" : "var(--lc-weight-normal)",
+                      } as React.CSSProperties}
                     >
                       {m.participant_a ? truncAddr(m.participant_a) : "TBD"}
                     </span>
 
                     {/* Score */}
                     <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "var(--lc-space-2)",
-                        fontSize: "var(--lc-text-small)",
-                        fontWeight: "var(--lc-weight-bold)" as any,
-                        fontFamily: "var(--lc-font-mono)",
-                        color: "var(--lc-text)",
-                        flexShrink: 0,
-                      }}
+                      className="row-2 text-small font-bold color-primary shrink-0"
+                      style={{ fontFamily: "var(--lc-font-mono)" }}
                     >
                       <span>{m.score_a ?? "-"}</span>
-                      <span style={{ color: "var(--lc-text-muted)", fontSize: "var(--lc-text-caption)" }}>vs</span>
+                      <span className="color-muted text-caption">vs</span>
                       <span>{m.score_b ?? "-"}</span>
                     </div>
 
                     {/* Participant B */}
                     <span
+                      className="flex-1 text-small min-w-0 text-ellipsis"
                       style={{
-                        flex: 1,
-                        fontSize: "var(--lc-text-small)",
                         fontFamily: "var(--lc-font-mono)",
                         color: m.winner === m.participant_b ? "var(--lc-success)" : "var(--lc-text)",
-                        fontWeight: m.winner === m.participant_b ? ("var(--lc-weight-semibold)" as any) : ("var(--lc-weight-normal)" as any),
-                        minWidth: 0,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
+                        fontWeight: m.winner === m.participant_b ? "var(--lc-weight-semibold)" : "var(--lc-weight-normal)",
+                      } as React.CSSProperties}
                     >
                       {m.participant_b ? truncAddr(m.participant_b) : "TBD"}
                     </span>
 
                     {/* Timestamp */}
-                    <span
-                      style={{
-                        fontSize: "var(--lc-text-caption)",
-                        color: "var(--lc-text-muted)",
-                        flexShrink: 0,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <span className="text-caption color-muted shrink-0 text-nowrap">
                       {m.completed_at ? formatDate(m.completed_at) : "--"}
                     </span>
                   </div>

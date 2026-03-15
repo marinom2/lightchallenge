@@ -578,119 +578,279 @@ Full achievements + reputation system with 14 achievement types, 5 levels, miles
 
 ---
 
-## 7. Visual Philosophy (Implemented — Design Token System v4)
+## 7. Apple HIG-Informed Design System (v5)
 
-All visual values are centralized in `webapp/app/components/ui/tokens.css`. Both light and dark themes share the same token names with different values.
+> Informed by Apple Human Interface Guidelines, WWDC 2025 design sessions, and analysis of
+> Stripe/Linear/Vercel design systems. All values centralized in `webapp/app/components/ui/tokens.css`.
 
-### Color System
+### 7.1 Design Philosophy
+
+Three pillars from Apple HIG, adapted for Web3:
+
+1. **Clarity** — Text legible at every size, icons precise, adornments purposeful. Users immediately know: "Where am I? What can I do? Where can I go?"
+2. **Deference** — Interface never competes with content. Translucent materials hint at depth. Minimal bezels, restrained shadows.
+3. **Depth** — Visual layers convey hierarchy. Transitions provide spatial context. Touch/hover feedback is immediate and physical.
+
+Additional principles:
+- **Semantic color only** — Color always carries meaning (status, action, alert). Never decorative.
+- **Progressive disclosure** — Show only what's needed. Reveal complexity through interaction.
+- **Concentric design** — Inner radii = outer radii - padding. Nested elements share a visual center.
+- **44px minimum touch targets** — Every interactive element meets Apple's accessibility minimum.
+
+### 7.2 Color System
+
+Inspired by Apple's semantic color architecture with 4-level label opacity hierarchy.
 
 **Dark theme (default):**
 ```
-Background:       #030509  (--lc-bg)
-Surface raised:   #0b0e17  (--lc-bg-raised)
-Surface inset:    #07091a  (--lc-bg-inset)
-Border:           rgba(150,165,195, 0.10)  (--lc-border)
-Text primary:     rgba(255,255,255, 0.93)  (--lc-text)
-Text secondary:   rgba(255,255,255, 0.60)  (--lc-text-secondary)
-Text muted:       rgba(140,150,180, 0.55)  (--lc-text-muted)
-Accent (CTAs):    #f6f7ff  (--lc-accent — ice-white, used for primary buttons)
-Accent text:      #03040c  (--lc-accent-text — dark text on accent buttons)
-Selection:        rgba(80,140,255, 0.07) bg / rgba(80,140,255, 0.22) border / #7eb4ff text
-Success:          #22c55e
-Warning:          #eab308
-Danger:           #ef4444
-Info:             #3b82f6
+Surfaces:
+  --lc-bg:          #030509     (base — near-black, OLED-friendly)
+  --lc-bg-raised:   #0b0e17     (L1 elevated — cards, panels)
+  --lc-bg-overlay:  #11141f     (L2 — popovers, sheets)
+  --lc-bg-inset:    #07091a     (recessed — inputs, wells)
+
+Text (Apple-style opacity hierarchy):
+  --lc-text:          rgba(255,255,255, 0.93)    (primary — 93%)
+  --lc-text-secondary: rgba(255,255,255, 0.60)   (secondary — 60%)
+  --lc-text-tertiary:  rgba(255,255,255, 0.32)   (tertiary — 32%)
+  --lc-text-muted:     rgba(140,150,180, 0.45)   (quaternary — weakest)
+
+Borders (separator hierarchy):
+  --lc-border:        rgba(150,165,195, 0.10)    (standard separator)
+  --lc-border-strong: rgba(150,165,195, 0.18)    (emphasized separator)
+
+Accent (ice-white, CTAs only):
+  --lc-accent:       #f6f7ff
+  --lc-accent-text:  #03040c
+
+Selection (cool blue — Apple-grade focus/selected states):
+  --lc-select:        rgba(80,140,255, 0.07)
+  --lc-select-border: rgba(80,140,255, 0.22)
+  --lc-select-text:   #7eb4ff
+
+Semantic status:
+  --lc-success:  #22c55e    --lc-warning: #eab308
+  --lc-danger:   #ef4444    --lc-info:    #3b82f6
 ```
 
 **Light theme:**
 ```
-Background:       #f5f7fb  (icy blue-white)
-Surface raised:   #eef1f8
-Surface inset:    #eaeff7
-Border:           rgba(80,100,140, 0.10)
-Text primary:     #0c1020  (deep navy)
-Accent (CTAs):    #111d3a  (deep navy — white text on accent buttons)
-Selection:        rgba(50,120,255, 0.06) bg / rgba(50,120,255, 0.20) border / #2563eb text
-Glass:            rgba(255,255,255, 0.65)  (clean translucent white for cards)
+Surfaces:
+  --lc-bg:          #f5f7fb     (icy blue-white — cf. Apple #F2F2F7)
+  --lc-bg-raised:   #eef1f8     (grouped content)
+  --lc-bg-inset:    #eaeff7     (recessed wells)
+
+Text:
+  --lc-text:           #0c1020   (deep navy)
+  --lc-text-secondary: #4a5370   (60% equivalent)
+  --lc-text-tertiary:  #8494b4   (32% equivalent)
+  --lc-text-muted:     #7585a5   (quaternary)
+
+Glass (Apple-style translucent material):
+  --lc-glass:         rgba(255,255,255, 0.65)
+  --lc-glass-hover:   rgba(255,255,255, 0.80)
+  --lc-glass-border:  rgba(60,80,130, 0.08)
+
+Accent:  #111d3a (deep navy)
 ```
 
-**Key design rule:** `--lc-accent` is for CTA buttons only (primary action). Selection states (tabs, filters, cards, checkboxes, nav indicators, focus outlines) use `--lc-select-*` tokens. This prevents dark navy borders in light theme.
+**Key rule:** `--lc-accent` for CTA buttons only. Selection states use `--lc-select-*`. This prevents accent-colored borders overwhelming the light theme.
 
-### Typography (tokens)
+### 7.3 Typography Scale
+
+Mapped to Apple's type style hierarchy with Inter as the primary face:
+
+| Token | Size | Weight | Line Height | Tracking | Apple Equivalent |
+|-------|------|--------|-------------|----------|-----------------|
+| `--lc-text-display` | clamp(2rem, 4vw, 2.75rem) | 800 | 1.1 | -0.035em | Large Title |
+| `--lc-text-title` | clamp(1.75rem, 3vw, 2rem) | 700 | 1.2 | -0.025em | Title 1 |
+| `--lc-text-heading` | clamp(1.25rem, 2vw, 1.5rem) | 600 | 1.3 | -0.02em | Title 2 |
+| `--lc-text-subhead` | 1.0625rem | 600 | 1.4 | -0.01em | Headline |
+| `--lc-text-body` | 1rem | 400 | 1.6 | 0 | Body |
+| `--lc-text-small` | 0.875rem | 400 | 1.5 | 0 | Callout |
+| `--lc-text-caption` | 0.75rem | 500 | 1.4 | 0.01em | Caption 1 |
+| `--lc-text-micro` | 0.6875rem | 500 | 1.3 | 0.02em | Caption 2 |
+
+**Font stack:** `'Inter var', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`
+**Mono:** `'JetBrains Mono', 'Fira Code', 'SF Mono', monospace`
+
+### 7.4 Spacing Scale (Base-4/Base-8 Grid)
+
+Aligned with Apple's implicit 4pt/8pt grid:
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--lc-space-0` | 2px | Micro gaps (badge padding) |
+| `--lc-space-1` | 4px | Icon-to-label, tight pairs |
+| `--lc-space-2` | 8px | Inline spacing, chip padding |
+| `--lc-space-3` | 12px | Card internal padding (compact) |
+| `--lc-space-4` | 16px | Standard content margin (Apple: 16pt phone) |
+| `--lc-space-5` | 20px | Card padding, section gaps (Apple: 20pt tablet) |
+| `--lc-space-6` | 24px | Section separation |
+| `--lc-space-8` | 32px | Major section breaks |
+| `--lc-space-10` | 40px | Page section gaps |
+| `--lc-space-12` | 48px | Hero spacing |
+| `--lc-space-16` | 64px | Page-level vertical rhythm |
+
+### 7.5 Component Sizing
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--lc-ctl-h` | 42px | Standard control height (≥44px touch target) |
+| `--lc-ctl-h-sm` | 36px | Compact control (44px touch area via padding) |
+| `--lc-ctl-h-lg` | 48px | Large control |
+| `--lc-icon-xs` | 14px | Inline text icons |
+| `--lc-icon-sm` | 16px | Button icons, nav icons |
+| `--lc-icon-md` | 20px | Card icons, list icons |
+| `--lc-icon-lg` | 24px | Feature icons, section icons |
+| `--lc-icon-xl` | 32px | Hero icons, integration icons |
+| `--lc-icon-2xl` | 48px | Page hero icons |
+
+### 7.6 Border Radius (Concentric Squircle System)
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--lc-radius-xs` | 6px | Badges, tiny elements |
+| `--lc-radius-sm` | 10px | Icons, small cards, inputs |
+| `--lc-radius-md` | 14px | Buttons, standard cards |
+| `--lc-radius-lg` | 18px | Panels, large cards |
+| `--lc-radius-xl` | 22px | Sheets, hero sections |
+| `--lc-radius-pill` | 999px | Pills, capsule buttons |
+
+**Concentric rule:** Inner element radius = parent radius - padding between them.
+Example: Panel (18px) with 16px padding → inner card should use 10px radius (14-4 ≈ 10).
+
+### 7.7 Shadow Hierarchy (3 Levels + Glow)
 
 ```
-Font sans:     Inter var, Inter, system stack
-Font mono:     JetBrains Mono, Fira Code, SF Mono
-Title:         clamp(1.75rem, 3vw, 2rem) / 700 weight
-Heading:       clamp(1.25rem, 2vw, 1.5rem) / 600 weight
-Subhead:       1.125rem / 500 weight
-Body:          1rem / 400 weight / 1.6 line height
-Small:         0.875rem / 400 weight
-Caption:       0.75rem / 400 weight / muted color
+--lc-shadow-sm    L1: Cards at rest — tonal definition, barely visible
+--lc-shadow-md    L2: Hover emphasis — interactive feedback
+--lc-shadow-lg    L3: Floating UI — dropdowns, modals, popovers
+
+Glow variants (for accent elements):
+--glow-accent     Soft brand glow
+--glow-warm       Gold CTA glow
+--glow-info       Blue informational glow
 ```
 
-### Shadow Hierarchy (3 levels)
+### 7.8 Glass Materials (Apple-Inspired)
 
-```
---lc-shadow-sm   Cards at rest (barely visible, tonal definition)
---lc-shadow-md   Hover / emphasis (interactive feedback)
---lc-shadow-lg   Floating UI (dropdowns, modals, popovers)
-```
+| Material | Blur | Opacity | Usage |
+|----------|------|---------|-------|
+| Ultra-thin | 6px | 0.04 | Background ambient |
+| Regular | 12px | 0.65 (light) / 0.04 (dark) | Cards, surfaces |
+| Thick | 16px | 0.82 (light) / 0.78 (dark) | Navbar, sheets |
+| Chrome | 24px | 0.92 (light) / 0.92 (dark) | Modal overlay |
 
-### Interactive States (token-driven)
+All glass materials include `saturate(1.15-1.3)` to prevent muddy blur (Apple technique).
 
-- **Hover (cards)**: `border-color: var(--lc-border-strong); box-shadow: var(--lc-shadow-md)` + optional translateY(-1px)
-- **Selected**: `background: var(--lc-select); border: var(--lc-select-border); color: var(--lc-select-text); box-shadow: var(--lc-select-ring)`
-- **Focus-visible**: `outline: 2px solid var(--lc-select-border)` (cool blue, not accent)
-- **Disabled**: 50-70% opacity, cursor not-allowed
-- **Loading**: skeleton shimmer (`lc-shimmer` keyframe)
-- **Success**: green badge + toast
-- **Error**: red text inline, button text changes
+### 7.9 Motion System
 
-### UI Component Library
+Inspired by Apple's spring animation model:
 
-Shared components in `webapp/app/components/ui/`:
+| Preset | Duration | Easing | Usage |
+|--------|----------|--------|-------|
+| Instant | 0ms | — | State changes (color, opacity) |
+| Fast | 120ms | `cubic-bezier(0.2, 0.8, 0.2, 1)` | Micro-interactions (hover, press) |
+| Base | 180ms | Same | Standard transitions |
+| Slow | 300ms | Same | Layout shifts, reveals |
+| Spring | 350ms | `cubic-bezier(0.34, 1.56, 0.64, 1)` | Bouncy elements (modals, sheets) |
+
+**Principles:**
+- Hover: `translateY(-1px)` + shadow upgrade (L1→L2)
+- Press: `scale(0.97)` (Apple's press-down feel)
+- Enter: Fade + `translateY(4px)` → origin
+- Respect `prefers-reduced-motion` — all animations disabled
+
+### 7.10 Interactive State Matrix
+
+| State | Border | Background | Shadow | Transform | Opacity |
+|-------|--------|------------|--------|-----------|---------|
+| Rest | `--lc-border` | `--lc-bg-raised` | `shadow-sm` | none | 1 |
+| Hover | `--lc-border-strong` | `--lc-glass-hover` | `shadow-md` | `translateY(-1px)` | 1 |
+| Press | `--lc-border-strong` | `--lc-bg-raised` | `shadow-sm` | `scale(0.97)` | 1 |
+| Selected | `--lc-select-border` | `--lc-select` | `shadow-sm` | none | 1 |
+| Focus | `outline: 2px --lc-select-border` | unchanged | unchanged | none | 1 |
+| Disabled | `--lc-border` | `--lc-bg-raised` | none | none | 0.45 |
+| Loading | `--lc-border` | shimmer gradient | none | none | 1 |
+
+### 7.11 Accessibility Compliance
+
+| Requirement | Target | Implementation |
+|-------------|--------|----------------|
+| Text contrast (normal) | ≥ 4.5:1 | Verified via `--lc-text` on `--lc-bg` |
+| Text contrast (large) | ≥ 3:1 | Verified for headings |
+| Touch targets | ≥ 44×44px | `--lc-ctl-h: 42px` + padding |
+| Focus indicators | 2px ring, 2px offset | `--lc-select-border` |
+| Motion | Respects `prefers-reduced-motion` | All animations gated |
+| Color independence | Never color-alone | Icons + text + shape pair with color |
+
+### 7.12 Utility Class System
+
+To eliminate inline styles, the design system provides utility classes:
+
+**Layout:** `.flex`, `.flex-col`, `.flex-center`, `.flex-between`, `.flex-wrap`, `.grid-2`, `.grid-3`, `.grid-4`
+**Spacing:** `.gap-1` through `.gap-8`, `.p-1` through `.p-6`, `.px-*`, `.py-*`, `.mt-*`, `.mb-*`
+**Text:** `.text-xs` through `.text-display`, `.font-medium`, `.font-semibold`, `.font-bold`, `.text-secondary`, `.text-muted`, `.text-mono`, `.truncate`
+**Width:** `.w-full`, `.max-w-narrow`, `.max-w-content`, `.mx-auto`
+
+### 7.13 UI Component Library
 
 | Component | Purpose | Variants |
 |---|---|---|
-| `Badge` | Status/category/urgency indicator | status, category, urgency, tone (6 colors) |
-| `Tabs` | Tab navigation with animated indicator | underline, pills |
-| `ChallengeCard` | Unified challenge card | category pill, status badge, metrics, CTA |
-| `Countdown` | Deadline countdown with urgency colors | sm, md |
-| `EmptyState` | Empty list guidance | icon + title + description + CTA |
-| `TransformingCTA` | State-aware action button | 7 states (connect → claimed) |
-| `WalletPill` | Wallet address + dropdown | connected, disconnected |
-| `NavBar` | Flat nav with underline indicator | 5-item default |
-| `MobileDrawer` | Full-screen mobile nav | grouped items |
-| `Breadcrumb` | Page hierarchy breadcrumb | — |
-| `Skeleton` | Loading placeholder | shimmer animation |
-| `StatCard` | Metric display card | — |
+| `Badge` | Status/category/urgency | status, category, urgency, tone (6 colors) |
+| `Tabs` | Navigation with animated indicator | underline, pills |
+| `ChallengeCard` | Unified challenge card | category pill, metrics, CTA |
+| `Countdown` | Deadline with urgency colors | sm, md |
+| `EmptyState` | Empty guidance | icon + title + CTA |
+| `TransformingCTA` | State-aware button | 7 states (connect → claimed) |
+| `WalletPill` | Wallet address dropdown | connected, disconnected |
+| `NavBar` | Grouped nav with mega-dropdowns | 5 items |
+| `MobileDrawer` | Full-screen mobile nav | grouped sections |
+| `Breadcrumb` | Page hierarchy | — |
+| `Skeleton` | Loading placeholder | shimmer |
+| `StatCard` | Metric display | — |
+| `GlassIcon` | Themed icon container | 7 color variants |
+| `ConnectWalletGate` | Auth gate with CTA | — |
+
+### 7.14 Icon System (3-Layer)
+
+| Layer | Source | Usage |
+|-------|--------|-------|
+| Core UI | lucide-react | Navigation, actions, controls (Compass, Trophy, Shield, etc.) |
+| Product | `components/icons/ProductIcons.tsx` | Domain concepts (AIVM, Proof, Escrow, Evidence, etc.) |
+| Brand | `components/icons/BrandIcons.tsx` | External platforms (Steam, Strava, Apple Health, Garmin, etc.) |
+
+All icons: `currentColor`, consistent stroke-width (1.8), accept `size` + `className` props.
 
 ---
 
 ## 8. Implementation Status
 
-All 5 original phases are complete. The design token system (v4) is the current foundation.
+All 5 original phases + Apple HIG refinement complete. Design token system v5 is the current foundation.
 
 | Phase | Status | Key deliverables |
 |---|---|---|
-| Phase 1: Nav + Visual Foundation | **COMPLETE** | Grouped navbar with mega-dropdowns, wallet pill dropdown, design token system v4, breadcrumbs |
-| Phase 2: Explore + Cards | **COMPLETE** | Challenge cards with pool/participants/deadline, horizontal filter pills, sort dropdown, urgency colors |
-| Phase 3: Challenge Detail | **COMPLETE** | Tabbed content, TransformingCTA, 3-metric hero, participant rankings, AchievementClaim |
-| Phase 4: Homepage | **COMPLETE** | Hero with stats, "How It Works", trending challenges, category cards |
-| Phase 5: Polish + Celebration | **COMPLETE** | SuccessSheet + InviteSheet (theme-aware), achievement system (14 types), template picker, reputation levels |
+| Phase 1: Nav + Visual Foundation | **COMPLETE** | Grouped navbar, wallet pill, design tokens v4, breadcrumbs |
+| Phase 2: Explore + Cards | **COMPLETE** | Challenge cards, filter pills, sort dropdown, urgency colors |
+| Phase 3: Challenge Detail | **COMPLETE** | Tabbed content, TransformingCTA, 3-metric hero, rankings |
+| Phase 4: Homepage | **COMPLETE** | Hero + stats + "How It Works" + featured challenges |
+| Phase 5: Polish + Celebration | **COMPLETE** | Success/Invite sheets, 14 achievements, reputation levels |
+| Phase 6: Apple HIG Refinement | **COMPLETE** | Token v5, utility classes, inline style cleanup, 4-level text hierarchy, concentric radii, 44px touch targets, motion system, comprehensive light/dark theme |
 
-### Additional features shipped (post-blueprint):
+### Additional features shipped:
 
 | Feature | Status |
 |---|---|
-| Tournament/competition creation wizard | **COMPLETE** — `/competitions/create` with type cards, schedule presets |
-| Competition API (`/api/v1/competitions`) | **COMPLETE** — CRUD with API key + wallet auth |
-| Organizations + teams | **COMPLETE** — `/org/new`, `/org/[slug]`, org members |
-| Light/dark theme toggle | **COMPLETE** — full token-based theming with `var(--lc-select-*)` for selection states |
-| 14 achievement types + milestones | **COMPLETE** — expanded from 2 types to 14 |
-| Reputation level system (5 tiers) | **COMPLETE** — Newcomer → Legend progression |
-| Competitive challenge ranking | **COMPLETE** — score-based, top-N, tie-breaking |
+| Tournament/competition wizard | **COMPLETE** — type cards, schedule presets |
+| Competition API | **COMPLETE** — CRUD with API key + wallet auth |
+| Organizations + teams | **COMPLETE** — create, manage, member lists |
+| Light/dark theme toggle | **COMPLETE** — full token-based, 300+ light overrides |
+| 14 achievement types + milestones | **COMPLETE** |
+| Reputation level system (5 tiers) | **COMPLETE** |
+| Learn pages (7 info pages) | **COMPLETE** — platforms + verification |
+| Admin panel (20+ pages) | **COMPLETE** — sidebar nav, dashboard, KPIs |
+| Icon system (3-layer) | **COMPLETE** — lucide + ProductIcons + BrandIcons |
 
 ### Remaining work:
 
@@ -698,9 +858,11 @@ All 5 original phases are complete. The design token system (v4) is the current 
 |---|---|---|
 | Command palette (Cmd+K) | Low | Power user feature |
 | Confetti on claim success | Low | Polish |
-| Bracket/elimination tournament UI | Medium | DB + API exists; needs visual bracket component |
-| Discord bot integration | Medium | API-first approach enables this |
+| Bracket tournament visual UI | Medium | DB + API exists |
+| Discord bot integration | Medium | API-first approach |
 
 ---
 
-*This blueprint was originally research-only. It now serves as the living design reference for the LightChallenge platform. Last updated: March 2026.*
+*This blueprint serves as the living design reference for the LightChallenge platform.
+Informed by Apple HIG, Stripe/Linear/Vercel design analysis, and Web3 dApp best practices.
+Last updated: March 2026.*

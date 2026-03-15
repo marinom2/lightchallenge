@@ -48,22 +48,7 @@ const AVAILABLE_SCOPES = ["read", "write", "admin"] as const;
 
 const styles = {
   container: {
-    fontFamily: "var(--lc-font-sans)",
-    color: "var(--lc-text)",
     maxWidth: "var(--lc-content-max-w)",
-  } as React.CSSProperties,
-
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "var(--lc-space-6)",
-  } as React.CSSProperties,
-
-  title: {
-    fontSize: "var(--lc-text-heading)",
-    fontWeight: "var(--lc-weight-semibold)" as unknown as number,
-    letterSpacing: "var(--lc-tracking-tight)",
   } as React.CSSProperties,
 
   table: {
@@ -213,11 +198,7 @@ const styles = {
     boxSizing: "border-box" as const,
   } as React.CSSProperties,
 
-  rateMeter: {
-    display: "flex",
-    alignItems: "center",
-    gap: "var(--lc-space-2)",
-  } as React.CSSProperties,
+  /* rateMeter: replaced by className="row-2" */
 
   rateBar: {
     flex: 1,
@@ -228,10 +209,7 @@ const styles = {
   } as React.CSSProperties,
 
   empty: {
-    textAlign: "center" as const,
     padding: "var(--lc-space-12) var(--lc-space-4)",
-    color: "var(--lc-text-secondary)",
-    fontSize: "var(--lc-text-body)",
   } as React.CSSProperties,
 
   error: {
@@ -402,10 +380,10 @@ export default function ApiKeyDashboard({ orgId, authFetch }: Props) {
   /* ---- Render ---------------------------------------------------- */
 
   return (
-    <div style={styles.container}>
+    <div className="color-primary" style={styles.container}>
       {/* Header */}
-      <div style={styles.header}>
-        <h2 style={styles.title}>API Keys</h2>
+      <div className="flex-between mb-6">
+        <h2 className="text-heading font-semibold" style={{ letterSpacing: "var(--lc-tracking-tight)" }}>API Keys</h2>
         <button
           style={styles.btnPrimary}
           onClick={() => {
@@ -423,37 +401,17 @@ export default function ApiKeyDashboard({ orgId, authFetch }: Props) {
       {/* Newly created key banner */}
       {newlyCreatedKey && (
         <div style={styles.newKeyBanner}>
-          <div
-            style={{
-              fontSize: "var(--lc-text-small)",
-              fontWeight: "var(--lc-weight-semibold)" as unknown as number,
-              color: "var(--lc-success)",
-              marginBottom: "var(--lc-space-2)",
-            }}
-          >
+          <div className="text-small font-semibold color-success mb-2">
             Key created successfully
           </div>
-          <div
-            style={{
-              fontSize: "var(--lc-text-caption)",
-              color: "var(--lc-text-secondary)",
-              marginBottom: "var(--lc-space-2)",
-            }}
-          >
+          <div className="text-caption color-secondary mb-2">
             Copy this key now. It will not be shown again.
           </div>
           <code
+            className="d-block text-small color-primary bg-inset rounded-sm border cursor-pointer text-break"
             style={{
               fontFamily: "var(--lc-font-mono)",
-              fontSize: "var(--lc-text-small)",
-              color: "var(--lc-text)",
-              background: "var(--lc-bg-inset)",
               padding: "var(--lc-space-2) var(--lc-space-3)",
-              borderRadius: "var(--lc-radius-sm)",
-              display: "block",
-              wordBreak: "break-all",
-              cursor: "pointer",
-              border: "1px solid var(--lc-border)",
             }}
             onClick={() => {
               navigator.clipboard.writeText(newlyCreatedKey).catch(() => {});
@@ -467,18 +425,13 @@ export default function ApiKeyDashboard({ orgId, authFetch }: Props) {
 
       {/* Loading */}
       {loading && (
-        <div style={styles.empty}>Loading API keys...</div>
+        <div className="text-center color-secondary text-body" style={styles.empty}>Loading API keys...</div>
       )}
 
       {/* Empty state */}
       {!loading && keys.length === 0 && (
-        <div style={styles.empty}>
-          <div
-            style={{
-              fontSize: "var(--lc-text-heading)",
-              marginBottom: "var(--lc-space-2)",
-            }}
-          >
+        <div className="text-center color-secondary text-body" style={styles.empty}>
+          <div className="text-heading mb-2">
             No API keys
           </div>
           <div>
@@ -511,11 +464,7 @@ export default function ApiKeyDashboard({ orgId, authFetch }: Props) {
                   style={idx % 2 === 0 ? styles.rowEven : styles.rowOdd}
                 >
                   <td style={styles.td}>
-                    <span
-                      style={{
-                        fontWeight: "var(--lc-weight-medium)" as unknown as number,
-                      }}
-                    >
+                    <span className="font-medium">
                       {key.label}
                     </span>
                   </td>
@@ -529,24 +478,12 @@ export default function ApiKeyDashboard({ orgId, authFetch }: Props) {
                     </span>
                   </td>
                   <td style={styles.td}>
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "var(--lc-space-1)",
-                        flexWrap: "wrap",
-                      }}
-                    >
+                    <div className="d-flex gap-1 flex-wrap">
                       {(key.scopes ?? []).map((s) => (
                         <span
                           key={s}
-                          style={{
-                            fontSize: "var(--lc-text-caption)",
-                            padding: "1px 6px",
-                            borderRadius: "var(--lc-radius-pill)",
-                            background: "var(--lc-accent-muted)",
-                            color: "var(--lc-text-secondary)",
-                            border: "1px solid var(--lc-border)",
-                          }}
+                          className="text-caption rounded-pill bg-accent-muted color-secondary border"
+                          style={{ padding: "1px 6px" }}
                         >
                           {s}
                         </span>
@@ -557,14 +494,8 @@ export default function ApiKeyDashboard({ orgId, authFetch }: Props) {
                     <span style={styles.badge(status)}>{status}</span>
                   </td>
                   <td style={styles.td}>
-                    <div style={styles.rateMeter}>
-                      <span
-                        style={{
-                          fontSize: "var(--lc-text-caption)",
-                          color: "var(--lc-text-secondary)",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
+                    <div className="row-2">
+                      <span className="text-caption color-secondary text-nowrap">
                         {key.rate_limit ?? 1000}/hr
                       </span>
                       <div style={styles.rateBar}>
@@ -584,12 +515,12 @@ export default function ApiKeyDashboard({ orgId, authFetch }: Props) {
                     </div>
                   </td>
                   <td style={styles.td}>
-                    <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-secondary)" }}>
+                    <span className="text-caption color-secondary">
                       {formatDate(key.created_at)}
                     </span>
                   </td>
                   <td style={styles.td}>
-                    <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-secondary)" }}>
+                    <span className="text-caption color-secondary">
                       {formatDate(key.last_used_at)}
                     </span>
                   </td>
@@ -620,28 +551,13 @@ export default function ApiKeyDashboard({ orgId, authFetch }: Props) {
           }}
         >
           <div style={styles.formCard}>
-            <h3
-              style={{
-                fontSize: "var(--lc-text-heading)",
-                fontWeight: "var(--lc-weight-semibold)" as unknown as number,
-                marginBottom: "var(--lc-space-6)",
-                marginTop: 0,
-              }}
-            >
+            <h3 className="text-heading font-semibold mb-6 mt-0">
               Create New API Key
             </h3>
 
             {/* Label */}
             <div style={{ marginBottom: "var(--lc-space-5)" }}>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "var(--lc-text-small)",
-                  fontWeight: "var(--lc-weight-medium)" as unknown as number,
-                  color: "var(--lc-text-secondary)",
-                  marginBottom: "var(--lc-space-2)",
-                }}
-              >
+              <label className="d-block text-small font-medium color-secondary mb-2">
                 Label
               </label>
               <input
@@ -663,46 +579,25 @@ export default function ApiKeyDashboard({ orgId, authFetch }: Props) {
             </div>
 
             {/* Scopes */}
-            <div style={{ marginBottom: "var(--lc-space-6)" }}>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "var(--lc-text-small)",
-                  fontWeight: "var(--lc-weight-medium)" as unknown as number,
-                  color: "var(--lc-text-secondary)",
-                  marginBottom: "var(--lc-space-3)",
-                }}
-              >
+            <div className="mb-6">
+              <label className="d-block text-small font-medium color-secondary mb-3">
                 Scopes
               </label>
-              <div
-                style={{
-                  display: "flex",
-                  gap: "var(--lc-space-3)",
-                  flexWrap: "wrap",
-                }}
-              >
+              <div className="d-flex gap-3 flex-wrap">
                 {AVAILABLE_SCOPES.map((scope) => {
                   const checked = newKeyForm.scopes.includes(scope);
                   return (
                     <label
                       key={scope}
+                      className="row-2 cursor-pointer rounded-sm text-small transition-fast"
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "var(--lc-space-2)",
-                        cursor: "pointer",
                         padding: "var(--lc-space-2) var(--lc-space-3)",
-                        borderRadius: "var(--lc-radius-sm)",
                         border: checked
                           ? "1px solid var(--lc-select-border)"
                           : "1px solid var(--lc-border)",
                         background: checked
                           ? "var(--lc-select)"
                           : "transparent",
-                        transition:
-                          "all var(--lc-dur-fast) var(--lc-ease)",
-                        fontSize: "var(--lc-text-small)",
                         color: checked
                           ? "var(--lc-select-text)"
                           : "var(--lc-text-secondary)",
@@ -727,13 +622,7 @@ export default function ApiKeyDashboard({ orgId, authFetch }: Props) {
             </div>
 
             {/* Actions */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: "var(--lc-space-3)",
-              }}
-            >
+            <div className="d-flex justify-end gap-3">
               <button
                 style={styles.btn}
                 onClick={() => setShowCreateForm(false)}

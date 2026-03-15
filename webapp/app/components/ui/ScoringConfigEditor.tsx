@@ -91,24 +91,13 @@ function ScoringRow({
 }) {
   return (
     <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "var(--lc-space-3)",
-        padding: "var(--lc-space-3) 0",
-        transition: `all var(--lc-dur-base) var(--lc-ease)`,
-      }}
+      className="d-flex items-center row-3 transition-base"
+      style={{ padding: "var(--lc-space-3) 0" }}
     >
       {/* Label */}
       <span
-        style={{
-          width: 80,
-          flexShrink: 0,
-          fontSize: "var(--lc-text-small)",
-          fontWeight: "var(--lc-weight-medium)" as any,
-          color: "var(--lc-text)",
-          textTransform: "capitalize",
-        }}
+        className="text-small font-medium shrink-0"
+        style={{ width: 80, textTransform: "capitalize" }}
       >
         {label}
       </span>
@@ -353,32 +342,10 @@ export default function ScoringConfigEditor({
   );
 
   return (
-    <div
-      style={{
-        background: "var(--lc-bg-raised)",
-        border: "1px solid var(--lc-border)",
-        borderRadius: "var(--lc-radius-md)",
-        padding: "var(--lc-space-5)",
-        width: "100%",
-      }}
-    >
+    <div className="bg-raised border rounded-md p-5 w-full">
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "var(--lc-space-4)",
-        }}
-      >
-        <h3
-          style={{
-            margin: 0,
-            fontSize: "var(--lc-text-subhead)",
-            fontWeight: "var(--lc-weight-semibold)" as any,
-            color: "var(--lc-text)",
-          }}
-        >
+      <div className="d-flex items-center flex-between mb-4">
+        <h3 className="m-0 text-subhead font-semibold">
           Scoring Rules
         </h3>
 
@@ -500,14 +467,8 @@ export default function ScoringConfigEditor({
       {/* Add custom rule */}
       {!readonly && (
         <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--lc-space-2)",
-            marginTop: "var(--lc-space-4)",
-            paddingTop: "var(--lc-space-3)",
-            borderTop: "1px solid var(--lc-border)",
-          }}
+          className="d-flex items-center row-2 mt-4 border-t"
+          style={{ paddingTop: "var(--lc-space-3)" }}
         >
           <input
             id={`${instanceId}-new-rule`}

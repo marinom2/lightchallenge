@@ -286,7 +286,7 @@ export default function LinkedAccountsPage() {
     <div className="container">
       <header className="mb-4">
         <h1 className="h1">Linked Accounts</h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
+        <p className="mt-1 text-sm color-muted">
           Connect external game and fitness accounts to enable automatic proof collection.
         </p>
       </header>
@@ -362,7 +362,7 @@ export default function LinkedAccountsPage() {
               </div>
 
               <div className="panel-body">
-                <p className="text-sm mb-3" style={{ color: "var(--text-muted)" }}>
+                <p className="text-sm mb-3 color-muted">
                   {provider.description}
                 </p>
 
@@ -372,17 +372,16 @@ export default function LinkedAccountsPage() {
                     <div className="text-sm">
                       {handle && <span className="font-medium mr-2">{handle}</span>}
                       {extId && (
-                        <span className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+                        <span className="font-mono text-xs color-muted">
                           {extId.length > 24 ? `${extId.slice(0, 10)}...${extId.slice(-8)}` : extId}
                         </span>
                       )}
                       {!handle && !extId && (
-                        <span style={{ color: "var(--text-muted)" }}>Linked</span>
+                        <span className="color-muted">Linked</span>
                       )}
                     </div>
                     <button
-                      className="btn btn-sm text-xs"
-                      style={{ color: "var(--error)" }}
+                      className="btn btn-sm text-xs color-danger"
                       onClick={() => unlinkProvider(provider)}
                     >
                       Unlink
@@ -428,7 +427,7 @@ export default function LinkedAccountsPage() {
                           </button>
                         </div>
                         {provider.manualHelp && (
-                          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                          <p className="text-xs color-muted">
                             {provider.manualHelp}
                           </p>
                         )}
@@ -438,7 +437,7 @@ export default function LinkedAccountsPage() {
                 )}
 
                 {errors[provider.key] && (
-                  <div className="mt-2 text-sm" style={{ color: "var(--error)" }}>
+                  <div className="mt-2 text-sm color-danger">
                     {errors[provider.key]}
                   </div>
                 )}
@@ -447,7 +446,7 @@ export default function LinkedAccountsPage() {
                 {provider.key === "steam" && connected && (
                   <div className="mt-3">
                     {dotaLoading ? (
-                      <div className="text-sm" style={{ color: "var(--text-muted)" }}>
+                      <div className="text-sm color-muted">
                         Loading Dota 2 profile...
                       </div>
                     ) : dota ? (
@@ -467,7 +466,7 @@ export default function LinkedAccountsPage() {
           <div className="font-semibold">Default Tracking Apps</div>
         </div>
         <div className="panel-body space-y-4">
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          <p className="text-sm color-muted">
             Choose your preferred apps for proof submission. These will be pre-selected when you submit evidence for challenges.
           </p>
 
@@ -510,7 +509,7 @@ export default function LinkedAccountsPage() {
       </section>
 
       {loading && (
-        <div className="mt-4 text-sm text-center" style={{ color: "var(--text-muted)" }}>
+        <div className="mt-4 text-sm text-center color-muted">
           Loading linked accounts...
         </div>
       )}

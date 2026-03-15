@@ -38,41 +38,25 @@ export default function StatCard({
 
   if (layout === "horizontal") {
     return (
-      <div
-        className={`lc-stat ${className}`}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--lc-space-3)",
-        }}
-      >
-        {icon && <span style={{ color: "var(--lc-text-muted)", flexShrink: 0 }}>{icon}</span>}
-        <span style={{ fontSize: valueSizes[size], fontWeight: "var(--lc-weight-bold)" as any, color: "var(--lc-text)" }}>
+      <div className={`lc-stat row-3 ${className}`}>
+        {icon && <span className="color-muted shrink-0">{icon}</span>}
+        <span className="font-bold" style={{ fontSize: valueSizes[size], color: "var(--lc-text)" }}>
           {value}
-          {unit && <span style={{ fontSize: labelSizes[size], fontWeight: "var(--lc-weight-normal)" as any, marginLeft: 4, color: "var(--lc-text-secondary)" }}>{unit}</span>}
+          {unit && <span className="font-normal color-secondary" style={{ fontSize: labelSizes[size], marginLeft: 4 }}>{unit}</span>}
         </span>
-        <span style={{ fontSize: labelSizes[size], color: "var(--lc-text-secondary)" }}>{label}</span>
+        <span className="color-secondary" style={{ fontSize: labelSizes[size] }}>{label}</span>
       </div>
     );
   }
 
   return (
-    <div
-      className={`lc-stat ${className}`}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: "var(--lc-space-1)",
-        padding: "var(--lc-space-4)",
-      }}
-    >
-      {icon && <span style={{ color: "var(--lc-text-muted)", marginBottom: "var(--lc-space-1)" }}>{icon}</span>}
-      <span style={{ fontSize: valueSizes[size], fontWeight: "var(--lc-weight-bold)" as any, color: "var(--lc-text)", lineHeight: "var(--lc-leading-tight)" as any }}>
+    <div className={`lc-stat flex-col items-center p-4 ${className}`} style={{ display: "flex", gap: "var(--lc-space-1)" }}>
+      {icon && <span className="color-muted mb-1">{icon}</span>}
+      <span className="font-bold leading-tight" style={{ fontSize: valueSizes[size], color: "var(--lc-text)" }}>
         {value}
-        {unit && <span style={{ fontSize: labelSizes[size], fontWeight: "var(--lc-weight-normal)" as any, marginLeft: 4, color: "var(--lc-text-secondary)" }}>{unit}</span>}
+        {unit && <span className="font-normal color-secondary" style={{ fontSize: labelSizes[size], marginLeft: 4 }}>{unit}</span>}
       </span>
-      <span style={{ fontSize: labelSizes[size], color: "var(--lc-text-secondary)" }}>{label}</span>
+      <span className="color-secondary" style={{ fontSize: labelSizes[size] }}>{label}</span>
     </div>
   );
 }

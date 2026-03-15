@@ -818,9 +818,9 @@ export default function MyChallengesPage() {
 
   if (!isConnected) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+      <div className="stack-6">
         <Breadcrumb items={[{ label: "My Challenges" }]} />
-        <h1 style={{ fontSize: "var(--lc-text-title)", fontWeight: "var(--lc-weight-bold)" as any, color: "var(--lc-text)" }}>
+        <h1 className="page-header__title">
           My Challenges
         </h1>
         <ConnectWalletGate message="Connect your wallet to see active challenges, pending proofs, and claimable rewards." />
@@ -829,30 +829,30 @@ export default function MyChallengesPage() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+    <div className="stack-6">
       <Breadcrumb items={[{ label: "My Challenges" }]} />
 
       <div>
-        <h1 style={{ fontSize: "var(--lc-text-title)", fontWeight: "var(--lc-weight-bold)" as any, color: "var(--lc-text)" }}>
+        <h1 className="page-header__title">
           My Challenges
         </h1>
-        <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", marginTop: "var(--lc-space-1)" }}>
+        <p className="page-header__sub mt-1">
           Track progress, submit evidence, and claim rewards.
         </p>
       </div>
 
       {loading && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-2)" }}>
+        <div className="stack-2">
           {[1, 2, 3].map((i) => (
             <div key={i} className="mc-card" style={{ opacity: 1 - i * 0.2 }}>
               <div className="mc-card__row">
-                <div className="mc-card__left" style={{ flex: 1 }}>
-                  <div className="skeleton-line" style={{ height: 16, width: "55%", borderRadius: 6, marginBottom: 8 }} />
-                  <div className="skeleton-line" style={{ height: 12, width: "35%", borderRadius: 4 }} />
+                <div className="mc-card__left flex-1">
+                  <div className="skeleton-line mb-2" style={{ height: 16, width: "55%" }} />
+                  <div className="skeleton-line" style={{ height: 12, width: "35%" }} />
                 </div>
                 <div className="mc-card__right">
-                  <div className="skeleton-line" style={{ height: 22, width: 72, borderRadius: 99 }} />
-                  <div className="skeleton-line" style={{ height: 30, width: 110, borderRadius: 8 }} />
+                  <div className="skeleton-line" style={{ height: 22, width: 72 }} />
+                  <div className="skeleton-line" style={{ height: 30, width: 110 }} />
                 </div>
               </div>
             </div>
@@ -861,7 +861,7 @@ export default function MyChallengesPage() {
       )}
 
       {err && (
-        <div style={{ padding: "var(--lc-space-3)", borderRadius: "var(--lc-radius-md)", backgroundColor: "var(--lc-warning-muted)", color: "var(--lc-warning)", fontSize: "var(--lc-text-small)" }}>
+        <div className="alert-banner alert-banner--warning">
           {err}
         </div>
       )}
@@ -878,7 +878,7 @@ export default function MyChallengesPage() {
       {!loading && !err && rows.length > 0 && (
         <>
           {/* Filter pills */}
-          <div style={{ display: "flex", gap: "var(--lc-space-2)", flexWrap: "wrap" }} role="tablist" aria-label="Filter challenges">
+          <div className="row-2 flex-wrap" role="tablist" aria-label="Filter challenges">
             {FILTERS.map(({ key, label }) => {
               const count = counts[key];
               const isActive = activeFilter === key;
@@ -889,29 +889,11 @@ export default function MyChallengesPage() {
                   role="tab"
                   aria-selected={isActive}
                   onClick={() => setActiveFilter(isActive ? "all" : key)}
-                  style={{
-                    padding: "6px 14px",
-                    borderRadius: "var(--lc-radius-pill)",
-                    fontSize: "var(--lc-text-caption)",
-                    fontWeight: "var(--lc-weight-medium)" as any,
-                    color: isActive ? "var(--lc-select-text)" : isUrgent ? "var(--lc-warning)" : "var(--lc-text-secondary)",
-                    backgroundColor: isActive ? "var(--lc-select)" : isUrgent ? "var(--lc-warning-muted)" : "transparent",
-                    border: isActive ? "1px solid var(--lc-select-border)" : isUrgent ? "1px solid var(--lc-warning)" : "1px solid var(--lc-border)",
-                    cursor: "pointer",
-                    transition: "all var(--lc-dur-fast) var(--lc-ease)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "var(--lc-space-1)",
-                  }}
+                  className={`filter-pill${isActive ? " filter-pill--active" : isUrgent ? " filter-pill--urgent" : ""}`}
                 >
                   {label}
                   {key !== "all" && count > 0 && (
-                    <span style={{
-                      fontSize: 11,
-                      padding: "1px 6px",
-                      borderRadius: "var(--lc-radius-pill)",
-                      backgroundColor: isActive ? "rgba(255,255,255,0.2)" : "var(--lc-bg-inset)",
-                    }}>
+                    <span className={`count-badge${isActive ? " count-badge--active" : ""}`}>
                       {count}
                     </span>
                   )}
@@ -922,16 +904,16 @@ export default function MyChallengesPage() {
 
           {/* Card list */}
           {filteredRows.length === 0 ? (
-            <div style={{ padding: "var(--lc-space-8)", textAlign: "center", fontSize: "var(--lc-text-small)", color: "var(--lc-text-muted)", borderRadius: "var(--lc-radius-lg)", border: "1px solid var(--lc-border)", backgroundColor: "var(--lc-bg-raised)" }}>
+            <div className="empty-filter">
               No challenges match this filter.
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-8)" }}>
+            <div className="stack-8">
               {actionRows.length > 0 && (
                 <section>
-                  <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", marginBottom: "var(--lc-space-3)" }}>
-                    <span style={{ fontSize: "var(--lc-text-small)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)" }}>Needs Action</span>
-                    <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: "var(--lc-radius-pill)", backgroundColor: "var(--lc-warning-muted)", color: "var(--lc-warning)" }}>
+                  <div className="section-heading">
+                    <span className="section-heading__label">Needs Action</span>
+                    <span className="count-badge count-badge--warning">
                       {actionRows.length}
                     </span>
                   </div>
@@ -945,9 +927,9 @@ export default function MyChallengesPage() {
 
               {progressRows.length > 0 && (
                 <section>
-                  <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", marginBottom: "var(--lc-space-3)" }}>
-                    <span style={{ fontSize: "var(--lc-text-small)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)" }}>In Progress</span>
-                    <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: "var(--lc-radius-pill)", backgroundColor: "var(--lc-info-muted)", color: "var(--lc-info)" }}>
+                  <div className="section-heading">
+                    <span className="section-heading__label">In Progress</span>
+                    <span className="count-badge count-badge--info">
                       {progressRows.length}
                     </span>
                   </div>
@@ -961,9 +943,9 @@ export default function MyChallengesPage() {
 
               {doneRows.length > 0 && (
                 <section>
-                  <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", marginBottom: "var(--lc-space-3)" }}>
-                    <span style={{ fontSize: "var(--lc-text-small)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)" }}>Completed</span>
-                    <span style={{ fontSize: 11, padding: "1px 8px", borderRadius: "var(--lc-radius-pill)", backgroundColor: "var(--lc-bg-inset)", color: "var(--lc-text-muted)" }}>
+                  <div className="section-heading">
+                    <span className="section-heading__label">Completed</span>
+                    <span className="count-badge">
                       {doneRows.length}
                     </span>
                   </div>

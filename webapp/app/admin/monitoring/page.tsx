@@ -12,14 +12,10 @@ type HealthData = {
 function StatusDot({ status }: { status: "ok" | "warn" | "error" | "unknown" }) {
   const colors = { ok: "var(--lc-success)", warn: "var(--lc-warning)", error: "var(--lc-error)", unknown: "var(--lc-text-muted)" };
   return (
-    <span style={{
-      display: "inline-block",
-      width: 8,
-      height: 8,
-      borderRadius: "50%",
-      background: colors[status],
-      flexShrink: 0,
-    }} />
+    <span
+      className="d-inline-block rounded-circle shrink-0"
+      style={{ width: 8, height: 8, background: colors[status] }}
+    />
   );
 }
 
@@ -75,28 +71,28 @@ export default function MonitoringPage() {
       />
 
       {/* Workers */}
-      <div style={{ marginBottom: "var(--lc-space-6)" }}>
-        <h2 style={{ fontSize: "var(--lc-text-body)", fontWeight: 600, marginBottom: "var(--lc-space-3)" }}>Workers</h2>
+      <div className="mb-6">
+        <h2 className="text-body font-semibold mb-3">Workers</h2>
         <div className="admin-quick-grid">
           {WORKERS.map((w) => {
             const data = health.workers?.[w.key];
             const st = workerStatus(data?.lastSeen);
             return (
               <div key={w.key} className="admin-kpi">
-                <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", marginBottom: "var(--lc-space-2)" }}>
+                <div className="row-2 mb-2">
                   <StatusDot status={st} />
-                  <span style={{ fontSize: "var(--lc-text-small)", fontWeight: 600 }}>{w.label}</span>
+                  <span className="text-small font-semibold">{w.label}</span>
                 </div>
-                <div style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", marginBottom: "var(--lc-space-2)" }}>
+                <div className="text-caption color-muted mb-2">
                   {w.desc}
                 </div>
-                <div style={{ fontSize: "var(--lc-text-caption)" }}>
-                  <span style={{ color: "var(--lc-text-muted)" }}>Last seen: </span>
+                <div className="text-caption">
+                  <span className="color-muted">Last seen: </span>
                   {loading ? "…" : ago(data?.lastSeen)}
                 </div>
                 {data?.pending != null && (
-                  <div style={{ fontSize: "var(--lc-text-caption)" }}>
-                    <span style={{ color: "var(--lc-text-muted)" }}>Pending: </span>{data.pending}
+                  <div className="text-caption">
+                    <span className="color-muted">Pending: </span>{data.pending}
                   </div>
                 )}
               </div>
@@ -106,8 +102,8 @@ export default function MonitoringPage() {
       </div>
 
       {/* Indexers */}
-      <div style={{ marginBottom: "var(--lc-space-6)" }}>
-        <h2 style={{ fontSize: "var(--lc-text-body)", fontWeight: 600, marginBottom: "var(--lc-space-3)" }}>Indexers</h2>
+      <div className="mb-6">
+        <h2 className="text-body font-semibold mb-3">Indexers</h2>
         <div className="admin-quick-grid">
           {INDEXERS.map((idx) => {
             const data = health.indexers?.[idx.key];
@@ -115,20 +111,20 @@ export default function MonitoringPage() {
             const st = lag === null ? "unknown" : lag < 20 ? "ok" : lag < 100 ? "warn" : "error";
             return (
               <div key={idx.key} className="admin-kpi">
-                <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", marginBottom: "var(--lc-space-2)" }}>
+                <div className="row-2 mb-2">
                   <StatusDot status={st} />
-                  <span style={{ fontSize: "var(--lc-text-small)", fontWeight: 600 }}>{idx.label}</span>
+                  <span className="text-small font-semibold">{idx.label}</span>
                 </div>
-                <div style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", marginBottom: "var(--lc-space-2)" }}>
+                <div className="text-caption color-muted mb-2">
                   {idx.desc}
                 </div>
-                <div style={{ fontSize: "var(--lc-text-caption)" }}>
-                  <span style={{ color: "var(--lc-text-muted)" }}>Last block: </span>
+                <div className="text-caption">
+                  <span className="color-muted">Last block: </span>
                   {loading ? "…" : data?.lastBlock ?? "—"}
                 </div>
                 {lag != null && (
-                  <div style={{ fontSize: "var(--lc-text-caption)" }}>
-                    <span style={{ color: "var(--lc-text-muted)" }}>Lag: </span>{lag} blocks
+                  <div className="text-caption">
+                    <span className="color-muted">Lag: </span>{lag} blocks
                   </div>
                 )}
               </div>
@@ -140,7 +136,7 @@ export default function MonitoringPage() {
       {/* AIVM Job Status */}
       {health.jobs && health.jobs.length > 0 && (
         <div>
-          <h2 style={{ fontSize: "var(--lc-text-body)", fontWeight: 600, marginBottom: "var(--lc-space-3)" }}>AIVM Job Pipeline</h2>
+          <h2 className="text-body font-semibold mb-3">AIVM Job Pipeline</h2>
           <div className="admin-kpi-grid">
             {health.jobs.map((j) => (
               <div key={j.status} className="admin-kpi">
@@ -154,7 +150,7 @@ export default function MonitoringPage() {
 
       {!loading && !health.workers && (
         <div className="panel">
-          <div className="panel-body" style={{ padding: "var(--lc-space-6)", textAlign: "center", color: "var(--lc-text-muted)", fontSize: "var(--lc-text-small)" }}>
+          <div className="panel-body p-6 text-center text-small color-muted">
             Health endpoint not available. Create <code>/api/admin/health</code> to enable monitoring.
           </div>
         </div>

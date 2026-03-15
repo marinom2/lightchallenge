@@ -168,13 +168,6 @@ const labelStyle: React.CSSProperties = {
   fontWeight: 500,
 };
 
-const cardStyle: React.CSSProperties = {
-  padding: "var(--lc-space-5)",
-  borderRadius: "var(--lc-radius-lg)",
-  border: "1px solid var(--lc-border)",
-  backgroundColor: "var(--lc-bg-raised)",
-};
-
 /* ── Quick schedule presets ─────────────────────────────────────────────────── */
 
 function getPresetDates(preset: string): Partial<Pick<FormState, "registrationOpens" | "registrationCloses" | "startsAt" | "endsAt">> {
@@ -394,7 +387,7 @@ export default function CreateCompetitionPage() {
   }, []);
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+    <div className="stack-6 mx-auto" style={{ maxWidth: 800 }}>
       <Breadcrumb
         items={[
           { label: "Tournaments", href: "/competitions" },
@@ -404,37 +397,21 @@ export default function CreateCompetitionPage() {
 
       {/* ── Wallet Gate ────────────────────────────────────────────────────── */}
       {!address && (
-        <div style={{
-          padding: "var(--lc-space-6)",
-          borderRadius: "var(--lc-radius-lg)",
-          border: "1px solid var(--lc-border)",
-          backgroundColor: "var(--lc-bg-raised)",
-          textAlign: "center",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "var(--lc-space-3)",
-        }}>
+        <div className="p-6 rounded-lg border bg-raised text-center flex-col-center gap-3">
           <span style={{ fontSize: 32 }}>{"\uD83D\uDD12"}</span>
-          <span style={{ fontSize: "var(--lc-text-subhead)", fontWeight: 600, color: "var(--lc-text)" }}>
+          <span className="text-subhead font-semibold color-primary">
             Connect wallet to create
           </span>
-          <span style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", maxWidth: 400 }}>
+          <span className="text-small color-secondary" style={{ maxWidth: 400 }}>
             You need a connected wallet to create and manage tournaments. Connect your wallet to get started.
           </span>
         </div>
       )}
 
       {/* ── Header with selected type badge ────────────────────────────────── */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-2)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-3)" }}>
-          <h1 style={{
-            fontSize: "var(--lc-text-title)",
-            fontWeight: 700,
-            color: "var(--lc-text)",
-            letterSpacing: "-0.02em",
-            margin: 0,
-          }}>
+      <div className="stack-2">
+        <div className="row-3">
+          <h1 className="text-title font-bold color-primary m-0" style={{ letterSpacing: "-0.02em" }}>
             Create Tournament
           </h1>
           {selectedType && step > 1 && (
@@ -444,11 +421,11 @@ export default function CreateCompetitionPage() {
           )}
         </div>
         {step === 1 ? (
-          <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", margin: 0 }}>
+          <p className="text-small color-secondary m-0">
             Choose the format that best fits your competition
           </p>
         ) : (
-          <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", margin: 0 }}>
+          <p className="text-small color-secondary m-0">
             Step {step} of 5 &mdash; {STEPS[step - 1].label}
           </p>
         )}
@@ -456,7 +433,7 @@ export default function CreateCompetitionPage() {
 
       {/* ── Stepper (only visible after type is chosen, step > 1) ──────────── */}
       {form.type && step > 1 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+        <div className="d-flex items-center gap-0">
           {STEPS.map((s, i) => {
             if (s.id === 1) return null; // hide type step from stepper
             const isActive = s.id === step;
@@ -465,22 +442,19 @@ export default function CreateCompetitionPage() {
             return (
               <React.Fragment key={s.id}>
                 {i > 1 && (
-                  <div style={{
-                    flex: 1,
-                    height: 2,
-                    backgroundColor: isDone ? "var(--lc-select-text)" : "var(--lc-border)",
-                    transition: "background-color 0.3s ease",
-                  }} />
+                  <div
+                    className="flex-1 transition-base"
+                    style={{
+                      height: 2,
+                      backgroundColor: isDone ? "var(--lc-select-text)" : "var(--lc-border)",
+                    }}
+                  />
                 )}
                 <button
                   onClick={() => { if (isDone) setStep(s.id); }}
+                  className="d-flex row-2 rounded-pill text-caption shrink-0 text-nowrap"
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "var(--lc-space-2)",
                     padding: "8px 16px",
-                    borderRadius: "var(--lc-radius-pill)",
-                    fontSize: "var(--lc-text-caption)",
                     fontWeight: isActive ? 600 : 400,
                     border: isActive
                       ? "2px solid var(--lc-select-border)"
@@ -499,8 +473,6 @@ export default function CreateCompetitionPage() {
                       : "var(--lc-text-muted)",
                     cursor: isDone ? "pointer" : "default",
                     transition: "all 0.2s ease",
-                    flexShrink: 0,
-                    whiteSpace: "nowrap",
                   }}
                 >
                   {isDone ? <CheckIcon size={12} /> : null}
@@ -514,36 +486,15 @@ export default function CreateCompetitionPage() {
 
       {/* ── Error ─────────────────────────────────────────────────────────── */}
       {error && (
-        <div style={{
-          padding: "var(--lc-space-3) var(--lc-space-4)",
-          borderRadius: "var(--lc-radius-md)",
-          backgroundColor: "var(--lc-danger-muted)",
-          color: "var(--lc-danger)",
-          fontSize: "var(--lc-text-small)",
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--lc-space-2)",
-        }}>
-          <span style={{ flexShrink: 0 }}>{"\u26A0\uFE0F"}</span>
+        <div className="alert-banner alert-banner--error row-2 text-small">
+          <span className="shrink-0">{"\u26A0\uFE0F"}</span>
           {error}
         </div>
       )}
 
       {/* ── Success ───────────────────────────────────────────────────────── */}
       {success && (
-        <div style={{
-          padding: "var(--lc-space-5)",
-          borderRadius: "var(--lc-radius-lg)",
-          backgroundColor: "var(--lc-success-muted)",
-          color: "var(--lc-success)",
-          textAlign: "center",
-          fontSize: "var(--lc-text-body)",
-          fontWeight: 600,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "var(--lc-space-2)",
-        }}>
+        <div className="p-5 rounded-lg bg-success-muted color-success text-center text-body font-semibold flex-col-center gap-2">
           <span style={{ fontSize: 40 }}>{"\uD83C\uDF89"}</span>
           Tournament created! Redirecting...
         </div>
@@ -552,24 +503,17 @@ export default function CreateCompetitionPage() {
       {/* ── Step Content ──────────────────────────────────────────────────── */}
       {!success && (
         <div style={{ minHeight: 300 }}>
-          {/* ═══ Step 1: Type Selection ═══════════════════════════════════════ */}
+          {/* Step 1: Type Selection */}
           {step === 1 && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "var(--lc-space-4)" }}>
+            <div className="d-grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
               {TYPE_OPTIONS.map((opt) => {
                 const selected = form.type === opt.type;
                 return (
                   <button
                     key={opt.type}
                     onClick={() => selectType(opt.type)}
+                    className="stack-3 p-5 rounded-lg cursor-pointer text-left relative overflow-hidden"
                     style={{
-                      ...cardStyle,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "var(--lc-space-3)",
-                      cursor: "pointer",
-                      textAlign: "left",
-                      position: "relative",
-                      overflow: "hidden",
                       border: selected
                         ? "2px solid var(--lc-select-border)"
                         : "1px solid var(--lc-border)",
@@ -599,63 +543,55 @@ export default function CreateCompetitionPage() {
                     }}
                   >
                     {/* Top row: emoji + indicator */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div className="flex-between">
                       <span style={{ fontSize: 28 }}>{opt.emoji}</span>
                       {selected && (
-                        <div style={{
-                          width: 22,
-                          height: 22,
-                          borderRadius: "50%",
-                          backgroundColor: "var(--lc-select-text)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "#fff",
-                        }}>
+                        <div
+                          className="d-flex items-center justify-center rounded-circle"
+                          style={{
+                            width: 22,
+                            height: 22,
+                            backgroundColor: "var(--lc-select-text)",
+                            color: "#fff",
+                          }}
+                        >
                           <CheckIcon size={12} />
                         </div>
                       )}
                     </div>
 
                     {/* Title */}
-                    <span style={{
-                      fontSize: "var(--lc-text-body)",
-                      fontWeight: 600,
-                      color: "var(--lc-text)",
-                    }}>
+                    <span className="text-body font-semibold color-primary">
                       {opt.title}
                     </span>
 
                     {/* Description */}
-                    <span style={{
-                      fontSize: "var(--lc-text-caption)",
-                      color: "var(--lc-text-secondary)",
-                      lineHeight: 1.5,
-                    }}>
+                    <span className="text-caption color-secondary" style={{ lineHeight: 1.5 }}>
                       {opt.description}
                     </span>
 
                     {/* Meta chips */}
-                    <div style={{ display: "flex", gap: "var(--lc-space-2)", flexWrap: "wrap", marginTop: "auto" }}>
-                      <span style={{
-                        padding: "2px 8px",
-                        borderRadius: "var(--lc-radius-pill)",
-                        fontSize: 11,
-                        fontWeight: 500,
-                        backgroundColor: `${opt.color}15`,
-                        color: opt.color,
-                      }}>
+                    <div className="row-2 flex-wrap" style={{ marginTop: "auto" }}>
+                      <span
+                        className="rounded-pill font-medium"
+                        style={{
+                          padding: "2px 8px",
+                          fontSize: 11,
+                          backgroundColor: `${opt.color}15`,
+                          color: opt.color,
+                        }}
+                      >
                         {opt.playerRange} players
                       </span>
-                      <span style={{
-                        padding: "2px 8px",
-                        borderRadius: "var(--lc-radius-pill)",
-                        fontSize: 11,
-                        fontWeight: 500,
-                        backgroundColor: "var(--lc-bg-subtle)",
-                        color: "var(--lc-text-muted)",
-                        fontStyle: "italic",
-                      }}>
+                      <span
+                        className="rounded-pill font-medium color-muted"
+                        style={{
+                          padding: "2px 8px",
+                          fontSize: 11,
+                          backgroundColor: "var(--lc-bg-subtle)",
+                          fontStyle: "italic",
+                        }}
+                      >
                         {opt.bestFor}
                       </span>
                     </div>
@@ -665,11 +601,11 @@ export default function CreateCompetitionPage() {
             </div>
           )}
 
-          {/* ═══ Step 2: Details ══════════════════════════════════════════════ */}
+          {/* Step 2: Details */}
           {step === 2 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-5)" }}>
+            <div className="stack-5">
               {/* Main info card */}
-              <div style={{ ...cardStyle, display: "flex", flexDirection: "column", gap: "var(--lc-space-5)" }}>
+              <div className="stack-5 p-5 rounded-lg border bg-raised">
                 <label style={labelStyle}>
                   Tournament Name *
                   <input
@@ -682,7 +618,7 @@ export default function CreateCompetitionPage() {
                     autoFocus
                   />
                   {form.title.length > 0 && form.title.trim().length < 3 && (
-                    <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-danger)" }}>
+                    <span className="text-caption color-danger">
                       Title must be at least 3 characters.
                     </span>
                   )}
@@ -698,40 +634,39 @@ export default function CreateCompetitionPage() {
                     style={{ ...inputStyle, resize: "vertical" }}
                     maxLength={2000}
                   />
-                  <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", alignSelf: "flex-end" }}>
+                  <span className="text-caption color-muted self-end">
                     {form.description.length}/2000
                   </span>
                 </label>
               </div>
 
-              {/* Category picker — visual cards */}
-              <div style={cardStyle}>
-                <div style={{ fontSize: "var(--lc-text-small)", fontWeight: 500, color: "var(--lc-text-secondary)", marginBottom: "var(--lc-space-3)" }}>
+              {/* Category picker -- visual cards */}
+              <div className="p-5 rounded-lg border bg-raised">
+                <div className="text-small font-medium color-secondary mb-3">
                   Category
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--lc-space-3)" }}>
+                <div className="d-grid gap-3" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
                   {CATEGORY_OPTIONS.map((cat) => {
                     const selected = form.category === cat.value;
                     return (
                       <button
                         key={cat.value}
                         onClick={() => update("category", cat.value)}
+                        className="p-3 rounded-md text-center cursor-pointer transition-fast"
                         style={{
-                          padding: "var(--lc-space-3)",
-                          borderRadius: "var(--lc-radius-md)",
                           border: selected ? "2px solid var(--lc-select-border)" : "1px solid var(--lc-border)",
                           backgroundColor: selected ? "var(--lc-select)" : "var(--lc-bg-inset)",
                           boxShadow: selected ? "var(--lc-shadow-sm)" : "none",
-                          cursor: "pointer",
-                          textAlign: "center",
-                          transition: "all 0.15s ease",
                         }}
                       >
                         <div style={{ fontSize: 24, marginBottom: 4 }}>{cat.emoji}</div>
-                        <div style={{ fontSize: "var(--lc-text-small)", fontWeight: 500, color: selected ? "var(--lc-select-text)" : "var(--lc-text)" }}>
+                        <div
+                          className="text-small font-medium"
+                          style={{ color: selected ? "var(--lc-select-text)" : "var(--lc-text)" }}
+                        >
                           {cat.label}
                         </div>
-                        <div style={{ fontSize: 11, color: "var(--lc-text-muted)", marginTop: 2 }}>{cat.desc}</div>
+                        <div className="color-muted" style={{ fontSize: 11, marginTop: 2 }}>{cat.desc}</div>
                       </button>
                     );
                   })}
@@ -739,8 +674,8 @@ export default function CreateCompetitionPage() {
               </div>
 
               {/* Settings row */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--lc-space-4)" }}>
-                <div style={cardStyle}>
+              <div className="d-grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                <div className="p-5 rounded-lg border bg-raised">
                   <label style={labelStyle}>
                     Max Participants
                     <input
@@ -752,51 +687,42 @@ export default function CreateCompetitionPage() {
                       style={inputStyle}
                     />
                     {form.type === "bracket" && (
-                      <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>
+                      <span className="text-caption color-muted">
                         Power of 2 recommended (8, 16, 32, 64)
                       </span>
                     )}
                   </label>
                 </div>
 
-                <div style={{ ...cardStyle, display: "flex", flexDirection: "column", gap: "var(--lc-space-3)" }}>
-                  <div style={{ fontSize: "var(--lc-text-small)", fontWeight: 500, color: "var(--lc-text-secondary)" }}>
+                <div className="stack-3 p-5 rounded-lg border bg-raised">
+                  <div className="text-small font-medium color-secondary">
                     Options
                   </div>
-                  <label style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", cursor: "pointer" }}>
+                  <label className="row-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={form.isPublic}
                       onChange={(e) => update("isPublic", e.target.checked)}
                       style={{ accentColor: "var(--lc-select-text)" }}
                     />
-                    <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text)" }}>Public tournament</span>
+                    <span className="text-caption color-primary">Public tournament</span>
                   </label>
-                  <label style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", cursor: "pointer" }}>
+                  <label className="row-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={form.requireCheckin}
                       onChange={(e) => update("requireCheckin", e.target.checked)}
                       style={{ accentColor: "var(--lc-select-text)" }}
                     />
-                    <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text)" }}>Require check-in</span>
+                    <span className="text-caption color-primary">Require check-in</span>
                   </label>
                 </div>
               </div>
 
               {/* Optional rules */}
-              <details style={cardStyle}>
-                <summary style={{
-                  cursor: "pointer",
-                  fontSize: "var(--lc-text-small)",
-                  fontWeight: 500,
-                  color: "var(--lc-text-secondary)",
-                  listStyle: "none",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "var(--lc-space-2)",
-                }}>
-                  <span style={{ color: "var(--lc-text-muted)", fontSize: 10 }}>{"\u25B6"}</span>
+              <details className="p-5 rounded-lg border bg-raised">
+                <summary className="cursor-pointer text-small font-medium color-secondary row-2" style={{ listStyle: "none" }}>
+                  <span className="color-muted" style={{ fontSize: 10 }}>{"\u25B6"}</span>
                   Custom Rules (optional)
                 </summary>
                 <textarea
@@ -811,15 +737,15 @@ export default function CreateCompetitionPage() {
             </div>
           )}
 
-          {/* ═══ Step 3: Schedule ═════════════════════════════════════════════ */}
+          {/* Step 3: Schedule */}
           {step === 3 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-5)" }}>
+            <div className="stack-5">
               {/* Quick presets */}
-              <div style={cardStyle}>
-                <div style={{ fontSize: "var(--lc-text-small)", fontWeight: 500, color: "var(--lc-text-secondary)", marginBottom: "var(--lc-space-3)" }}>
+              <div className="p-5 rounded-lg border bg-raised">
+                <div className="text-small font-medium color-secondary mb-3">
                   Quick Presets
                 </div>
-                <div style={{ display: "flex", gap: "var(--lc-space-2)", flexWrap: "wrap" }}>
+                <div className="row-2 flex-wrap">
                   {[
                     { key: "quick", label: "\u26A1 Quick (3 hrs)", desc: "Starts in 3 hours" },
                     { key: "weekend", label: "\uD83D\uDCC5 Weekend", desc: "Next Saturday" },
@@ -829,29 +755,20 @@ export default function CreateCompetitionPage() {
                     <button
                       key={p.key}
                       onClick={() => applySchedulePreset(p.key)}
-                      style={{
-                        padding: "8px 16px",
-                        borderRadius: "var(--lc-radius-md)",
-                        border: "1px solid var(--lc-border)",
-                        backgroundColor: "var(--lc-bg-inset)",
-                        cursor: "pointer",
-                        fontSize: "var(--lc-text-caption)",
-                        color: "var(--lc-text)",
-                        transition: "all 0.15s ease",
-                        textAlign: "left",
-                      }}
+                      className="rounded-md border bg-inset cursor-pointer text-caption color-primary text-left transition-fast"
+                      style={{ padding: "8px 16px" }}
                       onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--lc-select-border)"; (e.currentTarget as HTMLElement).style.boxShadow = "var(--lc-shadow-sm)"; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--lc-border)"; (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
                     >
-                      <div style={{ fontWeight: 500 }}>{p.label}</div>
-                      <div style={{ fontSize: 11, color: "var(--lc-text-muted)", marginTop: 2 }}>{p.desc}</div>
+                      <div className="font-medium">{p.label}</div>
+                      <div className="color-muted" style={{ fontSize: 11, marginTop: 2 }}>{p.desc}</div>
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Date inputs */}
-              <div style={{ ...cardStyle, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--lc-space-4)" }}>
+              <div className="d-grid gap-4 p-5 rounded-lg border bg-raised" style={{ gridTemplateColumns: "1fr 1fr" }}>
                 <label style={labelStyle}>
                   Registration Opens
                   <input type="datetime-local" value={form.registrationOpens} onChange={(e) => update("registrationOpens", e.target.value)} style={inputStyle} />
@@ -872,23 +789,23 @@ export default function CreateCompetitionPage() {
 
               {/* Validation hints */}
               {form.registrationCloses && form.startsAt && new Date(form.registrationCloses) > new Date(form.startsAt) && (
-                <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-warning)", padding: "0 var(--lc-space-2)" }}>
+                <span className="text-caption color-warning px-2">
                   {"\u26A0\uFE0F"} Registration should close before the competition starts.
                 </span>
               )}
               {form.startsAt && form.endsAt && new Date(form.startsAt) >= new Date(form.endsAt) && (
-                <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-danger)", padding: "0 var(--lc-space-2)" }}>
+                <span className="text-caption color-danger px-2">
                   {"\u26A0\uFE0F"} Competition must end after it starts.
                 </span>
               )}
 
               {/* Timeline preview */}
               {form.registrationOpens && form.endsAt && (
-                <div style={{ ...cardStyle, padding: "var(--lc-space-3) var(--lc-space-4)" }}>
-                  <div style={{ fontSize: "var(--lc-text-caption)", fontWeight: 500, color: "var(--lc-text-secondary)", marginBottom: "var(--lc-space-2)" }}>
+                <div className="p-5 rounded-lg border bg-raised" style={{ padding: "var(--lc-space-3) var(--lc-space-4)" }}>
+                  <div className="text-caption font-medium color-secondary mb-2">
                     Timeline Preview
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 0, position: "relative", height: 40 }}>
+                  <div className="d-flex items-center gap-0 relative" style={{ height: 40 }}>
                     {[
                       { label: "Reg Opens", date: form.registrationOpens, color: "#3b82f6" },
                       { label: "Reg Closes", date: form.registrationCloses, color: "#f59e0b" },
@@ -896,25 +813,21 @@ export default function CreateCompetitionPage() {
                       { label: "Ends", date: form.endsAt, color: "#ef4444" },
                     ].filter((d) => d.date).map((d, i, arr) => (
                       <React.Fragment key={d.label}>
-                        <div style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          flex: 0,
-                          zIndex: 1,
-                        }}>
-                          <div style={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: "50%",
-                            backgroundColor: d.color,
-                          }} />
-                          <div style={{ fontSize: 10, color: d.color, fontWeight: 500, whiteSpace: "nowrap", marginTop: 4 }}>
+                        <div className="flex-col items-center" style={{ flex: 0, zIndex: 1, display: "flex" }}>
+                          <div
+                            className="rounded-circle"
+                            style={{
+                              width: 10,
+                              height: 10,
+                              backgroundColor: d.color,
+                            }}
+                          />
+                          <div className="font-medium text-nowrap" style={{ fontSize: 10, color: d.color, marginTop: 4 }}>
                             {d.label}
                           </div>
                         </div>
                         {i < arr.length - 1 && (
-                          <div style={{ flex: 1, height: 2, backgroundColor: "var(--lc-border)" }} />
+                          <div className="flex-1" style={{ height: 2, backgroundColor: "var(--lc-border)" }} />
                         )}
                       </React.Fragment>
                     ))}
@@ -924,12 +837,12 @@ export default function CreateCompetitionPage() {
             </div>
           )}
 
-          {/* ═══ Step 4: Prize Configuration ══════════════════════════════════ */}
+          {/* Step 4: Prize Configuration */}
           {step === 4 && (
-            <div style={{ ...cardStyle, display: "flex", flexDirection: "column", gap: "var(--lc-space-5)" }}>
+            <div className="stack-5 p-5 rounded-lg border bg-raised">
               <label style={labelStyle}>
                 Distribution Type
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "var(--lc-space-3)" }}>
+                <div className="d-grid gap-3" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
                   {([
                     { key: "winner_takes_all", label: "Winner Takes All", desc: "100% to first place", emoji: "\uD83E\uDD47" },
                     { key: "top_n", label: "Top N Split", desc: "Split among top finishers", emoji: "\uD83C\uDFC5" },
@@ -944,30 +857,22 @@ export default function CreateCompetitionPage() {
                           update("distributionType", opt.key);
                           if (opt.key === "top_n") applyPresetSplits(form.numWinners);
                         }}
+                        className="row-2 p-3 rounded-md cursor-pointer text-left transition-fast"
                         style={{
-                          padding: "var(--lc-space-3)",
-                          borderRadius: "var(--lc-radius-md)",
                           border: selected ? "2px solid var(--lc-select-border)" : "1px solid var(--lc-border)",
                           backgroundColor: selected ? "var(--lc-select)" : "var(--lc-bg-inset)",
                           boxShadow: selected ? "var(--lc-shadow-sm)" : "none",
-                          cursor: "pointer",
-                          textAlign: "left",
-                          transition: "all 0.15s ease",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "var(--lc-space-2)",
                         }}
                       >
                         <span style={{ fontSize: 20 }}>{opt.emoji}</span>
                         <div>
-                          <div style={{
-                            fontSize: "var(--lc-text-small)",
-                            fontWeight: 500,
-                            color: selected ? "var(--lc-select-text)" : "var(--lc-text)",
-                          }}>
+                          <div
+                            className="text-small font-medium"
+                            style={{ color: selected ? "var(--lc-select-text)" : "var(--lc-text)" }}
+                          >
                             {opt.label}
                           </div>
-                          <div style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", marginTop: 2 }}>
+                          <div className="text-caption color-muted" style={{ marginTop: 2 }}>
                             {opt.desc}
                           </div>
                         </div>
@@ -979,25 +884,22 @@ export default function CreateCompetitionPage() {
 
               {/* Top N configuration */}
               {form.distributionType === "top_n" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-3)" }}>
+                <div className="stack-3">
                   <label style={labelStyle}>
                     Number of Winners
-                    <div style={{ display: "flex", gap: "var(--lc-space-2)" }}>
+                    <div className="d-flex gap-2">
                       {[1, 2, 3, 4, 5].map((n) => (
                         <button
                           key={n}
                           onClick={() => applyPresetSplits(n)}
+                          className="rounded-md text-small cursor-pointer transition-fast"
                           style={{
                             width: 40,
                             height: 40,
-                            borderRadius: "var(--lc-radius-md)",
                             border: form.numWinners === n ? "2px solid var(--lc-select-border)" : "1px solid var(--lc-border)",
                             backgroundColor: form.numWinners === n ? "var(--lc-select)" : "var(--lc-bg-inset)",
                             color: form.numWinners === n ? "var(--lc-select-text)" : "var(--lc-text)",
-                            cursor: "pointer",
-                            fontSize: "var(--lc-text-small)",
                             fontWeight: 600,
-                            transition: "all 0.15s ease",
                           }}
                         >
                           {n}
@@ -1011,20 +913,12 @@ export default function CreateCompetitionPage() {
 
               {/* Custom configuration */}
               {form.distributionType === "custom" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-3)" }}>
+                <div className="stack-3">
                   <SplitEditor splits={form.splits} onUpdate={updateSplit} onRemove={removeSplitRow} splitSum={splitSum} />
                   <button
                     onClick={addSplitRow}
-                    style={{
-                      alignSelf: "flex-start",
-                      padding: "6px 14px",
-                      borderRadius: "var(--lc-radius-md)",
-                      border: "1px solid var(--lc-border)",
-                      backgroundColor: "transparent",
-                      color: "var(--lc-text-secondary)",
-                      fontSize: "var(--lc-text-caption)",
-                      cursor: "pointer",
-                    }}
+                    className="self-start rounded-md border bg-transparent color-secondary text-caption cursor-pointer"
+                    style={{ padding: "6px 14px" }}
                   >
                     + Add position
                   </button>
@@ -1033,23 +927,15 @@ export default function CreateCompetitionPage() {
             </div>
           )}
 
-          {/* ═══ Step 5: Review ═══════════════════════════════════════════════ */}
+          {/* Step 5: Review */}
           {step === 5 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-4)" }}>
-              <div style={cardStyle}>
-                <h3 style={{
-                  fontSize: "var(--lc-text-subhead)",
-                  fontWeight: 600,
-                  color: "var(--lc-text)",
-                  margin: "0 0 var(--lc-space-4) 0",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "var(--lc-space-2)",
-                }}>
+            <div className="stack-4">
+              <div className="p-5 rounded-lg border bg-raised">
+                <h3 className="text-subhead font-semibold color-primary m-0 mb-4 row-2">
                   {selectedType?.emoji} Review your Tournament
                 </h3>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                <div className="flex-col" style={{ gap: 0 }}>
                   {[
                     { label: "Type", value: selectedType?.title || "--" },
                     { label: "Title", value: form.title || "--" },
@@ -1065,25 +951,14 @@ export default function CreateCompetitionPage() {
                   ].map((row) => (
                     <div
                       key={row.label}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "baseline",
-                        padding: "var(--lc-space-2) 0",
-                        borderBottom: "1px solid var(--lc-border)",
-                      }}
+                      className="flex-between border-b py-2"
+                      style={{ alignItems: "baseline" }}
                     >
-                      <span style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)" }}>{row.label}</span>
-                      <span style={{
-                        fontSize: "var(--lc-text-small)",
-                        fontWeight: 500,
-                        color: "var(--lc-text)",
-                        textAlign: "right",
-                        maxWidth: "60%",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}>
+                      <span className="text-small color-secondary">{row.label}</span>
+                      <span
+                        className="text-small font-medium color-primary text-right text-ellipsis"
+                        style={{ maxWidth: "60%" }}
+                      >
                         {row.value}
                       </span>
                     </div>
@@ -1091,11 +966,11 @@ export default function CreateCompetitionPage() {
 
                   {/* Split display */}
                   {(form.distributionType === "top_n" || form.distributionType === "custom") && (
-                    <div style={{ padding: "var(--lc-space-2) 0" }}>
-                      <span style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", display: "block", marginBottom: "var(--lc-space-2)" }}>
+                    <div className="py-2">
+                      <span className="text-small color-secondary d-block mb-2">
                         Prize Splits
                       </span>
-                      <div style={{ display: "flex", gap: "var(--lc-space-2)", flexWrap: "wrap" }}>
+                      <div className="row-2 flex-wrap">
                         {form.splits.map((pct, i) => (
                           <Badge key={i} variant="tone" tone={i === 0 ? "warning" : i === 1 ? "accent" : "muted"} size="sm">
                             #{i + 1}: {pct}%
@@ -1107,11 +982,11 @@ export default function CreateCompetitionPage() {
                 </div>
 
                 {form.description && (
-                  <div style={{ marginTop: "var(--lc-space-4)", padding: "var(--lc-space-3)", borderRadius: "var(--lc-radius-md)", backgroundColor: "var(--lc-bg-inset)" }}>
-                    <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", display: "block", marginBottom: 4 }}>
+                  <div className="mt-4 p-3 rounded-md bg-inset">
+                    <span className="text-caption color-muted d-block" style={{ marginBottom: 4 }}>
                       Description
                     </span>
-                    <span style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+                    <span className="text-small color-secondary" style={{ lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
                       {form.description}
                     </span>
                   </div>
@@ -1119,16 +994,7 @@ export default function CreateCompetitionPage() {
               </div>
 
               {/* Status note */}
-              <div style={{
-                padding: "var(--lc-space-3) var(--lc-space-4)",
-                borderRadius: "var(--lc-radius-md)",
-                backgroundColor: "var(--lc-info-muted)",
-                fontSize: "var(--lc-text-caption)",
-                color: "var(--lc-info)",
-                display: "flex",
-                alignItems: "center",
-                gap: "var(--lc-space-2)",
-              }}>
+              <div className="alert-banner alert-banner--info row-2 text-caption">
                 <span>{"\u2139\uFE0F"}</span>
                 Your tournament will be created in <strong>Draft</strong> status. You can publish it and open registration from the tournament page.
               </div>
@@ -1139,30 +1005,18 @@ export default function CreateCompetitionPage() {
 
       {/* ── Navigation Buttons ────────────────────────────────────────────── */}
       {!success && (
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          paddingTop: "var(--lc-space-4)",
-          borderTop: "1px solid var(--lc-border)",
-        }}>
+        <div className="flex-between pt-4 border-t">
           <button
             onClick={step === 2 ? () => { setStep(1); } : back}
             disabled={step === 1}
+            className="d-inline-flex row-1 rounded-md border text-small transition-fast"
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "var(--lc-space-1)",
               padding: "10px 18px",
-              borderRadius: "var(--lc-radius-md)",
-              border: "1px solid var(--lc-border)",
               backgroundColor: "transparent",
               color: step === 1 ? "var(--lc-text-muted)" : "var(--lc-text)",
-              fontSize: "var(--lc-text-small)",
               fontWeight: 500,
               cursor: step === 1 ? "not-allowed" : "pointer",
               opacity: step === 1 ? 0.5 : 1,
-              transition: "all 0.15s ease",
             }}
           >
             <ChevronLeft />
@@ -1173,19 +1027,13 @@ export default function CreateCompetitionPage() {
             <button
               onClick={next}
               disabled={!canProceed}
+              className="d-inline-flex row-1 rounded-md border-none text-small transition-fast"
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "var(--lc-space-1)",
                 padding: "10px 24px",
-                borderRadius: "var(--lc-radius-md)",
-                border: "none",
                 backgroundColor: canProceed ? "var(--lc-accent)" : "var(--lc-bg-overlay)",
                 color: canProceed ? "var(--lc-accent-text)" : "var(--lc-text-muted)",
-                fontSize: "var(--lc-text-small)",
                 fontWeight: 500,
                 cursor: canProceed ? "pointer" : "not-allowed",
-                transition: "all 0.15s ease",
               }}
             >
               Continue
@@ -1195,20 +1043,13 @@ export default function CreateCompetitionPage() {
             <button
               onClick={handleSubmit}
               disabled={submitting || !address}
+              className="d-inline-flex row-2 rounded-md border-none text-small font-semibold transition-fast"
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "var(--lc-space-2)",
                 padding: "10px 28px",
-                borderRadius: "var(--lc-radius-md)",
-                border: "none",
                 backgroundColor: submitting || !address ? "var(--lc-bg-overlay)" : "var(--lc-accent)",
                 color: submitting || !address ? "var(--lc-text-muted)" : "var(--lc-accent-text)",
-                fontSize: "var(--lc-text-small)",
-                fontWeight: 600,
                 cursor: submitting || !address ? "not-allowed" : "pointer",
                 opacity: submitting ? 0.7 : 1,
-                transition: "all 0.15s ease",
               }}
             >
               {submitting ? "Creating..." : !address ? "Connect Wallet" : "\uD83D\uDE80 Launch Tournament"}
@@ -1234,28 +1075,31 @@ function SplitEditor({
   splitSum: number;
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-2)" }}>
-      <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", fontWeight: 500 }}>
+    <div className="stack-2">
+      <span className="text-caption color-muted font-medium">
         Prize Allocation (must total 100%)
       </span>
       {splits.map((pct, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)" }}>
-          <span style={{
-            fontSize: "var(--lc-text-caption)",
-            fontWeight: 700,
-            color: i === 0 ? "var(--lc-warning)" : "var(--lc-text-muted)",
-            minWidth: 28,
-          }}>
+        <div key={i} className="row-2">
+          <span
+            className="text-caption font-bold"
+            style={{
+              color: i === 0 ? "var(--lc-warning)" : "var(--lc-text-muted)",
+              minWidth: 28,
+            }}
+          >
             #{i + 1}
           </span>
-          <div style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: "var(--lc-bg-inset)", overflow: "hidden" }}>
-            <div style={{
-              width: `${Math.min(pct, 100)}%`,
-              height: "100%",
-              borderRadius: 3,
-              backgroundColor: i === 0 ? "var(--lc-warning)" : i === 1 ? "var(--lc-accent)" : "var(--lc-text-muted)",
-              transition: "width 0.2s ease",
-            }} />
+          <div className="flex-1 overflow-hidden" style={{ height: 6, borderRadius: 3, backgroundColor: "var(--lc-bg-inset)" }}>
+            <div
+              className="transition-fast"
+              style={{
+                width: `${Math.min(pct, 100)}%`,
+                height: "100%",
+                borderRadius: 3,
+                backgroundColor: i === 0 ? "var(--lc-warning)" : i === 1 ? "var(--lc-accent)" : "var(--lc-text-muted)",
+              }}
+            />
           </div>
           <input
             type="number"
@@ -1263,36 +1107,19 @@ function SplitEditor({
             onChange={(e) => onUpdate(i, Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
             min={0}
             max={100}
+            className="text-caption color-primary bg-inset border rounded-sm text-right"
             style={{
               width: 60,
               padding: "4px 8px",
-              fontSize: "var(--lc-text-caption)",
-              color: "var(--lc-text)",
-              backgroundColor: "var(--lc-bg-inset)",
-              border: "1px solid var(--lc-border)",
-              borderRadius: "var(--lc-radius-sm)",
-              textAlign: "right",
               fontFamily: "var(--lc-font-mono)",
             }}
           />
-          <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>%</span>
+          <span className="text-caption color-muted">%</span>
           {splits.length > 1 && (
             <button
               onClick={() => onRemove(i)}
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: "50%",
-                border: "1px solid var(--lc-border)",
-                backgroundColor: "transparent",
-                color: "var(--lc-text-muted)",
-                cursor: "pointer",
-                fontSize: "var(--lc-text-caption)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
+              className="d-flex items-center justify-center rounded-circle border bg-transparent color-muted cursor-pointer text-caption shrink-0"
+              style={{ width: 24, height: 24 }}
               title="Remove"
             >
               x
@@ -1300,13 +1127,10 @@ function SplitEditor({
           )}
         </div>
       ))}
-      <div style={{
-        display: "flex",
-        justifyContent: "flex-end",
-        fontSize: "var(--lc-text-caption)",
-        fontWeight: 600,
-        color: splitSum === 100 ? "var(--lc-success)" : "var(--lc-danger)",
-      }}>
+      <div
+        className="d-flex justify-end text-caption font-semibold"
+        style={{ color: splitSum === 100 ? "var(--lc-success)" : "var(--lc-danger)" }}
+      >
         Total: {splitSum}%{splitSum !== 100 && " (must be 100%)"}
       </div>
     </div>

@@ -189,18 +189,10 @@ function getLevelInfo(points: number) {
 
 function StatCard({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color?: string }) {
   return (
-    <div style={{
-      padding: "var(--lc-space-4)",
-      borderRadius: "var(--lc-radius-lg)",
-      border: "1px solid var(--lc-border)",
-      backgroundColor: "var(--lc-bg-raised)",
-      textAlign: "center",
-      flex: "1 1 0",
-      minWidth: 100,
-    }}>
-      <div style={{ fontSize: "var(--lc-text-heading)", fontWeight: 700, color: color || "var(--lc-text)" }}>{value}</div>
-      <div style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-secondary)", marginTop: 2 }}>{label}</div>
-      {sub && <div style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", marginTop: 2 }}>{sub}</div>}
+    <div className="p-4 rounded-lg border bg-raised text-center" style={{ flex: "1 1 0", minWidth: 100 }}>
+      <div className="text-heading font-bold" style={color ? { color } : undefined}>{value}</div>
+      <div className="text-caption color-secondary" style={{ marginTop: 2 }}>{label}</div>
+      {sub && <div className="text-caption color-muted" style={{ marginTop: 2 }}>{sub}</div>}
     </div>
   );
 }
@@ -219,40 +211,25 @@ function TypeBreakdown({ achievements }: { achievements: Achievement[] }) {
   const max = counts[0][1];
 
   return (
-    <div style={{
-      padding: "var(--lc-space-5)",
-      borderRadius: "var(--lc-radius-lg)",
-      border: "1px solid var(--lc-border)",
-      backgroundColor: "var(--lc-bg-raised)",
-      display: "flex",
-      flexDirection: "column",
-      gap: "var(--lc-space-3)",
-    }}>
-      <div style={{ fontSize: "var(--lc-text-small)", fontWeight: 600, color: "var(--lc-text)" }}>
+    <div className="p-5 rounded-lg border bg-raised stack-3">
+      <div className="text-small font-semibold">
         Achievement Breakdown
       </div>
       {counts.map(([type, count]) => {
         const meta = getMeta(type);
         return (
-          <div key={type} style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-3)" }}>
-            <span style={{ fontSize: 16, width: 24, textAlign: "center", flexShrink: 0 }}>{meta.icon}</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-                <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-secondary)" }}>{meta.label}</span>
-                <span style={{ fontSize: "var(--lc-text-caption)", fontWeight: 600, color: "var(--lc-text)" }}>{count}</span>
+          <div key={type} className="row-3">
+            <span className="text-center shrink-0" style={{ fontSize: 16, width: 24 }}>{meta.icon}</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex-between" style={{ marginBottom: 3 }}>
+                <span className="text-caption color-secondary">{meta.label}</span>
+                <span className="text-caption font-semibold">{count}</span>
               </div>
-              <div style={{
-                height: 6,
-                borderRadius: 3,
-                backgroundColor: "var(--lc-bg-subtle)",
-                overflow: "hidden",
-              }}>
-                <div style={{
-                  height: "100%",
+              <div className="overflow-hidden" style={{ height: 6, borderRadius: 3, backgroundColor: "var(--lc-bg-subtle)" }}>
+                <div className="h-full rounded-pill transition-slow" style={{
                   width: `${(count / max) * 100}%`,
                   backgroundColor: meta.color,
                   borderRadius: 3,
-                  transition: "width 0.5s ease",
                 }} />
               </div>
             </div>
@@ -285,64 +262,32 @@ function MilestoneTracker({ achievements, reputation }: { achievements: Achievem
   }, [achievements, reputation]);
 
   return (
-    <div style={{
-      padding: "var(--lc-space-5)",
-      borderRadius: "var(--lc-radius-lg)",
-      border: "1px solid var(--lc-border)",
-      backgroundColor: "var(--lc-bg-raised)",
-      display: "flex",
-      flexDirection: "column",
-      gap: "var(--lc-space-3)",
-    }}>
-      <div style={{ fontSize: "var(--lc-text-small)", fontWeight: 600, color: "var(--lc-text)" }}>
+    <div className="p-5 rounded-lg border bg-raised stack-3">
+      <div className="text-small font-semibold">
         Milestones
       </div>
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-        gap: "var(--lc-space-2)",
-      }}>
+      <div className="d-grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
         {milestones.map((m) => {
           const done = m.current >= m.target;
           const pct = Math.min(100, Math.round((m.current / m.target) * 100));
           return (
-            <div key={m.label} style={{
-              padding: "var(--lc-space-3)",
-              borderRadius: "var(--lc-radius-md)",
-              border: `1px solid ${done ? "var(--lc-success)" : "var(--lc-border)"}`,
-              backgroundColor: done ? "var(--lc-success-muted)" : "transparent",
-              display: "flex",
-              alignItems: "center",
-              gap: "var(--lc-space-2)",
-              opacity: done ? 1 : 0.7,
-            }}>
-              <span style={{ fontSize: 18, flexShrink: 0 }}>{m.icon}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: "var(--lc-text-caption)",
-                  fontWeight: 500,
-                  color: done ? "var(--lc-success)" : "var(--lc-text-secondary)",
-                }}>
+            <div key={m.label} className={`p-3 rounded-md row-2 ${done ? "bg-success-muted" : "bg-transparent"}`}
+              style={{
+                border: `1px solid ${done ? "var(--lc-success)" : "var(--lc-border)"}`,
+                opacity: done ? 1 : 0.7,
+              }}>
+              <span className="shrink-0" style={{ fontSize: 18 }}>{m.icon}</span>
+              <div className="flex-1 min-w-0">
+                <div className={`text-caption font-medium ${done ? "color-success" : "color-secondary"}`}>
                   {m.label}
                 </div>
                 {!done && (
-                  <div style={{
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: "var(--lc-bg-subtle)",
-                    marginTop: 4,
-                    overflow: "hidden",
-                  }}>
-                    <div style={{
-                      height: "100%",
-                      width: `${pct}%`,
-                      backgroundColor: "var(--lc-accent)",
-                      borderRadius: 2,
-                    }} />
+                  <div className="overflow-hidden" style={{ height: 4, borderRadius: 2, backgroundColor: "var(--lc-bg-subtle)", marginTop: 4 }}>
+                    <div className="h-full bg-accent" style={{ width: `${pct}%`, borderRadius: 2 }} />
                   </div>
                 )}
               </div>
-              {done && <span style={{ color: "var(--lc-success)", fontSize: 14 }}>{"\u2713"}</span>}
+              {done && <span className="color-success" style={{ fontSize: 14 }}>{"\u2713"}</span>}
             </div>
           );
         })}
@@ -404,7 +349,7 @@ export default function AchievementsPage() {
 
   if (!address) {
     return (
-      <div style={{ maxWidth: "var(--lc-content-narrow)", margin: "0 auto" }}>
+      <div className="mx-auto" style={{ maxWidth: "var(--lc-content-narrow)" }}>
         <Breadcrumb items={[{ label: "Achievements" }]} />
         <ConnectWalletGate message="Connect your wallet to view your achievements and reputation." />
       </div>
@@ -412,18 +357,18 @@ export default function AchievementsPage() {
   }
 
   return (
-    <div style={{ maxWidth: "var(--lc-content-narrow)", margin: "0 auto", display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+    <div className="mx-auto stack-6" style={{ maxWidth: "var(--lc-content-narrow)" }}>
       <Breadcrumb items={[{ label: "Achievements" }]} />
 
-      <h1 style={{ fontSize: "var(--lc-text-title)", fontWeight: 700, color: "var(--lc-text)" }}>
+      <h1 className="page-header__title">
         Achievements & Reputation
       </h1>
 
       {/* Loading */}
       {loading && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-4)" }}>
+        <div className="stack-4">
           <Skeleton variant="card" height="180px" />
-          <div style={{ display: "flex", gap: "var(--lc-space-3)" }}>
+          <div className="d-flex gap-3">
             <Skeleton variant="card" height="80px" />
             <Skeleton variant="card" height="80px" />
             <Skeleton variant="card" height="80px" />
@@ -434,65 +379,45 @@ export default function AchievementsPage() {
 
       {/* ── Reputation Hero Card ─────────────────────────────────────── */}
       {!loading && reputation && (
-        <div style={{
-          padding: "var(--lc-space-6)",
-          borderRadius: "var(--lc-radius-lg)",
-          border: "1px solid var(--lc-border)",
-          background: `linear-gradient(135deg, ${levelInfo.color}08 0%, transparent 60%)`,
-          backgroundColor: "var(--lc-bg-raised)",
-          boxShadow: "var(--lc-shadow-sm)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "var(--lc-space-5)",
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "var(--lc-space-4)" }}>
+        <div className="p-6 rounded-lg border bg-raised shadow-sm stack-5"
+          style={{ background: `linear-gradient(135deg, ${levelInfo.color}08 0%, transparent 60%), var(--lc-bg-raised)` }}>
+          <div className="d-flex flex-wrap justify-between items-start gap-4">
             {/* Level badge */}
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-4)" }}>
-              <div style={{
-                width: 64,
-                height: 64,
-                borderRadius: "50%",
+            <div className="row-4">
+              <div className="circle-icon" style={{
+                width: 64, height: 64,
                 background: `linear-gradient(135deg, ${levelInfo.color}, ${levelInfo.color}88)`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 28,
-                fontWeight: 800,
-                color: "#fff",
+                fontSize: 28, fontWeight: 800, color: "#fff",
                 boxShadow: `0 4px 20px ${levelInfo.color}33`,
               }}>
                 {reputation.level}
               </div>
               <div>
-                <div style={{ fontSize: "var(--lc-text-subhead)", fontWeight: 700, color: "var(--lc-text)" }}>
-                  {reputation.levelName}
-                </div>
-                <div style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)" }}>
-                  {reputation.points.toLocaleString()} total points
-                </div>
+                <div className="text-subhead font-bold">{reputation.levelName}</div>
+                <div className="text-small color-secondary">{reputation.points.toLocaleString()} total points</div>
               </div>
             </div>
 
             {/* Quick stats */}
-            <div style={{ display: "flex", gap: "var(--lc-space-4)" }}>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 22, fontWeight: 700, color: "var(--lc-text)" }}>{achievements.length}</div>
-                <div style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>Achievements</div>
+            <div className="d-flex gap-4">
+              <div className="text-center">
+                <div className="font-bold" style={{ fontSize: 22 }}>{achievements.length}</div>
+                <div className="text-caption color-muted">Achievements</div>
               </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 22, fontWeight: 700, color: "var(--lc-success)" }}>{reputation.victories}</div>
-                <div style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>Victories</div>
+              <div className="text-center">
+                <div className="font-bold color-success" style={{ fontSize: 22 }}>{reputation.victories}</div>
+                <div className="text-caption color-muted">Victories</div>
               </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 22, fontWeight: 700, color: "var(--lc-accent)" }}>{reputation.completions}</div>
-                <div style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>Completions</div>
+              <div className="text-center">
+                <div className="font-bold color-accent" style={{ fontSize: 22 }}>{reputation.completions}</div>
+                <div className="text-caption color-muted">Completions</div>
               </div>
             </div>
           </div>
 
           {/* XP Progress bar */}
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>
+            <div className="flex-between text-caption color-muted" style={{ marginBottom: 8 }}>
               <span>Level {reputation.level}</span>
               {levelInfo.nextThreshold ? (
                 <span>{levelInfo.nextThreshold.toLocaleString()} pts to Level {reputation.level + 1}</span>
@@ -500,18 +425,11 @@ export default function AchievementsPage() {
                 <span>Max level reached!</span>
               )}
             </div>
-            <div style={{
-              height: 10,
-              borderRadius: 5,
-              backgroundColor: "var(--lc-bg-subtle)",
-              overflow: "hidden",
-            }}>
-              <div style={{
-                height: "100%",
+            <div className="overflow-hidden" style={{ height: 10, borderRadius: 5, backgroundColor: "var(--lc-bg-subtle)" }}>
+              <div className="h-full transition-slow" style={{
                 width: `${levelInfo.pct}%`,
                 background: `linear-gradient(90deg, ${levelInfo.color}, ${levelInfo.color}cc)`,
                 borderRadius: 5,
-                transition: "width 0.6s ease",
               }} />
             </div>
           </div>
@@ -520,7 +438,7 @@ export default function AchievementsPage() {
 
       {/* ── Stat cards row ────────────────────────────────────────────── */}
       {!loading && (
-        <div style={{ display: "flex", gap: "var(--lc-space-3)", flexWrap: "wrap" }}>
+        <div className="d-flex flex-wrap gap-3">
           <StatCard
             label="Total Points"
             value={totalPoints.toLocaleString()}
@@ -551,7 +469,7 @@ export default function AchievementsPage() {
 
       {/* ── Achievement breakdown + Milestones ────────────────────────── */}
       {!loading && achievements.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--lc-space-4)" }}>
+        <div className="d-grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
           <TypeBreakdown achievements={achievements} />
           <MilestoneTracker achievements={achievements} reputation={reputation} />
         </div>
@@ -559,7 +477,7 @@ export default function AchievementsPage() {
 
       {/* ── Filter tabs ───────────────────────────────────────────────── */}
       {!loading && achievements.length > 0 && (
-        <div style={{ display: "flex", gap: "var(--lc-space-2)", flexWrap: "wrap" }}>
+        <div className="d-flex flex-wrap gap-2">
           {activeFilters.map((f) => {
             const meta = f === "all" ? null : getMeta(f);
             const count = f === "all" ? achievements.length : achievements.filter((a) => a.achievement_type === f).length;
@@ -567,22 +485,7 @@ export default function AchievementsPage() {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                style={{
-                  padding: "6px 14px",
-                  borderRadius: "var(--lc-radius-pill)",
-                  fontSize: "var(--lc-text-caption)",
-                  fontWeight: 500,
-                  color: filter === f ? "var(--lc-select-text)" : "var(--lc-text-secondary)",
-                  backgroundColor: filter === f
-                    ? "var(--lc-select)"
-                    : "transparent",
-                  border: filter === f ? "2px solid var(--lc-select-border)" : "1px solid var(--lc-border)",
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
+                className={`filter-pill ${filter === f ? "filter-pill--active" : ""}`}
               >
                 {meta && <span>{meta.icon}</span>}
                 {f === "all" ? `All (${count})` : `${meta?.label} (${count})`}
@@ -604,29 +507,15 @@ export default function AchievementsPage() {
 
       {/* ── Achievement grid ──────────────────────────────────────────── */}
       {!loading && filtered.length > 0 && (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-          gap: "var(--lc-space-3)",
-        }}>
+        <div className="d-grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
           {filtered.map((a) => {
             const meta = getMeta(a.achievement_type);
             return (
               <Link
                 key={a.token_id}
                 href={`/challenge/${a.challenge_id}`}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "var(--lc-space-3)",
-                  padding: "var(--lc-space-4)",
-                  borderRadius: "var(--lc-radius-lg)",
-                  border: "1px solid var(--lc-border)",
-                  backgroundColor: "var(--lc-bg-raised)",
-                  boxShadow: "var(--lc-shadow-sm)",
-                  textDecoration: "none",
-                  transition: "all 0.2s ease",
-                }}
+                className="row-3 p-4 rounded-lg border bg-raised shadow-sm transition-base"
+                style={{ textDecoration: "none" }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLElement).style.borderColor = "var(--lc-border-strong)";
                   (e.currentTarget as HTMLElement).style.boxShadow = "var(--lc-shadow-md)";
@@ -639,31 +528,14 @@ export default function AchievementsPage() {
                 }}
               >
                 {/* Type icon */}
-                <div style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                  backgroundColor: meta.bgColor,
-                  fontSize: 20,
-                }}>
+                <div className="circle-icon shrink-0" style={{ width: 44, height: 44, backgroundColor: meta.bgColor, fontSize: 20 }}>
                   {meta.icon}
                 </div>
 
                 {/* Content */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", flexWrap: "wrap" }}>
-                    <span style={{
-                      fontSize: "var(--lc-text-small)",
-                      fontWeight: 600,
-                      color: "var(--lc-text)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}>
+                <div className="flex-1 min-w-0">
+                  <div className="row-2 flex-wrap">
+                    <span className="text-small font-semibold text-ellipsis">
                       {meta.label}
                       {a.title ? `: ${a.title}` : ` #${a.challenge_id}`}
                     </span>
@@ -671,19 +543,13 @@ export default function AchievementsPage() {
                       +{meta.points} pts
                     </Badge>
                   </div>
-                  <div style={{
-                    fontSize: "var(--lc-text-caption)",
-                    color: "var(--lc-text-muted)",
-                    marginTop: 2,
-                  }}>
+                  <div className="text-caption color-muted" style={{ marginTop: 2 }}>
                     {new Date(a.minted_at).toLocaleDateString()} &middot; Token #{a.token_id}
                   </div>
                 </div>
 
                 {/* Arrow */}
-                <span style={{ color: "var(--lc-text-muted)", fontSize: "var(--lc-text-small)", flexShrink: 0 }}>
-                  &rsaquo;
-                </span>
+                <span className="color-muted text-small shrink-0">&rsaquo;</span>
               </Link>
             );
           })}
@@ -692,68 +558,31 @@ export default function AchievementsPage() {
 
       {/* ── Points guide ──────────────────────────────────────────────── */}
       {!loading && (
-        <details style={{
-          borderRadius: "var(--lc-radius-lg)",
-          border: "1px solid var(--lc-border)",
-          backgroundColor: "var(--lc-bg-raised)",
-          padding: "var(--lc-space-4)",
-        }}>
-          <summary style={{
-            cursor: "pointer",
-            fontSize: "var(--lc-text-small)",
-            fontWeight: 600,
-            color: "var(--lc-text)",
-            listStyle: "none",
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--lc-space-2)",
-          }}>
-            <span style={{ color: "var(--lc-text-muted)" }}>{"\u25B6"}</span>
+        <details className="rounded-lg border bg-raised p-4">
+          <summary className="cursor-pointer text-small font-semibold row-2" style={{ listStyle: "none" }}>
+            <span className="color-muted">{"\u25B6"}</span>
             Points Guide &mdash; How achievements are scored
           </summary>
-          <div style={{
-            marginTop: "var(--lc-space-4)",
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-            gap: "var(--lc-space-2)",
-          }}>
+          <div className="mt-4 d-grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
             {Object.entries(ACHIEVEMENT_TYPES).map(([key, meta]) => (
-              <div key={key} style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "var(--lc-space-2)",
-                padding: "var(--lc-space-2) var(--lc-space-3)",
-                borderRadius: "var(--lc-radius-md)",
-                border: "1px solid var(--lc-border)",
-              }}>
+              <div key={key} className="row-2 py-2 px-3 rounded-md border">
                 <span style={{ fontSize: 16 }}>{meta.icon}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "var(--lc-text-caption)", fontWeight: 500, color: "var(--lc-text)" }}>
-                    {meta.label}
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--lc-text-muted)" }}>{meta.description}</div>
+                <div className="flex-1">
+                  <div className="text-caption font-medium">{meta.label}</div>
+                  <div className="color-muted" style={{ fontSize: 11 }}>{meta.description}</div>
                 </div>
-                <span style={{
-                  fontSize: "var(--lc-text-caption)",
-                  fontWeight: 700,
-                  color: meta.color,
-                }}>{meta.points}</span>
+                <span className="text-caption font-bold" style={{ color: meta.color }}>{meta.points}</span>
               </div>
             ))}
           </div>
-          <div style={{ marginTop: "var(--lc-space-4)" }}>
-            <div style={{ fontSize: "var(--lc-text-caption)", fontWeight: 600, color: "var(--lc-text)", marginBottom: "var(--lc-space-2)" }}>
-              Level Thresholds
-            </div>
-            <div style={{ display: "flex", gap: "var(--lc-space-2)", flexWrap: "wrap" }}>
+          <div className="mt-4">
+            <div className="text-caption font-semibold mb-2">Level Thresholds</div>
+            <div className="d-flex flex-wrap gap-2">
               {LEVEL_THRESHOLDS.map((t) => (
-                <div key={t.level} style={{
+                <div key={t.level} className="rounded-pill text-caption font-semibold" style={{
                   padding: "4px 12px",
-                  borderRadius: "var(--lc-radius-pill)",
-                  fontSize: "var(--lc-text-caption)",
                   backgroundColor: `${t.color}18`,
                   color: t.color,
-                  fontWeight: 600,
                 }}>
                   L{t.level} {t.name}: {t.min}+
                 </div>

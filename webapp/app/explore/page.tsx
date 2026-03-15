@@ -86,26 +86,15 @@ type PrefChoice = "Gaming" | "Fitness" | "Both";
 
 function OnboardingSurvey({ onChoose, onSkip }: { onChoose: (p: PrefChoice) => void; onSkip: () => void }) {
   return (
-    <div
-      style={{
-        padding: "var(--lc-space-5)",
-        borderRadius: "var(--lc-radius-lg)",
-        border: "1px solid var(--lc-select-border)",
-        backgroundColor: "var(--lc-select)",
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        gap: "var(--lc-space-4)",
-      }}
-    >
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: "var(--lc-text-small)", fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)", marginBottom: "var(--lc-space-1)" }}>
+    <div className="onboarding-survey">
+      <div className="min-w-0">
+        <div className="onboarding-survey__title">
           What kind of challenges interest you?
         </div>
-        <p style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-secondary)", marginBottom: "var(--lc-space-4)" }}>
+        <p className="onboarding-survey__desc">
           We&apos;ll show you the most relevant challenges first.
         </p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--lc-space-2)" }}>
+        <div className="row-2 flex-wrap">
           {(["Gaming", "Fitness", "Both"] as PrefChoice[]).map((p) => (
             <button
               key={p}
@@ -119,15 +108,7 @@ function OnboardingSurvey({ onChoose, onSkip }: { onChoose: (p: PrefChoice) => v
       </div>
       <button
         onClick={onSkip}
-        style={{
-          fontSize: "var(--lc-text-caption)",
-          color: "var(--lc-text-muted)",
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          padding: "var(--lc-space-2)",
-          flexShrink: 0,
-        }}
+        className="onboarding-survey__skip"
       >
         Skip
       </button>
@@ -140,18 +121,7 @@ function FilterPill({ label, active, onClick }: { label: string; active: boolean
   return (
     <button
       onClick={onClick}
-      style={{
-        padding: "6px 14px",
-        borderRadius: "var(--lc-radius-pill)",
-        fontSize: "var(--lc-text-caption)",
-        fontWeight: "var(--lc-weight-medium)" as any,
-        color: active ? "var(--lc-select-text)" : "var(--lc-text-secondary)",
-        backgroundColor: active ? "var(--lc-select)" : "transparent",
-        border: active ? "1px solid var(--lc-select-border)" : "1px solid var(--lc-border)",
-        cursor: "pointer",
-        transition: "all var(--lc-dur-fast) var(--lc-ease)",
-        whiteSpace: "nowrap",
-      }}
+      className={`filter-pill${active ? ' filter-pill--active' : ''}`}
     >
       {label}
     </button>
@@ -489,25 +459,14 @@ export default function Explore() {
 
   /* ── Controls (passed to header) ────────────────────────────────────────── */
   const controls = (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-3)" }}>
+    <div className="stack-3">
       {/* Sort tabs */}
-      <div style={{ display: "flex", gap: "var(--lc-space-1)", padding: "3px", borderRadius: "var(--lc-radius-pill)", backgroundColor: "var(--lc-bg-inset)", width: "fit-content" }}>
+      <div className="segmented-control">
         {sortTabs.map(({ key, label }) => (
           <button
             key={key}
             onClick={() => setTab(key)}
-            style={{
-              padding: "6px 16px",
-              borderRadius: "var(--lc-radius-pill)",
-              fontSize: "var(--lc-text-caption)",
-              fontWeight: "var(--lc-weight-medium)" as any,
-              color: tab === key ? "var(--lc-text)" : "var(--lc-text-muted)",
-              backgroundColor: tab === key ? "var(--lc-bg-raised)" : "transparent",
-              border: "none",
-              cursor: "pointer",
-              transition: "all var(--lc-dur-fast) var(--lc-ease)",
-              whiteSpace: "nowrap",
-            }}
+            className={`segmented-control__btn${tab === key ? ' segmented-control__btn--active' : ''}`}
           >
             {label}
           </button>
@@ -515,34 +474,20 @@ export default function Explore() {
       </div>
 
       {/* Search + view toggle row */}
-      <div style={{ display: "flex", gap: "var(--lc-space-2)", alignItems: "center" }}>
+      <div className="row-2">
         <input
-          className="input"
+          className="input flex-1"
           placeholder="Search by title, game, or creator\u2026"
           value={filterQuery}
           onChange={(e) => setFilterQuery(e.target.value)}
-          style={{ flex: 1 }}
         />
-        <div style={{ display: "flex", padding: 2, borderRadius: "var(--lc-radius-md)", backgroundColor: "var(--lc-bg-inset)", border: "1px solid var(--lc-border)", flexShrink: 0 }}>
+        <div className="view-toggle">
           {(["grid", "table"] as const).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
               title={v === "grid" ? "Grid view" : "Table view"}
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: "var(--lc-radius-sm)",
-                border: "none",
-                backgroundColor: view === v ? "var(--lc-bg-raised)" : "transparent",
-                color: view === v ? "var(--lc-text)" : "var(--lc-text-muted)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 16,
-                transition: "all var(--lc-dur-fast) var(--lc-ease)",
-              }}
+              className={`view-toggle__btn${view === v ? ' view-toggle__btn--active' : ''}`}
             >
               {v === "grid" ? "\u229E" : "\u2630"}
             </button>
@@ -551,7 +496,7 @@ export default function Explore() {
       </div>
 
       {/* Result count */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>
+      <div className="result-count">
         <span>
           {filtered.length} challenge{filtered.length !== 1 ? "s" : ""}
           {filtered.length < rowsEffective.length ? ` of ${rowsEffective.length}` : ""}
@@ -559,15 +504,7 @@ export default function Explore() {
         {activeFilters > 0 && (
           <button
             onClick={clearAllFilters}
-            style={{
-              background: "none",
-              border: "none",
-              color: "var(--lc-accent)",
-              fontSize: "var(--lc-text-caption)",
-              cursor: "pointer",
-              textDecoration: "underline",
-              textUnderlineOffset: 2,
-            }}
+            className="btn-link"
           >
             Clear filters
           </button>
@@ -575,7 +512,7 @@ export default function Explore() {
       </div>
 
       {error && rowsEffective.length === 0 && (
-        <div style={{ padding: "var(--lc-space-3)", borderRadius: "var(--lc-radius-md)", backgroundColor: "var(--lc-error-muted)", color: "var(--lc-error)", fontSize: "var(--lc-text-small)" }}>
+        <div className="alert-banner alert-banner--error">
           API: {error}
         </div>
       )}
@@ -583,7 +520,7 @@ export default function Explore() {
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+    <div className="stack-6">
       <Breadcrumb items={[{ label: "Explore" }]} />
 
       <ExploreHeader chainId={chainId} tallies={tallies} controls={controls} />
@@ -593,10 +530,10 @@ export default function Explore() {
       )}
 
       {/* Horizontal filter pills */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-3)" }}>
+      <div className="stack-3">
         {/* Category */}
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", flexWrap: "wrap" }}>
-          <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", minWidth: 48 }}>Type</span>
+        <div className="filter-row">
+          <span className="filter-row__label">Type</span>
           {["All", "Gaming", "Fitness", "Social", "Custom"].map((g) => (
             <FilterPill
               key={g}
@@ -608,8 +545,8 @@ export default function Explore() {
         </div>
 
         {/* Status */}
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", flexWrap: "wrap" }}>
-          <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", minWidth: 48 }}>Status</span>
+        <div className="filter-row">
+          <span className="filter-row__label">Status</span>
           {["All", "Active", "Finalized", "Canceled"].map((s) => (
             <FilterPill
               key={s}
@@ -622,8 +559,8 @@ export default function Explore() {
 
         {/* Games (only show when Gaming type is selected or ALL) */}
         {(facetType === "ALL" || facetType === "Gaming") && (
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", minWidth: 48 }}>Game</span>
+          <div className="filter-row">
+            <span className="filter-row__label">Game</span>
             {["All", "Dota 2", "CS2", "League of Legends", "Valorant", "Other"].map((g) => (
               <FilterPill
                 key={g}
@@ -636,7 +573,7 @@ export default function Explore() {
         )}
 
         {/* Favorites toggle */}
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)" }}>
+        <div className="row-2">
           <FilterPill
             label={`\u2605 Favorites${onlyFavorites ? " (on)" : ""}`}
             active={onlyFavorites}
@@ -647,21 +584,14 @@ export default function Explore() {
 
       {/* Content */}
       {view === "grid" ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+        <div className="stack-6">
           {loading && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "var(--lc-space-4)" }}>
+            <div className="shimmer-grid">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div
                   key={i}
-                  style={{
-                    height: 200,
-                    borderRadius: "var(--lc-radius-lg)",
-                    border: "1px solid var(--lc-border)",
-                    backgroundColor: "var(--lc-bg-raised)",
-                    background: "linear-gradient(90deg, var(--lc-bg-raised) 25%, var(--lc-bg-inset) 50%, var(--lc-bg-raised) 75%)",
-                    backgroundSize: "200% 100%",
-                    animation: "lc-shimmer 1.4s ease-in-out infinite",
-                  }}
+                  className="skeleton-card"
+                  style={{ height: 200 }}
                 />
               ))}
             </div>
@@ -706,32 +636,25 @@ export default function Explore() {
         </div>
       ) : (
         /* Table view */
-        <div
-          style={{
-            borderRadius: "var(--lc-radius-lg)",
-            border: "1px solid var(--lc-border)",
-            backgroundColor: "var(--lc-bg-raised)",
-            overflow: "hidden",
-          }}
-        >
+        <div className="table-container">
           {loading && (
-            <div style={{ padding: "var(--lc-space-6)", fontSize: "var(--lc-text-small)", color: "var(--lc-text-muted)" }}>
+            <div className="p-6 text-small color-muted">
               Loading\u2026
             </div>
           )}
           {!loading && filtered.length === 0 && (
-            <div style={{ padding: "var(--lc-space-8)", textAlign: "center", fontSize: "var(--lc-text-small)", color: "var(--lc-text-muted)" }}>
+            <div className="empty-filter">
               No challenges match your filters.{" "}
               <button
                 onClick={clearAllFilters}
-                style={{ textDecoration: "underline", background: "none", border: "none", color: "var(--lc-accent)", cursor: "pointer", fontSize: "inherit" }}
+                className="btn-link"
               >
                 Clear filters
               </button>
             </div>
           )}
           {!loading && filtered.length > 0 && (
-            <div style={{ overflowX: "auto" }}>
+            <div className="overflow-x-auto">
               <table className="table table--compact" style={{ minWidth: 900 }}>
                 <thead>
                   <tr>
@@ -751,22 +674,22 @@ export default function Explore() {
                     return (
                       <tr key={`${r.txHash}-${idStr}`}>
                         <td>
-                          <a href={`/challenge/${idStr}`} style={{ color: "var(--lc-accent)", textDecoration: "none" }}>
+                          <a href={`/challenge/${idStr}`} className="color-accent" style={{ textDecoration: "none" }}>
                             #{idStr}
                           </a>
                         </td>
-                        <td style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 260 }}>
+                        <td className="text-ellipsis text-nowrap overflow-hidden" style={{ maxWidth: 260 }}>
                           {r.title || "\u2014"}
                         </td>
                         <td>
-                          <span style={{ fontSize: "var(--lc-text-caption)" }}>
+                          <span className="text-caption">
                             {normalizeGame(r.game) || "\u2014"}
-                            {r.mode && <span style={{ color: "var(--lc-text-muted)", marginLeft: 4 }}>\u00B7 {r.mode}</span>}
+                            {r.mode && <span className="color-muted" style={{ marginLeft: 4 }}>\u00B7 {r.mode}</span>}
                           </span>
                         </td>
                         <td>
                           {r.creator ? (
-                            <a href={addressUrl(r.creator)} target="_blank" rel="noreferrer" style={{ color: "var(--lc-accent)", textDecoration: "none", fontFamily: "monospace", fontSize: "var(--lc-text-caption)" }}>
+                            <a href={addressUrl(r.creator)} target="_blank" rel="noreferrer" className="color-accent text-caption" style={{ textDecoration: "none", fontFamily: "monospace" }}>
                               {r.creator.slice(0, 6)}\u2026{r.creator.slice(-4)}
                             </a>
                           ) : (
@@ -774,7 +697,7 @@ export default function Explore() {
                           )}
                         </td>
                         <td>
-                          <a href={blockUrl(r.blockNumber)} target="_blank" rel="noreferrer" style={{ color: "var(--lc-accent)", textDecoration: "none", fontFamily: "monospace", fontSize: "var(--lc-text-caption)" }}>
+                          <a href={blockUrl(r.blockNumber)} target="_blank" rel="noreferrer" className="color-accent text-caption" style={{ textDecoration: "none", fontFamily: "monospace" }}>
                             {r.blockNumber.toString()}
                           </a>
                         </td>
@@ -784,19 +707,7 @@ export default function Explore() {
                         <td>
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleFav(idStr); }}
-                            style={{
-                              width: 28,
-                              height: 28,
-                              borderRadius: "50%",
-                              border: "1px solid var(--lc-border)",
-                              backgroundColor: isFav(idStr) ? "var(--lc-warning-muted)" : "transparent",
-                              color: isFav(idStr) ? "var(--lc-warning)" : "var(--lc-text-muted)",
-                              cursor: "pointer",
-                              fontSize: 12,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
+                            className={`fav-btn${isFav(idStr) ? ' fav-btn--active' : ''}`}
                             title="Favorite"
                           >
                             ★

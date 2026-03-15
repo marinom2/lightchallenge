@@ -29,26 +29,20 @@ function AdminShell({ children }: { children: React.ReactNode }) {
   if (!address) {
     return (
       <div className="admin-layout">
-        <div className="admin-main" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div className="panel" style={{ maxWidth: 460, width: "100%", textAlign: "center" }}>
-            <div className="panel-body" style={{ padding: "var(--lc-space-8)", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--lc-space-4)" }}>
-              <div style={{
-                width: 56, height: 56, borderRadius: "50%",
-                backgroundColor: "var(--lc-accent-muted)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <ShieldCheck size={28} strokeWidth={1.5} style={{ color: "var(--lc-accent)" }} />
+        <div className="admin-main admin-gate">
+          <div className="panel admin-gate__panel">
+            <div className="panel-body admin-gate__body">
+              <div className="admin-gate__icon admin-gate__icon--accent">
+                <ShieldCheck size={28} strokeWidth={1.5} />
               </div>
               <div>
-                <h2 style={{ fontSize: "1.25rem", fontWeight: 600, margin: "0 0 var(--lc-space-2)" }}>
-                  Admin Console
-                </h2>
-                <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", margin: 0, lineHeight: "var(--lc-leading-normal)" }}>
+                <h2 className="admin-gate__title">Admin Console</h2>
+                <p className="admin-gate__desc">
                   Connect the admin wallet to access the LightChallenge management panel.
                 </p>
               </div>
               <ConnectButton />
-              <p style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", margin: 0 }}>
+              <p className="admin-gate__hint">
                 Only the designated admin wallet can access this panel.
               </p>
             </div>
@@ -62,29 +56,23 @@ function AdminShell({ children }: { children: React.ReactNode }) {
   if (!isAdmin) {
     return (
       <div className="admin-layout">
-        <div className="admin-main" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div className="panel" style={{ maxWidth: 460, width: "100%", textAlign: "center" }}>
-            <div className="panel-body" style={{ padding: "var(--lc-space-8)", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--lc-space-4)" }}>
-              <div style={{
-                width: 56, height: 56, borderRadius: "50%",
-                backgroundColor: "rgba(239, 68, 68, 0.1)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <XCircle size={28} strokeWidth={1.5} style={{ color: "var(--lc-danger, #ef4444)" }} />
+        <div className="admin-main admin-gate">
+          <div className="panel admin-gate__panel">
+            <div className="panel-body admin-gate__body">
+              <div className="admin-gate__icon admin-gate__icon--danger">
+                <XCircle size={28} strokeWidth={1.5} />
               </div>
               <div>
-                <h2 style={{ fontSize: "1.25rem", fontWeight: 600, margin: "0 0 var(--lc-space-2)" }}>
-                  Access Denied
-                </h2>
-                <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", margin: 0, lineHeight: "var(--lc-leading-normal)" }}>
+                <h2 className="admin-gate__title">Access Denied</h2>
+                <p className="admin-gate__desc">
                   The connected wallet is not the ChallengePay admin.
                 </p>
               </div>
-              <p style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", margin: 0, wordBreak: "break-all" }} className="mono">
+              <p className="admin-gate__hint text-break mono">
                 Connected: {address}
               </p>
               <ConnectButton />
-              <p style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", margin: 0 }}>
+              <p className="admin-gate__hint">
                 Switch to the admin wallet to continue.
               </p>
             </div>
@@ -101,7 +89,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
 
       <div className="admin-main">
         {/* Mobile toggle */}
-        <div style={{ marginBottom: "var(--lc-space-4)" }}>
+        <div className="mb-4">
           <button
             type="button"
             className="admin-mobile-toggle"

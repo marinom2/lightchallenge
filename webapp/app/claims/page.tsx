@@ -600,15 +600,13 @@ export default function ClaimsPage() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+    <div className="stack-6">
       <Breadcrumb items={[{ label: "Claims" }]} />
 
       {/* Page header */}
-      <div>
-        <h1 style={{ fontSize: "var(--lc-text-title)", fontWeight: "var(--lc-weight-bold)" as any, color: "var(--lc-text)" }}>
-          Claim Rewards
-        </h1>
-        <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", marginTop: "var(--lc-space-1)" }}>
+      <div className="page-header">
+        <h1 className="page-header__title">Claim Rewards</h1>
+        <p className="page-header__sub mt-1">
           Your reward board — claimable winnings, pending finalization, and history.
         </p>
       </div>
@@ -622,12 +620,10 @@ export default function ClaimsPage() {
 
       {/* Manual lookup */}
       <section>
-        <h2 style={{ fontSize: "var(--lc-text-caption)", fontWeight: "var(--lc-weight-semibold)" as any, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--lc-text-muted)", marginBottom: "var(--lc-space-3)" }}>
-          Look up a challenge
-        </h2>
+        <h2 className="label-text mb-3">Look up a challenge</h2>
 
-        <div style={{ padding: "var(--lc-space-5)", borderRadius: "var(--lc-radius-lg)", border: "1px solid var(--lc-border)", backgroundColor: "var(--lc-bg-raised)" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-3)" }}>
+        <div className="p-5 rounded-lg border bg-raised">
+          <div className="stack-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <input
                 className="input sm:max-w-[280px]"
@@ -661,7 +657,7 @@ export default function ClaimsPage() {
             </div>
 
             {err && (
-              <div style={{ padding: "var(--lc-space-3)", borderRadius: "var(--lc-radius-md)", backgroundColor: "var(--lc-error-muted)", color: "var(--lc-error)", fontSize: "var(--lc-text-small)" }}>
+              <div className="alert-banner alert-banner--error">
                 Error: {err}
               </div>
             )}

@@ -80,17 +80,11 @@ export default function WalletPill({
     return (
       <button
         onClick={onConnect}
-        className={`lc-wallet-pill ${className}`}
+        className={`lc-wallet-pill text-small font-medium rounded-pill cursor-pointer border-none transition-fast ${className}`}
         style={{
           padding: "6px 16px",
-          fontSize: "var(--lc-text-small)",
-          fontWeight: "var(--lc-weight-medium)" as any,
           color: "var(--lc-accent-text)",
           backgroundColor: "var(--lc-accent)",
-          border: "none",
-          borderRadius: "var(--lc-radius-pill)",
-          cursor: "pointer",
-          transition: `background-color var(--lc-dur-fast) var(--lc-ease)`,
         }}
       >
         Connect Wallet
@@ -114,36 +108,14 @@ export default function WalletPill({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="true"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "var(--lc-space-2)",
-          padding: "5px 12px",
-          fontSize: "var(--lc-text-small)",
-          fontWeight: "var(--lc-weight-medium)" as any,
-          color: "var(--lc-text)",
-          backgroundColor: "var(--lc-bg-raised)",
-          border: "1px solid var(--lc-border)",
-          borderRadius: "var(--lc-radius-pill)",
-          cursor: "pointer",
-          transition: `border-color var(--lc-dur-fast) var(--lc-ease)`,
-        }}
+        className="d-inline-flex items-center gap-2 text-small font-medium bg-raised border rounded-pill cursor-pointer transition-fast"
+        style={{ padding: "5px 12px" }}
       >
         {/* Colored dot */}
-        <span
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: "50%",
-            backgroundColor: "var(--lc-success)",
-            flexShrink: 0,
-          }}
-        />
+        <span className="rounded-circle shrink-0 bg-success" style={{ width: 6, height: 6, backgroundColor: "var(--lc-success)" }} />
         <span>{displayAddress}</span>
         {balance && (
-          <span style={{ color: "var(--lc-text-secondary)", fontSize: "var(--lc-text-caption)" }}>
-            {balance}
-          </span>
+          <span className="color-secondary text-caption">{balance}</span>
         )}
       </button>
 
@@ -151,38 +123,17 @@ export default function WalletPill({
       {open && (
         <div
           role="menu"
-          style={{
-            position: "absolute",
-            top: "calc(100% + 8px)",
-            right: 0,
-            minWidth: 220,
-            backgroundColor: "var(--lc-bg-raised)",
-            border: "1px solid var(--lc-border)",
-            borderRadius: "var(--lc-radius-md)",
-            boxShadow: "var(--lc-shadow-md)",
-            overflow: "hidden",
-            zIndex: 60,
-          }}
+          className="absolute bg-raised border rounded-md shadow-md overflow-hidden"
+          style={{ top: "calc(100% + 8px)", right: 0, minWidth: 220, zIndex: 60 }}
         >
           {/* Header info */}
-          <div
-            style={{
-              padding: "var(--lc-space-3) var(--lc-space-4)",
-              borderBottom: "1px solid var(--lc-border)",
-            }}
-          >
-            <div style={{ fontSize: "var(--lc-text-small)", fontWeight: "var(--lc-weight-medium)" as any, color: "var(--lc-text)" }}>
-              {displayAddress}
-            </div>
+          <div className="px-4 py-3 border-b">
+            <div className="text-small font-medium">{displayAddress}</div>
             {chainName && (
-              <div style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", marginTop: 2 }}>
-                {chainName}
-              </div>
+              <div className="text-caption color-muted" style={{ marginTop: 2 }}>{chainName}</div>
             )}
             {balance && (
-              <div style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-secondary)", marginTop: 2 }}>
-                Balance: {balance}
-              </div>
+              <div className="text-caption color-secondary" style={{ marginTop: 2 }}>Balance: {balance}</div>
             )}
           </div>
 

@@ -1,14 +1,16 @@
 /**
- * LightChallenge Design Tokens — v4
+ * LightChallenge Design Tokens — v5
  *
- * Apple-grade clarity + subtle atmospheric depth.
+ * Apple HIG-informed: Clarity · Deference · Depth
  *
  * Philosophy:
- *   - Restrained shadows — depth from tonal contrast & borders, not heavy drops
- *   - 3-level surface hierarchy: page → card (L1, border-defined) → floating (L2, shadow)
- *   - Atmosphere from page background, not card elevation
- *   - Cool-blue accent for selection states, ice-white for primary actions
- *   - Premium restraint: calm, intentional, slightly futuristic
+ *   - 4-level text opacity (Apple HIG: primary → secondary → tertiary → quaternary)
+ *   - 3-level surface hierarchy: page → card (L1, border) → floating (L2, shadow)
+ *   - Concentric radius rule: inner = outer − padding
+ *   - Base-4 spacing grid (4·8·12·16·20·24·32·40·48·64)
+ *   - 44px minimum touch targets (Apple HIG)
+ *   - Spring-based motion (response 0.35s, damping 0.86)
+ *   - Semantic color: color = meaning, never decorative
  */
 
 /* ── Color Palette ────────────────────────────────────────────────── */
@@ -25,11 +27,12 @@
   --lc-border-strong: rgba(150, 165, 195, 0.18);
   --lc-border-focus:  var(--lc-accent);
 
-  /* Text */
-  --lc-text:          rgba(255, 255, 255, 0.93);
-  --lc-text-secondary: rgba(255, 255, 255, 0.60);
-  --lc-text-muted:    rgba(140, 150, 180, 0.55);
-  --lc-text-inverse:  #03040c;
+  /* Text — Apple HIG 4-level hierarchy */
+  --lc-text:           rgba(255, 255, 255, 0.93);  /* Primary — headings, body */
+  --lc-text-secondary: rgba(255, 255, 255, 0.60);  /* Secondary — descriptions */
+  --lc-text-tertiary:  rgba(255, 255, 255, 0.38);  /* Tertiary — placeholders, timestamps */
+  --lc-text-muted:     rgba(140, 150, 180, 0.55);  /* Quaternary — disabled, decorative */
+  --lc-text-inverse:   #03040c;
 
   /* Brand accent (ice-white) */
   --lc-accent:       #f6f7ff;
@@ -104,13 +107,15 @@
   --lc-font-sans:  'Inter var', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --lc-font-mono:  'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
 
-  /* 4-level type scale */
-  --lc-text-title:    clamp(1.75rem, 3vw, 2rem);
-  --lc-text-heading:  clamp(1.25rem, 2vw, 1.5rem);
-  --lc-text-subhead:  1.125rem;
-  --lc-text-body:     1rem;
-  --lc-text-small:    0.875rem;
-  --lc-text-caption:  0.75rem;
+  /* 8-level type scale (Apple HIG equivalents in comments) */
+  --lc-text-display:  clamp(2rem, 4vw, 2.5rem);     /* Large Title */
+  --lc-text-title:    clamp(1.75rem, 3vw, 2rem);     /* Title 1 */
+  --lc-text-heading:  clamp(1.25rem, 2vw, 1.5rem);   /* Title 2 */
+  --lc-text-subhead:  1.125rem;                        /* Title 3 */
+  --lc-text-body:     1rem;                            /* Body */
+  --lc-text-small:    0.875rem;                        /* Callout */
+  --lc-text-caption:  0.75rem;                         /* Caption 1 */
+  --lc-text-micro:    0.6875rem;                       /* Caption 2 (11px) */
 
   --lc-weight-normal:   400;
   --lc-weight-medium:   500;
@@ -124,8 +129,11 @@
   --lc-tracking-tight: -0.02em;
   --lc-tracking-normal: 0;
 
-  /* ── Spacing Scale ─────────────────────────────────────────── */
+  /* ── Spacing Scale (base-4 grid) ──────────────────────────── */
 
+  --lc-space-0:   0px;
+  --lc-space-px:  1px;
+  --lc-space-0h:  2px;
   --lc-space-1:   4px;
   --lc-space-2:   8px;
   --lc-space-3:  12px;
@@ -136,14 +144,19 @@
   --lc-space-10: 40px;
   --lc-space-12: 48px;
   --lc-space-16: 64px;
+  --lc-space-20: 80px;
+  --lc-space-24: 96px;
 
-  /* ── Radii ─────────────────────────────────────────────────── */
+  /* ── Radii (concentric squircle: inner = outer − padding) ── */
 
+  --lc-radius-xs:    6px;
   --lc-radius-sm:   10px;
   --lc-radius-md:   14px;
   --lc-radius-lg:   18px;
   --lc-radius-xl:   22px;
+  --lc-radius-2xl:  28px;
   --lc-radius-pill: 999px;
+  --lc-radius-circle: 50%;
 
   /* ── Layout ────────────────────────────────────────────────── */
 
@@ -152,12 +165,43 @@
   --lc-content-narrow: 760px;
   --lc-sidebar-w:      260px;
 
-  /* ── Transitions ───────────────────────────────────────────── */
+  /* ── Touch Targets (Apple HIG: 44px minimum) ──────────────── */
 
-  --lc-ease:      cubic-bezier(0.2, 0.8, 0.2, 1);
-  --lc-dur-fast:  120ms;
-  --lc-dur-base:  180ms;
-  --lc-dur-slow:  300ms;
+  --lc-touch-min:    44px;
+  --lc-touch-sm:     36px;  /* Dense UI only — badges, chips */
+  --lc-touch-md:     44px;
+  --lc-touch-lg:     52px;
+
+  /* ── Icon Sizes ──────────────────────────────────────────── */
+
+  --lc-icon-xs:  12px;
+  --lc-icon-sm:  16px;
+  --lc-icon-md:  20px;
+  --lc-icon-lg:  24px;
+  --lc-icon-xl:  32px;
+  --lc-icon-2xl: 48px;
+
+  /* ── Transitions & Motion ────────────────────────────────── */
+
+  --lc-ease:         cubic-bezier(0.2, 0.8, 0.2, 1);    /* Spring-like ease */
+  --lc-ease-spring:  cubic-bezier(0.22, 0.68, 0, 1.2);  /* Overshoot spring */
+  --lc-ease-out:     cubic-bezier(0, 0, 0.2, 1);        /* Decelerate */
+  --lc-ease-in:      cubic-bezier(0.4, 0, 1, 1);        /* Accelerate (exits) */
+  --lc-dur-instant:  80ms;
+  --lc-dur-fast:     120ms;
+  --lc-dur-base:     180ms;
+  --lc-dur-slow:     300ms;
+  --lc-dur-slower:   450ms;
+
+  /* ── Z-index Scale ───────────────────────────────────────── */
+
+  --lc-z-base:     0;
+  --lc-z-raised:   10;
+  --lc-z-dropdown: 100;
+  --lc-z-sticky:   200;
+  --lc-z-overlay:  300;
+  --lc-z-modal:    400;
+  --lc-z-toast:    500;
 }
 
 /* ── Light Theme ──────────────────────────────────────────────── */
@@ -176,6 +220,7 @@ html[data-theme="light"] {
   /* Text — deep navy for contrast on icy surfaces */
   --lc-text:           #0c1020;
   --lc-text-secondary: #4a5370;
+  --lc-text-tertiary:  #6575a0;
   --lc-text-muted:     #7585a5;
   --lc-text-inverse:   #f4f7fc;
 
@@ -221,4 +266,24 @@ html[data-theme="light"] {
 @keyframes lc-float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }
+}
+
+@keyframes lc-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes lc-slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes lc-scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes lc-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
 }

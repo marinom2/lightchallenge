@@ -117,18 +117,8 @@ export default function ChallengeCard({
       onClick={go}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && go()}
       aria-label={`Open challenge ${idStr}`}
-      style={{
-        padding: "var(--lc-space-5)",
-        borderRadius: "var(--lc-radius-lg)",
-        border: "1px solid var(--lc-border)",
-        backgroundColor: "var(--lc-bg-raised)",
-        cursor: "pointer",
-        transition: "border-color var(--lc-dur-fast) var(--lc-ease), box-shadow var(--lc-dur-fast) var(--lc-ease)",
-        display: "flex",
-        flexDirection: "column",
-        gap: "var(--lc-space-3)",
-        minHeight: 200,
-      }}
+      className="stack-3 p-5 rounded-lg border bg-raised cursor-pointer transition-fast"
+      style={{ minHeight: 200 }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = "var(--lc-border-strong)";
         e.currentTarget.style.boxShadow = "var(--lc-shadow-md)";
@@ -139,40 +129,20 @@ export default function ChallengeCard({
       }}
     >
       {/* Header: ID circle + game icon + title + status */}
-      <header style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "var(--lc-space-3)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-3)", minWidth: 0, flex: 1 }}>
+      <header className="d-flex items-start justify-between gap-3">
+        <div className="row-3 min-w-0 flex-1">
           <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: "50%",
-              backgroundColor: "var(--lc-accent-muted)",
-              color: "var(--lc-accent)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: "var(--lc-weight-bold)" as any,
-              fontSize: "var(--lc-text-caption)",
-              flexShrink: 0,
-            }}
+            className="flex-center justify-center rounded-circle bg-accent-muted color-accent font-bold text-caption shrink-0"
+            style={{ width: 36, height: 36 }}
           >
             {idStr}
           </div>
           <GameIcon name={game} className="w-5 h-5 shrink-0" />
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <h3
-              style={{
-                fontSize: "var(--lc-text-body)",
-                fontWeight: "var(--lc-weight-semibold)" as any,
-                color: "var(--lc-text)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
+          <div className="min-w-0 flex-1">
+            <h3 className="text-body font-semibold color-primary text-ellipsis">
               {displayTitle}
             </h3>
-            <div style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", marginTop: 1 }}>
+            <div className="text-caption color-muted" style={{ marginTop: 1 }}>
               {[game, mode].filter(Boolean).join(" \u00B7 ") || "\u2014"}
             </div>
           </div>
@@ -184,11 +154,9 @@ export default function ChallengeCard({
       {/* Description */}
       {description ? (
         <p
+          className="text-small color-secondary overflow-hidden"
           style={{
-            fontSize: "var(--lc-text-small)",
             lineHeight: 1.45,
-            color: "var(--lc-text-secondary)",
-            overflow: "hidden",
             display: "-webkit-box",
             WebkitLineClamp: 2,
             WebkitBoxOrient: "vertical",
@@ -201,7 +169,7 @@ export default function ChallengeCard({
       )}
 
       {/* Stats row */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--lc-space-2)" }}>
+      <div className="d-grid gap-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <StatPill
           label="Joined"
           value={loading ? null : stats!.participants !== null ? String(stats!.participants) : "\u2014"}
@@ -222,7 +190,7 @@ export default function ChallengeCard({
 
       {/* Timeline */}
       {!loading && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--lc-space-3)", fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>
+        <div className="d-flex flex-wrap gap-3 text-caption color-muted">
           {typeof stats!.endTs === "number" && (
             <span>Ends {new Date(stats!.endTs * 1000).toLocaleDateString()}</span>
           )}
@@ -234,22 +202,16 @@ export default function ChallengeCard({
       {loading && <div style={{ height: 16 }} aria-hidden />}
 
       {/* Footer: favorite + youJoined */}
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", marginTop: "auto" }}>
+      <div className="row-2" style={{ marginTop: "auto" }}>
         {onToggleFavorite && (
           <button
+            className="flex-center justify-center rounded-circle border cursor-pointer transition-fast"
             style={{
               width: 28,
               height: 28,
-              borderRadius: "50%",
-              border: "1px solid var(--lc-border)",
               backgroundColor: isFavorite ? "var(--lc-warning-muted)" : "transparent",
               color: isFavorite ? "var(--lc-warning)" : "var(--lc-text-muted)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
               fontSize: 14,
-              transition: "all var(--lc-dur-fast) var(--lc-ease)",
             }}
             title={isFavorite ? "Unfavorite" : "Favorite"}
             aria-pressed={!!isFavorite}
@@ -262,7 +224,7 @@ export default function ChallengeCard({
           </button>
         )}
         {!loading && stats!.youJoined && (
-          <span style={{ marginLeft: "auto" }}>
+          <span className="ml-auto">
             <Badge variant="tone" tone="success" size="sm">You joined</Badge>
           </span>
         )}
@@ -282,20 +244,10 @@ function StatPill({
 }) {
   return (
     <div
-      style={{
-        borderRadius: "var(--lc-radius-md)",
-        padding: "var(--lc-space-2) var(--lc-space-3)",
-        fontSize: "var(--lc-text-caption)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: "var(--lc-space-2)",
-        minHeight: 34,
-        backgroundColor: "var(--lc-bg-inset)",
-        border: "1px solid var(--lc-border)",
-      }}
+      className="flex-between gap-2 rounded-md text-caption bg-inset border"
+      style={{ padding: "var(--lc-space-2) var(--lc-space-3)", minHeight: 34 }}
     >
-      <span style={{ color: "var(--lc-text-muted)" }}>{label}</span>
+      <span className="color-muted">{label}</span>
       {loading ? (
         <span
           style={{
@@ -309,7 +261,7 @@ function StatPill({
           aria-hidden
         />
       ) : (
-        <span style={{ fontWeight: "var(--lc-weight-semibold)" as any, color: "var(--lc-text)" }}>
+        <span className="font-semibold color-primary">
           {value}
         </span>
       )}

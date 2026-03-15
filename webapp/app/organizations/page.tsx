@@ -54,96 +54,49 @@ export default function OrganizationsPage() {
 
   return (
     <div
-      style={{
-        maxWidth: "var(--lc-content-wide, 1100px)",
-        margin: "0 auto",
-        display: "flex",
-        flexDirection: "column",
-        gap: "var(--lc-space-6)",
-      }}
+      className="stack-6 mx-auto"
+      style={{ maxWidth: "var(--lc-content-wide, 1100px)" }}
     >
       <Breadcrumb items={[{ label: "Organizations" }]} />
 
       {/* ── Hero Section ───────────────────────────────────────────────── */}
       <div
+        className="stack-3 rounded-lg"
         style={{
           padding: "var(--lc-space-8) var(--lc-space-6)",
-          borderRadius: "var(--lc-radius-lg)",
           border: "1px solid var(--lc-glass-border)",
           background: "var(--lc-glass)",
           backdropFilter: "var(--lc-glass-blur)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "var(--lc-space-3)",
         }}
       >
-        <h1
-          style={{
-            fontSize: "var(--lc-text-title)",
-            fontWeight: "var(--lc-weight-bold)" as unknown as number,
-            color: "var(--lc-text)",
-            margin: 0,
-          }}
-        >
+        <h1 className="text-title font-bold color-primary m-0">
           Organizations
         </h1>
-        <p
-          style={{
-            fontSize: "var(--lc-text-body)",
-            color: "var(--lc-text-secondary)",
-            margin: 0,
-            maxWidth: 520,
-          }}
-        >
+        <p className="text-body color-secondary m-0" style={{ maxWidth: 520 }}>
           Teams and organizers on LightChallenge
         </p>
       </div>
 
       {/* ── Search + CTA ───────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: "flex",
-          gap: "var(--lc-space-3)",
-          alignItems: "center",
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 200 }}>
+      <div className="row-3 flex-wrap">
+        <div className="flex-1" style={{ minWidth: 200 }}>
           <input
             type="text"
             placeholder="Search organizations..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px 14px",
-              fontSize: "var(--lc-text-small)",
-              borderRadius: "var(--lc-radius-md)",
-              border: "1px solid var(--lc-border)",
-              backgroundColor: "var(--lc-bg-raised)",
-              color: "var(--lc-text)",
-              outline: "none",
-              transition: "border-color var(--lc-dur-fast) var(--lc-ease)",
-            }}
+            className="w-full text-small rounded-md border bg-raised color-primary transition-fast"
+            style={{ padding: "10px 14px", outline: "none" }}
           />
         </div>
         <Link
           href="/org/new"
+          className="d-inline-flex items-center gap-2 text-small font-medium border-none rounded-md cursor-pointer transition-fast text-nowrap"
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "var(--lc-space-2)",
             padding: "10px 20px",
-            fontSize: "var(--lc-text-small)",
-            fontWeight: "var(--lc-weight-medium)" as unknown as number,
             color: "var(--lc-accent-text)",
             backgroundColor: "var(--lc-accent)",
-            border: "none",
-            borderRadius: "var(--lc-radius-md)",
             textDecoration: "none",
-            cursor: "pointer",
-            transition: "background-color var(--lc-dur-fast) var(--lc-ease)",
-            whiteSpace: "nowrap",
           }}
         >
           + Create Organization
@@ -153,11 +106,8 @@ export default function OrganizationsPage() {
       {/* ── Loading ────────────────────────────────────────────────────── */}
       {loading && (
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-            gap: "var(--lc-space-4)",
-          }}
+          className="d-grid gap-4"
+          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}
         >
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Skeleton key={i} variant="card" height="180px" />
@@ -167,15 +117,7 @@ export default function OrganizationsPage() {
 
       {/* ── Error ──────────────────────────────────────────────────────── */}
       {error && (
-        <div
-          style={{
-            padding: "var(--lc-space-3)",
-            borderRadius: "var(--lc-radius-md)",
-            backgroundColor: "var(--lc-warning-muted)",
-            color: "var(--lc-warning)",
-            fontSize: "var(--lc-text-small)",
-          }}
-        >
+        <div className="p-3 rounded-md bg-warning-muted color-warning text-small">
           {error}
         </div>
       )}
@@ -207,86 +149,42 @@ export default function OrganizationsPage() {
       {/* ── Org Grid ───────────────────────────────────────────────────── */}
       {!loading && !error && filtered.length > 0 && (
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-            gap: "var(--lc-space-4)",
-          }}
+          className="d-grid gap-4"
+          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}
         >
           {filtered.map((org) => (
             <Link
               key={org.id}
               href={`/org/${org.slug}`}
+              className="stack-3 p-5 rounded-lg transition-fast"
               style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "var(--lc-space-3)",
-                padding: "var(--lc-space-5)",
-                borderRadius: "var(--lc-radius-lg)",
                 border: "1px solid var(--lc-glass-border)",
                 background: "var(--lc-glass)",
                 backdropFilter: "var(--lc-glass-blur)",
                 textDecoration: "none",
-                transition:
-                  "border-color var(--lc-dur-fast) var(--lc-ease), transform var(--lc-dur-fast) var(--lc-ease)",
               }}
             >
               {/* Logo / Initial */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "var(--lc-space-3)",
-                }}
-              >
+              <div className="row-3">
                 <div
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: "var(--lc-radius-md)",
-                    backgroundColor: "var(--lc-accent-muted)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    overflow: "hidden",
-                    flexShrink: 0,
-                  }}
+                  className="flex-center justify-center rounded-md bg-accent-muted overflow-hidden shrink-0"
+                  style={{ width: 48, height: 48 }}
                 >
                   {org.logoUrl ? (
                     <img
                       src={org.logoUrl}
                       alt={`${org.name} logo`}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                      }}
+                      className="w-full h-full"
+                      style={{ objectFit: "cover" }}
                     />
                   ) : (
-                    <span
-                      style={{
-                        fontSize: "var(--lc-text-heading)",
-                        fontWeight:
-                          "var(--lc-weight-bold)" as unknown as number,
-                        color: "var(--lc-accent)",
-                      }}
-                    >
+                    <span className="text-heading font-bold color-accent">
                       {org.name.charAt(0).toUpperCase()}
                     </span>
                   )}
                 </div>
-                <div style={{ minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: "var(--lc-text-body)",
-                      fontWeight:
-                        "var(--lc-weight-semibold)" as unknown as number,
-                      color: "var(--lc-text)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
+                <div className="min-w-0">
+                  <div className="text-body font-semibold color-primary text-ellipsis">
                     {org.name}
                   </div>
                 </div>
@@ -295,15 +193,11 @@ export default function OrganizationsPage() {
               {/* Description snippet */}
               {org.description && (
                 <p
+                  className="text-small color-secondary m-0 leading-normal overflow-hidden"
                   style={{
-                    fontSize: "var(--lc-text-small)",
-                    color: "var(--lc-text-secondary)",
-                    margin: 0,
                     display: "-webkit-box",
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                    lineHeight: "var(--lc-leading-normal)",
                   }}
                 >
                   {org.description}
@@ -312,15 +206,8 @@ export default function OrganizationsPage() {
 
               {/* Stats */}
               <div
-                style={{
-                  display: "flex",
-                  gap: "var(--lc-space-4)",
-                  fontSize: "var(--lc-text-caption)",
-                  color: "var(--lc-text-muted)",
-                  marginTop: "auto",
-                  paddingTop: "var(--lc-space-2)",
-                  borderTop: "1px solid var(--lc-border)",
-                }}
+                className="d-flex gap-4 text-caption color-muted pt-2 border-t"
+                style={{ marginTop: "auto" }}
               >
                 <span>
                   {org.memberCount}{" "}

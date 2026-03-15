@@ -63,21 +63,14 @@ export default function DashboardPage() {
 
       {/* ── System status banner ── */}
       {globalPaused && (
-        <div
-          className="panel"
-          style={{
-            marginBottom: "var(--lc-space-4)",
-            borderColor: "var(--lc-warning)",
-            background: "rgba(255, 180, 50, 0.06)",
-          }}
-        >
-          <div className="panel-body" style={{ padding: "var(--lc-space-3) var(--lc-space-4)", display: "flex", alignItems: "center", gap: "var(--lc-space-3)" }}>
-            <span style={{ fontSize: "1.25rem" }}>&#9888;</span>
+        <div className="panel mb-4" style={{ borderColor: "var(--lc-warning)", background: "rgba(255, 180, 50, 0.06)" }}>
+          <div className="panel-body row-3 py-3 px-4">
+            <span className="text-heading">&#9888;</span>
             <div>
               <strong>System Paused</strong>
-              <span style={{ color: "var(--lc-text-muted)", marginLeft: "var(--lc-space-2)", fontSize: "var(--lc-text-small)" }}>
+              <span className="color-muted ml-auto text-small" style={{ marginLeft: "var(--lc-space-2)" }}>
                 All challenge operations are globally paused.
-                <Link href="/admin/config/governance" style={{ marginLeft: "var(--lc-space-2)", color: "var(--lc-select-text)" }}>
+                <Link href="/admin/config/governance" className="color-info" style={{ marginLeft: "var(--lc-space-2)" }}>
                   Unpause →
                 </Link>
               </span>
@@ -87,16 +80,16 @@ export default function DashboardPage() {
       )}
 
       {/* ── Contract addresses ── */}
-      <div className="panel" style={{ marginBottom: "var(--lc-space-5)" }}>
-        <div className="panel-body" style={{ padding: "var(--lc-space-3) var(--lc-space-4)" }}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--lc-space-4)", fontSize: "var(--lc-text-caption)" }}>
+      <div className="panel mb-5">
+        <div className="panel-body py-3 px-4">
+          <div className="row-4 flex-wrap text-caption">
             {([
               ["ChallengePay", ADDR.ChallengePay],
               ["Treasury", ADDR.Treasury],
               ["Admin", adminAddr as string],
             ] as const).map(([label, addr]) => (
               <div key={label}>
-                <span style={{ color: "var(--lc-text-muted)" }}>{label}: </span>
+                <span className="color-muted">{label}: </span>
                 <a
                   href={`${EXPLORER_URL}/address/${addr}`}
                   target="_blank"
@@ -112,7 +105,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── KPI Cards ── */}
-      <div className="admin-kpi-grid" style={{ marginBottom: "var(--lc-space-6)" }}>
+      <div className="admin-kpi-grid mb-6">
         <div className="admin-kpi">
           <div className="admin-kpi__label">Active Challenges</div>
           <div className="admin-kpi__value">{kpis?.active ?? "—"}</div>
@@ -151,8 +144,8 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Quick Actions ── */}
-      <div style={{ marginBottom: "var(--lc-space-6)" }}>
-        <h2 style={{ fontSize: "var(--lc-text-body)", fontWeight: "var(--lc-weight-semibold)" as any, marginBottom: "var(--lc-space-3)" }}>
+      <div className="mb-6">
+        <h2 className="text-body font-semibold mb-3">
           Quick Actions
         </h2>
         <div className="admin-quick-grid">
@@ -209,12 +202,12 @@ export default function DashboardPage() {
       {/* ── Recent Activity ── */}
       {dashboard.items && dashboard.items.length > 0 && (
         <div>
-          <h2 style={{ fontSize: "var(--lc-text-body)", fontWeight: "var(--lc-weight-semibold)" as any, marginBottom: "var(--lc-space-3)" }}>
+          <h2 className="text-body font-semibold mb-3">
             Recent On-Chain Activity
           </h2>
           <div className="panel">
-            <div className="panel-body" style={{ padding: 0 }}>
-              <table className="table table--compact" style={{ width: "100%" }}>
+            <div className="panel-body p-0">
+              <table className="table table--compact w-full">
                 <thead>
                   <tr>
                     <th>ID</th>
@@ -232,14 +225,13 @@ export default function DashboardPage() {
                           {item.status}
                         </span>
                       </td>
-                      <td className="mono" style={{ fontSize: "var(--lc-text-caption)" }}>{item.blockNumber}</td>
+                      <td className="mono text-caption">{item.blockNumber}</td>
                       <td>
                         <a
                           href={`${EXPLORER_URL}/tx/${item.txHash}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="mono link"
-                          style={{ fontSize: "var(--lc-text-caption)" }}
+                          className="mono link text-caption"
                         >
                           {short(item.txHash)}
                         </a>

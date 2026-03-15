@@ -158,7 +158,7 @@ function StepIndicator({ current }: { current: WizardStep }) {
   ];
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", justifyContent: "center" }}>
+    <div className="d-flex items-center justify-center row-2">
       {steps.map((s, i) => {
         const isActive = s.num === current;
         const isDone = s.num < current;
@@ -311,7 +311,7 @@ export default function OrgNewPage() {
   /* ── Success Screen ──────────────────────────────────────────────────────── */
   if (createdSlug) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+      <div className="stack-6">
         <Breadcrumb items={[{ label: "Organizations" }, { label: "New" }, { label: "Created" }]} />
 
         <div
@@ -344,18 +344,10 @@ export default function OrgNewPage() {
           </div>
 
           <div>
-            <h1
-              style={{
-                fontSize: "var(--lc-text-heading)",
-                fontWeight: "var(--lc-weight-bold)" as any,
-                color: "var(--lc-text)",
-                margin: "0 0 var(--lc-space-2) 0",
-                letterSpacing: "var(--lc-tracking-tight)",
-              }}
-            >
+            <h1 className="text-heading font-bold" style={{ margin: "0 0 var(--lc-space-2) 0", letterSpacing: "var(--lc-tracking-tight)" }}>
               Organization Created
             </h1>
-            <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", margin: 0 }}>
+            <p className="text-small color-secondary m-0">
               Your organization is ready. You can manage it from the dashboard.
             </p>
           </div>
@@ -372,36 +364,16 @@ export default function OrgNewPage() {
                 textAlign: "left",
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "var(--lc-space-2)",
-                  marginBottom: "var(--lc-space-2)",
-                }}
-              >
+              <div className="d-flex items-center row-2 mb-2">
                 <KeyIcon size={16} />
-                <span
-                  style={{
-                    fontSize: "var(--lc-text-small)",
-                    fontWeight: "var(--lc-weight-semibold)" as any,
-                    color: "var(--lc-warning)",
-                  }}
-                >
+                <span className="text-small font-semibold" style={{ color: "var(--lc-warning)" }}>
                   API Key — Save this now
                 </span>
               </div>
-              <p
-                style={{
-                  fontSize: "var(--lc-text-caption)",
-                  color: "var(--lc-text-secondary)",
-                  margin: "0 0 var(--lc-space-3) 0",
-                  lineHeight: "var(--lc-leading-normal)",
-                }}
-              >
+              <p className="text-caption color-secondary leading-normal" style={{ margin: "0 0 var(--lc-space-3) 0" }}>
                 This key will not be shown again. Copy it now and store it securely.
               </p>
-              <div style={{ display: "flex", gap: "var(--lc-space-2)", alignItems: "center" }}>
+              <div className="d-flex items-center row-2">
                 <input
                   type="text"
                   readOnly
@@ -453,23 +425,15 @@ export default function OrgNewPage() {
 
   /* ── Wizard ──────────────────────────────────────────────────────────────── */
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+    <div className="stack-6">
       <Breadcrumb items={[{ label: "Organizations" }, { label: "New" }]} />
 
       {/* Title */}
-      <div style={{ textAlign: "center" }}>
-        <h1
-          style={{
-            fontSize: "var(--lc-text-heading)",
-            fontWeight: "var(--lc-weight-bold)" as any,
-            color: "var(--lc-text)",
-            margin: "0 0 var(--lc-space-2) 0",
-            letterSpacing: "var(--lc-tracking-tight)",
-          }}
-        >
+      <div className="text-center">
+        <h1 className="text-heading font-bold" style={{ margin: "0 0 var(--lc-space-2) 0", letterSpacing: "var(--lc-tracking-tight)" }}>
           Create Organization
         </h1>
-        <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", margin: 0 }}>
+        <p className="text-small color-secondary m-0">
           Set up your organization to host competitions on LightChallenge.
         </p>
       </div>
@@ -508,25 +472,10 @@ export default function OrgNewPage() {
             <WalletIcon size={24} />
           </div>
           <div>
-            <h2
-              style={{
-                fontSize: "var(--lc-text-subhead)",
-                fontWeight: "var(--lc-weight-semibold)" as any,
-                color: "var(--lc-text)",
-                margin: "0 0 var(--lc-space-2) 0",
-              }}
-            >
+            <h2 className="text-subhead font-semibold" style={{ margin: "0 0 var(--lc-space-2) 0" }}>
               Connect Your Wallet
             </h2>
-            <p
-              style={{
-                fontSize: "var(--lc-text-small)",
-                color: "var(--lc-text-secondary)",
-                margin: 0,
-                lineHeight: "var(--lc-leading-normal)",
-                maxWidth: 340,
-              }}
-            >
+            <p className="text-small color-secondary m-0 leading-normal" style={{ maxWidth: 340 }}>
               Your wallet address will be the owner of the new organization.
             </p>
           </div>
@@ -547,20 +496,13 @@ export default function OrgNewPage() {
             gap: "var(--lc-space-5)",
           }}
         >
-          <h2
-            style={{
-              fontSize: "var(--lc-text-subhead)",
-              fontWeight: "var(--lc-weight-semibold)" as any,
-              color: "var(--lc-text)",
-              margin: 0,
-            }}
-          >
+          <h2 className="text-subhead font-semibold m-0">
             Organization Details
           </h2>
 
           {/* Name */}
-          <label style={labelStyle}>
-            <span style={labelTextStyle}>
+          <label className="stack-1">
+            <span className="text-caption color-muted font-medium">
               Name <span style={{ color: "var(--lc-danger)" }}>*</span>
             </span>
             <input
@@ -575,16 +517,10 @@ export default function OrgNewPage() {
           </label>
 
           {/* Slug */}
-          <label style={labelStyle}>
-            <span style={labelTextStyle}>Slug (URL path)</span>
-            <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)" }}>
-              <span
-                style={{
-                  fontSize: "var(--lc-text-small)",
-                  color: "var(--lc-text-muted)",
-                  whiteSpace: "nowrap",
-                }}
-              >
+          <label className="stack-1">
+            <span className="text-caption color-muted font-medium">Slug (URL path)</span>
+            <div className="d-flex items-center row-2">
+              <span className="text-small color-muted" style={{ whiteSpace: "nowrap" }}>
                 /org/
               </span>
               <input
@@ -599,8 +535,8 @@ export default function OrgNewPage() {
           </label>
 
           {/* Description */}
-          <label style={labelStyle}>
-            <span style={labelTextStyle}>Description</span>
+          <label className="stack-1">
+            <span className="text-caption color-muted font-medium">Description</span>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -612,8 +548,8 @@ export default function OrgNewPage() {
           </label>
 
           {/* Website */}
-          <label style={labelStyle}>
-            <span style={labelTextStyle}>Website</span>
+          <label className="stack-1">
+            <span className="text-caption color-muted font-medium">Website</span>
             <input
               type="url"
               value={website}
@@ -624,8 +560,8 @@ export default function OrgNewPage() {
           </label>
 
           {/* Logo URL */}
-          <label style={labelStyle}>
-            <span style={labelTextStyle}>Logo URL</span>
+          <label className="stack-1">
+            <span className="text-caption color-muted font-medium">Logo URL</span>
             <input
               type="url"
               value={logoUrl}
@@ -636,7 +572,7 @@ export default function OrgNewPage() {
           </label>
 
           {/* Navigation */}
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--lc-space-3)", marginTop: "var(--lc-space-2)" }}>
+          <div className="d-flex justify-end row-3 mt-2">
             <button
               onClick={() => setWizardStep(3)}
               disabled={!isFormValid}
@@ -665,14 +601,7 @@ export default function OrgNewPage() {
             gap: "var(--lc-space-5)",
           }}
         >
-          <h2
-            style={{
-              fontSize: "var(--lc-text-subhead)",
-              fontWeight: "var(--lc-weight-semibold)" as any,
-              color: "var(--lc-text)",
-              margin: 0,
-            }}
-          >
+          <h2 className="text-subhead font-semibold m-0">
             Review & Create
           </h2>
 
@@ -717,20 +646,12 @@ export default function OrgNewPage() {
             </div>
 
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: "var(--lc-text-body)",
-                  fontWeight: "var(--lc-weight-semibold)" as any,
-                  color: "var(--lc-text)",
-                  marginBottom: "var(--lc-space-1)",
-                }}
-              >
+              <div className="text-body font-semibold mb-1">
                 {name || "Untitled"}
               </div>
               <div
+                className="text-caption color-muted"
                 style={{
-                  fontSize: "var(--lc-text-caption)",
-                  color: "var(--lc-text-muted)",
                   fontFamily: "var(--lc-font-mono)",
                   marginBottom: description ? "var(--lc-space-2)" : 0,
                 }}
@@ -738,14 +659,7 @@ export default function OrgNewPage() {
                 /org/{effectiveSlug}
               </div>
               {description && (
-                <p
-                  style={{
-                    fontSize: "var(--lc-text-small)",
-                    color: "var(--lc-text-secondary)",
-                    margin: 0,
-                    lineHeight: "var(--lc-leading-normal)",
-                  }}
-                >
+                <p className="text-small color-secondary m-0 leading-normal">
                   {description}
                 </p>
               )}
@@ -753,7 +667,7 @@ export default function OrgNewPage() {
           </div>
 
           {/* Details grid */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-2)" }}>
+          <div className="stack-2">
             {[
               { label: "Owner", value: address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "--" },
               { label: "Website", value: website || "--" },
@@ -761,15 +675,10 @@ export default function OrgNewPage() {
             ].map((row) => (
               <div
                 key={row.label}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "var(--lc-space-2) 0",
-                  borderBottom: "1px solid var(--lc-border)",
-                }}
+                className="d-flex flex-between items-center border-b"
+                style={{ padding: "var(--lc-space-2) 0" }}
               >
-                <span style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-muted)" }}>
+                <span className="text-small color-muted">
                   {row.label}
                 </span>
                 <span
@@ -803,8 +712,8 @@ export default function OrgNewPage() {
           )}
 
           {/* Navigation */}
-          <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--lc-space-3)", marginTop: "var(--lc-space-2)" }}>
-            <button onClick={() => setWizardStep(2)} style={btnSecondary}>
+          <div className="d-flex flex-between row-3 mt-2">
+            <button onClick={() => setWizardStep(2)} className="btn btn-ghost">
               Back
             </button>
             <button

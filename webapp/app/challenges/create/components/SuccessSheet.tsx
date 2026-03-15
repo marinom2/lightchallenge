@@ -123,34 +123,16 @@ function InfoCard({
   valueCopyInline?: boolean;
 }) {
   return (
-    <div
-      style={{
-        borderRadius: "var(--lc-radius-lg)",
-        border: "1px solid var(--lc-border)",
-        padding: "16px",
-        background: "var(--lc-bg-inset)",
-        boxShadow: "var(--lc-shadow-sm)",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          fontSize: "11px",
-          textTransform: "uppercase",
-          letterSpacing: "0.14em",
-          color: "var(--lc-text-muted)",
-        }}
-      >
+    <div className="rounded-lg border p-4 bg-inset shadow-sm">
+      <div className="row-2 label-text" style={{ fontSize: "11px", letterSpacing: "0.14em" }}>
         {icon}
         <span>{label}</span>
       </div>
 
-      <div style={{ marginTop: 8, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+      <div className="d-flex items-start justify-between" style={{ marginTop: 8, gap: 12 }}>
         <div
+          className="min-w-0"
           style={{
-            minWidth: 0,
             color: "var(--lc-text)",
             fontFamily: mono ? "var(--lc-font-mono)" : "inherit",
             fontSize: mono ? "var(--lc-text-small)" : "var(--lc-text-body)",
@@ -171,7 +153,7 @@ function InfoCard({
       </div>
 
       {copyValue && onCopy && !valueCopyInline ? (
-        <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
+        <div className="d-flex justify-end" style={{ marginTop: 12 }}>
           <IconCopyButton
             copied={!!copied}
             onClick={onCopy}
@@ -191,9 +173,9 @@ function ScheduleRow({
   value?: string | null;
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, fontSize: "var(--lc-text-body)" }}>
-      <span style={{ color: "var(--lc-text-muted)" }}>{label}</span>
-      <span style={{ textAlign: "right", fontWeight: 500, color: "var(--lc-text)" }}>{value || "—"}</span>
+    <div className="d-flex items-center justify-between" style={{ gap: 12, fontSize: "var(--lc-text-body)" }}>
+      <span className="color-muted">{label}</span>
+      <span className="text-right font-medium">{value || "—"}</span>
     </div>
   );
 }
@@ -262,48 +244,20 @@ export function SuccessSheet({
               }}
             >
               {/* Header */}
-              <div
-                style={{
-                  borderBottom: "1px solid var(--lc-border)",
-                  padding: "20px 24px",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-                  <div
-                    style={{
-                      display: "grid",
-                      placeItems: "center",
-                      width: 48,
-                      height: 48,
-                      flexShrink: 0,
-                      borderRadius: "50%",
-                      border: "1px solid var(--lc-border)",
-                      background: "var(--lc-bg-inset)",
-                      boxShadow: "var(--lc-shadow-sm)",
-                      color: "var(--lc-select-text)",
-                    }}
-                  >
+              <div className="border-b" style={{ padding: "20px 24px" }}>
+                <div className="d-flex items-start" style={{ gap: 16 }}>
+                  <div className="circle-icon shrink-0 border bg-inset shadow-sm"
+                    style={{ width: 48, height: 48, display: "grid", placeItems: "center", color: "var(--lc-select-text)" }}>
+
                     <CheckCircle2 size={22} />
                   </div>
 
-                  <div style={{ minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: "1.55rem",
-                        fontWeight: 600,
-                        letterSpacing: "-0.03em",
-                        color: "var(--lc-text)",
-                      }}
-                    >
+                  <div className="min-w-0">
+                    <div className="font-semibold" style={{ fontSize: "1.55rem", letterSpacing: "-0.03em" }}>
                       Challenge created
                     </div>
-                    <div
-                      style={{
-                        marginTop: 4,
-                        fontSize: "var(--lc-text-body)",
-                        color: "var(--lc-text-secondary)",
-                      }}
-                    >
+                    <div className="color-secondary" style={{ marginTop: 4, fontSize: "var(--lc-text-body)" }}>
+
                       Your transaction was confirmed on-chain.
                       {challengeId != null
                         ? ` Challenge #${challengeId} is now live and ready to share.`
@@ -315,10 +269,10 @@ export function SuccessSheet({
 
               {/* Body */}
               <div style={{ padding: "20px 24px" }}>
-                <div style={{ display: "grid", gap: 16 }} className="lg:grid-cols-[1.3fr_1fr]">
+                <div className="d-grid lg:grid-cols-[1.3fr_1fr]" style={{ gap: 16 }}>
                   {/* Left column */}
-                  <div style={{ display: "grid", gap: 16 }}>
-                    <div style={{ display: "grid", gap: 16 }} className="sm:grid-cols-3">
+                  <div className="d-grid" style={{ gap: 16 }}>
+                    <div className="d-grid sm:grid-cols-3" style={{ gap: 16 }}>
                       {challengeId != null ? (
                         <InfoCard
                           icon={<Hash size={13} />}
@@ -345,71 +299,25 @@ export function SuccessSheet({
                     </div>
 
                     {/* Title / Type card */}
-                    <div
-                      style={{
-                        borderRadius: "var(--lc-radius-lg)",
-                        border: "1px solid var(--lc-border)",
-                        padding: "20px",
-                        background: "var(--lc-bg-inset)",
-                        boxShadow: "var(--lc-shadow-sm)",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: "11px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.14em",
-                          color: "var(--lc-text-muted)",
-                        }}
-                      >
+                    <div className="rounded-lg border bg-inset shadow-sm" style={{ padding: 20 }}>
+                      <div className="label-text" style={{ fontSize: "11px", letterSpacing: "0.14em" }}>
                         Title
                       </div>
 
-                      <div
-                        style={{
-                          marginTop: 8,
-                          fontSize: "1.08rem",
-                          fontWeight: 600,
-                          letterSpacing: "-0.02em",
-                          color: "var(--lc-text)",
-                        }}
-                      >
+                      <div className="font-semibold" style={{ marginTop: 8, fontSize: "1.08rem", letterSpacing: "-0.02em" }}>
                         {summary?.title || "Untitled challenge"}
                       </div>
 
                       <div style={{ marginTop: 16 }}>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            fontSize: "11px",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.14em",
-                            color: "var(--lc-text-muted)",
-                          }}
-                        >
+                        <div className="row-2 label-text" style={{ fontSize: "11px", letterSpacing: "0.14em" }}>
                           <Sparkles size={13} />
                           <span>Type</span>
                         </div>
-                        <div
-                          style={{
-                            marginTop: 8,
-                            fontSize: "var(--lc-text-body)",
-                            fontWeight: 600,
-                            color: "var(--lc-text)",
-                          }}
-                        >
+                        <div className="font-semibold" style={{ marginTop: 8, fontSize: "var(--lc-text-body)" }}>
                           {typePrimary}
                         </div>
                         {typeSecondary ? (
-                          <div
-                            style={{
-                              marginTop: 4,
-                              fontSize: "var(--lc-text-body)",
-                              color: "var(--lc-text-secondary)",
-                            }}
-                          >
+                          <div className="color-secondary" style={{ marginTop: 4, fontSize: "var(--lc-text-body)" }}>
                             {typeSecondary}
                           </div>
                         ) : null}
@@ -428,32 +336,13 @@ export function SuccessSheet({
                   </div>
 
                   {/* Right column — Schedule */}
-                  <div
-                    style={{
-                      borderRadius: "var(--lc-radius-lg)",
-                      border: "1px solid var(--lc-border)",
-                      padding: "16px",
-                      background: "var(--lc-bg-inset)",
-                      boxShadow: "var(--lc-shadow-sm)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        marginBottom: 12,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        fontSize: "11px",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.14em",
-                        color: "var(--lc-text-muted)",
-                      }}
-                    >
+                  <div className="rounded-lg border p-4 bg-inset shadow-sm">
+                    <div className="row-2 label-text" style={{ marginBottom: 12, fontSize: "11px", letterSpacing: "0.14em" }}>
                       <CalendarClock size={13} />
                       <span>Schedule snapshot</span>
                     </div>
 
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div className="flex-col" style={{ display: "flex", gap: 10 }}>
                       <ScheduleRow
                         label="Join closes"
                         value={summary?.schedule.joinCloses}
@@ -475,17 +364,8 @@ export function SuccessSheet({
                 </div>
 
                 {/* Action buttons */}
-                <div
-                  style={{
-                    marginTop: 24,
-                    display: "flex",
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                    gap: 10,
-                    borderTop: "1px solid var(--lc-border)",
-                    paddingTop: 20,
-                  }}
-                >
+                <div className="d-flex flex-wrap items-center border-t" style={{ marginTop: 24, gap: 10, paddingTop: 20 }}>
+
                   <button
                     type="button"
                     className="btn btn-primary"

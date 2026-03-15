@@ -417,16 +417,16 @@ export default function OrgDashboardPage() {
   /* Loading state */
   if (loading) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+      <div className="stack-6">
         <Skeleton variant="text" width="180px" />
-        <div style={{ display: "flex", gap: "var(--lc-space-4)", alignItems: "center" }}>
+        <div className="row-4 items-center">
           <Skeleton variant="circle" width="64px" height="64px" />
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-2)", flex: 1 }}>
+          <div className="stack-2" style={{ flex: 1 }}>
             <Skeleton variant="text" width="40%" height="24px" />
             <Skeleton variant="text" width="70%" />
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--lc-space-4)" }}>
+        <div className="d-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--lc-space-4)" }}>
           {[1, 2, 3].map((i) => <Skeleton key={i} variant="card" height="80px" />)}
         </div>
         <Skeleton variant="card" height="300px" />
@@ -437,7 +437,7 @@ export default function OrgDashboardPage() {
   /* Error state */
   if (error || !org) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+      <div className="stack-6">
         <Breadcrumb items={[{ label: "Organizations" }, { label: slug }]} />
         <EmptyState
           title="Organization not found"
@@ -450,7 +450,7 @@ export default function OrgDashboardPage() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+    <div className="stack-6">
       {/* Flash message */}
       {flash && (
         <div
@@ -481,15 +481,8 @@ export default function OrgDashboardPage() {
 
       {/* ── Org Header ──────────────────────────────────────────────────────── */}
       <section
-        style={{
-          display: "flex",
-          gap: "var(--lc-space-5)",
-          alignItems: "flex-start",
-          padding: "var(--lc-space-5)",
-          borderRadius: "var(--lc-radius-lg)",
-          border: "1px solid var(--lc-border)",
-          backgroundColor: "var(--lc-bg-raised)",
-        }}
+        className="d-flex items-start p-5 rounded-lg border bg-raised"
+        style={{ gap: "var(--lc-space-5)" }}
       >
         {/* Logo */}
         <div
@@ -521,27 +514,11 @@ export default function OrgDashboardPage() {
 
         {/* Info */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h1
-            style={{
-              fontSize: "var(--lc-text-heading)",
-              fontWeight: "var(--lc-weight-bold)" as any,
-              color: "var(--lc-text)",
-              letterSpacing: "var(--lc-tracking-tight)",
-              lineHeight: "var(--lc-leading-tight)" as any,
-              margin: "0 0 var(--lc-space-1) 0",
-            }}
-          >
+          <h1 className="text-heading font-bold leading-tight" style={{ letterSpacing: "var(--lc-tracking-tight)", margin: "0 0 var(--lc-space-1) 0" }}>
             {org.name}
           </h1>
           {org.description && (
-            <p
-              style={{
-                fontSize: "var(--lc-text-small)",
-                color: "var(--lc-text-secondary)",
-                lineHeight: "var(--lc-leading-normal)" as any,
-                margin: "0 0 var(--lc-space-2) 0",
-              }}
-            >
+            <p className="text-small color-secondary leading-normal" style={{ margin: "0 0 var(--lc-space-2) 0" }}>
               {org.description}
             </p>
           )}
@@ -550,14 +527,8 @@ export default function OrgDashboardPage() {
               href={org.website}
               target="_blank"
               rel="noreferrer"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                fontSize: "var(--lc-text-caption)",
-                color: "var(--lc-accent)",
-                textDecoration: "none",
-              }}
+              className="d-inline-flex items-center text-caption"
+              style={{ gap: 4, color: "var(--lc-accent)", textDecoration: "none" }}
             >
               <GlobeIcon />
               {org.website.replace(/^https?:\/\//, "")}
@@ -568,15 +539,8 @@ export default function OrgDashboardPage() {
 
       {/* ── Stats Row ───────────────────────────────────────────────────────── */}
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-          gap: "var(--lc-space-4)",
-          padding: "var(--lc-space-4)",
-          borderRadius: "var(--lc-radius-lg)",
-          border: "1px solid var(--lc-border)",
-          backgroundColor: "var(--lc-bg-raised)",
-        }}
+        className="d-grid p-4 rounded-lg border bg-raised"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "var(--lc-space-4)" }}
       >
         <StatCard label="Competitions" value={org.competition_count} icon={<TrophyIcon />} />
         <StatCard label="Members" value={org.member_count} icon={<UsersIcon />} />
@@ -586,27 +550,16 @@ export default function OrgDashboardPage() {
       {/* ── Tabs ────────────────────────────────────────────────────────────── */}
       <Tabs tabs={tabs} activeId={activeTab} onTabChange={setActiveTab} />
 
-      <div style={{ marginTop: "var(--lc-space-2)" }}>
+      <div className="mt-2">
         {/* ── Competitions Tab ──────────────────────────────────────────────── */}
         {activeTab === "competitions" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-4)" }}>
+          <div className="stack-4">
             {/* Action bar */}
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <div className="d-flex justify-end">
               <Link
                 href="/competitions/create"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "var(--lc-space-2)",
-                  padding: "8px 16px",
-                  borderRadius: "var(--lc-radius-md)",
-                  backgroundColor: "var(--lc-accent)",
-                  color: "var(--lc-accent-text)",
-                  fontSize: "var(--lc-text-small)",
-                  fontWeight: "var(--lc-weight-medium)" as any,
-                  textDecoration: "none",
-                  transition: "opacity var(--lc-dur-fast) var(--lc-ease)",
-                }}
+                className="btn btn-primary d-inline-flex items-center text-small font-medium"
+                style={{ gap: "var(--lc-space-2)", textDecoration: "none" }}
               >
                 + Create Competition
               </Link>
@@ -620,48 +573,30 @@ export default function OrgDashboardPage() {
                 onAction={() => router.push("/competitions/create")}
               />
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-3)" }}>
+              <div className="stack-3">
                 {competitions.map((c) => (
                   <Link
                     key={c.id}
                     href={`/competitions/${c.id}`}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "var(--lc-space-4)",
-                      padding: "var(--lc-space-4)",
-                      borderRadius: "var(--lc-radius-lg)",
-                      border: "1px solid var(--lc-border)",
-                      backgroundColor: "var(--lc-bg-raised)",
-                      textDecoration: "none",
-                      transition: "border-color var(--lc-dur-fast) var(--lc-ease)",
-                    }}
+                    className="d-flex items-center row-4 p-4 rounded-lg border bg-raised transition-fast"
+                    style={{ textDecoration: "none" }}
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "var(--lc-space-2)", marginBottom: "var(--lc-space-1)" }}>
-                        <span
-                          style={{
-                            fontSize: "var(--lc-text-body)",
-                            fontWeight: "var(--lc-weight-semibold)" as any,
-                            color: "var(--lc-text)",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
+                      <div className="d-flex items-center row-2 mb-1">
+                        <span className="text-body font-semibold truncate">
                           {c.title}
                         </span>
                         <Badge variant="tone" tone={STATUS_TONE[c.status] || "muted"} dot size="sm">
                           {c.status}
                         </Badge>
                       </div>
-                      <div style={{ display: "flex", gap: "var(--lc-space-4)", fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>
+                      <div className="d-flex row-4 text-caption color-muted">
                         <span>{c.type.replace(/_/g, " ")}</span>
                         <span>{c.participant_count} participants</span>
                         <span>{formatDate(c.starts_at)}</span>
                       </div>
                     </div>
-                    <span style={{ color: "var(--lc-text-muted)", fontSize: "var(--lc-text-body)", flexShrink: 0 }}>
+                    <span className="color-muted text-body shrink-0">
                       &rsaquo;
                     </span>
                   </Link>
@@ -673,22 +608,12 @@ export default function OrgDashboardPage() {
 
         {/* ── Members Tab ───────────────────────────────────────────────────── */}
         {activeTab === "members" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-4)" }}>
+          <div className="stack-4">
             {/* Action bar */}
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <div className="d-flex justify-end">
               <button
                 onClick={() => setInviteOpen((v) => !v)}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: "var(--lc-radius-md)",
-                  backgroundColor: "var(--lc-accent)",
-                  color: "var(--lc-accent-text)",
-                  fontSize: "var(--lc-text-small)",
-                  fontWeight: "var(--lc-weight-medium)" as any,
-                  border: "none",
-                  cursor: "pointer",
-                  transition: "opacity var(--lc-dur-fast) var(--lc-ease)",
-                }}
+                className="btn btn-primary text-small font-medium"
               >
                 + Invite Member
               </button>
@@ -705,8 +630,8 @@ export default function OrgDashboardPage() {
                   flexWrap: "wrap",
                 }}
               >
-                <label style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: "var(--lc-space-1)" }}>
-                  <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>Wallet Address</span>
+                <label className="stack-1" style={{ flex: 1, minWidth: 200 }}>
+                  <span className="text-caption color-muted">Wallet Address</span>
                   <input
                     type="text"
                     value={inviteWallet}
@@ -715,8 +640,8 @@ export default function OrgDashboardPage() {
                     style={inputStyle}
                   />
                 </label>
-                <label style={{ minWidth: 120, display: "flex", flexDirection: "column", gap: "var(--lc-space-1)" }}>
-                  <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>Role</span>
+                <label className="stack-1" style={{ minWidth: 120 }}>
+                  <span className="text-caption color-muted">Role</span>
                   <select
                     value={inviteRole}
                     onChange={(e) => setInviteRole(e.target.value as "admin" | "member")}
@@ -729,14 +654,8 @@ export default function OrgDashboardPage() {
                 <button
                   onClick={handleInviteMember}
                   disabled={inviting || !inviteWallet.trim()}
+                  className="btn btn-primary text-small font-medium"
                   style={{
-                    padding: "10px 18px",
-                    borderRadius: "var(--lc-radius-md)",
-                    border: "none",
-                    backgroundColor: "var(--lc-accent)",
-                    color: "var(--lc-accent-text)",
-                    fontSize: "var(--lc-text-small)",
-                    fontWeight: "var(--lc-weight-medium)" as any,
                     cursor: inviting ? "not-allowed" : "pointer",
                     opacity: inviting ? 0.7 : 1,
                     whiteSpace: "nowrap",
@@ -754,13 +673,7 @@ export default function OrgDashboardPage() {
                 description="Invite members to join your organization."
               />
             ) : (
-              <div
-                style={{
-                  borderRadius: "var(--lc-radius-lg)",
-                  border: "1px solid var(--lc-border)",
-                  overflow: "hidden",
-                }}
-              >
+              <div className="rounded-lg border overflow-hidden">
                 {/* Header */}
                 <div
                   style={{
@@ -793,18 +706,12 @@ export default function OrgDashboardPage() {
                       gap: "var(--lc-space-2)",
                     }}
                   >
-                    <div style={{ display: "flex", flexDirection: "column" }}>
-                      <span
-                        style={{
-                          fontSize: "var(--lc-text-small)",
-                          color: "var(--lc-text)",
-                          fontFamily: "var(--lc-font-mono)",
-                        }}
-                      >
+                    <div className="flex-col">
+                      <span className="text-small" style={{ fontFamily: "var(--lc-font-mono)" }}>
                         {truncAddr(m.wallet)}
                       </span>
                       {m.display_name && (
-                        <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>
+                        <span className="text-caption color-muted">
                           {m.display_name}
                         </span>
                       )}
@@ -812,7 +719,7 @@ export default function OrgDashboardPage() {
                     <Badge variant="tone" tone={ROLE_TONE[m.role] || "muted"} size="sm">
                       {m.role}
                     </Badge>
-                    <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>
+                    <span className="text-caption color-muted">
                       {formatDate(m.joined_at)}
                     </span>
                   </div>
@@ -824,22 +731,12 @@ export default function OrgDashboardPage() {
 
         {/* ── Teams Tab ─────────────────────────────────────────────────────── */}
         {activeTab === "teams" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-4)" }}>
+          <div className="stack-4">
             {/* Action bar */}
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <div className="d-flex justify-end">
               <button
                 onClick={() => setTeamFormOpen((v) => !v)}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: "var(--lc-radius-md)",
-                  backgroundColor: "var(--lc-accent)",
-                  color: "var(--lc-accent-text)",
-                  fontSize: "var(--lc-text-small)",
-                  fontWeight: "var(--lc-weight-medium)" as any,
-                  border: "none",
-                  cursor: "pointer",
-                  transition: "opacity var(--lc-dur-fast) var(--lc-ease)",
-                }}
+                className="btn btn-primary text-small font-medium"
               >
                 + Create Team
               </button>
@@ -856,8 +753,8 @@ export default function OrgDashboardPage() {
                   flexWrap: "wrap",
                 }}
               >
-                <label style={{ flex: 1, minWidth: 180, display: "flex", flexDirection: "column", gap: "var(--lc-space-1)" }}>
-                  <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>Team Name</span>
+                <label className="stack-1" style={{ flex: 1, minWidth: 180 }}>
+                  <span className="text-caption color-muted">Team Name</span>
                   <input
                     type="text"
                     value={teamName}
@@ -867,8 +764,8 @@ export default function OrgDashboardPage() {
                     maxLength={60}
                   />
                 </label>
-                <label style={{ minWidth: 100, display: "flex", flexDirection: "column", gap: "var(--lc-space-1)" }}>
-                  <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>Tag</span>
+                <label className="stack-1" style={{ minWidth: 100 }}>
+                  <span className="text-caption color-muted">Tag</span>
                   <input
                     type="text"
                     value={teamTag}
@@ -881,14 +778,8 @@ export default function OrgDashboardPage() {
                 <button
                   onClick={handleCreateTeam}
                   disabled={creatingTeam || !teamName.trim()}
+                  className="btn btn-primary text-small font-medium"
                   style={{
-                    padding: "10px 18px",
-                    borderRadius: "var(--lc-radius-md)",
-                    border: "none",
-                    backgroundColor: "var(--lc-accent)",
-                    color: "var(--lc-accent-text)",
-                    fontSize: "var(--lc-text-small)",
-                    fontWeight: "var(--lc-weight-medium)" as any,
                     cursor: creatingTeam ? "not-allowed" : "pointer",
                     opacity: creatingTeam ? 0.7 : 1,
                     whiteSpace: "nowrap",
@@ -907,11 +798,8 @@ export default function OrgDashboardPage() {
               />
             ) : (
               <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-                  gap: "var(--lc-space-4)",
-                }}
+                className="d-grid"
+                style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "var(--lc-space-4)" }}
               >
                 {teams.map((t) => (
                   <div
@@ -923,14 +811,8 @@ export default function OrgDashboardPage() {
                       gap: "var(--lc-space-3)",
                     }}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span
-                        style={{
-                          fontSize: "var(--lc-text-body)",
-                          fontWeight: "var(--lc-weight-semibold)" as any,
-                          color: "var(--lc-text)",
-                        }}
-                      >
+                    <div className="d-flex flex-between items-center">
+                      <span className="text-body font-semibold">
                         {t.name}
                       </span>
                       <Badge variant="tone" tone="accent" size="sm">
@@ -938,24 +820,18 @@ export default function OrgDashboardPage() {
                       </Badge>
                     </div>
 
-                    <div style={{ display: "flex", gap: "var(--lc-space-4)" }}>
+                    <div className="d-flex row-4">
                       <div>
-                        <div
-                          style={{
-                            fontSize: "var(--lc-text-heading)",
-                            fontWeight: "var(--lc-weight-bold)" as any,
-                            color: "var(--lc-text)",
-                          }}
-                        >
+                        <div className="text-heading font-bold">
                           {t.roster_count}
                         </div>
-                        <div style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>
+                        <div className="text-caption color-muted">
                           Members
                         </div>
                       </div>
                     </div>
 
-                    <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>
+                    <span className="text-caption color-muted">
                       Created {formatDate(t.created_at)}
                     </span>
                   </div>
@@ -967,22 +843,15 @@ export default function OrgDashboardPage() {
 
         {/* ── Settings Tab ──────────────────────────────────────────────────── */}
         {activeTab === "settings" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-6)" }}>
+          <div className="stack-6">
             {/* Org Details */}
-            <div style={{ ...cardStyle, display: "flex", flexDirection: "column", gap: "var(--lc-space-4)", maxWidth: 600 }}>
-              <h3
-                style={{
-                  fontSize: "var(--lc-text-subhead)",
-                  fontWeight: "var(--lc-weight-semibold)" as any,
-                  color: "var(--lc-text)",
-                  margin: 0,
-                }}
-              >
+            <div style={{ ...cardStyle, maxWidth: 600 }} className="stack-4">
+              <h3 className="text-subhead font-semibold m-0">
                 Organization Details
               </h3>
 
-              <label style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-1)" }}>
-                <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>Name</span>
+              <label className="stack-1">
+                <span className="text-caption color-muted">Name</span>
                 <input
                   type="text"
                   value={settingsForm.name}
@@ -991,8 +860,8 @@ export default function OrgDashboardPage() {
                 />
               </label>
 
-              <label style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-1)" }}>
-                <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>Description</span>
+              <label className="stack-1">
+                <span className="text-caption color-muted">Description</span>
                 <textarea
                   value={settingsForm.description}
                   onChange={(e) => setSettingsForm((prev) => ({ ...prev, description: e.target.value }))}
@@ -1001,8 +870,8 @@ export default function OrgDashboardPage() {
                 />
               </label>
 
-              <label style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-1)" }}>
-                <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>Website</span>
+              <label className="stack-1">
+                <span className="text-caption color-muted">Website</span>
                 <input
                   type="url"
                   value={settingsForm.website}
@@ -1015,18 +884,11 @@ export default function OrgDashboardPage() {
               <button
                 onClick={handleSaveSettings}
                 disabled={savingSettings}
+                className="btn btn-primary text-small font-medium transition-fast"
                 style={{
                   alignSelf: "flex-start",
-                  padding: "10px 24px",
-                  borderRadius: "var(--lc-radius-md)",
-                  border: "none",
-                  backgroundColor: "var(--lc-accent)",
-                  color: "var(--lc-accent-text)",
-                  fontSize: "var(--lc-text-small)",
-                  fontWeight: "var(--lc-weight-medium)" as any,
                   cursor: savingSettings ? "not-allowed" : "pointer",
                   opacity: savingSettings ? 0.7 : 1,
-                  transition: "opacity var(--lc-dur-fast) var(--lc-ease)",
                 }}
               >
                 {savingSettings ? "Saving..." : "Save Changes"}
@@ -1034,30 +896,14 @@ export default function OrgDashboardPage() {
             </div>
 
             {/* Webhooks */}
-            <div style={{ ...cardStyle, display: "flex", flexDirection: "column", gap: "var(--lc-space-4)", maxWidth: 600 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h3
-                  style={{
-                    fontSize: "var(--lc-text-subhead)",
-                    fontWeight: "var(--lc-weight-semibold)" as any,
-                    color: "var(--lc-text)",
-                    margin: 0,
-                  }}
-                >
+            <div style={{ ...cardStyle, maxWidth: 600 }} className="stack-4">
+              <div className="d-flex flex-between items-center">
+                <h3 className="text-subhead font-semibold m-0">
                   Webhooks
                 </h3>
                 <button
                   onClick={() => setWebhookFormOpen((v) => !v)}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: "var(--lc-radius-md)",
-                    border: "1px solid var(--lc-border)",
-                    backgroundColor: "transparent",
-                    color: "var(--lc-text-secondary)",
-                    fontSize: "var(--lc-text-caption)",
-                    cursor: "pointer",
-                    transition: "border-color var(--lc-dur-fast) var(--lc-ease)",
-                  }}
+                  className="btn btn-ghost text-caption transition-fast"
                 >
                   + Add Webhook
                 </button>
@@ -1065,9 +911,9 @@ export default function OrgDashboardPage() {
 
               {/* Webhook form */}
               {webhookFormOpen && (
-                <div style={{ display: "flex", gap: "var(--lc-space-2)", alignItems: "flex-end" }}>
-                  <label style={{ flex: 1, display: "flex", flexDirection: "column", gap: "var(--lc-space-1)" }}>
-                    <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>Endpoint URL</span>
+                <div className="d-flex items-end row-2">
+                  <label className="stack-1" style={{ flex: 1 }}>
+                    <span className="text-caption color-muted">Endpoint URL</span>
                     <input
                       type="url"
                       value={webhookUrl}
@@ -1079,14 +925,8 @@ export default function OrgDashboardPage() {
                   <button
                     onClick={handleAddWebhook}
                     disabled={addingWebhook || !webhookUrl.trim()}
+                    className="btn btn-primary text-small font-medium"
                     style={{
-                      padding: "10px 16px",
-                      borderRadius: "var(--lc-radius-md)",
-                      border: "none",
-                      backgroundColor: "var(--lc-accent)",
-                      color: "var(--lc-accent-text)",
-                      fontSize: "var(--lc-text-small)",
-                      fontWeight: "var(--lc-weight-medium)" as any,
                       cursor: addingWebhook ? "not-allowed" : "pointer",
                       opacity: addingWebhook ? 0.7 : 1,
                       whiteSpace: "nowrap",
@@ -1099,11 +939,11 @@ export default function OrgDashboardPage() {
 
               {/* Webhook list */}
               {webhooks.length === 0 ? (
-                <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-muted)", textAlign: "center", padding: "var(--lc-space-4)" }}>
+                <p className="text-small color-muted text-center p-4">
                   No webhooks configured. Add one to receive event notifications.
                 </p>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-2)" }}>
+                <div className="stack-2">
                   {webhooks.map((wh) => (
                     <div
                       key={wh.id}
@@ -1148,24 +988,17 @@ export default function OrgDashboardPage() {
             </div>
 
             {/* White-label */}
-            <div style={{ ...cardStyle, display: "flex", flexDirection: "column", gap: "var(--lc-space-4)", maxWidth: 600 }}>
-              <h3
-                style={{
-                  fontSize: "var(--lc-text-subhead)",
-                  fontWeight: "var(--lc-weight-semibold)" as any,
-                  color: "var(--lc-text)",
-                  margin: 0,
-                }}
-              >
+            <div style={{ ...cardStyle, maxWidth: 600 }} className="stack-4">
+              <h3 className="text-subhead font-semibold m-0">
                 White-Label Configuration
               </h3>
-              <p style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", margin: 0 }}>
+              <p className="text-caption color-muted m-0">
                 Customize the look and feel for your organization&apos;s competition pages.
               </p>
 
-              <label style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-1)" }}>
-                <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>Primary Color</span>
-                <div style={{ display: "flex", gap: "var(--lc-space-2)", alignItems: "center" }}>
+              <label className="stack-1">
+                <span className="text-caption color-muted">Primary Color</span>
+                <div className="d-flex items-center row-2">
                   <input
                     type="color"
                     value={settingsForm.primaryColor || "#f6f7ff"}
@@ -1190,8 +1023,8 @@ export default function OrgDashboardPage() {
                 </div>
               </label>
 
-              <label style={{ display: "flex", flexDirection: "column", gap: "var(--lc-space-1)" }}>
-                <span style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)" }}>Custom Domain</span>
+              <label className="stack-1">
+                <span className="text-caption color-muted">Custom Domain</span>
                 <input
                   type="text"
                   value={settingsForm.customDomain}
@@ -1204,18 +1037,11 @@ export default function OrgDashboardPage() {
               <button
                 onClick={handleSaveSettings}
                 disabled={savingSettings}
+                className="btn btn-primary text-small font-medium transition-fast"
                 style={{
                   alignSelf: "flex-start",
-                  padding: "10px 24px",
-                  borderRadius: "var(--lc-radius-md)",
-                  border: "none",
-                  backgroundColor: "var(--lc-accent)",
-                  color: "var(--lc-accent-text)",
-                  fontSize: "var(--lc-text-small)",
-                  fontWeight: "var(--lc-weight-medium)" as any,
                   cursor: savingSettings ? "not-allowed" : "pointer",
                   opacity: savingSettings ? 0.7 : 1,
-                  transition: "opacity var(--lc-dur-fast) var(--lc-ease)",
                 }}
               >
                 {savingSettings ? "Saving..." : "Save White-Label Config"}
