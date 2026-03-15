@@ -5270,3 +5270,492 @@ html[data-theme="light"] .card--glow-ok {
   text-align: center;
   padding-top: var(--lc-space-6);
 }
+
+/* =============================================================================
+   Global Light Theme Overrides — Every Page
+   Ensures all components render cleanly on light surfaces.
+   Targets: admin, mc, cd, cw, proof, learn, bracket, comp, shared elements.
+============================================================================= */
+
+/* ── Admin Panel ─────────────────────────────────────────────────────────── */
+
+html[data-theme="light"] .admin-sidebar {
+  background: rgba(255, 255, 255, 0.80);
+  border-color: var(--lc-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+html[data-theme="light"] .admin-sidebar__brand {
+  border-color: var(--lc-border);
+}
+
+html[data-theme="light"] .admin-nav-item:hover {
+  background: rgba(50, 100, 200, 0.06);
+}
+
+html[data-theme="light"] .admin-nav-item.is-active {
+  background: rgba(50, 120, 255, 0.08);
+  border-color: rgba(50, 120, 255, 0.18);
+}
+
+html[data-theme="light"] .admin-kpi {
+  background: var(--lc-glass);
+  border-color: var(--lc-border);
+  box-shadow: var(--lc-shadow-sm);
+}
+
+html[data-theme="light"] .admin-quick-card {
+  background: var(--lc-glass);
+  box-shadow: var(--lc-shadow-sm);
+}
+
+html[data-theme="light"] .admin-quick-card:hover {
+  background: var(--lc-glass-hover);
+  box-shadow: var(--lc-shadow-md);
+}
+
+html[data-theme="light"] .admin-sidebar-backdrop {
+  background: rgba(20, 40, 80, 0.18);
+}
+
+html[data-theme="light"] .admin-mobile-toggle {
+  border-color: var(--lc-border);
+}
+
+/* ── My Challenges (mc-*) ────────────────────────────────────────────────── */
+
+html[data-theme="light"] .mc-card {
+  background: var(--lc-glass);
+  border-color: var(--lc-border);
+  box-shadow: var(--lc-shadow-sm);
+}
+
+html[data-theme="light"] .mc-card:hover {
+  box-shadow: var(--lc-shadow-md);
+}
+
+html[data-theme="light"] .mc-card__deadline {
+  background: var(--lc-bg);
+}
+
+html[data-theme="light"] .mc-filter-tile:hover {
+  background: rgba(50, 100, 200, 0.06);
+}
+
+html[data-theme="light"] .mc-filter-tile--active {
+  background: rgba(50, 120, 255, 0.08);
+  border-color: rgba(50, 120, 255, 0.22);
+  color: var(--lc-select-text);
+}
+
+html[data-theme="light"] .mc-filter-tile__count {
+  background: var(--lc-bg);
+}
+
+html[data-theme="light"] .mc-filter-tile--active .mc-filter-tile__count {
+  background: rgba(50, 120, 255, 0.10);
+  color: var(--lc-select-text);
+}
+
+html[data-theme="light"] .mc-action-btn {
+  background: var(--lc-glass);
+  border-color: var(--lc-border);
+  backdrop-filter: none;
+}
+
+html[data-theme="light"] .mc-action-btn:hover {
+  background: rgba(50, 120, 255, 0.08);
+  border-color: rgba(50, 120, 255, 0.22);
+  color: var(--lc-select-text);
+}
+
+html[data-theme="light"] .mc-overlay {
+  background: rgba(20, 40, 80, 0.25);
+  backdrop-filter: blur(8px);
+}
+
+html[data-theme="light"] .mc-modal {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: var(--lc-border);
+  box-shadow: var(--lc-shadow-lg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+html[data-theme="light"] .mc-badge--soft {
+  background: var(--lc-bg);
+}
+
+/* ── Challenge Detail (cd-*) ─────────────────────────────────────────────── */
+
+html[data-theme="light"] .cd-header {
+  background: var(--lc-glass);
+  box-shadow: var(--lc-shadow-sm);
+}
+
+html[data-theme="light"] .cd-details {
+  background: var(--lc-glass);
+  box-shadow: var(--lc-shadow-sm);
+}
+
+html[data-theme="light"] .cd-stat {
+  background: var(--lc-bg);
+  border-color: var(--lc-border);
+}
+
+html[data-theme="light"] .cd-metric-card {
+  background: var(--lc-bg);
+  border-color: var(--lc-border);
+}
+
+html[data-theme="light"] .cd-params {
+  background: var(--lc-bg);
+  border-color: var(--lc-border);
+}
+
+html[data-theme="light"] .cd-error {
+  background: rgba(239, 68, 68, 0.06);
+}
+
+/* ── Challenge Card (explore page) ───────────────────────────────────────── */
+
+html[data-theme="light"] .challenge-card {
+  background: var(--lc-glass);
+  box-shadow: var(--lc-shadow-sm);
+}
+
+html[data-theme="light"] .challenge-card:hover {
+  box-shadow: var(--lc-shadow-md);
+}
+
+/* ── Create Wizard — additional overrides ────────────────────────────────── */
+
+html[data-theme="light"] .cw-mobile-bar {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: var(--lc-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+html[data-theme="light"] .cw-progress__step.is-active .cw-progress__dot {
+  box-shadow: 0 0 0 3px rgba(17, 29, 58, 0.10);
+}
+
+html[data-theme="light"] .cw-alert--warn {
+  background: rgba(234, 179, 8, 0.08);
+  border-color: rgba(234, 179, 8, 0.16);
+}
+
+html[data-theme="light"] .cw-alert--error {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.16);
+}
+
+html[data-theme="light"] .cw-info-tip__bubble {
+  background: rgba(255, 255, 255, 0.97);
+  border-color: var(--lc-border);
+  box-shadow: var(--lc-shadow-lg);
+}
+
+html[data-theme="light"] .cw-review__hero {
+  border-color: var(--lc-border);
+}
+
+html[data-theme="light"] .cw-requirements {
+  background: var(--lc-bg);
+  border-color: var(--lc-border);
+}
+
+/* ── Builder Cards — additional overrides ────────────────────────────────── */
+
+html[data-theme="light"] .builder-card--expanded {
+  border-color: var(--lc-border-strong);
+  box-shadow: var(--lc-shadow-sm);
+}
+
+html[data-theme="light"] .builder-card__head {
+  border-color: var(--lc-border);
+}
+
+html[data-theme="light"] .builder-card--done {
+  border-color: rgba(34, 197, 94, 0.14);
+}
+
+/* ── Proof Flow ──────────────────────────────────────────────────────────── */
+
+html[data-theme="light"] .proof-qr-overlay {
+  background: rgba(20, 40, 80, 0.25);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+html[data-theme="light"] .proof-submit-cta {
+  box-shadow: 0 2px 8px rgba(17, 29, 58, 0.12);
+}
+
+/* ── Learn Pages ─────────────────────────────────────────────────────────── */
+
+html[data-theme="light"] .learn-page__metric,
+html[data-theme="light"] .learn-page__feature,
+html[data-theme="light"] .learn-page__step {
+  background: var(--lc-glass);
+  box-shadow: var(--lc-shadow-sm);
+}
+
+html[data-theme="light"] .learn-page__icon {
+  background: rgba(17, 29, 58, 0.06);
+}
+
+html[data-theme="light"] .learn-page__step-num {
+  background: rgba(17, 29, 58, 0.06);
+}
+
+html[data-theme="light"] .learn-page__feature-icon {
+  background: rgba(17, 29, 58, 0.06);
+}
+
+/* ── Competition / Bracket ───────────────────────────────────────────────── */
+
+html[data-theme="light"] .bracket-match {
+  background: var(--lc-glass);
+  box-shadow: var(--lc-shadow-sm);
+}
+
+html[data-theme="light"] .bracket-match:hover {
+  box-shadow: var(--lc-shadow-md);
+}
+
+/* ── DateTimePicker — additional light overrides ─────────────────────────── */
+
+html[data-theme="light"] .dtp__trigger {
+  background: var(--lc-bg);
+  box-shadow: inset 0 1px 2px rgba(40, 60, 100, 0.05);
+}
+
+html[data-theme="light"] .dtp__select {
+  background: var(--lc-bg);
+  box-shadow: inset 0 1px 2px rgba(40, 60, 100, 0.05);
+}
+
+html[data-theme="light"] .dtp__bar {
+  border-color: var(--lc-border);
+}
+
+html[data-theme="light"] .dtp__footer {
+  border-color: var(--lc-border);
+}
+
+/* ── Segmented Control ───────────────────────────────────────────────────── */
+
+html[data-theme="light"] .segmented {
+  background: var(--lc-bg);
+  box-shadow: inset 0 1px 2px rgba(40, 60, 100, 0.06);
+}
+
+html[data-theme="light"] .segmented__btn.is-active,
+html[data-theme="light"] .segmented__btn[aria-checked="true"] {
+  background: rgba(255, 255, 255, 0.90);
+  box-shadow: var(--lc-shadow-sm);
+  backdrop-filter: none;
+}
+
+/* ── Select Card ─────────────────────────────────────────────────────────── */
+
+html[data-theme="light"] .select-card {
+  background: var(--lc-glass);
+}
+
+html[data-theme="light"] .select-card__icon {
+  background: var(--lc-bg);
+}
+
+html[data-theme="light"] .select-card:hover:not([data-selected]) {
+  background: var(--lc-glass-hover);
+}
+
+/* ── Pilltabs ────────────────────────────────────────────────────────────── */
+
+html[data-theme="light"] .pilltabs {
+  background: var(--lc-bg);
+  border-color: var(--lc-border);
+}
+
+html[data-theme="light"] .pilltab:hover {
+  background: rgba(50, 100, 200, 0.06);
+}
+
+/* ── Overview Items ──────────────────────────────────────────────────────── */
+
+html[data-theme="light"] .ov-item {
+  background: var(--lc-glass);
+}
+
+/* ── Timeline ────────────────────────────────────────────────────────────── */
+
+html[data-theme="light"] .timeline__card {
+  background: var(--lc-glass);
+}
+
+html[data-theme="light"] .timeline__node {
+  border-color: var(--lc-bg);
+}
+
+/* ── Skeleton ────────────────────────────────────────────────────────────── */
+
+html[data-theme="light"] .skeleton-line {
+  background-image: linear-gradient(
+    90deg,
+    var(--lc-bg-overlay) 0%,
+    rgba(100, 140, 220, 0.08) 50%,
+    var(--lc-bg-overlay) 100%
+  );
+}
+
+/* ── Chip (base) — override dark RGBA background ─────────────────────────── */
+
+html[data-theme="light"] .chip {
+  background: var(--lc-bg);
+  border-color: var(--lc-border);
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+/* ── Stepper Buttons ─────────────────────────────────────────────────────── */
+
+html[data-theme="light"] .stepper__btn {
+  background: var(--lc-bg);
+}
+
+/* ── Nav Card ────────────────────────────────────────────────────────────── */
+
+html[data-theme="light"] .nav-card {
+  background: var(--lc-glass);
+  box-shadow: var(--lc-shadow-sm);
+}
+
+/* ── Mobile Sheet ────────────────────────────────────────────────────────── */
+
+html[data-theme="light"] .mobile-sheet {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: var(--lc-border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* ── Metric Card ─────────────────────────────────────────────────────────── */
+
+html[data-theme="light"] .metric {
+  background: var(--lc-glass);
+  box-shadow: var(--lc-shadow-sm);
+}
+
+/* ── Glass Icon Ring ─────────────────────────────────────────────────────── */
+
+html[data-theme="light"] .gi--ring {
+  background: var(--lc-bg);
+}
+
+/* ── Subpanel Icon ───────────────────────────────────────────────────────── */
+
+html[data-theme="light"] .subpanel__head {
+  border-color: var(--lc-border);
+}
+
+/* ── Scrollbar (Light) ───────────────────────────────────────────────────── */
+
+html[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(60, 80, 130, 0.14);
+}
+
+html[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(60, 80, 130, 0.24);
+}
+
+/* ── Nav Mega / Dropdown (Light) ─────────────────────────────────────────── */
+
+html[data-theme="light"] .nav-dropdown {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: var(--lc-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+html[data-theme="light"] .nav-dropdown-item:hover,
+html[data-theme="light"] .nav-dropdown-item.is-active {
+  background: rgba(50, 100, 200, 0.06);
+}
+
+/* ── Mobile Link Icon Background (Light) ─────────────────────────────────── */
+
+html[data-theme="light"] .mobile-link__icon {
+  background: rgba(50, 100, 200, 0.06);
+  border-color: rgba(50, 100, 200, 0.10);
+}
+
+html[data-theme="light"] .mobile-link.is-active .mobile-link__icon {
+  background: rgba(50, 120, 255, 0.10);
+  border-color: rgba(50, 120, 255, 0.18);
+}
+
+/* ── Nav Mega Item Icon (Light) ──────────────────────────────────────────── */
+
+html[data-theme="light"] .nav-mega-item__icon {
+  background: rgba(50, 100, 200, 0.06);
+  border-color: rgba(50, 100, 200, 0.10);
+}
+
+html[data-theme="light"] .nav-mega-item:hover .nav-mega-item__icon,
+html[data-theme="light"] .nav-mega-item.is-active .nav-mega-item__icon {
+  background: rgba(50, 120, 255, 0.10);
+  border-color: rgba(50, 120, 255, 0.18);
+}
+
+/* ── CW Verification Badge Icon (Light) ──────────────────────────────────── */
+
+html[data-theme="light"] .cw-verification-badge__icon {
+  background: var(--lc-accent);
+}
+
+/* ── Progress Bar (Light) ────────────────────────────────────────────────── */
+
+html[data-theme="light"] .progress-bar {
+  background: var(--lc-bg);
+}
+
+/* ── Pill Toggle (Light) ─────────────────────────────────────────────────── */
+
+html[data-theme="light"] .pill-toggle:hover {
+  background: rgba(50, 100, 200, 0.06);
+}
+
+html[data-theme="light"] .pill-toggle.is-active {
+  box-shadow: none;
+}
+
+/* ── Create Stepper (Light) ──────────────────────────────────────────────── */
+
+html[data-theme="light"] .create-stepper {
+  background: var(--lc-glass);
+  border-color: var(--lc-border);
+}
+
+/* ── AIVM Glyph (Light) ─────────────────────────────────────────────────── */
+
+html[data-theme="light"] .hp-aivm__glyph {
+  background: var(--lc-bg);
+  box-shadow: 0 0 24px rgba(50, 100, 200, 0.08);
+}
+
+html[data-theme="light"] .hp-aivm__ring {
+  border-color: rgba(50, 100, 200, 0.10);
+}
+
+/* ── Dev Section (Light) ─────────────────────────────────────────────────── */
+
+html[data-theme="light"] .hp-dev {
+  background: var(--lc-glass);
+  border-color: var(--lc-border);
+  box-shadow: var(--lc-shadow-sm);
+  backdrop-filter: none;
+}
