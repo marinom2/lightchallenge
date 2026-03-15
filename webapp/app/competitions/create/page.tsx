@@ -1003,56 +1003,55 @@ export default function CreateCompetitionPage() {
         </div>
       )}
 
-      {/* ── Navigation Buttons ────────────────────────────────────────────── */}
+      {/* ── Navigation Buttons (desktop) ─────────────────────────────────── */}
       {!success && (
-        <div className="flex-between pt-4 border-t">
+        <div className="cw-footer">
           <button
             onClick={step === 2 ? () => { setStep(1); } : back}
             disabled={step === 1}
-            className="d-inline-flex row-1 rounded-md border text-small transition-fast"
-            style={{
-              padding: "10px 18px",
-              backgroundColor: "transparent",
-              color: step === 1 ? "var(--lc-text-muted)" : "var(--lc-text)",
-              fontWeight: 500,
-              cursor: step === 1 ? "not-allowed" : "pointer",
-              opacity: step === 1 ? 0.5 : 1,
-            }}
+            className="btn btn-ghost"
           >
-            <ChevronLeft />
             {step === 2 ? "Change Type" : "Back"}
           </button>
 
           {step < 5 ? (
-            <button
-              onClick={next}
-              disabled={!canProceed}
-              className="d-inline-flex row-1 rounded-md border-none text-small transition-fast"
-              style={{
-                padding: "10px 24px",
-                backgroundColor: canProceed ? "var(--lc-accent)" : "var(--lc-bg-overlay)",
-                color: canProceed ? "var(--lc-accent-text)" : "var(--lc-text-muted)",
-                fontWeight: 500,
-                cursor: canProceed ? "pointer" : "not-allowed",
-              }}
-            >
+            <button onClick={next} disabled={!canProceed} className="btn btn-primary">
               Continue
-              <ChevronRight />
             </button>
           ) : (
             <button
               onClick={handleSubmit}
               disabled={submitting || !address}
-              className="d-inline-flex row-2 rounded-md border-none text-small font-semibold transition-fast"
-              style={{
-                padding: "10px 28px",
-                backgroundColor: submitting || !address ? "var(--lc-bg-overlay)" : "var(--lc-accent)",
-                color: submitting || !address ? "var(--lc-text-muted)" : "var(--lc-accent-text)",
-                cursor: submitting || !address ? "not-allowed" : "pointer",
-                opacity: submitting ? 0.7 : 1,
-              }}
+              className="btn btn-primary"
             >
-              {submitting ? "Creating..." : !address ? "Connect Wallet" : "\uD83D\uDE80 Launch Tournament"}
+              {submitting ? "Creating..." : !address ? "Connect Wallet" : "Launch Tournament"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── Mobile Bottom Bar ──────────────────────────────────────────── */}
+      {!success && (
+        <div className="cw-mobile-bar">
+          <button
+            onClick={step === 2 ? () => { setStep(1); } : back}
+            disabled={step === 1}
+            className="btn btn-ghost"
+          >
+            {step === 2 ? "Change Type" : "Back"}
+          </button>
+
+          {step < 5 ? (
+            <button onClick={next} disabled={!canProceed} className="btn btn-primary">
+              Continue
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={submitting || !address}
+              className="btn btn-primary"
+            >
+              {submitting ? "Creating..." : !address ? "Connect Wallet" : "Launch Tournament"}
             </button>
           )}
         </div>

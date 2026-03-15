@@ -648,9 +648,6 @@ export default function Navbar() {
     >
       <div className="container-narrow">
         <div className="navbar-row">
-          {/* Mobile spacer — balances hamburger for centered brand */}
-          <div className="mobile-nav-spacer md:hidden" style={{ width: "var(--ctl-h)" }} aria-hidden="true" />
-
           {/* Brand */}
           <Link href="/" className="brand" aria-label="LightChallenge Home">
             <span className="brand-dot" aria-hidden />
@@ -738,58 +735,39 @@ export default function Navbar() {
             <ProfileDropdown isAdmin={isAdmin} />
           </div>
 
-          {/* Mobile hamburger */}
-          <button
-            type="button"
-            className="md:hidden btn btn-ghost btn-sm"
-            aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
-            aria-expanded={mobileOpen}
-            aria-controls="mobile-nav-sheet"
-            onClick={() => setMobileOpen((v) => !v)}
-            style={{
-              width: "var(--ctl-h)",
-              padding: "0",
-              justifyContent: "center",
-            }}
-          >
-            <AnimatePresence mode="wait" initial={false}>
-              {!mobileOpen ? (
-                <motion.svg
-                  key="hamburger"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  aria-hidden
-                  initial={{ opacity: 0, rotate: -90 }}
-                  animate={{ opacity: 1, rotate: 0 }}
-                  exit={{ opacity: 0, rotate: 90 }}
-                  transition={{ duration: 0.15 }}
-                >
-                  <path
-                    fill="currentColor"
-                    d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"
-                  />
-                </motion.svg>
-              ) : (
-                <motion.svg
-                  key="close"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  aria-hidden
-                  initial={{ opacity: 0, rotate: 90 }}
-                  animate={{ opacity: 1, rotate: 0 }}
-                  exit={{ opacity: 0, rotate: -90 }}
-                  transition={{ duration: 0.15 }}
-                >
-                  <path
-                    fill="currentColor"
-                    d="M18.3 5.7 12 12 5.7 5.7 4.3 7.1 10.6 13.4 4.3 19.7 5.7 21.1 12 14.8l6.3 6.3 1.4-1.4L13.4 13.4 19.7 7.1z"
-                  />
-                </motion.svg>
-              )}
-            </AnimatePresence>
-          </button>
+          {/* Mobile right controls */}
+          <div className="md:hidden flex items-center gap-2 shrink-0">
+            <WalletButton onConnect={() => setMobileOpen(false)} />
+
+            {/* Hamburger */}
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
+              aria-expanded={mobileOpen}
+              aria-controls="mobile-nav-sheet"
+              onClick={() => setMobileOpen((v) => !v)}
+              style={{ width: "var(--ctl-h)", padding: "0", justifyContent: "center" }}
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                {!mobileOpen ? (
+                  <motion.svg key="hamburger" width="20" height="20" viewBox="0 0 24 24" aria-hidden
+                    initial={{ opacity: 0, rotate: -90 }} animate={{ opacity: 1, rotate: 0 }}
+                    exit={{ opacity: 0, rotate: 90 }} transition={{ duration: 0.15 }}
+                  >
+                    <path fill="currentColor" d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z" />
+                  </motion.svg>
+                ) : (
+                  <motion.svg key="close" width="20" height="20" viewBox="0 0 24 24" aria-hidden
+                    initial={{ opacity: 0, rotate: 90 }} animate={{ opacity: 1, rotate: 0 }}
+                    exit={{ opacity: 0, rotate: -90 }} transition={{ duration: 0.15 }}
+                  >
+                    <path fill="currentColor" d="M18.3 5.7 12 12 5.7 5.7 4.3 7.1 10.6 13.4 4.3 19.7 5.7 21.1 12 14.8l6.3 6.3 1.4-1.4L13.4 13.4 19.7 7.1z" />
+                  </motion.svg>
+                )}
+              </AnimatePresence>
+            </button>
+          </div>
         </div>
       </div>
     </header>

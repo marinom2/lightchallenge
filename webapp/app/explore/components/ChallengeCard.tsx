@@ -117,16 +117,8 @@ export default function ChallengeCard({
       onClick={go}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && go()}
       aria-label={`Open challenge ${idStr}`}
-      className="stack-3 p-5 rounded-lg border bg-raised cursor-pointer transition-fast"
+      className="explore-card stack-3 p-5 cursor-pointer"
       style={{ minHeight: 200 }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "var(--lc-border-strong)";
-        e.currentTarget.style.boxShadow = "var(--lc-shadow-md)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = "var(--lc-border)";
-        e.currentTarget.style.boxShadow = "none";
-      }}
     >
       {/* Header: ID circle + game icon + title + status */}
       <header className="d-flex items-start justify-between gap-3">

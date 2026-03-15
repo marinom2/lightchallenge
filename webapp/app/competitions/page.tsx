@@ -221,7 +221,7 @@ export default function CompetitionsPage() {
               <Link
                 key={comp.id}
                 href={`/competitions/${comp.id}`}
-                className="stack-3 p-5 rounded-lg border bg-raised transition-fast"
+                className="explore-card stack-3 p-5"
                 style={{ textDecoration: "none" }}
               >
                 {/* Badge Row */}
@@ -292,7 +292,7 @@ export default function CompetitionsPage() {
           ].map((s) => (
             <div
               key={s.step}
-              className="stack-3 p-5 rounded-lg border bg-raised"
+              className="explore-card stack-3 p-5"
             >
               <span
                 className="text-caption font-bold color-accent"

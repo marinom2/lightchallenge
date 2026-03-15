@@ -129,7 +129,8 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     scroll-behavior: smooth;
-    overflow-x: hidden;
+    overflow-x: clip;               /* clip, not hidden — preserves sticky positioning */
+    scrollbar-gutter: stable;
   }
 
   body {
@@ -899,9 +900,6 @@ html[data-theme="light"] .btn:focus-visible {
   .navbar-row {
     justify-content: space-between;
   }
-  .mobile-nav-spacer {
-    flex-shrink: 0;
-  }
 }
 
 .brand {
@@ -1555,6 +1553,53 @@ html[data-theme="light"] .profile-dropdown__item:hover {
 }
 .icon-btn.star.is-fav {
   color: var(--lc-warning);
+}
+
+/* ── Explore Card (shared: explore grid, competition cards, info steps) ──── */
+
+.explore-card {
+  position: relative;
+  border-radius: var(--lc-radius-lg);
+  border: 1px solid var(--lc-border);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--lc-bg-raised) 100%, transparent) 0%,
+      color-mix(in oklab, var(--lc-bg-raised) 92%, var(--lc-bg) 8%) 100%
+    );
+  box-shadow: var(--lc-shadow-sm);
+  overflow: hidden;
+  transition:
+    border-color var(--lc-dur-base) var(--lc-ease),
+    box-shadow var(--lc-dur-base) var(--lc-ease),
+    transform var(--lc-dur-base) var(--lc-ease);
+}
+/* Top-edge highlight for depth */
+.explore-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: rgba(180, 195, 230, 0.06);
+  pointer-events: none;
+  z-index: 1;
+}
+@media (hover: hover) {
+  .explore-card:hover {
+    border-color: var(--lc-border-strong);
+    box-shadow: var(--lc-shadow-md);
+    transform: translateY(-1px);
+  }
+}
+html[data-theme="light"] .explore-card {
+  background: var(--lc-glass);
+  box-shadow: var(--lc-shadow-sm);
+}
+html[data-theme="light"] .explore-card::before {
+  content: none;
+}
+html[data-theme="light"] .explore-card:hover {
+  box-shadow: var(--lc-shadow-md);
 }
 
 /* ── My Challenges Card System ─────────────────────────────────────────────── */
