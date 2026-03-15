@@ -112,14 +112,9 @@ class AppState: ObservableObject {
         let provider = components.queryItems?.first(where: { $0.name == "provider" })?.value
         let status = components.queryItems?.first(where: { $0.name == "status" })?.value
 
-        if status == "ok", let _ = provider {
-            // OAuth completed successfully — refresh linked accounts
-            Task {
-                await OAuthService.shared.refreshLinkedAccounts(
-                    baseURL: serverURL,
-                    wallet: walletAddress
-                )
-            }
+        // Route to OAuthService (handles both native app and web auth callbacks)
+        Task {
+            await OAuthService.shared.handleOAuthCallback(provider: provider, status: status)
         }
     }
 }

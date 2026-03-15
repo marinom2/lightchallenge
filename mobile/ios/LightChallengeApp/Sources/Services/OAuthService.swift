@@ -44,18 +44,26 @@ class OAuthService: NSObject, ObservableObject {
     // MARK: - Strava
 
     func connectStrava(baseURL: String, wallet: String) {
+        // If Strava app is installed, use native app OAuth (no web login needed)
+        if stravaInstalled, let clientId = stravaClientId(baseURL: baseURL) {
+            startNativeAppOAuth(
+                appScheme: "strava://oauth/mobile/authorize",
+                clientId: clientId,
+                scope: "activity:read_all",
+                provider: "strava",
+                baseURL: baseURL,
+                wallet: wallet
+            )
+            return
+        }
+
+        // Fallback: web-based OAuth
         let urlString = "\(baseURL)/api/auth/strava?subject=\(wallet)&redirect_scheme=lightchallenge"
         guard let url = URL(string: urlString) else {
             error = "Invalid OAuth URL"
             return
         }
-
-        startOAuthSession(
-            url: url,
-            provider: "strava",
-            baseURL: baseURL,
-            wallet: wallet
-        )
+        startOAuthSession(url: url, provider: "strava", baseURL: baseURL, wallet: wallet)
     }
 
     // MARK: - Fitbit
@@ -66,32 +74,18 @@ class OAuthService: NSObject, ObservableObject {
             error = "Invalid OAuth URL"
             return
         }
-
-        startOAuthSession(
-            url: url,
-            provider: "fitbit",
-            baseURL: baseURL,
-            wallet: wallet
-        )
+        startOAuthSession(url: url, provider: "fitbit", baseURL: baseURL, wallet: wallet)
     }
 
     // MARK: - Garmin
 
-    /// Garmin Connect integration via Garmin Health API.
-    /// Opens Garmin Connect app or web auth for data sync.
     func connectGarmin(baseURL: String, wallet: String) {
         let urlString = "\(baseURL)/api/auth/garmin?subject=\(wallet)&redirect_scheme=lightchallenge"
         guard let url = URL(string: urlString) else {
             error = "Invalid OAuth URL"
             return
         }
-
-        startOAuthSession(
-            url: url,
-            provider: "garmin",
-            baseURL: baseURL,
-            wallet: wallet
-        )
+        startOAuthSession(url: url, provider: "garmin", baseURL: baseURL, wallet: wallet)
     }
 
     // MARK: - Open Companion App
@@ -170,6 +164,75 @@ class OAuthService: NSObject, ObservableObject {
         case "fitbit": fitbitLinked = false
         case "garmin": garminLinked = false
         default: break
+        }
+    }
+
+    // MARK: - Native App OAuth (opens provider app directly)
+
+    /// Pending native OAuth context so we can finish when the deep link returns.
+    private var pendingOAuth: (provider: String, baseURL: String, wallet: String)?
+
+    /// Strava client ID — fetched from server config endpoint or hardcoded for now.
+    private func stravaClientId(baseURL: String) -> String? {
+        // The client ID is public (embedded in the auth URL).
+        // We can read it from the server or hardcode for the registered app.
+        return "212300"
+    }
+
+    private func startNativeAppOAuth(
+        appScheme: String,
+        clientId: String,
+        scope: String,
+        provider: String,
+        baseURL: String,
+        wallet: String
+    ) {
+        isAuthenticating = true
+        error = nil
+
+        let callbackURL = "\(baseURL)/api/auth/\(provider)/callback"
+        let state = "subject:\(wallet),redirect_scheme:lightchallenge"
+
+        var params = URLComponents(string: appScheme)!
+        params.queryItems = [
+            URLQueryItem(name: "client_id", value: clientId),
+            URLQueryItem(name: "redirect_uri", value: callbackURL),
+            URLQueryItem(name: "response_type", value: "code"),
+            URLQueryItem(name: "approval_prompt", value: "auto"),
+            URLQueryItem(name: "scope", value: scope),
+            URLQueryItem(name: "state", value: state),
+        ]
+
+        guard let url = params.url else {
+            isAuthenticating = false
+            error = "Could not build OAuth URL"
+            return
+        }
+
+        pendingOAuth = (provider, baseURL, wallet)
+        UIApplication.shared.open(url) { [weak self] success in
+            Task { @MainActor in
+                if !success {
+                    self?.isAuthenticating = false
+                    self?.pendingOAuth = nil
+                    self?.error = "Could not open \(provider) app"
+                }
+            }
+        }
+    }
+
+    /// Called from AppState.handleDeepLink when lightchallenge://callback arrives
+    /// after a native app OAuth flow.
+    func handleOAuthCallback(provider: String?, status: String?) async {
+        isAuthenticating = false
+
+        guard let pending = pendingOAuth else { return }
+        pendingOAuth = nil
+
+        if status == "ok" {
+            await refreshLinkedAccounts(baseURL: pending.baseURL, wallet: pending.wallet)
+        } else {
+            error = "OAuth authorization failed"
         }
     }
 
