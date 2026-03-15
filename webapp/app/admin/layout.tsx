@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useAccount, useReadContract } from "wagmi";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { ShieldCheck, XCircle, Menu } from "lucide-react";
 import { ABI, ADDR } from "@/lib/contracts";
 import { AdminProvider, useAdmin } from "./components/AdminContext";
 import AdminSidebar from "./components/AdminSidebar";
@@ -28,18 +30,26 @@ function AdminShell({ children }: { children: React.ReactNode }) {
     return (
       <div className="admin-layout">
         <div className="admin-main" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div className="panel" style={{ maxWidth: 420, width: "100%", textAlign: "center" }}>
-            <div className="panel-body" style={{ padding: "var(--lc-space-8)" }}>
-              <div style={{ fontSize: "2rem", marginBottom: "var(--lc-space-3)" }}>
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
+          <div className="panel" style={{ maxWidth: 460, width: "100%", textAlign: "center" }}>
+            <div className="panel-body" style={{ padding: "var(--lc-space-8)", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--lc-space-4)" }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: "50%",
+                backgroundColor: "var(--lc-accent-muted)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <ShieldCheck size={28} strokeWidth={1.5} style={{ color: "var(--lc-accent)" }} />
               </div>
-              <h2 style={{ fontSize: "1.125rem", fontWeight: 600, margin: "0 0 var(--lc-space-2)" }}>
-                Admin Console
-              </h2>
-              <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-muted)", margin: 0 }}>
-                Connect your wallet to access the admin panel.
+              <div>
+                <h2 style={{ fontSize: "1.25rem", fontWeight: 600, margin: "0 0 var(--lc-space-2)" }}>
+                  Admin Console
+                </h2>
+                <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", margin: 0, lineHeight: "var(--lc-leading-normal)" }}>
+                  Connect the admin wallet to access the LightChallenge management panel.
+                </p>
+              </div>
+              <ConnectButton />
+              <p style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", margin: 0 }}>
+                Only the designated admin wallet can access this panel.
               </p>
             </div>
           </div>
@@ -53,16 +63,29 @@ function AdminShell({ children }: { children: React.ReactNode }) {
     return (
       <div className="admin-layout">
         <div className="admin-main" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div className="panel" style={{ maxWidth: 420, width: "100%", textAlign: "center" }}>
-            <div className="panel-body" style={{ padding: "var(--lc-space-8)" }}>
-              <div style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "var(--lc-space-2)" }}>
-                Access Denied
+          <div className="panel" style={{ maxWidth: 460, width: "100%", textAlign: "center" }}>
+            <div className="panel-body" style={{ padding: "var(--lc-space-8)", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--lc-space-4)" }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: "50%",
+                backgroundColor: "rgba(239, 68, 68, 0.1)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <XCircle size={28} strokeWidth={1.5} style={{ color: "var(--lc-danger, #ef4444)" }} />
               </div>
-              <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-muted)", margin: 0 }}>
-                This wallet is not the ChallengePay admin.
+              <div>
+                <h2 style={{ fontSize: "1.25rem", fontWeight: 600, margin: "0 0 var(--lc-space-2)" }}>
+                  Access Denied
+                </h2>
+                <p style={{ fontSize: "var(--lc-text-small)", color: "var(--lc-text-secondary)", margin: 0, lineHeight: "var(--lc-leading-normal)" }}>
+                  The connected wallet is not the ChallengePay admin.
+                </p>
+              </div>
+              <p style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", margin: 0, wordBreak: "break-all" }} className="mono">
+                Connected: {address}
               </p>
-              <p style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", marginTop: "var(--lc-space-3)" }} className="mono">
-                {address}
+              <ConnectButton />
+              <p style={{ fontSize: "var(--lc-text-caption)", color: "var(--lc-text-muted)", margin: 0 }}>
+                Switch to the admin wallet to continue.
               </p>
             </div>
           </div>
@@ -85,9 +108,7 @@ function AdminShell({ children }: { children: React.ReactNode }) {
             onClick={() => setSidebarOpen(true)}
             aria-label="Open admin menu"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z" />
-            </svg>
+            <Menu size={18} />
           </button>
         </div>
 

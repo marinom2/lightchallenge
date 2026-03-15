@@ -10,17 +10,14 @@ import {
   Globe,
   Zap,
   Trophy,
-  Heart,
-  Gamepad2,
-  Mountain,
   ArrowRight,
   Code,
   ExternalLink,
   CheckCircle2,
   Target,
   Sparkles,
-  Activity,
 } from "lucide-react";
+import { SteamIcon, StravaIcon, AppleIcon, GarminIcon } from "./components/icons/BrandIcons";
 
 /* ── Data hooks ────────────────────────────────────────────────────────────── */
 
@@ -115,16 +112,11 @@ export default function HomePage() {
     <div className="hp">
       {/* ─────────────────────────────── HERO ─────────────────────────────── */}
       <section className="hp-hero">
-        {/* Status pill */}
+        {/* Tagline pill */}
         <div className="hp-hero__pill">
-          <span
-            className="hp-hero__dot"
-            style={{
-              backgroundColor: health?.status === "healthy" ? "var(--lc-success)" : "var(--lc-text-muted)",
-              boxShadow: health?.status === "healthy" ? "0 0 6px rgba(34,197,94,0.4)" : "none",
-            }}
-          />
-          Lightchain Testnet
+          <span className="hp-hero__pill-brand">LightChallenge</span>
+          <span className="hp-hero__pill-sep" />
+          ON-CHAIN &middot; AI-VERIFIED &middot; REWARDED
         </div>
 
         {/* Headline */}
@@ -136,17 +128,21 @@ export default function HomePage() {
 
         {/* Subtext */}
         <p className="hp-hero__sub">
-          Create challenges with real stakes. Submit evidence from fitness trackers
-          or gaming platforms. AI verifies the results. Winners get paid.
+          LightChallenge lets you put real stake behind real goals. Win your match,
+          hit your step count, crush your PR &mdash; then submit proof and the AI
+          verifier confirms it on-chain. No trust required.
         </p>
 
         {/* CTA */}
         <div className="hp-hero__cta">
           <Link href="/explore" className="btn btn-primary btn-lg">
-            Explore Challenges
+            Browse challenges <ArrowRight size={16} />
           </Link>
           <Link href="/challenges/create" className="btn btn-outline btn-lg">
-            Create Challenge
+            Create one
+          </Link>
+          <Link href="/me/challenges" className="btn btn-outline btn-lg">
+            My challenges
           </Link>
         </div>
 
@@ -154,15 +150,15 @@ export default function HomePage() {
         <div className="hp-metrics">
           {[
             { value: fmtNumber(stats?.totalChallenges), label: "Challenges", sub: "Created on-chain" },
-            { value: fmtStake(stats?.validatorStake), label: "LCAI Staked", sub: "Total pool value" },
-            { value: stats ? String(stats.modelsCount) : "\u2014", label: "AI Models", sub: "Verification models" },
+            { value: `${fmtStake(stats?.validatorStake)} LCAI`, label: "Staked", sub: "Validator pool" },
+            { value: stats ? String(stats.modelsCount) : "\u2014", label: "Verifiers", sub: "AI models" },
             {
               value: health?.status === "healthy" ? "Live" : health?.status === "degraded" ? "Degraded" : "\u2014",
               label: "Network",
               sub: "Lightchain testnet",
               dot: health?.status === "healthy",
             },
-          ].map((s) => (
+          ].map((s, i, arr) => (
             <div key={s.label} className="hp-metric">
               <div className="hp-metric__value">
                 {s.dot && <span className="hp-metric__live-dot" />}
@@ -191,16 +187,19 @@ export default function HomePage() {
             icon={<Cpu size={20} />}
             title="AI Verification"
             desc="Specialized models analyze your fitness data, match results, or activity logs to verify challenge completion."
+            href="/learn/verification/ai-verification"
           />
           <TrustCard
             icon={<Shield size={20} />}
             title="On-chain Proof"
             desc="Verification results are recorded on Lightchain. Transparent, tamper-proof, and auditable by anyone."
+            href="/learn/verification/on-chain-proof"
           />
           <TrustCard
             icon={<Globe size={20} />}
             title="Decentralized Validation"
             desc="Lightchain AIVM validators reach consensus on inference results. No single point of failure."
+            href="/learn/verification/decentralized-validation"
           />
         </div>
       </section>
@@ -208,13 +207,12 @@ export default function HomePage() {
       {/* ─────────────────────────── HOW IT WORKS ─────────────────────────── */}
       <section className="hp-section">
         <SectionLabel>How it works</SectionLabel>
-        <h2 className="hp-section__title">Three steps to victory</h2>
 
         <div className="hp-steps">
           <StepCard
             step="01"
             icon={<Target size={20} />}
-            title="Create a challenge"
+            title="Pick your challenge"
             desc="Set the goal, stake LCAI, and lock the deadline. Anyone can join by putting their own stake on the line."
           />
           <StepCard
@@ -265,10 +263,10 @@ export default function HomePage() {
         </p>
 
         <div className="hp-integrations">
-          <IntegrationCard icon={<Gamepad2 size={24} />} name="Steam" desc="Dota 2, CS2, and more" />
-          <IntegrationCard icon={<Activity size={24} />} name="Strava" desc="Running, cycling, swimming" />
-          <IntegrationCard icon={<Heart size={24} />} name="Apple Health" desc="Steps, workouts, activity" />
-          <IntegrationCard icon={<Mountain size={24} />} name="Garmin" desc="GPS activities and fitness" />
+          <IntegrationCard icon={<SteamIcon size={24} />} name="Steam" desc="Dota 2, CS2, and more" href="/learn/platforms/steam" />
+          <IntegrationCard icon={<StravaIcon size={24} />} name="Strava" desc="Running, cycling, swimming" href="/learn/platforms/strava" />
+          <IntegrationCard icon={<AppleIcon size={24} />} name="Apple Health" desc="Steps, workouts, activity" href="/learn/platforms/apple-health" />
+          <IntegrationCard icon={<GarminIcon size={24} />} name="Garmin" desc="GPS activities and fitness" href="/learn/platforms/garmin" />
         </div>
       </section>
 
@@ -360,13 +358,14 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function TrustCard({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
+function TrustCard({ icon, title, desc, href }: { icon: React.ReactNode; title: string; desc: string; href: string }) {
   return (
-    <div className="hp-trust-card">
+    <Link href={href} className="hp-trust-card hp-trust-card--link">
       <div className="hp-trust-card__icon">{icon}</div>
       <h3 className="hp-trust-card__title">{title}</h3>
       <p className="hp-trust-card__desc">{desc}</p>
-    </div>
+      <div className="hp-trust-card__arrow"><ArrowRight size={14} /></div>
+    </Link>
   );
 }
 
@@ -381,13 +380,14 @@ function StepCard({ step, icon, title, desc }: { step: string; icon: React.React
   );
 }
 
-function IntegrationCard({ icon, name, desc }: { icon: React.ReactNode; name: string; desc: string }) {
+function IntegrationCard({ icon, name, desc, href }: { icon: React.ReactNode; name: string; desc: string; href: string }) {
   return (
-    <div className="hp-integration">
+    <Link href={href} className="hp-integration hp-integration--link">
       <div className="hp-integration__icon">{icon}</div>
       <div className="hp-integration__name">{name}</div>
       <div className="hp-integration__desc">{desc}</div>
-    </div>
+      <div className="hp-integration__arrow"><ArrowRight size={14} /></div>
+    </Link>
   );
 }
 

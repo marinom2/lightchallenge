@@ -2,6 +2,7 @@
 
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { Wallet } from "lucide-react";
 
 type Props = {
   /** Message shown above the connect button */
@@ -47,21 +48,7 @@ export default function ConnectWalletGate({
           justifyContent: "center",
         }}
       >
-        <svg
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{ color: "var(--lc-accent)" }}
-        >
-          <rect x="2" y="6" width="20" height="12" rx="2" />
-          <path d="M22 10H2" />
-          <path d="M6 14h.01" />
-        </svg>
+        <Wallet size={24} strokeWidth={2} style={{ color: "var(--lc-accent)" }} />
       </div>
 
       <div>

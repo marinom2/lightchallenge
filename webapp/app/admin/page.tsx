@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useBalance, useReadContract } from "wagmi";
 import { formatEther } from "viem";
+import { Settings, Box, DollarSign, Shield, Activity, BookOpen } from "lucide-react";
 import { ABI, ADDR, EXPLORER_URL } from "@/lib/contracts";
 import AdminPageHeader from "./components/AdminPageHeader";
 import { short } from "./lib/utils";
@@ -156,11 +157,7 @@ export default function DashboardPage() {
         </h2>
         <div className="admin-quick-grid">
           <Link href="/admin/config/governance" className="admin-quick-card">
-            <span className="admin-quick-card__icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.18V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
-            </span>
+            <span className="admin-quick-card__icon"><Settings size={18} strokeWidth={1.8} /></span>
             <div>
               <div className="admin-quick-card__label">Contract Config</div>
               <div className="admin-quick-card__desc">Governance, fees, tokens</div>
@@ -168,11 +165,7 @@ export default function DashboardPage() {
           </Link>
 
           <Link href="/admin/models" className="admin-quick-card">
-            <span className="admin-quick-card__icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-              </svg>
-            </span>
+            <span className="admin-quick-card__icon"><Box size={18} strokeWidth={1.8} /></span>
             <div>
               <div className="admin-quick-card__label">Models & Templates</div>
               <div className="admin-quick-card__desc">Manage AIVM models</div>
@@ -180,11 +173,7 @@ export default function DashboardPage() {
           </Link>
 
           <Link href="/admin/treasury" className="admin-quick-card">
-            <span className="admin-quick-card__icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
-            </span>
+            <span className="admin-quick-card__icon"><DollarSign size={18} strokeWidth={1.8} /></span>
             <div>
               <div className="admin-quick-card__label">Treasury</div>
               <div className="admin-quick-card__desc">Grants, sweeps, allowances</div>
@@ -192,11 +181,7 @@ export default function DashboardPage() {
           </Link>
 
           <Link href="/admin/roles" className="admin-quick-card">
-            <span className="admin-quick-card__icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-            </span>
+            <span className="admin-quick-card__icon"><Shield size={18} strokeWidth={1.8} /></span>
             <div>
               <div className="admin-quick-card__label">Roles</div>
               <div className="admin-quick-card__desc">Grant and revoke access</div>
@@ -204,11 +189,7 @@ export default function DashboardPage() {
           </Link>
 
           <Link href="/admin/monitoring" className="admin-quick-card">
-            <span className="admin-quick-card__icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-              </svg>
-            </span>
+            <span className="admin-quick-card__icon"><Activity size={18} strokeWidth={1.8} /></span>
             <div>
               <div className="admin-quick-card__label">Monitoring</div>
               <div className="admin-quick-card__desc">Workers, indexers, AIVM</div>
@@ -216,11 +197,7 @@ export default function DashboardPage() {
           </Link>
 
           <Link href="/admin/docs" className="admin-quick-card">
-            <span className="admin-quick-card__icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-              </svg>
-            </span>
+            <span className="admin-quick-card__icon"><BookOpen size={18} strokeWidth={1.8} /></span>
             <div>
               <div className="admin-quick-card__label">Documentation</div>
               <div className="admin-quick-card__desc">Guides and reference</div>
