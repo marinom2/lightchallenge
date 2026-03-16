@@ -286,35 +286,11 @@ struct ChallengeProgressHero: View {
 
     // MARK: - Activity Figure
 
-    @State private var floatOffset: CGFloat = 0
-
     private var activityFigure: some View {
-        ZStack {
-            // Subtle glow behind figure (like Apple Fitness)
-            Image(systemName: theme.icon)
-                .font(.system(size: 64, weight: .light))
-                .foregroundStyle(theme.figureTint.opacity(0.3))
-                .blur(radius: 16)
-
-            // Main figure
-            Image(systemName: theme.icon)
-                .font(.system(size: 64, weight: .light))
-                .foregroundStyle(theme.figureTint)
-        }
-        .scaleEffect(figureAppeared ? 1.0 : 0.3)
-        .opacity(figureAppeared ? 1.0 : 0.0)
-        .offset(y: floatOffset)
-        .frame(height: 88)
-        .padding(.vertical, LC.space8)
-        .onAppear {
-            // Gentle floating animation — figure bobs subtly like Apple Fitness
-            withAnimation(
-                .easeInOut(duration: 2.0)
-                .repeatForever(autoreverses: true)
-            ) {
-                floatOffset = -4
-            }
-        }
+        ActivityFigureView(theme: theme, isActive: phase.isActive)
+            .scaleEffect(figureAppeared ? 1.0 : 0.3)
+            .opacity(figureAppeared ? 1.0 : 0.0)
+            .padding(.vertical, LC.space4)
     }
 
     // MARK: - Themed Progress Bar

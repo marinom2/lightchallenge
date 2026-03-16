@@ -28,17 +28,25 @@
 		508CD9610C708386D8669B17 /* AvatarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E342EDE01313A06DD13943 /* AvatarService.swift */; };
 		54F145E38FD99962111F5ED5 /* Contracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2B368DB02FABEB0FE873AF1 /* Contracts.swift */; };
 		550797D0D12E07537CE166AB /* MyActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48C119618E8F45A5DC431D0D /* MyActivityView.swift */; };
+		60CFB7FD2962E5F169325520 /* activity_strength.json in Resources */ = {isa = PBXBuildFile; fileRef = 89AF729AC4465C244C871B73 /* activity_strength.json */; };
 		60E3802C318601DD043D4F1E /* AvatarPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0248C14F16C23664FB00C648 /* AvatarPickerView.swift */; };
 		6922B4D114C1719A5917FF0D /* ChallengeShareCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C0F25C8AF902669420DDED /* ChallengeShareCard.swift */; };
 		6B4E5569D04D48C05EF068BF /* FitnessProofView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 956AFB8941781516AFD70596 /* FitnessProofView.swift */; };
+		6B9A9DE1DB166AB65691B273 /* activity_swimming.json in Resources */ = {isa = PBXBuildFile; fileRef = 0282E0AC3FC149B9E673C9EE /* activity_swimming.json */; };
 		6DD3E7EA277C23205F11159F /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 298F5D66E50BE0DF0E93605E /* ContentView.swift */; };
 		7390A5A61D7A174AA9DC2EBE /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E3E79186C4B7E5200EF6791 /* MainTabView.swift */; };
+		75729E9E754A28B771F17027 /* activity_walking.json in Resources */ = {isa = PBXBuildFile; fileRef = 0DE5CD5542C1464372554EF0 /* activity_walking.json */; };
 		7972D072E170841590FC276F /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C854B2A77F15DDCCB5856BAC /* HealthKitService.swift */; };
 		79B0FA11187316181EBBA291 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F96382A6786E825D5D51804 /* NotificationService.swift */; };
 		845A1BC5FB1B4358FCF9F306 /* LibraryView.swift.bak in Resources */ = {isa = PBXBuildFile; fileRef = F139A8BDB67BE8BC3F759294 /* LibraryView.swift.bak */; };
 		8F8708FE2BD6A1ED9EDFABC4 /* ProofSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D94260A11D17C7A7822B284E /* ProofSelectionView.swift */; };
+		952BC1DDA5331782060F5EEA /* activity_running.json in Resources */ = {isa = PBXBuildFile; fileRef = 00F2EE87D31BBD84C2F4B438 /* activity_running.json */; };
+		9BBF3900CD7D0BBC216934B9 /* activity_yoga.json in Resources */ = {isa = PBXBuildFile; fileRef = CC2B478BF8745948EF7BECB9 /* activity_yoga.json */; };
+		AAE9288DCF27D8E685A8ED01 /* activity_cycling.json in Resources */ = {isa = PBXBuildFile; fileRef = C47504A8863F00BCC190A50A /* activity_cycling.json */; };
 		AE34E10980EB1777EF9B796A /* Templates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC47CBD7AC0CC24C0ED5661 /* Templates.swift */; };
 		B9CCD6D0708DFFC22FAF4F3C /* AchievementShareCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = C87D4DAF081C5E62A534D5FE /* AchievementShareCard.swift */; };
+		BD50E3316C1B92770332DB70 /* ActivityFigureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D7522CBD0A9E92B4165DB8E /* ActivityFigureView.swift */; };
+		BEFD420D695396A80670263F /* activity_hiking.json in Resources */ = {isa = PBXBuildFile; fileRef = FC9DF60A9AD0C8E0A51922DA /* activity_hiking.json */; };
 		C99732FF05C96BF08272CD05 /* Challenge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6718450D0B114CD3CDB048BB /* Challenge.swift */; };
 		CF3E4B50FF79FA9FE4F9A8F3 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2386C28BB1920D7EE693D754 /* AppState.swift */; };
 		D0F90181D6CFF43A2E6E14D4 /* CacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED219551AFC2F563795F7780 /* CacheService.swift */; };
@@ -46,6 +54,7 @@
 		D7BCAFE3F5319C7855539792 /* CategoryDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1B027F2BAC338988466114F /* CategoryDetailView.swift */; };
 		D9B09F9D0D1924CF11D29A54 /* GamingHandoffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 262C604C08756AF00CE8B815 /* GamingHandoffView.swift */; };
 		DB612A03EB280A97BE0AF778 /* ChallengeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEE7B27C2A3DF0F5E387AD12 /* ChallengeDetailView.swift */; };
+		DC3F2407D3C63C9217AA49C7 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = CCA342849E110D8E17FAB079 /* Lottie */; };
 		DFFE19E2E45331BE9EBF4483 /* LightChallengeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD15E3C529E1B744F2F63518 /* LightChallengeApp.swift */; };
 		E4ADD5075FF83E61FB7A5EBE /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 204B2D7C9B26D8265BDA995C /* OnboardingView.swift */; };
 		E76C1AC9F1CD842862BB0C50 /* ChallengeRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92616EA76D9D58987F97E9DF /* ChallengeRow.swift */; };
@@ -58,11 +67,14 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		00F2EE87D31BBD84C2F4B438 /* activity_running.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = activity_running.json; sourceTree = "<group>"; };
 		0248C14F16C23664FB00C648 /* AvatarPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarPickerView.swift; sourceTree = "<group>"; };
+		0282E0AC3FC149B9E673C9EE /* activity_swimming.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = activity_swimming.json; sourceTree = "<group>"; };
 		04648F9975C483F7D4596C37 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		056B46502BB7A0127704ABD6 /* OAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthService.swift; sourceTree = "<group>"; };
 		05D4352BB8C482916116273A /* ChallengesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengesView.swift; sourceTree = "<group>"; };
 		07B4E3038A54D8DA0F3B3329 /* AchievementsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementsView.swift; sourceTree = "<group>"; };
+		0DE5CD5542C1464372554EF0 /* activity_walking.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = activity_walking.json; sourceTree = "<group>"; };
 		204B2D7C9B26D8265BDA995C /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		2386C28BB1920D7EE693D754 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		262C604C08756AF00CE8B815 /* GamingHandoffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamingHandoffView.swift; sourceTree = "<group>"; };
@@ -75,6 +87,7 @@
 		50CE8C299A1C5AF3873473EC /* WalletSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletSheet.swift; sourceTree = "<group>"; };
 		585BC1959D4139EB7E5DF876 /* NotificationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsView.swift; sourceTree = "<group>"; };
 		5C4E66B51FC904BB6E695BA1 /* ExploreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExploreView.swift; sourceTree = "<group>"; };
+		5D7522CBD0A9E92B4165DB8E /* ActivityFigureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityFigureView.swift; sourceTree = "<group>"; };
 		60C0F25C8AF902669420DDED /* ChallengeShareCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeShareCard.swift; sourceTree = "<group>"; };
 		624797A8117791825134D824 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		64ACBB01A8D1FBE7224AECC3 /* ChallengeProgressHero.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeProgressHero.swift; sourceTree = "<group>"; };
@@ -87,6 +100,7 @@
 		82F0C2BA1499A50D05A49354 /* CreateChallengeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateChallengeView.swift; sourceTree = "<group>"; };
 		8600C50E8158C81C2EA3E6A3 /* LeaderboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeaderboardView.swift; sourceTree = "<group>"; };
 		87C8F03B75271A197ACEF743 /* VictoryCelebrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VictoryCelebrationView.swift; sourceTree = "<group>"; };
+		89AF729AC4465C244C871B73 /* activity_strength.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = activity_strength.json; sourceTree = "<group>"; };
 		8F62E4EABF64E587DE752B97 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		92616EA76D9D58987F97E9DF /* ChallengeRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeRow.swift; sourceTree = "<group>"; };
 		940344AA346043032B852F8B /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
@@ -96,8 +110,10 @@
 		AEE7B27C2A3DF0F5E387AD12 /* ChallengeDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeDetailView.swift; sourceTree = "<group>"; };
 		B1B027F2BAC338988466114F /* CategoryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryDetailView.swift; sourceTree = "<group>"; };
 		B2F019245CD055010D611B44 /* ABIEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ABIEncoder.swift; sourceTree = "<group>"; };
+		C47504A8863F00BCC190A50A /* activity_cycling.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = activity_cycling.json; sourceTree = "<group>"; };
 		C854B2A77F15DDCCB5856BAC /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
 		C87D4DAF081C5E62A534D5FE /* AchievementShareCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementShareCard.swift; sourceTree = "<group>"; };
+		CC2B478BF8745948EF7BECB9 /* activity_yoga.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = activity_yoga.json; sourceTree = "<group>"; };
 		CEB4377B08B897795FF6447F /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
 		CED0C0C6160E432CAB20B6DC /* ClaimsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaimsView.swift; sourceTree = "<group>"; };
 		D87902ED5A3D3F2F9DAB1626 /* SplashPortal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashPortal.swift; sourceTree = "<group>"; };
@@ -108,6 +124,7 @@
 		ED219551AFC2F563795F7780 /* CacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheService.swift; sourceTree = "<group>"; };
 		F139A8BDB67BE8BC3F759294 /* LibraryView.swift.bak */ = {isa = PBXFileReference; path = LibraryView.swift.bak; sourceTree = "<group>"; };
 		F1C1D766527690196F6FB79F /* AvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarView.swift; sourceTree = "<group>"; };
+		FC9DF60A9AD0C8E0A51922DA /* activity_hiking.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = activity_hiking.json; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -116,6 +133,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4229DDC4AB359F338A1BE4BB /* ReownAppKit in Frameworks */,
+				DC3F2407D3C63C9217AA49C7 /* Lottie in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -156,6 +174,7 @@
 				04648F9975C483F7D4596C37 /* Info.plist */,
 				A5F8B27098BA0AFE20E650FA /* LightChallengeApp.entitlements */,
 				DD15E3C529E1B744F2F63518 /* LightChallengeApp.swift */,
+				A579A9C590D7AF7E3F188636 /* Animations */,
 				8DC618201643B52CEB2667F1 /* Models */,
 				B5942790EB29FD3641A4C612 /* Services */,
 				D1FC6BB1DF0BE05360A8959F /* Theme */,
@@ -282,6 +301,20 @@
 			path = Challenges;
 			sourceTree = "<group>";
 		};
+		A579A9C590D7AF7E3F188636 /* Animations */ = {
+			isa = PBXGroup;
+			children = (
+				C47504A8863F00BCC190A50A /* activity_cycling.json */,
+				FC9DF60A9AD0C8E0A51922DA /* activity_hiking.json */,
+				00F2EE87D31BBD84C2F4B438 /* activity_running.json */,
+				89AF729AC4465C244C871B73 /* activity_strength.json */,
+				0282E0AC3FC149B9E673C9EE /* activity_swimming.json */,
+				0DE5CD5542C1464372554EF0 /* activity_walking.json */,
+				CC2B478BF8745948EF7BECB9 /* activity_yoga.json */,
+			);
+			path = Animations;
+			sourceTree = "<group>";
+		};
 		B5942790EB29FD3641A4C612 /* Services */ = {
 			isa = PBXGroup;
 			children = (
@@ -337,6 +370,7 @@
 		FBE801438E3EE5A241389698 /* Detail */ = {
 			isa = PBXGroup;
 			children = (
+				5D7522CBD0A9E92B4165DB8E /* ActivityFigureView.swift */,
 				AEE7B27C2A3DF0F5E387AD12 /* ChallengeDetailView.swift */,
 				64ACBB01A8D1FBE7224AECC3 /* ChallengeProgressHero.swift */,
 				956AFB8941781516AFD70596 /* FitnessProofView.swift */,
@@ -364,6 +398,7 @@
 			name = LightChallengeApp;
 			packageProductDependencies = (
 				1541795F8BBD0D69D53472F0 /* ReownAppKit */,
+				CCA342849E110D8E17FAB079 /* Lottie */,
 			);
 			productName = LightChallengeApp;
 			productReference = 6C9F9B4D909FEAE5EC4A1D5B /* LightChallengeApp.app */;
@@ -394,6 +429,7 @@
 			mainGroup = CD706F489E4E330AB70FCECA;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				9E3C0866C0EB8329C29D0A1E /* XCRemoteSwiftPackageReference "lottie-spm" */,
 				C452FA2BC6DC779FA1B0C5BD /* XCRemoteSwiftPackageReference "reown-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -414,6 +450,13 @@
 				48FAAEDC96D1E02C612F09FC /* Assets.xcassets in Resources */,
 				45458B7E79F43A785CE99693 /* HomeView.swift.bak in Resources */,
 				845A1BC5FB1B4358FCF9F306 /* LibraryView.swift.bak in Resources */,
+				AAE9288DCF27D8E685A8ED01 /* activity_cycling.json in Resources */,
+				BEFD420D695396A80670263F /* activity_hiking.json in Resources */,
+				952BC1DDA5331782060F5EEA /* activity_running.json in Resources */,
+				60CFB7FD2962E5F169325520 /* activity_strength.json in Resources */,
+				6B9A9DE1DB166AB65691B273 /* activity_swimming.json in Resources */,
+				75729E9E754A28B771F17027 /* activity_walking.json in Resources */,
+				9BBF3900CD7D0BBC216934B9 /* activity_yoga.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -428,6 +471,7 @@
 				01327086E394D16E346FE8C3 /* APIClient.swift in Sources */,
 				B9CCD6D0708DFFC22FAF4F3C /* AchievementShareCard.swift in Sources */,
 				E8DA5005C7B7D20CEA1B862C /* AchievementsView.swift in Sources */,
+				BD50E3316C1B92770332DB70 /* ActivityFigureView.swift in Sources */,
 				CF3E4B50FF79FA9FE4F9A8F3 /* AppState.swift in Sources */,
 				0CF75325BF09048735805AD1 /* AutoProofService.swift in Sources */,
 				60E3802C318601DD043D4F1E /* AvatarPickerView.swift in Sources */,
@@ -663,6 +707,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		9E3C0866C0EB8329C29D0A1E /* XCRemoteSwiftPackageReference "lottie-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/airbnb/lottie-spm";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.4.0;
+			};
+		};
 		C452FA2BC6DC779FA1B0C5BD /* XCRemoteSwiftPackageReference "reown-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/reown-com/reown-swift";
@@ -678,6 +730,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C452FA2BC6DC779FA1B0C5BD /* XCRemoteSwiftPackageReference "reown-swift" */;
 			productName = ReownAppKit;
+		};
+		CCA342849E110D8E17FAB079 /* Lottie */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9E3C0866C0EB8329C29D0A1E /* XCRemoteSwiftPackageReference "lottie-spm" */;
+			productName = Lottie;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
