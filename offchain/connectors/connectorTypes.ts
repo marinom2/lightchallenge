@@ -23,6 +23,22 @@ export type ConnectorResult = {
 };
 
 /**
+ * Options for fetchEvidence.
+ *
+ * If startMs and endMs are provided, the connector fetches records only for
+ * that exact period (the challenge period). Otherwise falls back to a lookback
+ * window from now.
+ */
+export type FetchEvidenceOpts = {
+  /** How far back to fetch records (ms). Default: 90 days. Ignored if startMs+endMs set. */
+  lookbackMs?: number;
+  /** Challenge period start (Unix ms). If set with endMs, overrides lookbackMs. */
+  startMs?: number;
+  /** Challenge period end (Unix ms). If set with startMs, overrides lookbackMs. */
+  endMs?: number;
+};
+
+/**
  * A Connector fetches evidence for a single linked account from its provider's
  * API and returns normalized records ready to be stored in public.evidence.
  */
@@ -31,16 +47,32 @@ export interface Connector {
   provider: string;
 
   /**
-   * Fetch recent evidence for the linked account.
+   * Fetch evidence for the linked account within a date range.
    *
-   * @param subject     Wallet address (lowercase 0x).
-   * @param account     The linked account row (includes tokens).
-   * @param lookbackMs  How far back to fetch records in milliseconds.
-   *                    Defaults to 90 days if omitted.
+   * @param subject  Wallet address (lowercase 0x).
+   * @param account  The linked account row (includes tokens).
+   * @param opts     Date range options. If startMs+endMs provided, fetches
+   *                 exactly the challenge period. Otherwise uses lookbackMs.
    */
   fetchEvidence(
     subject: string,
     account: LinkedAccountRow,
-    lookbackMs?: number
+    opts?: FetchEvidenceOpts
   ): Promise<ConnectorResult>;
+}
+
+/** Helper: resolve opts to a concrete start/end Unix-second range. */
+export function resolveRange(opts?: FetchEvidenceOpts): { afterSec: number; beforeSec: number } {
+  const DEFAULT_LOOKBACK_MS = 90 * 24 * 60 * 60 * 1000;
+  if (opts?.startMs != null && opts?.endMs != null) {
+    return {
+      afterSec: Math.floor(opts.startMs / 1000),
+      beforeSec: Math.floor(opts.endMs / 1000),
+    };
+  }
+  const lookback = opts?.lookbackMs ?? DEFAULT_LOOKBACK_MS;
+  return {
+    afterSec: Math.floor((Date.now() - lookback) / 1000),
+    beforeSec: Math.floor(Date.now() / 1000),
+  };
 }

@@ -20,7 +20,7 @@
  * adapter, where users upload their exported JSON/TCX files.
  */
 
-import type { Connector, ConnectorResult, LinkedAccountRow } from "./connectorTypes";
+import type { Connector, ConnectorResult, LinkedAccountRow, FetchEvidenceOpts } from "./connectorTypes";
 
 export const garminConnector: Connector = {
   provider: "garmin",
@@ -28,7 +28,7 @@ export const garminConnector: Connector = {
   async fetchEvidence(
     _subject: string,
     _account: LinkedAccountRow,
-    _lookbackMs?: number
+    _opts?: FetchEvidenceOpts
   ): Promise<ConnectorResult> {
     // Garmin Health API requires enterprise partnership — no API available.
     // Users export data manually from Garmin Connect web/app and upload

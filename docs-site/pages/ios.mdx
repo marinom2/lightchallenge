@@ -1,99 +1,439 @@
-# iOS Collector
-
-The LightChallenge iOS app collects Apple Health evidence (steps and walking/running distance) and submits it to the backend for verification.
+# iOS App
 
 ## Overview
 
-The iOS collector is a lightweight SwiftUI app that:
+The LightChallenge iOS app is a full-featured SwiftUI fitness challenge client targeting iOS 17+.
+Users can discover challenges, join with an on-chain stake, have proof submitted automatically
+during the proof window, and claim rewards -- all from their iPhone.
 
-1. Reads HealthKit data (step count, walking + running distance)
-2. Packages it as a JSON evidence payload
-3. Submits it to the `/api/aivm/intake` endpoint
-4. Authenticates via a signed evidence token from the webapp
+**Key capabilities:**
 
-## Requirements
+- **Fitness challenges** -- full mobile participation: join, auto-proof (Apple Health / Strava / Fitbit / Garmin), claim rewards.
+- **Gaming challenges** -- discovery and browsing only. Gaming cards display a **"Desktop Only"** badge; tapping opens a desktop-handoff modal.
+- **4-tab layout** -- Explore, Challenges, Achievements, Profile.
+- **Wallet integration** -- Reown (WalletConnect v2) for on-chain transactions.
+- **HealthKit** -- reads 7 fitness metrics for the exact challenge period and submits them as evidence.
+- **OAuth account linking** -- Strava, Fitbit, and Garmin via `ASWebAuthenticationSession`.
+- **Deep links** -- challenge invites and OAuth callbacks.
+- **Notifications** -- APNS push registration with server-synced notification feed.
+- **Offline support** -- file-based JSON cache for challenge data.
 
-- Xcode 15+
-- iOS 17+ device (HealthKit requires a physical device)
-- Apple Developer account (free tier works for personal testing)
+---
 
-## Setup
+## Architecture
 
-### 1. Open the Project
-
-```bash
-open mobile/ios/LightChallengeApp/LightChallengeApp.xcodeproj
-```
-
-### 2. Configure Server URL
-
-Edit `Sources/Models/Models.swift` and set the server URL for your environment:
-
-- **UAT** (default): `https://uat.lightchallenge.app`
-- **Production**: `https://app.lightchallenge.app`
-- **Local dev**: Replace `YOUR_MAC_IP` with your Mac's LAN IP address
-
-### 3. Signing
-
-In Xcode:
-1. Select the project in the navigator
-2. Go to **Signing & Capabilities**
-3. Select your personal team
-4. Let Xcode manage signing automatically
-
-### 4. Build and Run
-
-Select your iPhone as the target device and press **Cmd+R**.
-
-## Usage Flow
-
-### Full Authenticated Flow (Recommended)
-
-1. Open the webapp in a browser and connect your wallet
-2. Navigate to a challenge's proof page
-3. Select "Apple Health" as the evidence source
-4. Click **"Sign & Generate QR"** — this signs a one-time token with your wallet
-5. Scan the QR code with your iPhone camera
-6. The app opens via deep link with the auth token pre-filled
-7. Grant HealthKit permissions when prompted
-8. Tap **"Collect Health Data"** then **"Submit Evidence"**
-
-### How Authentication Works
-
-The webapp generates an EIP-191 signed message:
-```
-lightchallenge-evidence:{challengeId}:{subject}:{expires}
-```
-
-This signature is embedded in the deep link URL and sent with the evidence submission. The server recovers the signer and verifies it matches the wallet address.
-
-## HealthKit Permissions
-
-The app requests **read-only** access to:
-- `HKQuantityType(.stepCount)` — Daily step counts
-- `HKQuantityType(.distanceWalkingRunning)` — Walking and running distance
-
-No write permissions are requested. No clinical health records are accessed.
-
-## Deep Link Format
+### Source Tree
 
 ```
-lightchallenge://challenge/{id}?subject={wallet}&token={signature}&expires={timestamp}
+Sources/
+├── LightChallengeApp.swift                 # @main entry point, deep link routing, service init
+├── Info.plist                              # App transport, HealthKit usage descriptions
+├── LightChallengeApp.entitlements          # HealthKit, app groups
+│
+├── Models/
+│   ├── Challenge.swift                     # ChallengeCategory, ChallengeMeta, MyChallenge
+│   ├── Contracts.swift                     # LightChain config, contract addresses, ABI constants
+│   ├── Models.swift                        # HealthKit data models (DailySteps, DailyDistance, etc.), ServerConfig
+│   └── Templates.swift                     # Fitness challenge templates (steps, running, cycling, etc.)
+│
+├── Services/
+│   ├── ABIEncoder.swift                    # Minimal Solidity ABI encoder for contract calls
+│   ├── APIClient.swift                     # Network layer — challenge list, meta, activity, evidence
+│   ├── AppState.swift                      # Persisted prefs (UserDefaults), navigation state, deep link target
+│   ├── AutoProofService.swift              # Automatic proof collection + submission during proof window
+│   ├── AvatarService.swift                 # Avatar local cache + server sync
+│   ├── CacheService.swift                  # File-based JSON cache for offline challenge data
+│   ├── ContractService.swift               # Typed contract interactions (create, join, claim, finalize)
+│   ├── HealthKitService.swift              # HealthKit authorization, data collection, evidence submission
+│   ├── NotificationService.swift           # APNS registration, notification feed management
+│   ├── OAuthService.swift                  # Strava/Fitbit/Garmin OAuth linking via ASWebAuthenticationSession
+│   └── WalletManager.swift                 # Reown AppKit wallet connection (WalletConnect v2)
+│
+├── Theme/
+│   └── DesignTokens.swift                  # LC design system: colors, spacing, typography, adaptive surfaces
+│
+└── Views/
+    ├── MainTabView.swift                   # Root TabView — Explore | Challenges | Achievements | Profile
+    ├── ContentView.swift                   # Legacy root (pre-tab migration)
+    │
+    ├── Onboarding/
+    │   ├── OnboardingView.swift            # First-run onboarding flow
+    │   └── SplashPortal.swift              # Animated splash screen
+    │
+    ├── Explore/
+    │   ├── ExploreView.swift               # Challenge discovery — sectioned: Featured, Fitness, Trending, Gaming
+    │   └── ChallengeRow.swift              # Individual challenge card in explore lists
+    │
+    ├── Challenges/
+    │   └── ChallengesView.swift            # "My Challenges" — joined/created challenges
+    │
+    ├── Detail/
+    │   ├── ChallengeDetailView.swift       # Full challenge detail with lifecycle-aware CTAs
+    │   ├── FitnessProofView.swift          # Fitness proof submission UI
+    │   ├── GamingHandoffView.swift         # Desktop-only modal for gaming challenges
+    │   └── VictoryCelebrationView.swift    # Animated celebration on challenge pass
+    │
+    ├── Achievements/
+    │   ├── AchievementsView.swift          # Trophy/badge collection
+    │   ├── AchievementShareCard.swift      # Shareable achievement card
+    │   └── ChallengeShareCard.swift        # Shareable challenge completion card
+    │
+    ├── Activity/
+    │   └── MyActivityView.swift            # Activity feed / history
+    │
+    ├── Claims/
+    │   └── ClaimsView.swift                # Claim reward interface (winner/loser/refund)
+    │
+    ├── Create/
+    │   └── CreateChallengeView.swift        # On-chain challenge creation (fitness templates)
+    │
+    ├── Leaderboard/
+    │   └── LeaderboardView.swift           # Per-challenge leaderboard
+    │
+    ├── Library/
+    │   └── ProofSelectionView.swift        # Proof method picker (Apple Health, Strava, manual)
+    │
+    ├── Notifications/
+    │   └── NotificationsView.swift         # Notification center
+    │
+    ├── Profile/
+    │   └── ProfileView.swift               # User profile, linked accounts, settings entry
+    │
+    ├── Settings/
+    │   ├── SettingsView.swift              # App settings (server URL, lookback, preferences)
+    │   ├── AvatarView.swift                # Avatar display component
+    │   └── AvatarPickerView.swift          # Avatar selection / upload
+    │
+    └── Wallet/
+        └── WalletSheet.swift               # Wallet connection sheet (Reown AppKit)
+```
+
+### Key Services
+
+| Service | Role |
+|---------|------|
+| **AppState** | Singleton `@MainActor` `ObservableObject`. Stores wallet address, server URL, onboarding flag, tab selection, and deep-link targets. Persisted via `@AppStorage` (UserDefaults). |
+| **WalletManager** | Wraps Reown AppKit (WalletConnect v2). Handles wallet pairing, transaction signing, deep-link callbacks. Uses a native `URLSessionWebSocketTask` factory (no Starscream dependency). |
+| **HealthKitService** | Requests read-only authorization for 7 HealthKit quantity types. Collects daily aggregates for a specific date range and submits them as multipart/form-data to `/api/aivm/intake`. |
+| **AutoProofService** | Orchestrates automatic proof submission during the proof window. Tries server-side auto-proof first (Strava/Fitbit), then Apple Health local collection, then prompts for HealthKit access. |
+| **ContractService** | Encodes ABI calldata via `ABIEncoder` and sends transactions through `WalletManager`. Supports `createChallenge`, `joinChallengeNative`, claim eligibility checks (winner/loser/refund/treasury), and claim execution. |
+| **OAuthService** | Manages Strava, Fitbit, and Garmin account linking via `ASWebAuthenticationSession`. Detects installed fitness apps for native deep-link OAuth flows. |
+| **APIClient** | Swift `actor` for network requests. Fetches challenge lists, metadata, activity, and evidence. Configurable base URL via `ServerConfig`. |
+| **CacheService** | File-based JSON caching in the app's Caches directory (1-hour TTL). Enables offline browsing of previously loaded challenge data. |
+| **NotificationService** | APNS push registration, permission management, server-side notification feed fetch, unread badge count. |
+| **AvatarService** | Avatar image persistence (local file + server sync). Local cache for offline access; server is source of truth. |
+
+---
+
+## Challenge Lifecycle (iOS)
+
+The app guides users through the full challenge lifecycle with context-aware UI:
+
+### 1. Join Window
+
+The **Explore** tab shows fitness challenges in sectioned layout (Featured, Fitness, Trending, Gaming).
+Each fitness challenge card displays a **"Join"** CTA. Tapping opens `ChallengeDetailView`, where the user
+stakes LCAI tokens via `ContractService.joinChallengeNative()`.
+
+Gaming challenges appear with a **"Desktop Only"** badge. Tapping opens `GamingHandoffView` with
+instructions to complete the challenge on the web app.
+
+### 2. Challenge Period
+
+After joining, the detail view shows **"Challenge In Progress"** with a countdown timer to the end date.
+The user completes the fitness activity (steps, running, cycling, etc.) during this period.
+The `Challenges` tab (`ChallengesView`) lists all joined/created challenges with live status.
+
+### 3. Proof Window
+
+Once the challenge period ends (`endTs < now < proofDeadlineTs`), `AutoProofService` triggers automatically:
+
+| Priority | Strategy | Mechanism |
+|----------|----------|-----------|
+| 1 | **Server-side auto-proof** | `POST /api/challenge/{id}/auto-proof` -- works for Strava/Fitbit accounts linked via OAuth. Server fetches activity data for the challenge period. |
+| 2 | **Apple Health local collection** | HealthKit reads data for **exactly** the challenge period (`startDate` to `endDate`), packages it as JSON, and uploads via multipart/form-data to `POST /api/aivm/intake`. |
+| 3 | **Manual fallback** | If no platform is available, the user is prompted to grant HealthKit access or connect a fitness platform. |
+
+### 4. Verdict and Claim
+
+After evidence submission, the backend evaluates it and produces a verdict.
+The detail view updates to show **Passed** or **Failed** with the corresponding icon.
+On pass, a **"Claim Reward"** button appears, which calls `ContractService` to execute the on-chain claim.
+A `VictoryCelebrationView` animation plays on successful claims.
+
+---
+
+## Auto-Proof System
+
+`AutoProofService` is a `@MainActor` singleton that manages automatic proof collection and submission.
+
+### ProofStatus Enum
+
+The service tracks per-challenge status via `@Published var status: [String: ProofStatus]`:
+
+| Status | Description | UI Icon |
+|--------|-------------|---------|
+| `pending` | Queued for auto-submission | Rotating arrows |
+| `collectingHealth` | Reading Apple Health data | Rotating arrows |
+| `submitting` | Uploading evidence to server | Rotating arrows |
+| `submitted` | Evidence successfully submitted | Hourglass |
+| `evaluating` | Server-side evaluation in progress | Hourglass |
+| `passed` | Verdict: challenge passed | Green checkmark seal |
+| `failed` | Verdict: challenge failed | Red X seal |
+| `waitingForWindow` | Challenge period has not ended yet | Clock badge |
+| `error(String)` | Submission failed with message | Warning triangle |
+
+### Trigger Conditions
+
+- `triggerAutoProof()` is called when the user views a challenge in the proof window.
+- `checkPendingChallenges()` batch-checks all joined challenges on app launch / foreground.
+- Only triggers for fitness challenges (or unknown category). Gaming challenges are skipped.
+- Skips challenges that already have evidence or a verdict.
+- Allows retry from `error` or `waitingForWindow` states.
+
+### Submission Flow
+
+```
+triggerAutoProof(challengeId, challenge, appState, healthService)
+  │
+  ├─ isInProofWindow? (endTs < now < proofDeadlineTs)
+  │   └─ No → status = .waitingForWindow
+  │
+  └─ Yes → autoSubmit()
+       │
+       ├─ Strategy 1: tryServerAutoProof()
+       │   POST /api/challenge/{id}/auto-proof { subject: wallet }
+       │   └─ "collected" or "already-submitted" → status = .submitted ✓
+       │
+       ├─ Strategy 2: submitViaAppleHealth()
+       │   HealthKit collectEvidence(from: startDate, to: endDate)
+       │   POST /api/aivm/intake (multipart/form-data)
+       │   └─ ok=true → status = .submitted ✓
+       │
+       └─ Strategy 3: Request HealthKit auth → retry Strategy 2
+            └─ No platform → status = .error("Connect a fitness platform")
+```
+
+---
+
+## HealthKit Integration
+
+### Supported Metrics
+
+| Metric | HKQuantityType | Unit | Model Field |
+|--------|---------------|------|-------------|
+| Steps | `stepCount` | count | `DailySteps.steps` |
+| Walking/Running Distance | `distanceWalkingRunning` | meters | `DailyDistance.distanceMeters` |
+| Cycling Distance | `distanceCycling` | meters | `DailyCyclingDistance.distanceMeters` |
+| Swimming Distance | `distanceSwimming` | meters | `DailySwimmingDistance.distanceMeters` |
+| Active Energy | `activeEnergyBurned` | kcal | `DailyActiveEnergy.kilocalories` |
+| Heart Rate | `heartRate` | bpm | `DailyHeartRate.avgBpm / minBpm / maxBpm` |
+| Flights Climbed | `flightsClimbed` | count | `DailyFlightsClimbed` |
+
+### Access Model
+
+- **Read-only** -- no write permissions are requested.
+- **No clinical data** -- only fitness quantity types.
+- **Daily aggregates only** -- no raw samples, timestamps, or source device identifiers leave the device.
+
+### Date-Range Collection
+
+`HealthKitService` provides two collection modes:
+
+1. **Challenge-period collection** (primary): `collectEvidence(from: challengeStart, to: challengeEnd)` -- collects data for exactly the challenge duration.
+2. **Lookback collection** (legacy fallback): `collectEvidence(days: 90)` -- used only when challenge dates are unavailable.
+
+All 7 metrics are fetched concurrently via `async let`.
+
+### Submission Format
+
+Evidence is submitted as **multipart/form-data** to `POST /api/aivm/intake` with:
+- `challengeId` -- the challenge identifier
+- `subject` -- the user's wallet address
+- `modelHash` -- the AIVM model hash for the challenge type
+- `json` -- JSON payload containing daily aggregate arrays
+
+---
+
+## Wallet Integration
+
+### Reown AppKit (WalletConnect v2)
+
+`WalletManager` wraps the Reown AppKit SDK for wallet pairing and transaction signing:
+
+- **Project ID**: Shared with the webapp (`LightChain.walletConnectProjectId`)
+- **Chain**: LightChain Testnet (chain ID 504, RPC `https://light-testnet-rpc.lightchain.ai`)
+- **Native WebSocket**: Uses `URLSessionWebSocketTask` directly (no Starscream dependency)
+- **Deep link handling**: Processes `wc:` protocol links for wallet pairing callbacks
+
+### On-Chain Operations
+
+`ContractService` + `ABIEncoder` handle all on-chain interactions:
+
+| Operation | Contract | Function |
+|-----------|----------|----------|
+| Create challenge | ChallengePay | `createChallenge(kind, currency, token, stakeAmount, ...)` |
+| Join challenge | ChallengePay | `joinNative(challengeId)` with stake value |
+| Check claim eligibility | ChallengePay | `claimWinner / claimLoser / claimRefund` eligibility |
+| Execute claim | ChallengePay / Treasury | Claim transaction via wallet |
+
+### Contract Addresses (Testnet)
+
+| Contract | Address |
+|----------|---------|
+| ChallengePay | `0xBeA3b508a5Ce2E6C8462108f42c732Da7454c5cb` |
+| Treasury | `0xe84c197614d4fAAE1CdA8d6067fFe43befD9e961` |
+| MetadataRegistry | `0xe9bAA8c04cd77d06A736fc987cC13348DfF0bfAb` |
+| ChallengeTaskRegistry | `0x0e079C693Bd177Fa31baab70EfCD5b9D625c355E` |
+| PoI Verifier | `0x44c750aA01Ec2465CB3E7354EF1c16cc83D45123` |
+| EventRouter | `0x4c523C1eBdcD8FAAA27808f01F3Ec00B98Fb0f2D` |
+| TrustedForwarder | `0xedF522094Ce3F497BEAA9f730d15a7dd554CaB4d` |
+| AIVM Inference V2 | `0x2d499C52312ca8F0AD3B7A53248113941650bA7E` |
+
+---
+
+## Platform Rules
+
+| Category | iOS Support | Proof Submission | Notes |
+|----------|------------|------------------|-------|
+| **Fitness** | Full participation | Auto-proof (Apple Health, Strava, Fitbit, Garmin) | Join, track, prove, claim -- all on mobile |
+| **Gaming** | Discovery only | Not available | Cards show "Desktop Only" badge |
+| **Social** | Discovery only | Not available | Desktop handoff |
+| **Custom** | Discovery only | Not available | Desktop handoff |
+
+When a user taps a gaming challenge card, `ExploreView` presents `GamingHandoffView` -- a modal
+explaining that gaming challenges require a desktop browser and providing a link to the web app.
+
+---
+
+## Deep Links
+
+The app registers the `lightchallengeapp://` URL scheme and handles two link patterns:
+
+### Challenge Invite
+
+```
+lightchallengeapp://challenge/{id}?subject={wallet}&token={token}&expires={expiry}
 ```
 
 | Parameter | Description |
 |-----------|-------------|
 | `id` | Challenge ID |
-| `subject` | Wallet address (0x...) |
-| `token` | EIP-191 signature from webapp |
-| `expires` | Token expiry timestamp (ms) |
+| `subject` | Wallet address (`0x...`) |
+| `token` | EIP-191 evidence signature from the webapp |
+| `expires` | Token expiry timestamp (Unix ms) |
+
+On receipt, `AppState.handleDeepLink()` sets `deepLinkChallengeId`, and the app navigates to the
+challenge detail view. The token and expiry are passed to `HealthKitService` for authenticated
+evidence submission.
+
+### OAuth Callback
+
+```
+lightchallengeapp://auth/callback?provider={strava|fitbit}&status=ok
+```
+
+Returned after completing an OAuth flow in `ASWebAuthenticationSession`. `OAuthService` processes
+the callback and refreshes linked account status.
+
+### Universal Links
+
+The app also supports universal links:
+
+```
+https://app.lightchallenge.io/proofs/{id}?subject={wallet}
+```
+
+---
+
+## Setup and Build
+
+### Requirements
+
+- **Xcode** 15.0 or later
+- **iOS** 17.0+ deployment target
+- **Swift** 5.9
+- **Physical iPhone** -- HealthKit is not available in the iOS Simulator
+- **Apple Developer account** -- free tier works for personal testing
+
+### Project Generation
+
+The project uses [XcodeGen](https://github.com/yonaskolb/XcodeGen) with `project.yml`:
+
+```bash
+cd mobile/ios/LightChallengeApp
+xcodegen generate
+```
+
+This regenerates `LightChallengeApp.xcodeproj` from the declarative spec. Key settings from `project.yml`:
+
+- **Bundle ID**: `io.lightchallenge.app`
+- **Marketing version**: `1.2.0`
+- **Dependencies**: `ReownAppKit` (from `reown-swift` package)
+- **Entitlements**: HealthKit access, app groups (`group.io.lightchallenge.app`)
+
+### Server URL Configuration
+
+Edit `Sources/Models/Models.swift` and set the appropriate base URL in `ServerConfig`:
+
+| Environment | URL |
+|-------------|-----|
+| UAT (default) | `https://uat.lightchallenge.app` |
+| Production | `https://app.lightchallenge.app` |
+| Local dev | `http://{YOUR_MAC_IP}:3000` |
+
+The server URL can also be changed at runtime in **Settings** within the app.
+
+### Signing
+
+1. Open `LightChallengeApp.xcodeproj` in Xcode
+2. Select the project in the navigator
+3. Go to **Signing & Capabilities**
+4. Select your development team (automatic signing is preconfigured)
+5. Xcode manages provisioning profiles automatically
+
+### Build
+
+From the command line:
+
+```bash
+xcodebuild \
+  -project mobile/ios/LightChallengeApp/LightChallengeApp.xcodeproj \
+  -scheme LightChallengeApp \
+  -destination 'generic/platform=iOS' \
+  build
+```
+
+Or in Xcode: select your iPhone as the target device and press **Cmd+R**.
+
+---
+
+## Design System
+
+The app uses a centralized design token system defined in `Theme/DesignTokens.swift` (the `LC` enum):
+
+- **Primary accent**: Deep electric blue (`#2563EB`)
+- **Semantic colors**: success (green), danger (red), warning (yellow), info (blue)
+- **Adaptive surfaces**: `LC.pageBg(_:)`, `LC.cardBg(_:)`, etc. respond to light/dark `ColorScheme`
+- **Dark mode**: Slate-based palette (`0F172A` page, `1E293B` cards) -- follows system appearance
+
+---
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| App won't install | Trust developer cert: Settings → General → VPN & Device Management |
-| Network error on submit | Ensure iPhone and Mac are on same Wi-Fi; check IP in Models.swift |
-| HealthKit permission denied | Re-enable in Settings → Health → Data Access |
-| "No auth token" warning | Open the app via QR code from the webapp, not directly |
-| Deep link doesn't open app | Rebuild and reinstall the app to register URL scheme |
+| App won't install | Trust the developer certificate: **Settings > General > VPN & Device Management** |
+| Network error on submit | Ensure iPhone and server are reachable; check server URL in Settings |
+| HealthKit permission denied | Re-enable in **Settings > Health > Data Access & Devices > LightChallenge** |
+| "No auth token" warning | Open the app via a deep link (QR code from webapp), not directly |
+| Deep link doesn't open app | Rebuild and reinstall the app to re-register the URL scheme |
+| Auto-proof shows "Waiting for challenge to end" | The challenge period has not ended yet; proof submission is only available after `endTs` |
+| Auto-proof shows "Connect a fitness platform" | No linked Strava/Fitbit account and HealthKit not authorized; grant HealthKit access or link a platform in Profile |
+| Auto-proof shows "Health data collection failed" | HealthKit returned an error; check that Health permissions are granted for all required data types |
+| Auto-proof shows "Grant HealthKit access to auto-submit" | Server-side auto-proof requires manual upload but HealthKit is not authorized; open Health app and enable access |
+| Wallet connection fails | Ensure you have a WalletConnect-compatible wallet installed (e.g., MetaMask, Rainbow); check network connectivity |
+| Transaction fails on join/claim | Ensure your wallet is connected to LightChain Testnet (chain ID 504) and has sufficient LCAI balance |
+| Strava/Fitbit OAuth callback not received | Ensure the `lightchallengeapp://` URL scheme is registered; try relaunching the app and re-initiating the OAuth flow |
+| Challenge data not loading offline | The cache has a 1-hour TTL; data must have been loaded online at least once |
+| XcodeGen errors | Ensure XcodeGen is installed (`brew install xcodegen`) and run from the `mobile/ios/LightChallengeApp/` directory |

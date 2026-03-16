@@ -5,7 +5,7 @@ export default {
   "architecture": "Architecture",
   "aivm": "AI Verification",
   "guides": "Guides",
-  "ios": "iOS Collector",
+  "ios": "iOS App",
   "api-reference": "API Reference",
   "competition-api": "Competition API",
   "faq": "FAQ"

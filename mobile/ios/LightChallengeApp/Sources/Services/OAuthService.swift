@@ -44,6 +44,7 @@ class OAuthService: NSObject, ObservableObject {
     // MARK: - Strava
 
     func connectStrava(baseURL: String, wallet: String) {
+        print("[OAUTH] connectStrava: stravaInstalled=\(stravaInstalled) baseURL=\(baseURL) wallet=\(wallet)")
         // If Strava app is installed, use native app OAuth (no web login needed)
         if stravaInstalled, let clientId = stravaClientId(baseURL: baseURL) {
             startNativeAppOAuth(
@@ -58,7 +59,7 @@ class OAuthService: NSObject, ObservableObject {
         }
 
         // Fallback: web-based OAuth
-        let urlString = "\(baseURL)/api/auth/strava?subject=\(wallet)&redirect_scheme=lightchallenge"
+        let urlString = "\(baseURL)/api/auth/strava?subject=\(wallet)&redirect_scheme=lightchallengeapp"
         guard let url = URL(string: urlString) else {
             error = "Invalid OAuth URL"
             return
@@ -69,7 +70,7 @@ class OAuthService: NSObject, ObservableObject {
     // MARK: - Fitbit
 
     func connectFitbit(baseURL: String, wallet: String) {
-        let urlString = "\(baseURL)/api/auth/fitbit?subject=\(wallet)&redirect_scheme=lightchallenge"
+        let urlString = "\(baseURL)/api/auth/fitbit?subject=\(wallet)&redirect_scheme=lightchallengeapp"
         guard let url = URL(string: urlString) else {
             error = "Invalid OAuth URL"
             return
@@ -80,7 +81,7 @@ class OAuthService: NSObject, ObservableObject {
     // MARK: - Garmin
 
     func connectGarmin(baseURL: String, wallet: String) {
-        let urlString = "\(baseURL)/api/auth/garmin?subject=\(wallet)&redirect_scheme=lightchallenge"
+        let urlString = "\(baseURL)/api/auth/garmin?subject=\(wallet)&redirect_scheme=lightchallengeapp"
         guard let url = URL(string: urlString) else {
             error = "Invalid OAuth URL"
             return
@@ -191,7 +192,7 @@ class OAuthService: NSObject, ObservableObject {
         error = nil
 
         let callbackURL = "\(baseURL)/api/auth/\(provider)/callback"
-        let state = "subject:\(wallet),redirect_scheme:lightchallenge"
+        let state = "subject:\(wallet),redirect_scheme:lightchallengeapp"
 
         var params = URLComponents(string: appScheme)!
         params.queryItems = [
@@ -221,19 +222,21 @@ class OAuthService: NSObject, ObservableObject {
         }
     }
 
-    /// Called from AppState.handleDeepLink when lightchallenge://callback arrives
+    /// Called from AppState.handleDeepLink when lightchallengeapp://callback arrives
     /// after a native app OAuth flow.
     func handleOAuthCallback(provider: String?, status: String?) async {
-        isAuthenticating = false
-
-        guard let pending = pendingOAuth else { return }
+        let pending = pendingOAuth
         pendingOAuth = nil
 
-        if status == "ok" {
+        if status == "ok", let pending {
+            // Refresh BEFORE clearing isAuthenticating so the onChange
+            // handler sees stravaLinked=true and doesn't clear pending.
             await refreshLinkedAccounts(baseURL: pending.baseURL, wallet: pending.wallet)
-        } else {
+        } else if status != "ok" {
             error = "OAuth authorization failed"
         }
+
+        isAuthenticating = false
     }
 
     // MARK: - ASWebAuthenticationSession
@@ -246,7 +249,7 @@ class OAuthService: NSObject, ObservableObject {
         isAuthenticating = true
         error = nil
 
-        let callbackScheme = "lightchallenge"
+        let callbackScheme = "lightchallengeapp"
 
         authSession = ASWebAuthenticationSession(
             url: url,

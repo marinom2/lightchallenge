@@ -16,7 +16,8 @@
 
 import fetch from "node-fetch";
 import { keccak256, toBytes } from "viem";
-import type { Connector, ConnectorResult, LinkedAccountRow } from "./connectorTypes";
+import type { Connector, ConnectorResult, LinkedAccountRow, FetchEvidenceOpts } from "./connectorTypes";
+import { resolveRange } from "./connectorTypes";
 import { upsertLinkedAccount } from "../db/linkedAccounts";
 import type { Pool } from "pg";
 
@@ -126,7 +127,7 @@ export const stravaApiConnector: Connector & { _db?: Pool } = {
   async fetchEvidence(
     _subject: string,
     account: LinkedAccountRow,
-    lookbackMs: number = DEFAULT_LOOKBACK_MS
+    opts?: FetchEvidenceOpts
   ): Promise<ConnectorResult> {
     // Refresh token if expired (with 5-minute buffer)
     let token = account.access_token ?? "";
@@ -135,14 +136,15 @@ export const stravaApiConnector: Connector & { _db?: Pool } = {
       token = await refreshAccessToken(account, this._db);
     }
 
-    const afterTs = Math.floor((Date.now() - lookbackMs) / 1000);
+    const { afterSec, beforeSec } = resolveRange(opts);
     const activities: StravaActivity[] = [];
     let page = 1;
 
     // Paginate until no more results (max 10 pages = 2000 activities)
+    // Strava supports `after` and `before` params (Unix seconds)
     while (page <= 10) {
       const page_data = await stravaFetch<StravaActivity[]>(
-        `/athlete/activities?after=${afterTs}&per_page=200&page=${page}`,
+        `/athlete/activities?after=${afterSec}&before=${beforeSec}&per_page=200&page=${page}`,
         token
       );
       if (!Array.isArray(page_data) || page_data.length === 0) break;

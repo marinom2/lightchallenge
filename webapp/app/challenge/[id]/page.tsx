@@ -397,6 +397,24 @@ export default function ChallengePage() {
     }
   }
 
+  // Fire-and-forget: trigger auto-proof collection.
+  // Only works during the proof window (after challenge ends, before deadline).
+  // For Strava/Fitbit this pulls evidence server-side for the challenge period.
+  // For Apple Health/Garmin the response tells the device to upload.
+  // Called when user views a challenge in proof window, NOT at join time.
+  async function triggerAutoProof() {
+    if (!address || !challengeId) return;
+    try {
+      await fetch(`/api/challenge/${challengeId}/auto-proof`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject: address }),
+      });
+    } catch {
+      // non-blocking — the 5-min evidence collector will catch it
+    }
+  }
+
   const createdBlockBn = React.useMemo(() => safeBigintFrom(data?.createdBlock) ?? 0n, [data?.createdBlock]);
 
   React.useEffect(() => {
@@ -558,6 +576,18 @@ export default function ChallengePage() {
       })
       .catch(() => {});
   }, [address, challengeId, hasJoined]);
+
+  // Auto-proof: trigger when user views challenge in proof window
+  // (challenge ended, deadline not passed, joined, no evidence yet)
+  React.useEffect(() => {
+    if (!hasJoined || !address || !challengeId) return;
+    if (participantStatus?.has_evidence) return; // already has evidence
+    if (participantStatus?.verdict_pass !== undefined && participantStatus?.verdict_pass !== null) return;
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (!endSec || nowSec < endSec) return; // challenge hasn't ended
+    // Trigger auto-proof (server validates proof window)
+    void triggerAutoProof();
+  }, [hasJoined, address, challengeId, endSec, participantStatus]);
 
   // Join window
   const joinWindowOpen = React.useMemo(() => {
@@ -772,6 +802,7 @@ export default function ChallengePage() {
         if (rc.status === "success") {
           setJoinedLocally(true);
           void recordParticipant(String(hash));
+          // Auto-proof triggers during proof window, not at join time
           haptics?.success?.();
           notify("Joined ✅");
           setMyJoinedTotalWei((prev) => (prev ?? 0n) + value);
@@ -846,6 +877,7 @@ export default function ChallengePage() {
         if (rc.status === "success") {
           setJoinedLocally(true);
           void recordParticipant(String(hash));
+          // Auto-proof triggers during proof window, not at join time
           haptics?.success?.();
           notify("Joined ✅");
           await refetchChainChallenge();
@@ -896,6 +928,7 @@ export default function ChallengePage() {
       if (jrc.status === "success") {
         setJoinedLocally(true);
         void recordParticipant(String(joinHash));
+        void triggerAutoProof();
         haptics?.success?.();
         notify("Joined ✅");
         await refetchChainChallenge();

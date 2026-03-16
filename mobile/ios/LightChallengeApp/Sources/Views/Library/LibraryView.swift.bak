@@ -1,0 +1,225 @@
+// LibraryView.swift
+// Apple Music "Library" tab — organized rows with SF Symbols.
+// Tapping a row pushes the corresponding sub-view.
+
+import SwiftUI
+
+struct LibraryView: View {
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var walletManager: WalletManager
+    @EnvironmentObject private var notificationService: NotificationService
+
+    @State private var showingCreateChallenge = false
+    @State private var showingWalletSheet = false
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        NavigationStack {
+            List {
+                // Profile section
+                Section {
+                    walletRow
+                }
+
+                // Main actions
+                Section {
+                    libraryRow(
+                        "My Challenges",
+                        icon: "list.bullet.rectangle.portrait",
+                        color: LC.info
+                    ) {
+                        MyActivityView()
+                    }
+
+                    libraryRow(
+                        "Submit Proof",
+                        icon: "heart.text.square",
+                        color: .pink
+                    ) {
+                        ProofSelectionView()
+                    }
+
+                    libraryRow(
+                        "Claims",
+                        icon: "trophy",
+                        color: .orange
+                    ) {
+                        ClaimsView()
+                    }
+
+                    Button {
+                        showingCreateChallenge = true
+                    } label: {
+                        HStack(spacing: LC.space12) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(LC.accent)
+                                .frame(width: 30)
+                            Text("Create Challenge")
+                                .font(.body)
+                                .foregroundStyle(LC.textPrimary(scheme))
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .disabled(!walletManager.isConnected)
+                    .opacity(walletManager.isConnected ? 1 : 0.5)
+                }
+
+                // Secondary
+                Section {
+                    libraryRow(
+                        "Notifications",
+                        icon: "bell",
+                        color: LC.accent,
+                        badge: notificationService.unreadCount
+                    ) {
+                        NotificationsView()
+                    }
+
+                    libraryRow(
+                        "Settings",
+                        icon: "gearshape",
+                        color: .gray
+                    ) {
+                        SettingsView()
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle("Library")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    profileToolbarButton
+                }
+            }
+            .navigationDestination(for: String.self) { challengeId in
+                ChallengeDetailView(challengeId: challengeId)
+            }
+            .sheet(isPresented: $showingCreateChallenge) {
+                CreateChallengeView()
+            }
+            .sheet(isPresented: $showingWalletSheet) {
+                WalletSheet()
+            }
+        }
+    }
+
+    // MARK: - Library Row Helper
+
+    private func libraryRow<Destination: View>(
+        _ title: String,
+        icon: String,
+        color: Color,
+        badge: Int = 0,
+        @ViewBuilder destination: @escaping () -> Destination
+    ) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            HStack(spacing: LC.space12) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(color)
+                    .frame(width: 30)
+
+                Text(title)
+                    .font(.body)
+
+                if badge > 0 {
+                    Text("\(badge)")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(LC.danger))
+                }
+            }
+        }
+    }
+
+    // MARK: - Wallet Row
+
+    private var walletRow: some View {
+        Button {
+            showingWalletSheet = true
+        } label: {
+            HStack(spacing: LC.space16) {
+                Circle()
+                    .fill(
+                        walletManager.isConnected
+                            ? LC.goldGradient
+                            : LinearGradient(colors: [.gray.opacity(0.3), .gray.opacity(0.15)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    )
+                    .frame(width: 44, height: 44)
+                    .overlay(
+                        Group {
+                            if walletManager.isConnected {
+                                Text(String(walletManager.connectedAddress.dropFirst(2).prefix(2)).uppercased())
+                                    .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(.white)
+                            } else {
+                                Image(systemName: "wallet.bifold")
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(.white.opacity(0.7))
+                            }
+                        }
+                    )
+
+                VStack(alignment: .leading, spacing: LC.space2) {
+                    if walletManager.isConnected {
+                        Text(appState.truncatedWallet)
+                            .font(.subheadline.weight(.semibold))
+                        HStack(spacing: LC.space4) {
+                            Circle()
+                                .fill(walletManager.isWrongNetwork ? LC.warning : LC.success)
+                                .frame(width: 6, height: 6)
+                            Text(walletManager.isWrongNetwork ? "Wrong Network" : LightChain.chainName)
+                                .font(.caption)
+                                .foregroundStyle(walletManager.isWrongNetwork ? LC.warning : LC.success)
+                        }
+                    } else {
+                        Text("Connect Wallet")
+                            .font(.subheadline.weight(.semibold))
+                        Text("Tap to connect")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .foregroundStyle(LC.textPrimary(scheme))
+    }
+
+    // MARK: - Toolbar
+
+    private var profileToolbarButton: some View {
+        Button {
+            showingWalletSheet = true
+        } label: {
+            if walletManager.isConnected {
+                Circle()
+                    .fill(LC.accent.opacity(0.12))
+                    .frame(width: 32, height: 32)
+                    .overlay(
+                        Text(String(walletManager.connectedAddress.dropFirst(2).prefix(2)).uppercased())
+                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .foregroundStyle(LC.accent)
+                    )
+            } else {
+                Image(systemName: "person.circle")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}

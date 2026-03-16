@@ -26,28 +26,25 @@ class AppState: ObservableObject {
 
     enum Tab: Int, CaseIterable {
         case explore = 0
-        case activity = 1
-        case claims = 2
-        case notifications = 3
-        case settings = 4
+        case challenges = 1
+        case achievements = 2
+        case profile = 3
 
         var label: String {
             switch self {
             case .explore: "Explore"
-            case .activity: "Activity"
-            case .claims: "Claims"
-            case .notifications: "Alerts"
-            case .settings: "Settings"
+            case .challenges: "Challenges"
+            case .achievements: "Achievements"
+            case .profile: "Profile"
             }
         }
 
         var icon: String {
             switch self {
-            case .explore: "flame.fill"
-            case .activity: "list.bullet.rectangle.portrait.fill"
-            case .claims: "trophy.fill"
-            case .notifications: "bell.fill"
-            case .settings: "gearshape.fill"
+            case .explore: "magnifyingglass"
+            case .challenges: "flame.fill"
+            case .achievements: "trophy.fill"
+            case .profile: "person.circle.fill"
             }
         }
     }
@@ -67,22 +64,40 @@ class AppState: ObservableObject {
     // MARK: - Deep link handling
 
     func handleDeepLink(_ url: URL) {
+        print("[DEEPLINK] url=\(url) scheme=\(url.scheme ?? "nil") host=\(url.host ?? "nil") path=\(url.path)")
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: true) else { return }
 
         var challengeId: String?
         var subject: String?
 
-        // Custom scheme: lightchallenge://challenge/{id}
-        if url.scheme == "lightchallenge" {
-            let pathParts = url.pathComponents.filter { $0 != "/" }
+        // Custom scheme: lightchallengeapp://challenge/{id}
+        // Note: In custom URL schemes, the first segment after :// is the host,
+        // e.g. lightchallengeapp://callback → host="callback", path=""
+        //      lightchallengeapp://challenge/42 → host="challenge", path="/42"
+        if url.scheme == "lightchallengeapp" {
+            var parts = [String]()
+            if let host = url.host, !host.isEmpty { parts.append(host) }
+            parts.append(contentsOf: url.pathComponents.filter { $0 != "/" })
 
-            // Auth callback: lightchallenge://auth/callback?provider=strava&status=ok
-            if pathParts.first == "auth" {
+            print("[DEEPLINK] parts=\(parts)")
+
+            // WalletConnect redirect: lightchallengeapp://wc — not a challenge link
+            if parts.first == "wc" {
+                print("[DEEPLINK] → WalletConnect redirect, skipping")
+                return
+            }
+
+            // Auth callback: lightchallengeapp://callback?status=ok&provider=strava
+            if parts.first == "callback" || parts.first == "auth" {
+                print("[DEEPLINK] → handleAuthCallback")
                 handleAuthCallback(components)
                 return
             }
 
-            challengeId = pathParts.last
+            // Extract numeric challenge ID from the last path segment
+            if let last = parts.last, last.allSatisfy(\.isNumber), !last.isEmpty {
+                challengeId = last
+            }
         }
         // Universal link: /proofs/{id}
         else if let path = components.path.split(separator: "/").last {
@@ -103,18 +118,23 @@ class AppState: ObservableObject {
             deepLinkChallengeId = cid
             deepLinkToken = token
             deepLinkExpires = expires
-            // Switch to explore tab so the navigation push works
-            selectedTab = .explore
+            // Switch to challenges tab so the navigation push works
+            selectedTab = .challenges
         }
     }
 
     private func handleAuthCallback(_ components: URLComponents) {
         let provider = components.queryItems?.first(where: { $0.name == "provider" })?.value
         let status = components.queryItems?.first(where: { $0.name == "status" })?.value
+        print("[AUTH] callback: provider=\(provider ?? "nil") status=\(status ?? "nil")")
 
-        // Route to OAuthService (handles both native app and web auth callbacks)
         Task {
             await OAuthService.shared.handleOAuthCallback(provider: provider, status: status)
+            // Fallback: always refresh if status=ok and we have a wallet.
+            // Covers the case where pendingOAuth was lost (app killed by iOS).
+            if status == "ok" && hasWallet {
+                await OAuthService.shared.refreshLinkedAccounts(baseURL: serverURL, wallet: walletAddress)
+            }
         }
     }
 }

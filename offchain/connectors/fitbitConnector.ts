@@ -17,7 +17,8 @@
 
 import fetch from "node-fetch";
 import { keccak256, toBytes } from "viem";
-import type { Connector, ConnectorResult, LinkedAccountRow } from "./connectorTypes";
+import type { Connector, ConnectorResult, LinkedAccountRow, FetchEvidenceOpts } from "./connectorTypes";
+import { resolveRange } from "./connectorTypes";
 import { upsertLinkedAccount } from "../db/linkedAccounts";
 import type { Pool } from "pg";
 
@@ -288,7 +289,7 @@ export const fitbitConnector: Connector & { _db?: Pool } = {
   async fetchEvidence(
     _subject: string,
     account: LinkedAccountRow,
-    lookbackMs: number = DEFAULT_LOOKBACK_MS
+    opts?: FetchEvidenceOpts
   ): Promise<ConnectorResult> {
     // Refresh token if expired (with 5-minute buffer)
     let token = account.access_token ?? "";
@@ -299,9 +300,9 @@ export const fitbitConnector: Connector & { _db?: Pool } = {
       token = await refreshAccessToken(account, this._db);
     }
 
-    const lookbackDate = new Date(Date.now() - lookbackMs);
-    const startDate = formatDate(lookbackDate);
-    const endDate = formatDate(new Date());
+    const { afterSec, beforeSec } = resolveRange(opts);
+    const startDate = formatDate(new Date(afterSec * 1000));
+    const endDate = formatDate(new Date(beforeSec * 1000));
 
     // Fetch both daily steps and activities in parallel
     const [stepsResult, activitiesResult] = await Promise.all([

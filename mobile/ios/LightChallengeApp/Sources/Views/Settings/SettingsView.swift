@@ -21,64 +21,62 @@ struct SettingsView: View {
     @State private var garminPending = false
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: LC.space16) {
-                    profileCard
+        ScrollView {
+            VStack(spacing: LC.space16) {
+                profileCard
 
-                    sectionCard("Activity Sources", icon: "heart.fill", iconColor: .pink) {
-                        appleHealthRow
-                        Divider().padding(.leading, 48)
-                        fitnessToggleRow(
-                            provider: "strava",
-                            name: "Strava",
-                            brandColor: Color(hex: 0xFC4C02),
-                            isLinked: oauthService.stravaLinked,
-                            pending: $stravaPending,
-                            account: oauthService.linkedAccounts["strava"]
-                        )
-                        Divider().padding(.leading, 48)
-                        fitnessToggleRow(
-                            provider: "fitbit",
-                            name: "Fitbit",
-                            brandColor: Color(hex: 0x00B0B9),
-                            isLinked: oauthService.fitbitLinked,
-                            pending: $fitbitPending,
-                            account: oauthService.linkedAccounts["fitbit"]
-                        )
-                        Divider().padding(.leading, 48)
-                        fitnessToggleRow(
-                            provider: "garmin",
-                            name: "Garmin Connect",
-                            brandColor: Color(hex: 0x007CC3),
-                            isLinked: oauthService.garminLinked,
-                            pending: $garminPending,
-                            account: oauthService.linkedAccounts["garmin"]
-                        )
-                    }
-
-                    sectionCard("Notifications", icon: "bell.fill", iconColor: LC.gold) {
-                        notificationRow
-                    }
-
-                    aboutCard
+                sectionCard("Activity Sources", icon: "heart.fill", iconColor: LC.danger) {
+                    appleHealthRow
+                    Divider().padding(.leading, 48)
+                    fitnessToggleRow(
+                        provider: "strava",
+                        name: "Strava",
+                        brandColor: Color(hex: 0xFC4C02),
+                        isLinked: oauthService.stravaLinked,
+                        pending: $stravaPending,
+                        account: oauthService.linkedAccounts["strava"]
+                    )
+                    Divider().padding(.leading, 48)
+                    fitnessToggleRow(
+                        provider: "fitbit",
+                        name: "Fitbit",
+                        brandColor: Color(hex: 0x00B0B9),
+                        isLinked: oauthService.fitbitLinked,
+                        pending: $fitbitPending,
+                        account: oauthService.linkedAccounts["fitbit"]
+                    )
+                    Divider().padding(.leading, 48)
+                    fitnessToggleRow(
+                        provider: "garmin",
+                        name: "Garmin Connect",
+                        brandColor: Color(hex: 0x007CC3),
+                        isLinked: oauthService.garminLinked,
+                        pending: $garminPending,
+                        account: oauthService.linkedAccounts["garmin"]
+                    )
                 }
-                .padding(.horizontal, LC.space16)
-                .padding(.top, LC.space8)
-                .padding(.bottom, LC.space32)
+
+                sectionCard("Notifications", icon: "bell.fill", iconColor: LC.accent) {
+                    notificationRow
+                }
+
+                aboutCard
             }
-            .lcPageBackground()
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showingWalletSheet) {
-                WalletSheet()
-            }
-            .sheet(isPresented: $showingNetworkPicker) {
-                networkPickerSheet
-            }
-            .onAppear {
-                oauthService.detectInstalledApps()
-            }
+            .padding(.horizontal, LC.space16)
+            .padding(.top, LC.space8)
+            .padding(.bottom, LC.space32)
+        }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle("Settings")
+        .sheet(isPresented: $showingWalletSheet) {
+            WalletSheet()
+        }
+        .sheet(isPresented: $showingNetworkPicker) {
+            networkPickerSheet
+        }
+        .onAppear {
+            oauthService.detectInstalledApps()
+        }
             // Clear pending states when OAuth finishes
             .onChange(of: oauthService.stravaLinked) { _, linked in
                 if linked { stravaPending = false }
@@ -100,7 +98,6 @@ struct SettingsView: View {
             .onChange(of: healthService.isAuthorized) { _, authorized in
                 if authorized { healthPending = false }
             }
-        }
     }
 
     // MARK: - Profile Header Card
@@ -212,7 +209,7 @@ struct SettingsView: View {
     private var appleHealthRow: some View {
         HStack(spacing: LC.space12) {
             Image(systemName: "heart.fill")
-                .foregroundStyle(.pink)
+                .foregroundStyle(LC.danger)
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: LC.space2) {
@@ -245,7 +242,7 @@ struct SettingsView: View {
                 }
             ))
             .labelsHidden()
-            .tint(.pink)
+            .tint(LC.danger)
         }
         .padding(.horizontal, LC.space16)
         .padding(.vertical, LC.space12)
@@ -294,8 +291,9 @@ struct SettingsView: View {
             Toggle("", isOn: Binding(
                 get: { isLinked || pending.wrappedValue },
                 set: { newValue in
-                    guard appState.hasWallet, !oauthService.isAuthenticating else { return }
-                    if newValue && !isLinked {
+                    print("[TOGGLE] \(provider): newValue=\(newValue) isLinked=\(isLinked) pending=\(pending.wrappedValue) hasWallet=\(appState.hasWallet) isAuth=\(oauthService.isAuthenticating)")
+                    guard appState.hasWallet else { print("[TOGGLE] blocked: no wallet"); return }
+                    if newValue && !isLinked && !oauthService.isAuthenticating {
                         pending.wrappedValue = true
                         switch provider {
                         case "strava":
@@ -306,13 +304,18 @@ struct SettingsView: View {
                             oauthService.connectGarmin(baseURL: appState.serverURL, wallet: appState.walletAddress)
                         default: break
                         }
-                    } else if !newValue && isLinked {
-                        Task {
-                            await oauthService.disconnect(
-                                provider: provider,
-                                baseURL: appState.serverURL,
-                                wallet: appState.walletAddress
-                            )
+                    } else if !newValue {
+                        // Clear pending state and disconnect if linked
+                        pending.wrappedValue = false
+                        oauthService.isAuthenticating = false
+                        if isLinked {
+                            Task {
+                                await oauthService.disconnect(
+                                    provider: provider,
+                                    baseURL: appState.serverURL,
+                                    wallet: appState.walletAddress
+                                )
+                            }
                         }
                     }
                 }

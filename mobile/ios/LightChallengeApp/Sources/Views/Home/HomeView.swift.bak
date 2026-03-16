@@ -1,0 +1,431 @@
+// HomeView.swift
+// Personal dashboard — Apple Music "Listen Now" style.
+// Wallet status, protocol stats, upcoming deadlines, quick actions.
+
+import SwiftUI
+
+struct HomeView: View {
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var walletManager: WalletManager
+    @EnvironmentObject private var healthService: HealthKitService
+    @EnvironmentObject private var notificationService: NotificationService
+
+    @State private var stats: ProtocolStats?
+    @State private var activities: [MyChallenge] = []
+    @State private var challengeMetas: [String: ChallengeMeta] = [:]
+    @State private var isLoading = false
+    @State private var navigationPath = NavigationPath()
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        NavigationStack(path: $navigationPath) {
+            ScrollView {
+                VStack(spacing: LC.space24) {
+                    walletCard
+                    if appState.hasWallet {
+                        quickActions
+                        statsGrid
+                        upcomingSection
+                        recentActivitySection
+                    } else {
+                        connectPrompt
+                    }
+                }
+                .padding(.horizontal, LC.space16)
+                .padding(.bottom, LC.space32)
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Home")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    profileButton
+                }
+            }
+            .navigationDestination(for: String.self) { challengeId in
+                ChallengeDetailView(challengeId: challengeId)
+            }
+            .task { await loadData() }
+            .refreshable { await loadData() }
+            .onChange(of: appState.deepLinkChallengeId) { _, newId in
+                if let newId {
+                    navigationPath.append(newId)
+                    appState.deepLinkChallengeId = nil
+                }
+            }
+        }
+    }
+
+    // MARK: - Profile Button (toolbar)
+
+    private var profileButton: some View {
+        Button {
+            appState.selectedTab = .library
+        } label: {
+            if walletManager.isConnected {
+                Circle()
+                    .fill(LC.accent.opacity(0.12))
+                    .frame(width: 32, height: 32)
+                    .overlay(
+                        Text(String(walletManager.connectedAddress.dropFirst(2).prefix(2)).uppercased())
+                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .foregroundStyle(LC.accent)
+                    )
+            } else {
+                Image(systemName: "person.circle")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    // MARK: - Wallet Status Card
+
+    private var walletCard: some View {
+        HStack(spacing: LC.space16) {
+            Circle()
+                .fill(
+                    walletManager.isConnected
+                        ? LC.goldGradient
+                        : LinearGradient(colors: [.gray.opacity(0.3), .gray.opacity(0.15)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                )
+                .frame(width: 48, height: 48)
+                .overlay(
+                    Group {
+                        if walletManager.isConnected {
+                            Text(String(walletManager.connectedAddress.dropFirst(2).prefix(2)).uppercased())
+                                .font(.system(size: 16, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.white)
+                        } else {
+                            Image(systemName: "wallet.bifold")
+                                .font(.system(size: 18))
+                                .foregroundStyle(.white.opacity(0.7))
+                        }
+                    }
+                )
+
+            VStack(alignment: .leading, spacing: LC.space4) {
+                if walletManager.isConnected {
+                    Text(appState.truncatedWallet)
+                        .font(.headline)
+                    HStack(spacing: LC.space6) {
+                        Circle()
+                            .fill(walletManager.isWrongNetwork ? LC.warning : LC.success)
+                            .frame(width: 6, height: 6)
+                        Text(walletManager.isWrongNetwork ? "Wrong Network" : LightChain.chainName)
+                            .font(.caption)
+                            .foregroundStyle(walletManager.isWrongNetwork ? LC.warning : LC.success)
+                    }
+                } else {
+                    Text("Not Connected")
+                        .font(.headline)
+                    Text("Connect wallet to get started")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            if walletManager.isConnected {
+                Image(systemName: walletManager.isWrongNetwork ? "exclamationmark.triangle.fill" : "checkmark.seal.fill")
+                    .foregroundStyle(walletManager.isWrongNetwork ? LC.warning : LC.success)
+            }
+        }
+        .padding(LC.space16)
+        .background(
+            RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+    }
+
+    // MARK: - Quick Actions
+
+    private var quickActions: some View {
+        HStack(spacing: LC.space12) {
+            quickActionButton(
+                "Create",
+                icon: "plus.circle.fill",
+                color: LC.accent
+            ) {
+                // Navigate to library where create lives
+                appState.selectedTab = .library
+            }
+
+            quickActionButton(
+                "Submit Proof",
+                icon: "heart.text.square.fill",
+                color: .pink
+            ) {
+                appState.selectedTab = .library
+            }
+
+            quickActionButton(
+                "Claims",
+                icon: "trophy.fill",
+                color: .orange
+            ) {
+                appState.selectedTab = .library
+            }
+        }
+    }
+
+    private func quickActionButton(_ label: String, icon: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: LC.space8) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(color)
+                Text(label)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(LC.textPrimary(scheme))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, LC.space16)
+            .background(
+                RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Stats Grid
+
+    private var statsGrid: some View {
+        VStack(alignment: .leading, spacing: LC.space12) {
+            Text("Overview")
+                .font(.title3.weight(.bold))
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: LC.space12) {
+                statTile("Active Challenges", value: "\(stats?.activeChallenges ?? 0)", icon: "flame.fill", color: .orange)
+                statTile("My Challenges", value: "\(activities.count)", icon: "figure.run", color: LC.accent)
+                statTile("Total Protocol", value: "\(stats?.totalChallenges ?? 0)", icon: "chart.bar.fill", color: LC.info)
+                statTile("Participants", value: "\(stats?.totalParticipants ?? 0)", icon: "person.2.fill", color: .purple)
+            }
+        }
+    }
+
+    private func statTile(_ label: String, value: String, icon: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: LC.space8) {
+            HStack {
+                Image(systemName: icon)
+                    .font(.system(size: 14))
+                    .foregroundStyle(color)
+                Spacer()
+            }
+            Text(value)
+                .font(.title2.weight(.bold).monospacedDigit())
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(LC.space16)
+        .background(
+            RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+    }
+
+    // MARK: - Upcoming Deadlines
+
+    private var upcomingSection: some View {
+        let upcoming = activities.filter { activity in
+            guard let meta = challengeMetas[activity.challengeId],
+                  let endDate = meta.endsDate else { return false }
+            return endDate.timeIntervalSinceNow > 0 && endDate.timeIntervalSinceNow < 7 * 86400
+        }
+
+        return Group {
+            if !upcoming.isEmpty {
+                VStack(alignment: .leading, spacing: LC.space12) {
+                    Text("Ending Soon")
+                        .font(.title3.weight(.bold))
+
+                    ForEach(upcoming) { activity in
+                        if let meta = challengeMetas[activity.challengeId] {
+                            Button {
+                                navigationPath.append(activity.challengeId)
+                            } label: {
+                                deadlineRow(meta: meta, activity: activity)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func deadlineRow(meta: ChallengeMeta, activity: MyChallenge) -> some View {
+        HStack(spacing: LC.space12) {
+            Image(systemName: meta.resolvedCategory.icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 36, height: 36)
+                .background(
+                    RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous)
+                        .fill(LC.fitnessGradient)
+                )
+
+            VStack(alignment: .leading, spacing: LC.space2) {
+                Text(meta.displayTitle)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
+                if let end = meta.endsDate {
+                    Text("Ends \(end.relativeShort)")
+                        .font(.caption)
+                        .foregroundStyle(end.timeIntervalSinceNow < 86400 ? LC.danger : .orange)
+                }
+            }
+
+            Spacer()
+
+            LCStatusBadge(text: activity.statusLabel, color: activity.verdictPass == true ? LC.success : activity.verdictPass == false ? LC.danger : LC.info)
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(LC.space12)
+        .background(
+            RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+    }
+
+    // MARK: - Recent Activity
+
+    private var recentActivitySection: some View {
+        Group {
+            if !activities.isEmpty {
+                VStack(alignment: .leading, spacing: LC.space12) {
+                    HStack {
+                        Text("Recent Activity")
+                            .font(.title3.weight(.bold))
+                        Spacer()
+                        Button("See All") {
+                            appState.selectedTab = .library
+                        }
+                        .font(.subheadline)
+                        .foregroundStyle(LC.accent)
+                    }
+
+                    ForEach(activities.prefix(3)) { activity in
+                        Button {
+                            navigationPath.append(activity.challengeId)
+                        } label: {
+                            activityRow(activity)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private func activityRow(_ activity: MyChallenge) -> some View {
+        let meta = challengeMetas[activity.challengeId]
+        return HStack(spacing: LC.space12) {
+            // Status indicator
+            Circle()
+                .fill(activity.verdictPass == true ? LC.success : activity.verdictPass == false ? LC.danger : activity.hasEvidence == true ? .orange : LC.info)
+                .frame(width: 10, height: 10)
+
+            VStack(alignment: .leading, spacing: LC.space2) {
+                Text(meta?.displayTitle ?? "Challenge #\(activity.challengeId)")
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
+                Text(activity.statusLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(LC.space12)
+        .background(
+            RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+    }
+
+    // MARK: - Connect Prompt
+
+    private var connectPrompt: some View {
+        VStack(spacing: LC.space24) {
+            Image(systemName: "bolt.shield.fill")
+                .font(.system(size: 48))
+                .foregroundStyle(LC.accent)
+
+            Text("Welcome to LightChallenge")
+                .font(.title3.weight(.bold))
+
+            Text("Connect your wallet and join fitness challenges verified by AI on the LightChain network.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            Button {
+                appState.selectedTab = .library
+            } label: {
+                Label("Get Started", systemImage: "arrow.right.circle.fill")
+            }
+            .buttonStyle(LCGoldButton())
+            .frame(width: 200)
+        }
+        .padding(LC.space32)
+    }
+
+    // MARK: - Data
+
+    private func loadData() async {
+        isLoading = true
+
+        async let statsTask: () = loadStats()
+        async let activityTask: () = loadActivity()
+        _ = await (statsTask, activityTask)
+
+        isLoading = false
+    }
+
+    private func loadStats() async {
+        stats = try? await APIClient.shared.fetchProtocolStats(baseURL: appState.serverURL)
+    }
+
+    private func loadActivity() async {
+        guard appState.hasWallet else { return }
+
+        do {
+            let fresh = try await APIClient.shared.fetchMyActivity(
+                baseURL: appState.serverURL,
+                subject: appState.walletAddress
+            )
+            activities = fresh
+
+            await withTaskGroup(of: (String, ChallengeMeta?).self) { group in
+                for activity in activities {
+                    let cid = activity.challengeId
+                    if challengeMetas[cid] == nil {
+                        group.addTask {
+                            let meta = try? await APIClient.shared.fetchChallengeMeta(
+                                baseURL: appState.serverURL,
+                                id: cid
+                            )
+                            return (cid, meta)
+                        }
+                    }
+                }
+                for await (cid, meta) in group {
+                    if let meta { challengeMetas[cid] = meta }
+                }
+            }
+        } catch {
+            // Silent fail — home is informational
+        }
+    }
+}

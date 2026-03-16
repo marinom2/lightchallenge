@@ -3,22 +3,23 @@
  *
  * Evidence collector worker.
  *
- * Polls public.linked_accounts for all registered provider accounts, fetches
- * recent evidence from each provider's API, and stores it in public.evidence
- * for every active challenge the subject is participating in.
+ * Polls for challenges that are in the PROOF SUBMISSION WINDOW (challenge
+ * period ended, proof deadline not yet passed) and fetches evidence for each
+ * participant who hasn't submitted yet.
  *
- * Flow per linked account:
- *   1. Find all active challenges the subject has joined (public.participants).
- *   2. Call connector.fetchEvidence() to get recent provider records.
- *   3. Skip if the evidence hash matches the most recent evidence row
- *      (no new data since last run).
- *   4. insertEvidence() for each active challenge.
- *   5. upsertParticipant() to keep the participant row fresh.
+ * Evidence is collected for EXACTLY the challenge period (startTs → endTs),
+ * NOT a fixed lookback from now.
+ *
+ * Flow per tick:
+ *   1. Find challenges in proof window: endTs <= now AND proofDeadlineTs > now.
+ *   2. For each challenge, find participants without evidence.
+ *   3. For each participant, find linked accounts and fetch evidence via
+ *      connector.fetchEvidence() with the challenge's date range.
+ *   4. insertEvidence() for the challenge.
  *
  * Env:
  *   DATABASE_URL               — required
  *   EVIDENCE_COLLECTOR_POLL_MS — poll interval (default: 300000 = 5 min)
- *   EVIDENCE_COLLECTOR_LOOKBACK_DAYS — how many days back to fetch (default: 90)
  */
 
 import dotenv from "dotenv";
@@ -26,161 +27,183 @@ import path from "path";
 dotenv.config({ path: path.resolve(__dirname, "../../webapp/.env.local") });
 
 import { getPool, closePool } from "../db/pool";
-import { getAllLinkedAccountsForProvider } from "../db/linkedAccounts";
-import { insertEvidence } from "../db/evidence";
+import { getLinkedAccountsForSubject } from "../db/linkedAccounts";
+import { insertEvidence, hasEvidence } from "../db/evidence";
 import { upsertParticipant } from "../db/participants";
-import { getConnector, registeredProviders } from "../connectors/connectorRegistry";
+import { getConnector } from "../connectors/connectorRegistry";
 import { stravaApiConnector } from "../connectors/stravaApiConnector";
+import { fitbitConnector } from "../connectors/fitbitConnector";
+import type { FetchEvidenceOpts } from "../connectors/connectorTypes";
 import type { Pool } from "pg";
 
 const POLL_MS = Number(process.env.EVIDENCE_COLLECTOR_POLL_MS ?? 300_000);
-const LOOKBACK_DAYS = Number(process.env.EVIDENCE_COLLECTOR_LOOKBACK_DAYS ?? 90);
-const LOOKBACK_MS = LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
 
-// Inject the pool into the Strava connector so it can persist refreshed tokens
+// Providers whose data can be pulled server-side (have API access via stored OAuth tokens)
+const API_PROVIDERS = new Set(["strava", "fitbit", "opendota", "riot", "faceit"]);
+
+// Inject the pool into OAuth connectors so they can persist refreshed tokens
 async function boot() {
   const pool = getPool();
   (stravaApiConnector as any)._db = pool;
+  (fitbitConnector as any)._db = pool;
   return pool;
 }
 
-type ParticipantRow = { challenge_id: string; subject: string };
+type ProofWindowChallenge = {
+  challenge_id: string;
+  start_ts: number;  // Unix seconds
+  end_ts: number;    // Unix seconds
+  proof_deadline_ts: number; // Unix seconds
+};
 
-async function getActiveChallengesForSubject(
-  subject: string,
-  pool: Pool
-): Promise<ParticipantRow[]> {
-  const res = await pool.query<ParticipantRow>(
+type ParticipantNeedingProof = {
+  challenge_id: string;
+  subject: string;
+};
+
+/**
+ * Find challenges currently in the proof submission window:
+ *  - Challenge period has ended (end_ts <= now)
+ *  - Proof deadline hasn't passed (proof_deadline_ts > now)
+ *  - Challenge is still active (not finalized/canceled)
+ *
+ * Timeline fields come from the challenges.timeline JSONB column
+ * (startsAt, endsAt, proofDeadline — stored as Unix seconds).
+ */
+async function getChallengesInProofWindow(pool: Pool): Promise<ProofWindowChallenge[]> {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const res = await pool.query<ProofWindowChallenge>(
     `
-    SELECT p.challenge_id::text, p.subject
-    FROM   public.participants p
-    JOIN   public.challenges c ON c.id = p.challenge_id
-    WHERE  lower(p.subject) = lower($1)
-      AND  lower(coalesce(c.status, '')) NOT IN ('finalized', 'canceled', 'rejected')
+    SELECT
+      c.id::text AS challenge_id,
+      COALESCE((c.timeline->>'startsAt')::bigint, 0) AS start_ts,
+      COALESCE((c.timeline->>'endsAt')::bigint, 0) AS end_ts,
+      COALESCE((c.timeline->>'proofDeadline')::bigint, 0) AS proof_deadline_ts
+    FROM public.challenges c
+    WHERE lower(coalesce(c.status, '')) NOT IN ('finalized', 'canceled', 'rejected')
+      AND COALESCE((c.timeline->>'endsAt')::bigint, 0) > 0
+      AND COALESCE((c.timeline->>'endsAt')::bigint, 0) <= $1
+      AND COALESCE((c.timeline->>'proofDeadline')::bigint, 0) > $1
     `,
-    [subject]
+    [nowSec]
   );
   return res.rows;
 }
 
-async function getLatestEvidenceHash(
+/**
+ * Find participants of a challenge who don't have evidence yet.
+ */
+async function getParticipantsNeedingProof(
   challengeId: string,
-  subject: string,
-  provider: string,
   pool: Pool
-): Promise<string | null> {
-  const res = await pool.query<{ evidence_hash: string }>(
+): Promise<ParticipantNeedingProof[]> {
+  const res = await pool.query<ParticipantNeedingProof>(
     `
-    SELECT evidence_hash
-    FROM   public.evidence
-    WHERE  challenge_id = $1::bigint
-      AND  lower(subject) = lower($2)
-      AND  provider = $3
-    ORDER  BY created_at DESC
-    LIMIT  1
+    SELECT p.challenge_id::text, p.subject
+    FROM public.participants p
+    WHERE p.challenge_id = $1::bigint
+      AND NOT EXISTS (
+        SELECT 1 FROM public.evidence e
+        WHERE e.challenge_id = p.challenge_id
+          AND lower(e.subject) = lower(p.subject)
+      )
     `,
-    [challengeId, subject, provider]
+    [challengeId]
   );
-  return res.rows[0]?.evidence_hash ?? null;
+  return res.rows;
 }
 
-async function processAccount(
+async function processParticipant(
   subject: string,
-  provider: string,
+  challenge: ProofWindowChallenge,
   pool: Pool
 ): Promise<void> {
-  const connector = getConnector(provider);
-  if (!connector) return;
+  // Double-check evidence doesn't exist (race condition guard)
+  const already = await hasEvidence(challenge.challenge_id, subject, pool);
+  if (already) return;
 
-  // Get linked account row
-  const res = await pool.query(
-    `SELECT * FROM public.linked_accounts WHERE lower(subject) = lower($1) AND provider = $2 LIMIT 1`,
-    [subject, provider]
-  );
-  const account = res.rows[0];
-  if (!account) return;
+  // Get all linked accounts for this wallet
+  const accounts = await getLinkedAccountsForSubject(subject, pool);
+  if (accounts.length === 0) return;
 
-  // Fetch evidence from provider API
-  let result;
-  try {
-    result = await connector.fetchEvidence(subject, account, LOOKBACK_MS);
-  } catch (e: any) {
-    console.warn(`[collector] ${provider}/${subject}: fetchEvidence failed — ${e.message}`);
-    return;
-  }
+  const opts: FetchEvidenceOpts = {
+    startMs: challenge.start_ts * 1000,
+    endMs: challenge.end_ts * 1000,
+  };
 
-  if (result.records.length === 0) return; // Apple placeholder or no data
+  for (const account of accounts) {
+    if (!API_PROVIDERS.has(account.provider)) continue;
 
-  // Find active challenges for this subject
-  const challenges = await getActiveChallengesForSubject(subject, pool);
-  if (challenges.length === 0) return;
+    const connector = getConnector(account.provider);
+    if (!connector) continue;
 
-  for (const challenge of challenges) {
-    // Skip if evidence hash matches last inserted row (no change)
-    const latestHash = await getLatestEvidenceHash(
-      challenge.challenge_id,
-      subject,
-      provider,
-      pool
-    );
-    if (latestHash === result.evidenceHash) continue;
+    let result;
+    try {
+      result = await connector.fetchEvidence(subject, account, opts);
+    } catch (e: any) {
+      console.warn(`[collector] ${account.provider}/${subject.slice(0, 8)}: fetchEvidence failed — ${e.message}`);
+      continue;
+    }
+
+    if (result.records.length === 0) continue;
 
     try {
       await insertEvidence(
         {
           challengeId: challenge.challenge_id,
           subject: subject.toLowerCase(),
-          provider,
+          provider: account.provider,
           data: result.records,
           evidenceHash: result.evidenceHash,
         },
         pool
       );
 
-      // Keep participant row fresh (fire-and-forget style errors)
       await upsertParticipant(
         { challengeId: challenge.challenge_id, subject: subject.toLowerCase() },
         pool
       ).catch((e) => console.warn(`[collector] upsertParticipant: ${e.message}`));
 
       console.log(
-        `[collector] ${provider}/${subject.slice(0, 8)} → challenge ${challenge.challenge_id}: ` +
-          `${result.records.length} records inserted`
+        `[collector] ${account.provider}/${subject.slice(0, 8)} → challenge ${challenge.challenge_id}: ` +
+          `${result.records.length} records (${new Date(challenge.start_ts * 1000).toISOString().slice(0, 10)} → ${new Date(challenge.end_ts * 1000).toISOString().slice(0, 10)})`
       );
+
+      // One successful provider is enough — don't double-submit
+      return;
     } catch (e: any) {
       console.error(
-        `[collector] insertEvidence failed ${provider}/${subject}/${challenge.challenge_id}: ${e.message}`
+        `[collector] insertEvidence failed ${account.provider}/${subject}/${challenge.challenge_id}: ${e.message}`
       );
     }
   }
 }
 
 async function runOnce(pool: Pool): Promise<void> {
-  // Exclude upload-only providers (no API — evidence arrives via file upload)
-  const UPLOAD_ONLY = new Set(["apple", "garmin", "googlefit"]);
-  const providers = registeredProviders().filter((p) => !UPLOAD_ONLY.has(p));
+  // Find challenges in proof submission window
+  const challenges = await getChallengesInProofWindow(pool);
 
-  for (const provider of providers) {
-    let accounts;
-    try {
-      accounts = await getAllLinkedAccountsForProvider(provider, pool);
-    } catch (e: any) {
-      console.error(`[collector] failed to list ${provider} accounts: ${e.message}`);
-      continue;
-    }
+  if (challenges.length === 0) return;
 
-    console.log(`[collector] ${provider}: ${accounts.length} linked account(s)`);
+  console.log(`[collector] ${challenges.length} challenge(s) in proof window`);
 
-    for (const account of accounts) {
-      await processAccount(account.subject, provider, pool);
+  for (const challenge of challenges) {
+    const participants = await getParticipantsNeedingProof(challenge.challenge_id, pool);
+
+    if (participants.length === 0) continue;
+
+    console.log(
+      `[collector] challenge ${challenge.challenge_id}: ${participants.length} participant(s) need evidence`
+    );
+
+    for (const participant of participants) {
+      await processParticipant(participant.subject, challenge, pool);
     }
   }
 }
 
 async function main() {
-  console.log(
-    `[collector] starting — poll every ${POLL_MS / 1000}s, lookback ${LOOKBACK_DAYS}d`
-  );
+  console.log(`[collector] starting — poll every ${POLL_MS / 1000}s, proof-window-based collection`);
 
   const pool = await boot();
 

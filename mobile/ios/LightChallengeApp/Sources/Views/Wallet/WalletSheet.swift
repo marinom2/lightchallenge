@@ -64,15 +64,54 @@ struct WalletSheet: View {
                 Circle()
                     .fill(.regularMaterial)
                     .frame(width: 80, height: 80)
-                Image(systemName: "checkmark.circle.fill")
+                Image(systemName: walletManager.isWrongNetwork ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
                     .font(.system(size: 40))
-                    .foregroundStyle(LC.success)
+                    .foregroundStyle(walletManager.isWrongNetwork ? LC.warning : LC.success)
             }
             .padding(.top, LC.space16)
 
-            Text("Connected")
+            Text(walletManager.isWrongNetwork ? "Wrong Network" : "Connected")
                 .font(.title3.weight(.bold))
-                .foregroundStyle(LC.success)
+                .foregroundStyle(walletManager.isWrongNetwork ? LC.warning : LC.success)
+
+            // Wrong network banner
+            if walletManager.isWrongNetwork {
+                VStack(spacing: LC.space12) {
+                    HStack(spacing: LC.space8) {
+                        Image(systemName: "network")
+                            .font(.system(size: 14))
+                            .foregroundStyle(LC.warning)
+                        Text("Your wallet is on chain \(walletManager.connectedChainId ?? 0). Please switch to **\(LightChain.chainName)** (chain \(LightChain.chainId)).")
+                            .font(.caption)
+                            .foregroundStyle(LC.textSecondary(scheme))
+                    }
+
+                    Button {
+                        walletManager.openWalletToSwitchNetwork()
+                    } label: {
+                        HStack(spacing: LC.space8) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Open Wallet to Switch")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(LC.warning, in: RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(LC.space16)
+                .background(
+                    RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
+                        .fill(LC.warning.opacity(0.08))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
+                        .stroke(LC.warning.opacity(0.3), lineWidth: 1)
+                )
+            }
 
             VStack(spacing: LC.space12) {
                 Text(walletManager.connectedAddress)
@@ -84,15 +123,17 @@ struct WalletSheet: View {
                 HStack(spacing: LC.space16) {
                     HStack(spacing: LC.space4) {
                         Circle()
-                            .fill(LC.success)
+                            .fill(walletManager.isWrongNetwork ? LC.warning : LC.success)
                             .frame(width: 6, height: 6)
-                        Text(LightChain.chainName)
+                        Text(walletManager.isWrongNetwork ? "Chain \(walletManager.connectedChainId ?? 0)" : LightChain.chainName)
                             .font(.caption2)
                             .foregroundStyle(LC.textSecondary(scheme))
                     }
-                    Text("Chain \(LightChain.chainId)")
-                        .font(.caption2)
-                        .foregroundStyle(LC.textTertiary(scheme))
+                    if !walletManager.isWrongNetwork {
+                        Text("Chain \(LightChain.chainId)")
+                            .font(.caption2)
+                            .foregroundStyle(LC.textTertiary(scheme))
+                    }
                 }
             }
             .padding(LC.space16)
@@ -103,7 +144,7 @@ struct WalletSheet: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
-                    .stroke(LC.success.opacity(0.2), lineWidth: 1)
+                    .stroke((walletManager.isWrongNetwork ? LC.warning : LC.success).opacity(0.2), lineWidth: 1)
             )
 
             Button(role: .destructive) {

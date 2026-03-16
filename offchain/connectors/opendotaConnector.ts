@@ -15,7 +15,8 @@
 
 import fetch from "node-fetch";
 import { keccak256, toBytes } from "viem";
-import type { Connector, ConnectorResult, LinkedAccountRow } from "./connectorTypes";
+import type { Connector, ConnectorResult, LinkedAccountRow, FetchEvidenceOpts } from "./connectorTypes";
+import { resolveRange } from "./connectorTypes";
 
 const OPENDOTA_BASE = process.env.OPENDOTA_BASE ?? "https://api.opendota.com";
 const API_KEY = process.env.OPENDOTA_KEY ?? "";
@@ -65,23 +66,24 @@ export const opendotaConnector: Connector = {
   async fetchEvidence(
     _subject: string,
     account: LinkedAccountRow,
-    lookbackMs: number = DEFAULT_LOOKBACK_MS
+    opts?: FetchEvidenceOpts
   ): Promise<ConnectorResult> {
     const steam64 = account.external_id;
     if (!steam64) throw new Error("opendotaConnector: external_id (Steam64 ID) is required");
 
     const steam32 = steam64To32(steam64);
-    const sinceTs = Math.floor((Date.now() - lookbackMs) / 1000);
+    const { afterSec, beforeSec } = resolveRange(opts);
+    const rangeDays = Math.ceil((beforeSec - afterSec) / 86400);
 
     const matches = await fetchJson<RawMatch[]>(
-      `${OPENDOTA_BASE}/api/players/${steam32}/matches?date=${Math.ceil(lookbackMs / 86400000)}&significant=0`
+      `${OPENDOTA_BASE}/api/players/${steam32}/matches?date=${rangeDays}&significant=0`
     );
 
     if (!Array.isArray(matches)) throw new Error("opendotaConnector: unexpected API response");
 
-    const cutoffTs = sinceTs;
+    const cutoffTs = afterSec;
     const records = matches
-      .filter((m) => typeof m.start_time === "number" && m.start_time >= cutoffTs)
+      .filter((m) => typeof m.start_time === "number" && m.start_time >= cutoffTs && m.start_time <= beforeSec)
       .map((m) => {
         const isRadiant = isRadiantSlot(m.player_slot ?? 128);
         const won = isRadiant ? m.radiant_win === true : m.radiant_win === false;

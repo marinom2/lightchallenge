@@ -15,6 +15,38 @@ struct DailyDistance: Identifiable, Codable {
     let distanceMeters: Double
 }
 
+struct DailyCyclingDistance: Identifiable, Codable {
+    var id: String { date }
+    let date: String      // "YYYY-MM-DD"
+    let distanceMeters: Double
+}
+
+struct DailyActiveEnergy: Identifiable, Codable {
+    var id: String { date }
+    let date: String      // "YYYY-MM-DD"
+    let kilocalories: Double
+}
+
+struct DailyHeartRate: Identifiable, Codable {
+    var id: String { date }
+    let date: String      // "YYYY-MM-DD"
+    let avgBpm: Double
+    let minBpm: Double
+    let maxBpm: Double
+}
+
+struct DailyFlightsClimbed: Identifiable, Codable {
+    var id: String { date }
+    let date: String      // "YYYY-MM-DD"
+    let flights: Int
+}
+
+struct DailySwimmingDistance: Identifiable, Codable {
+    var id: String { date }
+    let date: String      // "YYYY-MM-DD"
+    let distanceMeters: Double
+}
+
 struct EvidencePayload {
     let records: [[String: Any]]
     let evidenceHash: String

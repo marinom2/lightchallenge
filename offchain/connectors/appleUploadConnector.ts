@@ -12,7 +12,7 @@
  * skip it.  Real Apple evidence arrives through POST /api/aivm/intake.
  */
 
-import type { Connector, ConnectorResult, LinkedAccountRow } from "./connectorTypes";
+import type { Connector, ConnectorResult, LinkedAccountRow, FetchEvidenceOpts } from "./connectorTypes";
 
 export const appleUploadConnector: Connector = {
   provider: "apple",
@@ -20,7 +20,7 @@ export const appleUploadConnector: Connector = {
   async fetchEvidence(
     _subject: string,
     _account: LinkedAccountRow,
-    _lookbackMs?: number
+    _opts?: FetchEvidenceOpts
   ): Promise<ConnectorResult> {
     // Apple Health requires manual export + upload — no API available.
     return {

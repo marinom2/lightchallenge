@@ -40,7 +40,7 @@ import { verifyWallet, requireAuth } from "@/lib/auth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SUPPORTED_PROVIDERS = new Set(["strava", "opendota", "riot", "apple"]);
+const SUPPORTED_PROVIDERS = new Set(["strava", "opendota", "riot", "faceit", "fitbit", "garmin", "apple"]);
 
 export async function GET(req: NextRequest) {
   const subject = (req.nextUrl.searchParams.get("subject") ?? "").trim();

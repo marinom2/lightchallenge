@@ -7,8 +7,10 @@ struct OnboardingView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var walletManager: WalletManager
     @EnvironmentObject private var healthService: HealthKitService
+    @EnvironmentObject private var avatarService: AvatarService
     @State private var currentPage = 0
     @State private var showWalletSheet = false
+    @State private var showAvatarPicker = false
     @State private var stats: ProtocolStats?
     @State private var logoVisible = false
     @State private var logoGlow = false
@@ -24,6 +26,7 @@ struct OnboardingView: View {
                     howItWorksPage.tag(1)
                     proofPage.tag(2)
                     connectPage.tag(3)
+                    avatarSetupPage.tag(4)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.spring(response: 0.4, dampingFraction: 0.9), value: currentPage)
@@ -31,7 +34,7 @@ struct OnboardingView: View {
                 // Bottom area
                 VStack(spacing: LC.space20) {
                     HStack(spacing: 8) {
-                        ForEach(0..<4) { i in
+                        ForEach(0..<5) { i in
                             Capsule()
                                 .fill(i == currentPage ? LC.gold : LC.textTertiary(scheme))
                                 .frame(width: i == currentPage ? 24 : 8, height: 8)
@@ -52,7 +55,7 @@ struct OnboardingView: View {
                         }
                         .font(.subheadline)
                         .foregroundStyle(LC.textTertiary(scheme))
-                    } else {
+                    } else if currentPage == 3 {
                         Button {
                             showWalletSheet = true
                         } label: {
@@ -61,6 +64,19 @@ struct OnboardingView: View {
                         .buttonStyle(LCGoldButton())
 
                         Button("Explore Without Wallet") {
+                            appState.hasCompletedOnboarding = true
+                        }
+                        .font(.subheadline)
+                        .foregroundStyle(LC.textSecondary(scheme))
+                    } else if currentPage == 4 {
+                        Button {
+                            showAvatarPicker = true
+                        } label: {
+                            Label("Choose Photo", systemImage: "camera.fill")
+                        }
+                        .buttonStyle(LCGoldButton())
+
+                        Button("Skip for Now") {
                             appState.hasCompletedOnboarding = true
                         }
                         .font(.subheadline)
@@ -76,8 +92,14 @@ struct OnboardingView: View {
                 .interactiveDismissDisabled(walletManager.isConnecting)
                 .onDisappear {
                     if walletManager.isConnected {
-                        appState.hasCompletedOnboarding = true
+                        withAnimation { currentPage = 4 }
                     }
+                }
+        }
+        .sheet(isPresented: $showAvatarPicker) {
+            AvatarPickerView()
+                .onDisappear {
+                    appState.hasCompletedOnboarding = true
                 }
         }
         .task {
@@ -219,10 +241,10 @@ struct OnboardingView: View {
                 .font(.title2.weight(.bold))
 
             VStack(spacing: LC.space16) {
-                stepRow(number: 1, icon: "figure.run.circle.fill", gradient: [Color(hex: 0xFF6B6B), Color(hex: 0xFF4757)], title: "Choose a Challenge", subtitle: "Steps, running, cycling, hiking — pick what suits you")
-                stepRow(number: 2, icon: "arrow.down.circle.fill", gradient: [Color(hex: 0x4ECDC4), Color(hex: 0x2AABA0)], title: "Stake to Join", subtitle: "Put your money where your motivation is")
-                stepRow(number: 3, icon: "checkmark.seal.fill", gradient: [Color(hex: 0xA78BFA), Color(hex: 0x7C3AED)], title: "AI Verifies Your Proof", subtitle: "Apple Health, Strava, Garmin — activity is your proof")
-                stepRow(number: 4, icon: "crown.fill", gradient: [Color(hex: 0xFCD34D), Color(hex: 0xF59E0B)], title: "Win the Pool", subtitle: "Pass the challenge, claim your share of the pot")
+                stepRow(number: 1, icon: "figure.run.circle.fill", gradient: [LC.danger, Color(hex: 0xEF4444)], title: "Choose a Challenge", subtitle: "Steps, running, cycling, hiking — pick what suits you")
+                stepRow(number: 2, icon: "arrow.down.circle.fill", gradient: [LC.success, Color(hex: 0x22C55E)], title: "Stake to Join", subtitle: "Put your money where your motivation is")
+                stepRow(number: 3, icon: "checkmark.seal.fill", gradient: [LC.accent, Color(hex: 0x1D4ED8)], title: "AI Verifies Your Proof", subtitle: "Apple Health, Strava, Garmin — activity is your proof")
+                stepRow(number: 4, icon: "crown.fill", gradient: [LC.warning, Color(hex: 0xF59E0B)], title: "Win the Pool", subtitle: "Pass the challenge, claim your share of the pot")
             }
             .padding(.horizontal, LC.space8)
 
@@ -311,10 +333,10 @@ struct OnboardingView: View {
                 .padding(.horizontal, LC.space16)
 
             VStack(spacing: LC.space12) {
-                proofSourceCard(icon: "heart.fill", name: "Apple Health", detail: "Steps, distance, workouts", color: .pink, primary: true)
-                proofSourceCard(icon: "figure.run", name: "Strava", detail: "Running, cycling, swimming", color: .orange, primary: false)
-                proofSourceCard(icon: "applewatch", name: "Garmin Connect", detail: "Multi-sport tracking", color: .blue, primary: false)
-                proofSourceCard(icon: "waveform.path.ecg", name: "Fitbit", detail: "Steps, active minutes", color: .teal, primary: false)
+                proofSourceCard(icon: "heart.fill", name: "Apple Health", detail: "Steps, distance, workouts", color: LC.danger, primary: true)
+                proofSourceCard(icon: "figure.run", name: "Strava", detail: "Running, cycling, swimming", color: LC.warning, primary: false)
+                proofSourceCard(icon: "applewatch", name: "Garmin Connect", detail: "Multi-sport tracking", color: LC.info, primary: false)
+                proofSourceCard(icon: "waveform.path.ecg", name: "Fitbit", detail: "Steps, active minutes", color: LC.accent, primary: false)
             }
 
             Spacer()
@@ -411,6 +433,48 @@ struct OnboardingView: View {
                 RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
                     .fill(LC.cardBg(scheme))
             )
+
+            Spacer()
+            Spacer()
+        }
+        .padding(.horizontal, LC.space24)
+    }
+
+    // MARK: - Page 5: Avatar Setup
+
+    private var avatarSetupPage: some View {
+        VStack(spacing: LC.space24) {
+            Spacer()
+
+            // Large avatar preview
+            AvatarView(size: 120, walletAddress: walletManager.connectedAddress)
+                .shadow(color: LC.accent.opacity(0.2), radius: 16, y: 8)
+
+            VStack(spacing: LC.space12) {
+                Text("Set Your Avatar")
+                    .font(.title2.weight(.bold))
+
+                Text("Add a profile photo that appears on your achievements, share cards, and profile. You can always change it later.")
+                    .font(.subheadline)
+                    .foregroundStyle(LC.textSecondary(scheme))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, LC.space16)
+            }
+
+            // Connected wallet indicator
+            if walletManager.isConnected {
+                HStack(spacing: LC.space8) {
+                    Circle().fill(LC.success).frame(width: 8, height: 8)
+                    Text(appState.truncatedWallet)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, LC.space16)
+                .padding(.vertical, LC.space8)
+                .background(
+                    Capsule().fill(LC.success.opacity(0.08))
+                )
+            }
 
             Spacer()
             Spacer()

@@ -16,14 +16,14 @@ struct SplashPortal: View {
 
     var body: some View {
         ZStack {
-            // Dark background
-            LC.pageBg(scheme).ignoresSafeArea()
+            // Clean white/dark background
+            Color(.systemBackground).ignoresSafeArea()
 
-            // Ambient glow
+            // Subtle accent glow
             Circle()
                 .fill(
                     RadialGradient(
-                        colors: [LC.gold.opacity(glowActive ? 0.12 : 0.03), .clear],
+                        colors: [LC.accent.opacity(glowActive ? 0.08 : 0.02), .clear],
                         center: .center,
                         startRadius: 30,
                         endRadius: 200
@@ -42,8 +42,8 @@ struct SplashPortal: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 140, height: 140)
                     .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
-                    .shadow(color: .black.opacity(0.5), radius: 24, y: 12)
-                    .shadow(color: LC.gold.opacity(glowActive ? 0.25 : 0.0), radius: 30, y: 0)
+                    .shadow(color: .black.opacity(0.15), radius: 24, y: 12)
+                    .shadow(color: LC.accent.opacity(glowActive ? 0.15 : 0.0), radius: 30, y: 0)
                     .scaleEffect(logoScale)
                     .opacity(logoOpacity)
 
@@ -51,11 +51,11 @@ struct SplashPortal: View {
                 VStack(spacing: 8) {
                     Text("LightChallenge")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(LC.textPrimary(scheme))
 
                     Text("Stake. Prove. Earn.")
                         .font(.subheadline.weight(.medium))
-                        .foregroundStyle(LC.gold)
+                        .foregroundStyle(LC.accent)
                 }
                 .opacity(titleOpacity)
 
@@ -70,23 +70,19 @@ struct SplashPortal: View {
             onDismiss()
         }
         .onAppear {
-            // Phase 1: Logo scales and fades in
             withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {
                 logoScale = 1.0
                 logoOpacity = 1.0
             }
 
-            // Phase 2: Title fades in
             withAnimation(.easeOut(duration: 0.5).delay(0.4)) {
                 titleOpacity = 1.0
             }
 
-            // Phase 3: Start breathing glow
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                 glowActive = true
             }
 
-            // Phase 4: Auto-dismiss after 2.5 seconds
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                 guard !dismissed else { return }
                 dismissed = true

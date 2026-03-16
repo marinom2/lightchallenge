@@ -2,8 +2,8 @@
 // LightChallenge iOS — native fitness challenge app.
 //
 // Deep links:
-//   lightchallenge://challenge/{id}?subject={wallet}&token={token}&expires={expiry}
-//   lightchallenge://auth/callback?provider={strava|fitbit}&status=ok
+//   lightchallengeapp://challenge/{id}?subject={wallet}&token={token}&expires={expiry}
+//   lightchallengeapp://auth/callback?provider={strava|fitbit}&status=ok
 //   https://app.lightchallenge.io/proofs/{id}?subject={wallet}
 
 import SwiftUI
@@ -15,7 +15,9 @@ struct LightChallengeApp: App {
     @StateObject private var walletManager = WalletManager.shared
     @StateObject private var oauthService = OAuthService.shared
     @StateObject private var notificationService = NotificationService.shared
+    @StateObject private var avatarService = AvatarService.shared
     @State private var showSplash = true
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -25,11 +27,25 @@ struct LightChallengeApp: App {
                 .environmentObject(walletManager)
                 .environmentObject(oauthService)
                 .environmentObject(notificationService)
-                .preferredColorScheme(.dark) // Default to dark (cosmic-glass)
+                .environmentObject(avatarService)
+                // Light-first (follows system appearance)
                 .onOpenURL { url in
                     appState.handleDeepLink(url)
                     walletManager.handleDeepLink(url)
                     propagateToHealthService(url)
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active && appState.hasWallet {
+                        // Refresh linked accounts when app comes to foreground
+                        // (catches OAuth callbacks even if deep link handling fails)
+                        Task {
+                            await oauthService.refreshLinkedAccounts(
+                                baseURL: appState.serverURL,
+                                wallet: appState.walletAddress
+                            )
+                            oauthService.isAuthenticating = false
+                        }
+                    }
                 }
                 .onChange(of: walletManager.isConnected) { _, connected in
                     if connected {
@@ -58,6 +74,14 @@ struct LightChallengeApp: App {
                         await oauthService.refreshLinkedAccounts(
                             baseURL: appState.serverURL,
                             wallet: appState.walletAddress
+                        )
+                    }
+
+                    // Sync avatar from server
+                    if appState.hasWallet {
+                        await avatarService.syncFromServer(
+                            wallet: appState.walletAddress,
+                            serverURL: appState.serverURL
                         )
                     }
 

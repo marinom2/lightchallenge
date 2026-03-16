@@ -9,7 +9,7 @@ Reference guide for running the LightChallenge off-chain pipeline in development
 ```
 Provider APIs (Strava, Fitbit, FACEIT, OpenDota, Riot) + Manual uploads (Apple Health, Garmin, Google Fit)
         │
-        ▼ evidenceCollector (polls linked_accounts)
+        ▼ evidenceCollector (proof-window scoped) + auto-proof API (on-demand)
 public.evidence
         │
         ▼ evidenceEvaluator
@@ -78,8 +78,13 @@ Safe to re-run (upsert on conflict). Only needed if migrating from a pre-DB vers
 
 ## 3. Evidence Collector
 
-Polls `public.linked_accounts` for registered provider connections, fetches recent activity or
-match data from provider APIs, and stores normalized records in `public.evidence`.
+Finds challenges currently in their **proof submission window** (`endTs <= now AND proofDeadlineTs > now`),
+identifies participants who have not yet submitted evidence, fetches activity data for exactly
+the challenge period (`startTs` to `endTs`), and stores normalized records in `public.evidence`.
+
+The collector uses challenge timeline data from `public.challenges.timeline` (JSONB) to determine
+the proof window and the precise date range for data fetching. There is no fixed lookback; each
+challenge's own period defines what data to retrieve.
 
 ```bash
 npx tsx offchain/workers/evidenceCollector.ts
@@ -88,24 +93,40 @@ npx tsx offchain/workers/evidenceCollector.ts
 | Env var | Default | Purpose |
 |---|---|---|
 | `EVIDENCE_COLLECTOR_POLL_MS` | `300000` | Milliseconds between polls (5 min) |
-| `EVIDENCE_COLLECTOR_LOOKBACK_DAYS` | `90` | Days of history to fetch per provider |
 
-**Auto-collection providers (polled by evidence collector):**
-- `strava` — OAuth, token auto-refresh, fetches activities (running, cycling, etc.)
-- `fitbit` — OAuth, token auto-refresh, fetches daily steps + activity logs
-- `opendota` — free API, fetches Dota 2 matches by Steam32 ID
-- `riot` — API key required, fetches LoL matches by PUUID
-- `faceit` — API key required, fetches CS2 matches by Steam64→FACEIT player ID
+**Server-side collection providers (fetched automatically during proof window):**
+- `strava` — OAuth, token auto-refresh, fetches activities for challenge period
+- `fitbit` — OAuth, token auto-refresh, fetches daily steps + activity logs for challenge period
+- `opendota` — free API, fetches Dota 2 matches by Steam32 ID for challenge period
+- `riot` — API key required, fetches LoL matches by PUUID for challenge period
+- `faceit` — API key required, fetches CS2 matches by Steam64→FACEIT player ID for challenge period
 
-**Upload-only providers (skipped by evidence collector — evidence via file upload):**
-- `apple` — no API; users upload Apple Health ZIP export
-- `garmin` — no public API (enterprise-only); users upload TCX/GPX/JSON export
+**Upload-only providers (skipped by evidence collector — evidence via file upload or auto-proof):**
+- `apple` — no server-side API; users upload Apple Health ZIP export (or iOS AutoProofService pushes data)
+- `garmin` — no public API (enterprise-only); users upload TCX/GPX/JSON export (or iOS AutoProofService pushes data)
 - `googlefit` — API deprecated by Google in 2025; users upload Google Takeout JSON
 
 **Writes to:** `public.evidence`
 
 **Note:** The collector skips insertion when the incoming `evidence_hash` matches the
 previous row for the same `(challenge_id, subject, provider)` — no duplicate rows.
+
+### Auto-Proof API Endpoint
+
+`POST /api/challenge/{id}/auto-proof` provides on-demand, per-user evidence collection
+as a complement to the background evidence collector.
+
+**Behavior:**
+- Triggers immediate evidence collection for the authenticated user and the specified challenge
+- Only works during the proof submission window (`endTs <= now AND proofDeadlineTs > now`); returns an error otherwise
+- For **server-side providers** (Strava, Fitbit, OpenDota, Riot, FACEIT): pulls data server-side for the exact challenge period (`startTs` to `endTs`) and stores it in `public.evidence`
+- For **upload-only providers** (Apple Health, Garmin): returns `"upload-required"` with the date range (`startTs`, `endTs`) so the client can collect and upload data for that period
+
+**Callers:**
+- **Webapp**: called when a user views a challenge that is in its proof window (ensures evidence is collected promptly without waiting for the next collector poll)
+- **iOS AutoProofService**: called when the iOS app detects a challenge has entered its proof window (allows the app to either upload local health data or trigger server-side fetching)
+
+**Authentication:** Requires standard `x-lc-address` / `x-lc-signature` / `x-lc-timestamp` headers (see section 16).
 
 ---
 
@@ -283,7 +304,29 @@ npx tsx offchain/indexers/statusIndexer.ts
 
 ## 10. Recommended Startup Order
 
-Run each in a separate terminal or process manager (e.g. PM2):
+### Option A: PM2 (recommended for persistent deployment)
+
+```bash
+# Step 1 — DB migration (run once before starting workers)
+npx tsx db/migrate.ts
+
+# Step 2 — Start all workers with PM2
+npm install -g pm2      # one-time install
+pm2 start ecosystem.config.cjs
+
+# Useful PM2 commands
+pm2 status              # check all worker health
+pm2 logs                # tail all worker logs
+pm2 logs evidence-collector  # tail specific worker
+pm2 restart all         # restart everything
+pm2 stop all && pm2 delete all  # tear down
+
+# Auto-start on reboot
+pm2 startup             # generate startup script
+pm2 save                # save current process list
+```
+
+### Option B: Manual (separate terminals)
 
 ```bash
 # Step 1 — DB migration (run once before starting workers)
@@ -773,7 +816,7 @@ WHERE  v.id IS NULL;
 ### Worker crash and restart
 
 All workers are safe to restart at any time. On restart:
-- **evidenceCollector**: resumes polling; no checkpoint needed (stateless re-fetch)
+- **evidenceCollector**: resumes polling; no checkpoint needed (re-scans proof-window challenges and fills missing evidence)
 - **evidenceEvaluator**: picks up unevaluated evidence from DB (idempotent)
 - **challengeDispatcher**: re-scans eligible challenges; `ON CONFLICT` prevents duplicates
 - **challengeWorker**: claims jobs via `FOR UPDATE SKIP LOCKED`; in-flight jobs remain in `processing` and will be retried after timeout

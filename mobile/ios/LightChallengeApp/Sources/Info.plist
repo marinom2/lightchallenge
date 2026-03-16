@@ -25,7 +25,7 @@
 			<string>io.lightchallenge.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>lightchallenge</string>
+				<string>lightchallengeapp</string>
 			</array>
 		</dict>
 	</array>
@@ -60,7 +60,7 @@
 		</dict>
 	</dict>
 	<key>NSHealthShareUsageDescription</key>
-	<string>LightChallenge reads your daily step count and walking/running distance to verify fitness challenge completion. Only aggregate daily totals are collected.</string>
+	<string>LightChallenge reads your daily step count, walking/running distance, cycling distance, swimming distance, active energy burned, heart rate, and flights climbed to verify fitness challenge completion. Only aggregate daily totals are collected.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

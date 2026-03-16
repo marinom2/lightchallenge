@@ -12,7 +12,8 @@
 
 import fetch from "node-fetch";
 import { keccak256, toBytes } from "viem";
-import type { Connector, ConnectorResult, LinkedAccountRow } from "./connectorTypes";
+import type { Connector, ConnectorResult, LinkedAccountRow, FetchEvidenceOpts } from "./connectorTypes";
+import { resolveRange } from "./connectorTypes";
 
 const RIOT_API_KEY = process.env.RIOT_API_KEY ?? "";
 const RIOT_REGION = process.env.RIOT_REGION ?? "europe"; // americas | asia | europe
@@ -61,17 +62,17 @@ export const riotConnector: Connector = {
   async fetchEvidence(
     _subject: string,
     account: LinkedAccountRow,
-    lookbackMs: number = DEFAULT_LOOKBACK_MS
+    opts?: FetchEvidenceOpts
   ): Promise<ConnectorResult> {
     const puuid = account.external_id;
     if (!puuid) throw new Error("riotConnector: external_id (PUUID) is required");
 
-    const sinceMs = Date.now() - lookbackMs;
+    const { afterSec, beforeSec } = resolveRange(opts);
 
-    // Fetch match IDs
+    // Fetch match IDs (Riot API supports startTime and endTime in seconds)
     const matchIds = await riotFetch<string[]>(
       `https://${RIOT_REGION}.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids` +
-        `?start=0&count=${MAX_MATCHES}&startTime=${Math.floor(sinceMs / 1000)}`
+        `?start=0&count=${MAX_MATCHES}&startTime=${afterSec}&endTime=${beforeSec}`
     );
 
     if (!Array.isArray(matchIds)) throw new Error("riotConnector: unexpected matchIds response");

@@ -25,3 +25,4 @@ export * from "./webhooks";
 export * from "./whitelabel";
 export * from "./disputes";
 export * from "./notifications";
+export * from "./userProfiles";

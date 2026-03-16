@@ -22,7 +22,8 @@
  */
 
 import { keccak256, toBytes } from "viem";
-import type { Connector, ConnectorResult, LinkedAccountRow } from "./connectorTypes";
+import type { Connector, ConnectorResult, LinkedAccountRow, FetchEvidenceOpts } from "./connectorTypes";
+import { resolveRange } from "./connectorTypes";
 
 const FACEIT_BASE = "https://open.faceit.com/data/v4";
 const DEFAULT_LOOKBACK_MS = 90 * 24 * 60 * 60 * 1000;
@@ -118,10 +119,10 @@ async function resolvePlayer(steam64: string): Promise<FaceitPlayer | null> {
 /** Fetch match history with pagination (up to 500 matches). */
 async function fetchMatchHistory(
   playerId: string,
-  lookbackMs: number
+  afterSec: number,
+  beforeSec: number
 ): Promise<FaceitMatch[]> {
   const allMatches: FaceitMatch[] = [];
-  const cutoff = Math.floor((Date.now() - lookbackMs) / 1000);
   let offset = 0;
   const limit = 100;
 
@@ -133,12 +134,12 @@ async function fetchMatchHistory(
     const matches = data.items ?? [];
     if (matches.length === 0) break;
 
-    // Filter by lookback period
-    const inRange = matches.filter((m) => m.started_at >= cutoff);
+    // Filter to challenge period [afterSec, beforeSec]
+    const inRange = matches.filter((m) => m.started_at >= afterSec && m.started_at <= beforeSec);
     allMatches.push(...inRange);
 
-    // If we got matches older than cutoff, no need to paginate further
-    if (inRange.length < matches.length) break;
+    // If we got matches older than the start, no need to paginate further
+    if (matches.some((m) => m.started_at < afterSec)) break;
     if (matches.length < limit) break;
 
     offset += limit;
@@ -155,7 +156,7 @@ export const faceitConnector: Connector = {
   async fetchEvidence(
     _subject: string,
     account: LinkedAccountRow,
-    lookbackMs: number = DEFAULT_LOOKBACK_MS
+    opts?: FetchEvidenceOpts
   ): Promise<ConnectorResult> {
     const steam64 = account.external_id;
     if (!steam64) {
@@ -170,7 +171,8 @@ export const faceitConnector: Connector = {
       return { provider: "faceit", records: [], evidenceHash: "0x" + "0".repeat(64) };
     }
 
-    const matches = await fetchMatchHistory(player.player_id, lookbackMs);
+    const { afterSec, beforeSec } = resolveRange(opts);
+    const matches = await fetchMatchHistory(player.player_id, afterSec, beforeSec);
     const elo = player.games?.cs2?.faceit_elo;
 
     // Normalize matches to CS2MatchRecord

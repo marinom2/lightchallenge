@@ -1,8 +1,9 @@
 // HealthKitService.swift
 // Core HealthKit data collection service.
 //
-// Reads step count and walking/running distance from HealthKit,
-// packages the data as JSON evidence, and submits to the LightChallenge API.
+// Reads step count, walking/running distance, cycling distance, swimming distance,
+// active energy, heart rate, and flights climbed from HealthKit. Packages the data
+// as JSON evidence and submits to the LightChallenge API.
 
 import Foundation
 import HealthKit
@@ -27,6 +28,11 @@ class HealthKitService: ObservableObject {
     // Collected data preview
     @Published var stepDays: [DailySteps] = []
     @Published var distanceDays: [DailyDistance] = []
+    @Published var cyclingDays: [DailyCyclingDistance] = []
+    @Published var swimmingDays: [DailySwimmingDistance] = []
+    @Published var activeEnergyDays: [DailyActiveEnergy] = []
+    @Published var heartRateDays: [DailyHeartRate] = []
+    @Published var flightsClimbedDays: [DailyFlightsClimbed] = []
 
     // MARK: - Authorization
 
@@ -36,10 +42,15 @@ class HealthKitService: ObservableObject {
             return
         }
 
-        let stepType = HKQuantityType(.stepCount)
-        let distanceType = HKQuantityType(.distanceWalkingRunning)
-
-        let readTypes: Set<HKSampleType> = [stepType, distanceType]
+        let readTypes: Set<HKSampleType> = [
+            HKQuantityType(.stepCount),
+            HKQuantityType(.distanceWalkingRunning),
+            HKQuantityType(.distanceCycling),
+            HKQuantityType(.distanceSwimming),
+            HKQuantityType(.activeEnergyBurned),
+            HKQuantityType(.heartRate),
+            HKQuantityType(.flightsClimbed),
+        ]
 
         do {
             try await healthStore.requestAuthorization(toShare: [], read: readTypes)
@@ -51,11 +62,31 @@ class HealthKitService: ObservableObject {
         }
     }
 
+    func ensureAuthorization() async {
+        if !isAuthorized {
+            await requestAuthorization()
+        }
+    }
+
     // MARK: - Data Collection
 
-    /// Collect step counts and distance for a date range.
-    /// Default: last 90 days.
+    /// Collect evidence for exactly the challenge period (startDate → endDate).
+    func collectEvidence(from challengeStart: Date, to challengeEnd: Date) async {
+        await _collectEvidence(startDate: challengeStart, endDate: challengeEnd)
+    }
+
+    /// Legacy: collect evidence for a lookback window from now.
     func collectEvidence(days: Int = 90) async {
+        let calendar = Calendar.current
+        let endDate = Date()
+        guard let startDate = calendar.date(byAdding: .day, value: -days, to: endDate) else {
+            error = "Invalid date range."
+            return
+        }
+        await _collectEvidence(startDate: startDate, endDate: endDate)
+    }
+
+    private func _collectEvidence(startDate: Date, endDate: Date) async {
         guard isAuthorized else {
             error = "HealthKit not authorized. Please grant access first."
             return
@@ -64,21 +95,23 @@ class HealthKitService: ObservableObject {
         isLoading = true
         error = nil
 
-        let calendar = Calendar.current
-        let endDate = Date()
-        guard let startDate = calendar.date(byAdding: .day, value: -days, to: endDate) else {
-            error = "Invalid date range."
-            isLoading = false
-            return
-        }
-
         async let steps = fetchDailySteps(from: startDate, to: endDate)
         async let distances = fetchDailyDistance(from: startDate, to: endDate)
+        async let cycling = fetchDailyCyclingDistance(from: startDate, to: endDate)
+        async let swimming = fetchDailySwimmingDistance(from: startDate, to: endDate)
+        async let energy = fetchDailyActiveEnergy(from: startDate, to: endDate)
+        async let hr = fetchDailyHeartRate(from: startDate, to: endDate)
+        async let flights = fetchDailyFlightsClimbed(from: startDate, to: endDate)
 
         do {
-            let (s, d) = try await (steps, distances)
+            let (s, d, c, sw, e, h, f) = try await (steps, distances, cycling, swimming, energy, hr, flights)
             stepDays = s
             distanceDays = d
+            cyclingDays = c
+            swimmingDays = sw
+            activeEnergyDays = e
+            heartRateDays = h
+            flightsClimbedDays = f
             isLoading = false
         } catch {
             self.error = "Failed to read HealthKit data: \(error.localizedDescription)"
@@ -86,110 +119,241 @@ class HealthKitService: ObservableObject {
         }
     }
 
-    private func fetchDailySteps(from start: Date, to end: Date) async throws -> [DailySteps] {
-        let stepType = HKQuantityType(.stepCount)
+    // MARK: - Cumulative Quantity Fetchers
+
+    private func fetchDailyCumulative(
+        type: HKQuantityType,
+        unit: HKUnit,
+        from start: Date,
+        to end: Date
+    ) async throws -> [(date: String, value: Double)] {
         let interval = DateComponents(day: 1)
         let anchor = Calendar.current.startOfDay(for: start)
         let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
 
         return try await withCheckedThrowingContinuation { continuation in
             let query = HKStatisticsCollectionQuery(
-                quantityType: stepType,
+                quantityType: type,
                 quantitySamplePredicate: predicate,
                 options: .cumulativeSum,
                 anchorDate: anchor,
                 intervalComponents: interval
             )
-
             query.initialResultsHandler = { _, results, error in
                 if let error = error {
                     continuation.resume(throwing: error)
                     return
                 }
-
-                var days: [DailySteps] = []
+                var days: [(String, Double)] = []
                 results?.enumerateStatistics(from: start, to: end) { stats, _ in
-                    let count = stats.sumQuantity()?.doubleValue(for: .count()) ?? 0
+                    let val = stats.sumQuantity()?.doubleValue(for: unit) ?? 0
                     let dateStr = ISO8601DateFormatter().string(from: stats.startDate).prefix(10)
-                    days.append(DailySteps(date: String(dateStr), steps: Int(count)))
+                    days.append((String(dateStr), val))
                 }
                 continuation.resume(returning: days)
             }
-
             healthStore.execute(query)
         }
     }
 
+    private func fetchDailySteps(from start: Date, to end: Date) async throws -> [DailySteps] {
+        let raw = try await fetchDailyCumulative(
+            type: HKQuantityType(.stepCount), unit: .count(), from: start, to: end
+        )
+        return raw.map { DailySteps(date: $0.date, steps: Int($0.value)) }
+    }
+
     private func fetchDailyDistance(from start: Date, to end: Date) async throws -> [DailyDistance] {
-        let distanceType = HKQuantityType(.distanceWalkingRunning)
+        let raw = try await fetchDailyCumulative(
+            type: HKQuantityType(.distanceWalkingRunning), unit: .meter(), from: start, to: end
+        )
+        return raw.map { DailyDistance(date: $0.date, distanceMeters: $0.value) }
+    }
+
+    private func fetchDailyCyclingDistance(from start: Date, to end: Date) async throws -> [DailyCyclingDistance] {
+        let raw = try await fetchDailyCumulative(
+            type: HKQuantityType(.distanceCycling), unit: .meter(), from: start, to: end
+        )
+        return raw.map { DailyCyclingDistance(date: $0.date, distanceMeters: $0.value) }
+    }
+
+    private func fetchDailySwimmingDistance(from start: Date, to end: Date) async throws -> [DailySwimmingDistance] {
+        let raw = try await fetchDailyCumulative(
+            type: HKQuantityType(.distanceSwimming), unit: .meter(), from: start, to: end
+        )
+        return raw.map { DailySwimmingDistance(date: $0.date, distanceMeters: $0.value) }
+    }
+
+    private func fetchDailyActiveEnergy(from start: Date, to end: Date) async throws -> [DailyActiveEnergy] {
+        let raw = try await fetchDailyCumulative(
+            type: HKQuantityType(.activeEnergyBurned), unit: .kilocalorie(), from: start, to: end
+        )
+        return raw.map { DailyActiveEnergy(date: $0.date, kilocalories: $0.value) }
+    }
+
+    private func fetchDailyFlightsClimbed(from start: Date, to end: Date) async throws -> [DailyFlightsClimbed] {
+        let raw = try await fetchDailyCumulative(
+            type: HKQuantityType(.flightsClimbed), unit: .count(), from: start, to: end
+        )
+        return raw.map { DailyFlightsClimbed(date: $0.date, flights: Int($0.value)) }
+    }
+
+    // MARK: - Heart Rate (discrete average)
+
+    private func fetchDailyHeartRate(from start: Date, to end: Date) async throws -> [DailyHeartRate] {
+        let hrType = HKQuantityType(.heartRate)
         let interval = DateComponents(day: 1)
         let anchor = Calendar.current.startOfDay(for: start)
         let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        let bpmUnit = HKUnit.count().unitDivided(by: .minute())
 
         return try await withCheckedThrowingContinuation { continuation in
             let query = HKStatisticsCollectionQuery(
-                quantityType: distanceType,
+                quantityType: hrType,
                 quantitySamplePredicate: predicate,
-                options: .cumulativeSum,
+                options: [.discreteAverage, .discreteMin, .discreteMax],
                 anchorDate: anchor,
                 intervalComponents: interval
             )
-
             query.initialResultsHandler = { _, results, error in
                 if let error = error {
                     continuation.resume(throwing: error)
                     return
                 }
-
-                var days: [DailyDistance] = []
+                var days: [DailyHeartRate] = []
                 results?.enumerateStatistics(from: start, to: end) { stats, _ in
-                    let meters = stats.sumQuantity()?.doubleValue(for: .meter()) ?? 0
+                    guard let avg = stats.averageQuantity()?.doubleValue(for: bpmUnit) else { return }
+                    let minVal = stats.minimumQuantity()?.doubleValue(for: bpmUnit) ?? avg
+                    let maxVal = stats.maximumQuantity()?.doubleValue(for: bpmUnit) ?? avg
                     let dateStr = ISO8601DateFormatter().string(from: stats.startDate).prefix(10)
-                    days.append(DailyDistance(date: String(dateStr), distanceMeters: meters))
+                    days.append(DailyHeartRate(
+                        date: String(dateStr),
+                        avgBpm: avg,
+                        minBpm: minVal,
+                        maxBpm: maxVal
+                    ))
                 }
                 continuation.resume(returning: days)
             }
-
             healthStore.execute(query)
         }
     }
 
     // MARK: - Evidence Payload
 
-    /// Build the evidence payload matching the Apple Health adapter's expected format.
     func buildEvidencePayload(subject: String) -> EvidencePayload {
         var records: [[String: Any]] = []
+        let userId = sha256Hex(subject)
 
+        // Steps
         for day in stepDays where day.steps > 0 {
-            let startTs = ISO8601DateFormatter().date(from: "\(day.date)T00:00:00Z")?.timeIntervalSince1970 ?? 0
-            let endTs = startTs + 86399
-
+            let (startTs, endTs) = dayTimestamps(day.date)
             records.append([
                 "provider": "apple_health",
-                "user_id": sha256Hex(subject),
+                "user_id": userId,
                 "activity_id": "hk_steps:\(day.date)",
                 "type": "steps",
-                "start_ts": Int(startTs),
-                "end_ts": Int(endTs),
+                "start_ts": startTs,
+                "end_ts": endTs,
                 "duration_s": 86400,
                 "steps": day.steps,
                 "source_device": "HealthKit",
             ])
         }
 
+        // Walking/running distance
         for day in distanceDays where day.distanceMeters > 0 {
-            let startTs = ISO8601DateFormatter().date(from: "\(day.date)T00:00:00Z")?.timeIntervalSince1970 ?? 0
-            let endTs = startTs + 86399
-
+            let (startTs, endTs) = dayTimestamps(day.date)
             records.append([
                 "provider": "apple_health",
-                "user_id": sha256Hex(subject),
+                "user_id": userId,
                 "activity_id": "hk_dist:\(day.date)",
-                "type": "distance",
-                "start_ts": Int(startTs),
-                "end_ts": Int(endTs),
+                "type": "walk",
+                "start_ts": startTs,
+                "end_ts": endTs,
                 "duration_s": 86400,
                 "distance_m": day.distanceMeters,
+                "source_device": "HealthKit",
+            ])
+        }
+
+        // Cycling distance
+        for day in cyclingDays where day.distanceMeters > 0 {
+            let (startTs, endTs) = dayTimestamps(day.date)
+            records.append([
+                "provider": "apple_health",
+                "user_id": userId,
+                "activity_id": "hk_cycle:\(day.date)",
+                "type": "cycle",
+                "start_ts": startTs,
+                "end_ts": endTs,
+                "duration_s": 86400,
+                "distance_m": day.distanceMeters,
+                "source_device": "HealthKit",
+            ])
+        }
+
+        // Swimming distance
+        for day in swimmingDays where day.distanceMeters > 0 {
+            let (startTs, endTs) = dayTimestamps(day.date)
+            records.append([
+                "provider": "apple_health",
+                "user_id": userId,
+                "activity_id": "hk_swim:\(day.date)",
+                "type": "swim",
+                "start_ts": startTs,
+                "end_ts": endTs,
+                "duration_s": 86400,
+                "distance_m": day.distanceMeters,
+                "source_device": "HealthKit",
+            ])
+        }
+
+        // Active energy burned
+        for day in activeEnergyDays where day.kilocalories > 0 {
+            let (startTs, endTs) = dayTimestamps(day.date)
+            records.append([
+                "provider": "apple_health",
+                "user_id": userId,
+                "activity_id": "hk_energy:\(day.date)",
+                "type": "steps",
+                "start_ts": startTs,
+                "end_ts": endTs,
+                "duration_s": 86400,
+                "calories": day.kilocalories,
+                "source_device": "HealthKit",
+            ])
+        }
+
+        // Heart rate
+        for day in heartRateDays {
+            let (startTs, endTs) = dayTimestamps(day.date)
+            records.append([
+                "provider": "apple_health",
+                "user_id": userId,
+                "activity_id": "hk_hr:\(day.date)",
+                "type": "steps",
+                "start_ts": startTs,
+                "end_ts": endTs,
+                "duration_s": 86400,
+                "avg_hr_bpm": day.avgBpm,
+                "max_hr_bpm": day.maxBpm,
+                "source_device": "HealthKit",
+            ])
+        }
+
+        // Flights climbed (elevation proxy: 1 flight ≈ 3 m)
+        for day in flightsClimbedDays where day.flights > 0 {
+            let (startTs, endTs) = dayTimestamps(day.date)
+            records.append([
+                "provider": "apple_health",
+                "user_id": userId,
+                "activity_id": "hk_flights:\(day.date)",
+                "type": "walk",
+                "start_ts": startTs,
+                "end_ts": endTs,
+                "duration_s": 86400,
+                "elev_gain_m": Double(day.flights) * 3.0,
                 "source_device": "HealthKit",
             ])
         }
@@ -202,9 +366,6 @@ class HealthKitService: ObservableObject {
 
     // MARK: - Submission
 
-    /// Submit evidence to the LightChallenge API.
-    /// If an evidence token was received via deep link, it is included in the
-    /// request to authenticate the submission without a private key on the device.
     func submitEvidence(
         baseURL: String,
         challengeId: String,
@@ -222,7 +383,6 @@ class HealthKitService: ObservableObject {
             return
         }
 
-        // Build multipart/form-data request
         let boundary = UUID().uuidString
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -240,13 +400,11 @@ class HealthKitService: ObservableObject {
         appendField("challengeId", challengeId)
         appendField("subject", subject)
 
-        // Include evidence token if available (signed in webapp, passed via deep link)
         if !pendingToken.isEmpty && !pendingExpires.isEmpty {
             appendField("evidenceToken", pendingToken)
             appendField("evidenceExpires", pendingExpires)
         }
 
-        // Send records as JSON form field
         if let jsonData = try? JSONSerialization.data(withJSONObject: payload.records, options: []) {
             appendField("json", String(data: jsonData, encoding: .utf8) ?? "[]")
         }
@@ -279,6 +437,11 @@ class HealthKitService: ObservableObject {
     }
 
     // MARK: - Helpers
+
+    private func dayTimestamps(_ dateStr: String) -> (Int, Int) {
+        let startTs = ISO8601DateFormatter().date(from: "\(dateStr)T00:00:00Z")?.timeIntervalSince1970 ?? 0
+        return (Int(startTs), Int(startTs) + 86399)
+    }
 
     private func sha256Hex(_ input: String) -> String {
         let data = Data(input.utf8)

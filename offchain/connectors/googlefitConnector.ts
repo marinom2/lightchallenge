@@ -23,7 +23,7 @@
  * using the googlefit adapter (webapp/lib/aivm/adapters/googlefit.ts).
  */
 
-import type { Connector, ConnectorResult, LinkedAccountRow } from "./connectorTypes";
+import type { Connector, ConnectorResult, LinkedAccountRow, FetchEvidenceOpts } from "./connectorTypes";
 
 export const googlefitConnector: Connector = {
   provider: "googlefit",
@@ -31,7 +31,7 @@ export const googlefitConnector: Connector = {
   async fetchEvidence(
     _subject: string,
     _account: LinkedAccountRow,
-    _lookbackMs?: number
+    _opts?: FetchEvidenceOpts
   ): Promise<ConnectorResult> {
     // Google Fit REST API was deprecated (June 2024) and shut down (2025).
     // Health Connect is Android-only — no web/REST API exists.
