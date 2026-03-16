@@ -173,6 +173,42 @@ struct FundsConfig: Codable {
     let stake: String?
 }
 
+// MARK: - Challenge Rules (from params.rules)
+
+struct ChallengeRules: Codable {
+    let period: String?     // "daily", "total", "average"
+    let metric: String?     // "steps", "distance", "active_minutes", "cycling_km", "swimming_km"
+    let threshold: Double?  // goal value
+
+    var goalValue: Double { threshold ?? 0 }
+
+    var metricLabel: String {
+        switch metric {
+        case "steps": return "steps"
+        case "distance": return "km"
+        case "active_minutes": return "min"
+        case "cycling_km": return "km"
+        case "swimming_km": return "km"
+        default: return metric ?? ""
+        }
+    }
+
+    var metricName: String {
+        switch metric {
+        case "steps": return "Steps"
+        case "distance": return "Distance"
+        case "active_minutes": return "Active Minutes"
+        case "cycling_km": return "Cycling"
+        case "swimming_km": return "Swimming"
+        default: return metric?.capitalized ?? "Activity"
+        }
+    }
+}
+
+struct ChallengeParams: Codable {
+    let rules: ChallengeRules?
+}
+
 // MARK: - Challenge Detail (from GET /api/challenge/[id])
 
 struct ChallengeDetail: Codable {
@@ -196,6 +232,7 @@ struct ChallengeDetail: Codable {
 
     let money: MoneyInfo?
     let pool: PoolInfo?
+    let params: ChallengeParams?
 
     let timeline: [TimelineEvent]?
 
@@ -216,6 +253,11 @@ struct ChallengeDetail: Codable {
     var displayTitle: String { title ?? "Challenge #\(id)" }
     var isActive: Bool { status == "Active" }
 
+    var startDate: Date? {
+        guard let ts = startsAt, ts > 0 else { return nil }
+        return Date(timeIntervalSince1970: ts)
+    }
+
     var endsDate: Date? {
         guard let ts = endsAt, ts > 0 else { return nil }
         return Date(timeIntervalSince1970: ts)
@@ -225,6 +267,9 @@ struct ChallengeDetail: Codable {
         guard let ts = proofDeadline, ts > 0 else { return nil }
         return Date(timeIntervalSince1970: ts)
     }
+
+    /// Challenge rules from params.rules (metric, threshold, period).
+    var rules: ChallengeRules? { params?.rules }
 
     var stakeDisplay: String? {
         guard let wei = money?.stakeWei, let amount = Double(wei), amount > 0 else { return nil }

@@ -127,8 +127,12 @@ struct ChallengeDetailView: View {
     @ViewBuilder
     private func detailContent(_ detail: ChallengeDetail) -> some View {
         VStack(spacing: LC.space16) {
-            // Hero
-            heroSection(detail)
+            // Hero — Apple Fitness-style progress
+            ChallengeProgressHero(
+                detail: detail,
+                participantStatus: participantStatus,
+                healthService: healthService
+            )
 
             // Info card
             infoSection(detail)
@@ -150,46 +154,6 @@ struct ChallengeDetailView: View {
         .frame(maxWidth: .infinity) // Center on iPad
         .padding(.horizontal, LC.space16)
         .padding(.bottom, LC.space32)
-    }
-
-    // MARK: - Hero
-
-    private func heroSection(_ detail: ChallengeDetail) -> some View {
-        VStack(spacing: LC.space16) {
-            // Category icon
-            Image(systemName: category.icon)
-                .font(.system(size: 28, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 64, height: 64)
-                .background(
-                    RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
-                        .fill(categoryGradient)
-                        .shadow(color: categoryAccent.opacity(0.3), radius: 12, y: 6)
-                )
-
-            Text(detail.displayTitle)
-                .font(.title3.weight(.bold))
-                .multilineTextAlignment(.center)
-
-            if let desc = detail.description, !desc.isEmpty {
-                Text(desc)
-                    .font(.subheadline)
-                    .foregroundStyle(LC.textSecondary(scheme))
-                    .multilineTextAlignment(.center)
-            }
-
-            // Status + category badges
-            HStack(spacing: LC.space8) {
-                if let status = detail.status {
-                    LCStatusBadge(text: status, color: statusColor(status))
-                }
-                LCStatusBadge(text: category.label, color: categoryAccent)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, LC.space24)
-        .padding(.horizontal, LC.space16)
-        .lcGlass()
     }
 
     // MARK: - Info Section
@@ -808,25 +772,6 @@ struct ChallengeDetailView: View {
     }
 
     // MARK: - Helpers
-
-    private var categoryAccent: Color {
-        switch category {
-        case .fitness: LC.accent
-        case .gaming: LC.violet
-        case .social: LC.info
-        case .custom: LC.accent
-        case .unknown: Color(.systemGray)
-        }
-    }
-
-    private var categoryGradient: LinearGradient {
-        switch category {
-        case .fitness: LC.fitnessGradient
-        case .gaming: LC.gamingGradient
-        case .social: LC.socialGradient
-        default: LC.brandGradient
-        }
-    }
 
     private func statusColor(_ status: String) -> Color {
         switch status {
