@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
   try {
     // 1) Validate OpenID response with Steam
     const valid = await verifyOpenID(req.nextUrl.searchParams.toString());
-    if (!valid) return redirect(req, "/proofs?steam=error_openid_validate");
+    if (!valid) return redirect(req, "/settings/linked-accounts?steam=error_openid_validate");
 
     const nonce   = (req.nextUrl.searchParams.get("openid.response_nonce") || "").trim();
     const claimed = (req.nextUrl.searchParams.get("openid.claimed_id") || "").trim();
@@ -55,13 +55,13 @@ export async function GET(req: NextRequest) {
     const subject = subjectCookie as `0x${string}`;
 
     if (!steam64 || !isHexAddress(subject)) {
-      return redirect(req, "/proofs?steam=missing_params");
+      return redirect(req, "/settings/linked-accounts?steam=missing_params");
     }
 
     // 2) Replay protection via DB nonce store (24 h TTL)
     if (nonce) {
       const fresh = await checkAndConsumeNonce(nonce);
-      if (!fresh) return redirect(req, "/proofs?steam=replay_detected");
+      if (!fresh) return redirect(req, "/settings/linked-accounts?steam=replay_detected");
     }
 
     // 3) Persona enrichment
@@ -75,14 +75,14 @@ export async function GET(req: NextRequest) {
     const signerPk = process.env.AIVM_SIGNER_KEY as string | undefined;
     if (!signerPk) {
       console.error("[steam:return] Missing AIVM_SIGNER_KEY");
-      return redirect(req, "/proofs?steam=server_config");
+      return redirect(req, "/settings/linked-accounts?steam=server_config");
     }
     await bindIdentity(signerPk, subject, "steam", steam64, handle);
 
     console.log("[steam:return] OK", subject, steam64);
-    return redirect(req, "/proofs?steam=ok");
+    return redirect(req, "/settings/linked-accounts?steam=ok");
   } catch (e) {
     console.error("Steam return error:", e);
-    return redirect(req, "/proofs?steam=exception");
+    return redirect(req, "/settings/linked-accounts?steam=exception");
   }
 }
