@@ -106,10 +106,13 @@ enum ChallengePhase {
     var label: String {
         switch self {
         case .upcoming(let ti):
+            if ti <= 0 { return "Starting soon" }
             return "Starts in \(Self.formatDuration(ti))"
         case .active(let ti):
+            if ti <= 0 { return "Challenge active" }
             return "\(Self.formatDuration(ti)) left to complete"
         case .proofWindow(let ti):
+            if ti <= 0 { return "Proof submission open" }
             return "\(Self.formatDuration(ti)) left to verify"
         case .ended:
             return "Challenge ended"
@@ -283,15 +286,35 @@ struct ChallengeProgressHero: View {
 
     // MARK: - Activity Figure
 
+    @State private var floatOffset: CGFloat = 0
+
     private var activityFigure: some View {
-        Image(systemName: theme.icon)
-            .font(.system(size: 64, weight: .light))
-            .foregroundStyle(theme.figureTint)
-            .symbolEffect(.pulse, options: .repeating, isActive: phase.isActive)
-            .scaleEffect(figureAppeared ? 1.0 : 0.3)
-            .opacity(figureAppeared ? 1.0 : 0.0)
-            .frame(height: 80)
-            .padding(.vertical, LC.space8)
+        ZStack {
+            // Subtle glow behind figure (like Apple Fitness)
+            Image(systemName: theme.icon)
+                .font(.system(size: 64, weight: .light))
+                .foregroundStyle(theme.figureTint.opacity(0.3))
+                .blur(radius: 16)
+
+            // Main figure
+            Image(systemName: theme.icon)
+                .font(.system(size: 64, weight: .light))
+                .foregroundStyle(theme.figureTint)
+        }
+        .scaleEffect(figureAppeared ? 1.0 : 0.3)
+        .opacity(figureAppeared ? 1.0 : 0.0)
+        .offset(y: floatOffset)
+        .frame(height: 88)
+        .padding(.vertical, LC.space8)
+        .onAppear {
+            // Gentle floating animation — figure bobs subtly like Apple Fitness
+            withAnimation(
+                .easeInOut(duration: 2.0)
+                .repeatForever(autoreverses: true)
+            ) {
+                floatOffset = -4
+            }
+        }
     }
 
     // MARK: - Themed Progress Bar

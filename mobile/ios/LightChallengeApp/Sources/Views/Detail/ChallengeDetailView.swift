@@ -826,18 +826,27 @@ struct ChallengeDetailView: View {
             detail = cached
         }
 
+        // Fetch DB metadata (fast, ~100ms) and chain detail (slow, 5-15s) in parallel.
+        // DB meta provides title, description, dates. Chain adds on-chain state.
+        let metaTask = Task { try? await APIClient.shared.fetchChallengeMeta(baseURL: appState.serverURL, id: challengeId) }
+
         do {
             let viewer = appState.hasWallet ? appState.walletAddress : nil
-            let fresh = try await APIClient.shared.fetchChallengeDetail(
+            var fresh = try await APIClient.shared.fetchChallengeDetail(
                 baseURL: appState.serverURL,
                 id: challengeId,
                 viewer: viewer
             )
+
+            // Merge DB metadata for any fields the chain endpoint didn't provide
+            if let meta = await metaTask.value {
+                fresh.mergeFromMeta(meta)
+            }
+
             detail = fresh
             await CacheService.shared.cacheDetail(fresh, id: challengeId)
 
             // Schedule proof window reminder if challenge is in progress
-            // (has an end date in the future and user is viewing it)
             if let endDate = fresh.endsDate, endDate > Date() {
                 notificationService.scheduleProofWindowReminder(
                     challengeId: challengeId,
@@ -851,6 +860,10 @@ struct ChallengeDetailView: View {
             async let reputationTask: () = loadReputation()
             _ = await (progressTask, participantTask, reputationTask)
         } catch {
+            // If chain fetch failed, try meta-only as fallback
+            if detail == nil, let meta = await metaTask.value {
+                detail = ChallengeDetail.fromMeta(meta)
+            }
             if detail == nil {
                 self.error = error.localizedDescription
             }

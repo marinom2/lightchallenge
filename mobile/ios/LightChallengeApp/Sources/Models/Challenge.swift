@@ -219,15 +219,16 @@ struct ChallengeDetail: Codable {
     let participantsCount: Int?
     let youJoined: Bool?
 
-    let title: String?
-    let description: String?
-    let category: String?
+    // Mutable so we can patch from DB meta when chain data is missing
+    var title: String?
+    var description: String?
+    var category: String?
     let game: String?
     let mode: String?
-    let tags: [String]?
+    var tags: [String]?
 
-    let modelId: String?
-    let modelHash: String?
+    var modelId: String?
+    var modelHash: String?
     let proof: ProofConfig?
 
     let money: MoneyInfo?
@@ -238,18 +239,32 @@ struct ChallengeDetail: Codable {
 
     // The detail API returns timestamps as string epoch values with "Ts" suffix
     // (startTs, endTs, joinClosesTs) while the list API uses double "At" suffix
-    // (startsAt, endsAt). We decode both conventions.
-    let startsAt: Double?
-    let endsAt: Double?
-    let startTs: String?
-    let endTs: String?
-    let proofDeadline: Double?
+    // (startsAt, endsAt). We decode both conventions. Mutable for meta merge.
+    var startsAt: Double?
+    var endsAt: Double?
+    var startTs: String?
+    var endTs: String?
+    var proofDeadline: Double?
     let joinClosesTs: String?
     let createdAt: Double?
 
     // Parsed params from the API's semicolon-delimited params string.
     // e.g. { "period": "weekly", "metric": "steps", "threshold": "10000" }
     let form: [String: FormValue]?
+
+    /// Patch missing fields from the fast DB meta endpoint.
+    mutating func mergeFromMeta(_ meta: ChallengeMeta) {
+        if title == nil || title?.isEmpty == true { title = meta.title }
+        if description == nil || description?.isEmpty == true { description = meta.description }
+        if category == nil { category = meta.category?.rawValue }
+        if tags == nil || tags?.isEmpty == true { tags = meta.tags }
+        if modelId == nil { modelId = meta.modelId }
+        if modelHash == nil { modelHash = meta.modelHash }
+        // Merge timestamps: prefer chain Ts, then meta At
+        if startsAt == nil && startTs == nil, let ts = meta.startsAt, ts > 0 { startsAt = ts }
+        if endsAt == nil && endTs == nil, let ts = meta.endsAt, ts > 0 { endsAt = ts }
+        if proofDeadline == nil, let ts = meta.proofDeadline, ts > 0 { proofDeadline = ts }
+    }
 
     var resolvedCategory: ChallengeCategory {
         if let c = category {
@@ -304,6 +319,39 @@ struct ChallengeDetail: Codable {
     var poolDisplay: String? {
         guard let wei = pool?.committedWei, let amount = Double(wei), amount > 0 else { return nil }
         return LCFormatter.format(wei: amount)
+    }
+
+    /// Create a ChallengeDetail from ChallengeMeta (fallback when chain fetch fails).
+    static func fromMeta(_ meta: ChallengeMeta) -> ChallengeDetail {
+        ChallengeDetail(
+            id: meta.id,
+            status: meta.status,
+            outcome: nil,
+            creator: nil,
+            participantsCount: nil,
+            youJoined: nil,
+            title: meta.title,
+            description: meta.description,
+            category: meta.category?.rawValue,
+            game: meta.game,
+            mode: meta.mode,
+            tags: meta.tags,
+            modelId: meta.modelId,
+            modelHash: meta.modelHash,
+            proof: meta.proof,
+            money: nil,
+            pool: nil,
+            params: nil,
+            timeline: nil,
+            startsAt: meta.startsAt,
+            endsAt: meta.endsAt,
+            startTs: nil,
+            endTs: nil,
+            proofDeadline: meta.proofDeadline,
+            joinClosesTs: nil,
+            createdAt: meta.createdAt,
+            form: nil
+        )
     }
 
     /// Convert to ChallengeMeta for use in AutoProofService.
