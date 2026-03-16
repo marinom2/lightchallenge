@@ -1,9 +1,79 @@
 // ExploreView.swift
-// Challenge discovery — Apple-style sectioned layout.
-// Featured → Fitness → Trending → Gaming (desktop-only).
-// Fitness = full participation on iOS. Gaming = discovery only.
+// Apple Music-style category grid — tap a fitness type to drill into challenges.
+// Walking | Running | Cycling | Swimming | Strength | Yoga | All
 
 import SwiftUI
+
+// MARK: - Fitness Type
+
+enum FitnessType: String, CaseIterable, Identifiable, Hashable {
+    case walking, running, cycling, swimming, strength, yoga, all
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .walking: "Walking"
+        case .running: "Running"
+        case .cycling: "Cycling"
+        case .swimming: "Swimming"
+        case .strength: "Strength"
+        case .yoga: "Yoga & Flexibility"
+        case .all: "All Challenges"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .walking: "figure.walk"
+        case .running: "figure.run"
+        case .cycling: "figure.outdoor.cycle"
+        case .swimming: "figure.pool.swim"
+        case .strength: "figure.strengthtraining.traditional"
+        case .yoga: "figure.yoga"
+        case .all: "square.grid.2x2.fill"
+        }
+    }
+
+    var gradient: [Color] {
+        switch self {
+        case .walking: [Color(hex: 0x22C55E), Color(hex: 0x16A34A)]
+        case .running: [Color(hex: 0x2563EB), Color(hex: 0x3B82F6)]
+        case .cycling: [Color(hex: 0xF97316), Color(hex: 0xEA580C)]
+        case .swimming: [Color(hex: 0x06B6D4), Color(hex: 0x0891B2)]
+        case .strength: [Color(hex: 0xEF4444), Color(hex: 0xDC2626)]
+        case .yoga: [Color(hex: 0xA855F7), Color(hex: 0x7C3AED)]
+        case .all: [Color(hex: 0x2563EB), Color(hex: 0x1D4ED8)]
+        }
+    }
+
+    /// Match a challenge to this fitness type by keywords in title, tags, description, modelId.
+    func matches(_ challenge: ChallengeMeta) -> Bool {
+        if self == .all { return true }
+
+        let keywords: [String]
+        switch self {
+        case .walking: keywords = ["walk", "steps", "step", "10k", "10,000"]
+        case .running: keywords = ["run", "marathon", "jog", "5k", "10k run", "sprint"]
+        case .cycling: keywords = ["cycl", "bike", "ride", "century"]
+        case .swimming: keywords = ["swim", "pool", "lap"]
+        case .strength: keywords = ["strength", "lift", "weight", "gym", "pushup", "push-up", "pullup"]
+        case .yoga: keywords = ["yoga", "stretch", "flex", "pilates", "meditation"]
+        default: return false
+        }
+
+        let searchable = [
+            challenge.displayTitle.lowercased(),
+            challenge.displayDescription.lowercased(),
+            (challenge.tags ?? []).joined(separator: " ").lowercased(),
+            (challenge.modelId ?? "").lowercased()
+        ].joined(separator: " ")
+
+        return keywords.contains { searchable.contains($0) }
+    }
+}
+
+// MARK: - ExploreView
 
 struct ExploreView: View {
     @EnvironmentObject private var appState: AppState
@@ -18,23 +88,17 @@ struct ExploreView: View {
     @State private var navigationPath = NavigationPath()
     @State private var showingCreateChallenge = false
     @State private var searchText = ""
-    @State private var showingDesktopOnly = false
-    @State private var desktopOnlyChallenge: ChallengeMeta?
     @Environment(\.colorScheme) private var scheme
     @Environment(\.horizontalSizeClass) private var sizeClass
 
-    /// Adaptive grid columns: 2 columns on iPad (regular width), single column on iPhone.
-    private var trendingColumns: [GridItem] {
-        if sizeClass == .regular {
-            [GridItem(.flexible(), spacing: LC.space12), GridItem(.flexible(), spacing: LC.space12)]
-        } else {
-            [GridItem(.flexible())]
-        }
+    // MARK: - Grid
+
+    private var gridColumns: [GridItem] {
+        [GridItem(.flexible(), spacing: LC.space12), GridItem(.flexible(), spacing: LC.space12)]
     }
 
-    // MARK: - Computed Sections
+    // MARK: - Computed
 
-    /// All challenges sorted: active first, then by newest.
     private var sortedChallenges: [ChallengeMeta] {
         challenges.sorted { a, b in
             if a.isActive != b.isActive { return a.isActive }
@@ -42,32 +106,13 @@ struct ExploreView: View {
         }
     }
 
-    /// Featured: newest active fitness challenge with a stake.
     private var featuredChallenge: ChallengeMeta? {
         sortedChallenges.first { $0.isActive && $0.resolvedCategory.isFitness && $0.stakeDisplay != nil }
         ?? sortedChallenges.first { $0.isActive && $0.resolvedCategory.isFitness }
     }
 
-    /// Active fitness challenges (excluding featured).
-    private var fitnessChallenges: [ChallengeMeta] {
-        sortedChallenges.filter {
-            $0.resolvedCategory.isFitness && $0.id != featuredChallenge?.id
-        }
-    }
+    private var isSearching: Bool { !searchText.isEmpty }
 
-    /// Trending: all active non-gaming challenges, excluding featured and fitness-only section.
-    private var trendingChallenges: [ChallengeMeta] {
-        sortedChallenges.filter {
-            $0.isActive && !$0.resolvedCategory.isGaming && $0.id != featuredChallenge?.id
-        }
-    }
-
-    /// Gaming challenges — shown for discovery, desktop-only.
-    private var gamingChallenges: [ChallengeMeta] {
-        sortedChallenges.filter { $0.resolvedCategory.isGaming }
-    }
-
-    /// Flat filtered list for search mode.
     private var searchResults: [ChallengeMeta] {
         let q = searchText.lowercased()
         return sortedChallenges.filter { c in
@@ -77,7 +122,12 @@ struct ExploreView: View {
         }
     }
 
-    private var isSearching: Bool { !searchText.isEmpty }
+    /// Count of active challenges matching each fitness type.
+    private func activeCount(for type: FitnessType) -> Int {
+        sortedChallenges.filter { $0.isActive && type.matches($0) }.count
+    }
+
+    // MARK: - Body
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -89,7 +139,7 @@ struct ExploreView: View {
                 } else if isSearching {
                     searchResultsList
                 } else {
-                    discoveryFeed
+                    categoryGrid
                 }
             }
             .background(Color(.systemGroupedBackground))
@@ -112,13 +162,18 @@ struct ExploreView: View {
             .navigationDestination(for: String.self) { challengeId in
                 ChallengeDetailView(challengeId: challengeId)
             }
+            .navigationDestination(for: FitnessType.self) { type in
+                CategoryDetailView(
+                    fitnessType: type,
+                    challenges: sortedChallenges,
+                    myActivities: myActivities,
+                    eligibility: eligibility
+                )
+            }
             .task { await loadChallenges() }
             .refreshable { await loadChallenges() }
             .sheet(isPresented: $showingCreateChallenge) {
                 CreateChallengeView()
-            }
-            .sheet(isPresented: $showingDesktopOnly) {
-                desktopOnlyModal
             }
             .onChange(of: appState.deepLinkChallengeId) { _, newId in
                 if let newId {
@@ -135,65 +190,71 @@ struct ExploreView: View {
         }
     }
 
-    // MARK: - Discovery Feed (sectioned layout)
+    // MARK: - Category Grid (Apple Music style)
 
-    private var discoveryFeed: some View {
+    private var categoryGrid: some View {
         VStack(spacing: LC.space24) {
-            // Featured Challenge
+            // Featured hero
             if let featured = featuredChallenge {
                 featuredSection(featured)
             }
 
-            // Fitness Challenges
-            if !fitnessChallenges.isEmpty {
-                sectionHeader("Fitness Challenges", icon: "figure.run", subtitle: "Join & prove on iPhone")
-                fitnessCarousel
+            // 2-column category grid
+            LazyVGrid(columns: gridColumns, spacing: LC.space12) {
+                ForEach(FitnessType.allCases) { type in
+                    categoryCard(type)
+                }
             }
-
-            // Trending
-            if !trendingChallenges.isEmpty {
-                sectionHeader("Trending", icon: "flame.fill", subtitle: "\(trendingChallenges.count) active")
-                trendingList
-            }
-
-            // Gaming Battles (Desktop)
-            if !gamingChallenges.isEmpty {
-                sectionHeader("Gaming Battles", icon: "gamecontroller.fill", subtitle: "Desktop only", desktopBadge: true)
-                gamingCarousel
-            }
+            .padding(.horizontal, LC.space16)
         }
         .padding(.bottom, LC.space32)
     }
 
-    // MARK: - Section Header
+    // MARK: - Category Card
 
-    private func sectionHeader(_ title: String, icon: String, subtitle: String, desktopBadge: Bool = false) -> some View {
-        HStack(spacing: LC.space8) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(desktopBadge ? LC.violet : LC.accent)
-            Text(title)
-                .font(.title3.weight(.bold))
-            Spacer()
-            if desktopBadge {
-                HStack(spacing: LC.space4) {
-                    Image(systemName: "desktopcomputer")
-                        .font(.system(size: 10, weight: .semibold))
-                    Text("Desktop")
-                        .font(.caption2.weight(.bold))
+    private func categoryCard(_ type: FitnessType) -> some View {
+        Button {
+            navigationPath.append(type)
+        } label: {
+            ZStack(alignment: .bottomLeading) {
+                // Gradient background
+                RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: type.gradient,
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+
+                // Decorative large icon (bottom-right)
+                Image(systemName: type.icon)
+                    .font(.system(size: 80, weight: .ultraLight))
+                    .foregroundStyle(.white.opacity(0.15))
+                    .offset(x: 40, y: 20)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+
+                // Label + count
+                VStack(alignment: .leading, spacing: LC.space4) {
+                    Spacer()
+
+                    Text(type.label)
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(.white)
+
+                    let count = activeCount(for: type)
+                    if count > 0 {
+                        Text("\(count) active")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.8))
+                    }
                 }
-                .foregroundStyle(LC.violet)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(LC.violet.opacity(0.1))
-                .clipShape(Capsule())
-            } else {
-                Text(subtitle)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(LC.textSecondary(scheme))
+                .padding(LC.space16)
             }
+            .frame(height: 160)
+            .clipShape(RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous))
         }
-        .padding(.horizontal, LC.space16)
+        .buttonStyle(.plain)
     }
 
     // MARK: - Featured Challenge
@@ -203,7 +264,6 @@ struct ExploreView: View {
             navigationPath.append(challenge.id)
         } label: {
             VStack(alignment: .leading, spacing: LC.space12) {
-                // "Featured" label
                 HStack(spacing: LC.space6) {
                     Image(systemName: "star.fill")
                         .font(.system(size: 10, weight: .bold))
@@ -215,7 +275,6 @@ struct ExploreView: View {
 
                 Spacer()
 
-                // Title + description
                 VStack(alignment: .leading, spacing: LC.space4) {
                     Text(challenge.displayTitle)
                         .font(.title3.weight(.bold))
@@ -230,43 +289,20 @@ struct ExploreView: View {
                     }
                 }
 
-                // Pills
                 HStack(spacing: LC.space8) {
                     if let stake = challenge.stakeDisplay {
                         featuredPill("lock.fill", stake)
                     }
-                    if let end = challenge.endsDate {
-                        let remaining = end.timeIntervalSinceNow
-                        if remaining > 0 {
-                            featuredPill("clock", end.relativeShort)
-                        }
+                    if let end = challenge.endsDate, end.timeIntervalSinceNow > 0 {
+                        featuredPill("clock", end.relativeShort)
                     }
                     featuredPill("figure.run", "Fitness")
                     Spacer()
                 }
-
-                // CTA
-                let action = actionFor(challenge)
-                if case .none = action {} else {
-                    let (label, icon, _) = actionLabel(action)
-                    HStack(spacing: LC.space6) {
-                        Image(systemName: icon)
-                            .font(.system(size: 12, weight: .semibold))
-                        Text(label)
-                            .font(.subheadline.weight(.bold))
-                    }
-                    .foregroundStyle(LC.accent)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 40)
-                    .background(
-                        RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous)
-                            .fill(.white)
-                    )
-                }
             }
             .padding(LC.space20)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(minHeight: 220)
+            .frame(minHeight: 200)
             .background(
                 RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
                     .fill(
@@ -297,234 +333,7 @@ struct ExploreView: View {
         .clipShape(Capsule())
     }
 
-    // MARK: - Fitness Carousel
-
-    private var fitnessCarousel: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: LC.space12) {
-                ForEach(fitnessChallenges) { challenge in
-                    Button {
-                        navigationPath.append(challenge.id)
-                    } label: {
-                        compactCard(challenge)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, LC.space16)
-        }
-    }
-
-    // MARK: - Trending List
-
-    private var trendingList: some View {
-        LazyVGrid(columns: trendingColumns, spacing: LC.space12) {
-            ForEach(trendingChallenges.prefix(sizeClass == .regular ? 12 : 6)) { challenge in
-                Button {
-                    navigationPath.append(challenge.id)
-                } label: {
-                    challengeCard(challenge)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, LC.space16)
-    }
-
-    // MARK: - Gaming Carousel (Desktop Only)
-
-    private var gamingCarousel: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: LC.space12) {
-                ForEach(gamingChallenges) { challenge in
-                    Button {
-                        desktopOnlyChallenge = challenge
-                        showingDesktopOnly = true
-                    } label: {
-                        gamingCard(challenge)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, LC.space16)
-        }
-    }
-
-    // MARK: - Compact Card (horizontal scroll)
-
-    private func compactCard(_ challenge: ChallengeMeta) -> some View {
-        VStack(alignment: .leading, spacing: LC.space8) {
-            HStack {
-                LCStatusBadge(
-                    text: challenge.isActive ? "Active" : (challenge.status ?? "Ended"),
-                    color: challenge.isActive ? LC.success : LC.textTertiary(scheme)
-                )
-                Spacer()
-            }
-
-            Text(challenge.displayTitle)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(LC.textPrimary(scheme))
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-
-            Spacer(minLength: 0)
-
-            HStack(spacing: LC.space6) {
-                if let stake = challenge.stakeDisplay {
-                    LCPill(icon: "lock.fill", text: stake, color: LC.accent, small: true)
-                }
-                if let end = challenge.endsDate, end.timeIntervalSinceNow > 0 {
-                    LCPill(icon: "clock", text: end.relativeShort, color: LC.textSecondary(scheme), small: true)
-                }
-            }
-        }
-        .padding(LC.space12)
-        .frame(width: 200, height: 140)
-        .background(
-            RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
-                .fill(LC.cardBg(scheme))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
-                .stroke(LC.cardBorder(scheme), lineWidth: 1)
-        )
-    }
-
-    // MARK: - Gaming Card (Desktop-Only Badge)
-
-    private func gamingCard(_ challenge: ChallengeMeta) -> some View {
-        VStack(alignment: .leading, spacing: LC.space8) {
-            HStack {
-                HStack(spacing: LC.space4) {
-                    Image(systemName: "desktopcomputer")
-                        .font(.system(size: 9, weight: .bold))
-                    Text("Desktop Only")
-                        .font(.system(size: 10, weight: .bold))
-                }
-                .foregroundStyle(LC.violet)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(LC.violet.opacity(0.1))
-                .clipShape(Capsule())
-
-                Spacer()
-
-                if challenge.isActive {
-                    Circle()
-                        .fill(LC.success)
-                        .frame(width: 6, height: 6)
-                }
-            }
-
-            Text(challenge.displayTitle)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(LC.textPrimary(scheme))
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-
-            Spacer(minLength: 0)
-
-            HStack(spacing: LC.space4) {
-                Image(systemName: "gamecontroller.fill")
-                    .font(.system(size: 10))
-                    .foregroundStyle(LC.violet)
-                if let game = challenge.game {
-                    Text(game)
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(LC.textSecondary(scheme))
-                } else {
-                    Text("Gaming")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(LC.textSecondary(scheme))
-                }
-            }
-        }
-        .padding(LC.space12)
-        .frame(width: 200, height: 140)
-        .background(
-            RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
-                .fill(LC.cardBg(scheme))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
-                .stroke(LC.violet.opacity(0.2), lineWidth: 1)
-        )
-    }
-
-    // MARK: - Desktop-Only Modal
-
-    private var desktopOnlyModal: some View {
-        VStack(spacing: LC.space24) {
-            // Icon
-            ZStack {
-                Circle()
-                    .fill(LC.violet.opacity(0.1))
-                    .frame(width: 80, height: 80)
-                Image(systemName: "desktopcomputer")
-                    .font(.system(size: 32, weight: .medium))
-                    .foregroundStyle(LC.violet)
-            }
-
-            VStack(spacing: LC.space8) {
-                Text("Desktop Experience")
-                    .font(.title3.weight(.bold))
-
-                if let challenge = desktopOnlyChallenge {
-                    Text(challenge.displayTitle)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(LC.accent)
-                        .multilineTextAlignment(.center)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: LC.space12) {
-                desktopFeatureRow(icon: "gamecontroller.fill", text: "Gaming challenges require desktop tools for proof submission")
-                desktopFeatureRow(icon: "display", text: "Visit lightchallenge.app on your computer to participate")
-                desktopFeatureRow(icon: "eye.fill", text: "You can still view challenge details and results here on mobile")
-            }
-            .padding(.horizontal, LC.space8)
-
-            // View Details button (navigates to detail, read-only)
-            if let challenge = desktopOnlyChallenge {
-                Button {
-                    showingDesktopOnly = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        navigationPath.append(challenge.id)
-                    }
-                } label: {
-                    Label("View Details", systemImage: "arrow.right.circle.fill")
-                        .font(.subheadline.weight(.semibold))
-                }
-                .buttonStyle(LCSecondaryButton())
-            }
-
-            Button {
-                showingDesktopOnly = false
-            } label: {
-                Text("Got It")
-                    .font(.subheadline.weight(.semibold))
-            }
-            .buttonStyle(LCGoldButton())
-        }
-        .padding(LC.space24)
-        .presentationDetents([.medium])
-        .presentationDragIndicator(.visible)
-    }
-
-    private func desktopFeatureRow(icon: String, text: String) -> some View {
-        HStack(spacing: LC.space12) {
-            Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundStyle(LC.violet)
-                .frame(width: 24)
-            Text(text)
-                .font(.subheadline)
-                .foregroundStyle(LC.textSecondary(scheme))
-        }
-    }
-
-    // MARK: - Search Results (flat list)
+    // MARK: - Search Results
 
     private var searchResultsList: some View {
         VStack(spacing: LC.space12) {
@@ -539,17 +348,10 @@ struct ExploreView: View {
             if searchResults.isEmpty {
                 emptyState
             } else {
-                LazyVGrid(columns: trendingColumns, spacing: LC.space12) {
+                LazyVStack(spacing: LC.space12) {
                     ForEach(searchResults) { challenge in
-                        Button {
-                            if challenge.resolvedCategory.isGaming {
-                                desktopOnlyChallenge = challenge
-                                showingDesktopOnly = true
-                            } else {
-                                navigationPath.append(challenge.id)
-                            }
-                        } label: {
-                            challengeCard(challenge)
+                        NavigationLink(value: challenge.id) {
+                            searchResultCard(challenge)
                         }
                         .buttonStyle(.plain)
                     }
@@ -560,121 +362,52 @@ struct ExploreView: View {
         .padding(.bottom, LC.space32)
     }
 
-    // MARK: - Challenge Card (full-width, reused in trending + search)
+    private func searchResultCard(_ challenge: ChallengeMeta) -> some View {
+        HStack(spacing: LC.space12) {
+            Image(systemName: challenge.resolvedCategory.icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+                .background(
+                    RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous)
+                        .fill(LC.fitnessGradient)
+                )
 
-    private func challengeCard(_ challenge: ChallengeMeta) -> some View {
-        let isGaming = challenge.resolvedCategory.isGaming
-        let action = isGaming ? .none : actionFor(challenge)
-
-        return VStack(alignment: .leading, spacing: LC.space12) {
-            // Top row: category + status
-            HStack {
-                HStack(spacing: LC.space6) {
-                    Image(systemName: challenge.resolvedCategory.icon)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(isGaming ? LC.violet : LC.accent)
+            VStack(alignment: .leading, spacing: LC.space4) {
+                Text(challenge.displayTitle)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(LC.textPrimary(scheme))
+                    .lineLimit(1)
+                HStack(spacing: LC.space8) {
                     Text(challenge.resolvedCategory.label)
-                        .font(.caption.weight(.medium))
+                        .font(.caption2.weight(.medium))
                         .foregroundStyle(LC.textSecondary(scheme))
-                }
-
-                if isGaming {
-                    HStack(spacing: LC.space4) {
-                        Image(systemName: "desktopcomputer")
-                            .font(.system(size: 9, weight: .bold))
-                        Text("Desktop Only")
-                            .font(.system(size: 10, weight: .bold))
-                    }
-                    .foregroundStyle(LC.violet)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(LC.violet.opacity(0.1))
-                    .clipShape(Capsule())
-                }
-
-                Spacer()
-
-                if challenge.isActive {
-                    LCStatusBadge(text: "Active", color: LC.success)
-                } else {
-                    LCStatusBadge(text: challenge.status ?? "Ended", color: LC.textTertiary(scheme))
-                }
-            }
-
-            // Title
-            Text(challenge.displayTitle)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(LC.textPrimary(scheme))
-                .lineLimit(2)
-
-            // Info pills
-            HStack(spacing: LC.space8) {
-                if let stake = challenge.stakeDisplay {
-                    LCPill(icon: "lock.fill", text: stake, color: LC.accent, small: true)
-                }
-                if let end = challenge.endsDate {
-                    let remaining = end.timeIntervalSinceNow
-                    if remaining > 0 {
-                        LCPill(
-                            icon: "clock",
-                            text: end.relativeShort,
-                            color: remaining < 86400 ? LC.danger : LC.textSecondary(scheme),
-                            small: true
-                        )
+                    if let stake = challenge.stakeDisplay {
+                        Text(stake)
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(LC.textTertiary(scheme))
                     }
                 }
-                Spacer()
             }
 
-            // Participation status pill (auto-proof, evaluating, passed/failed)
-            if let (statusText, statusIcon, statusColor) = participationStatus(challenge), case .none = action {
-                HStack(spacing: LC.space6) {
-                    Image(systemName: statusIcon)
-                        .font(.system(size: 10, weight: .semibold))
-                    Text(statusText)
-                        .font(.caption2.weight(.bold))
-                }
-                .foregroundStyle(statusColor)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(statusColor.opacity(0.1))
-                .clipShape(Capsule())
+            Spacer()
+
+            if challenge.isActive {
+                LCStatusBadge(text: "Active", color: LC.success)
             }
 
-            // Action CTA (fitness only — no actions for gaming on mobile)
-            switch action {
-            case .join, .claim:
-                let (label, icon, color) = actionLabel(action)
-                Button {
-                    handleAction(action, challenge: challenge)
-                } label: {
-                    HStack(spacing: LC.space6) {
-                        Image(systemName: icon)
-                            .font(.system(size: 11, weight: .semibold))
-                        Text(label)
-                            .font(.caption.weight(.bold))
-                    }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 34)
-                    .background(
-                        RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous)
-                            .fill(color)
-                    )
-                }
-                .buttonStyle(.plain)
-            case .none:
-                EmptyView()
-            }
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(LC.textTertiary(scheme))
         }
-        .padding(LC.space16)
+        .padding(LC.space12)
         .background(
             RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
                 .fill(LC.cardBg(scheme))
         )
         .overlay(
             RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
-                .stroke(isGaming ? LC.violet.opacity(0.2) : LC.cardBorder(scheme), lineWidth: 1)
+                .stroke(LC.cardBorder(scheme), lineWidth: 1)
         )
     }
 
@@ -682,26 +415,15 @@ struct ExploreView: View {
 
     private var loadingView: some View {
         VStack(spacing: LC.space16) {
-            // Featured shimmer
-            ShimmerView().frame(height: 220)
+            ShimmerView().frame(height: 200)
                 .clipShape(RoundedRectangle(cornerRadius: LC.radiusXL))
                 .padding(.horizontal, LC.space16)
 
-            // Carousel shimmer
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: LC.space12) {
-                    ForEach(0..<3, id: \.self) { _ in
-                        ShimmerView().frame(width: 200, height: 140)
-                            .clipShape(RoundedRectangle(cornerRadius: LC.radiusLG))
-                    }
+            LazyVGrid(columns: gridColumns, spacing: LC.space12) {
+                ForEach(0..<6, id: \.self) { _ in
+                    ShimmerView().frame(height: 160)
+                        .clipShape(RoundedRectangle(cornerRadius: LC.radiusXL))
                 }
-                .padding(.horizontal, LC.space16)
-            }
-
-            // List shimmer
-            ForEach(0..<3, id: \.self) { _ in
-                ShimmerView().frame(height: 120)
-                    .clipShape(RoundedRectangle(cornerRadius: LC.radiusLG))
             }
             .padding(.horizontal, LC.space16)
         }
@@ -747,90 +469,7 @@ struct ExploreView: View {
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Contextual Action
-
-    private enum ChallengeAction {
-        case join
-        case claim
-        case none
-    }
-
-    private func actionFor(_ challenge: ChallengeMeta) -> ChallengeAction {
-        // No mobile actions for gaming challenges
-        guard !challenge.resolvedCategory.isGaming else { return .none }
-        guard appState.hasWallet else { return .none }
-
-        let now = Date()
-        let activity = myActivities[challenge.id]
-
-        // 1. Claim: challenge finalized/ended + verdict received + on-chain claim eligible
-        if !challenge.isActive, activity != nil, eligibility[challenge.id]?.hasAnyClaim == true {
-            return .claim
-        }
-
-        // 2. Join: challenge active + join window open + not yet joined
-        if challenge.isActive, activity == nil {
-            let joinOpen = challenge.endsDate.map { $0 > now } ?? true
-            if joinOpen { return .join }
-        }
-
-        // No manual "Submit Proof" — auto-proof handles it after joining
-        return .none
-    }
-
-    /// Status text for challenges where user is participating (shown as pill, not a button).
-    private func participationStatus(_ challenge: ChallengeMeta) -> (String, String, Color)? {
-        guard let activity = myActivities[challenge.id] else { return nil }
-
-        if let pass = activity.verdictPass {
-            return pass
-                ? ("Passed", "checkmark.seal.fill", LC.success)
-                : ("Failed", "xmark.seal.fill", LC.danger)
-        }
-        if activity.hasEvidence == true {
-            return ("Evaluating", "hourglass", LC.warning)
-        }
-
-        // Joined but no evidence — show phase-appropriate status
-        let now = Date()
-        if let endDate = challenge.endsDate, endDate > now {
-            // Challenge period still running
-            return ("In Progress", "figure.run", LC.accent)
-        }
-
-        // Check auto-proof status
-        if let proofStatus = autoProofService.status[challenge.id] {
-            return (proofStatus.label, proofStatus.icon, proofStatus.color)
-        }
-
-        if let deadline = challenge.proofDeadlineDate, deadline <= now {
-            return ("Deadline Passed", "clock.badge.xmark", LC.danger)
-        }
-
-        // In proof window, auto-proof should handle this
-        return ("Proof Pending", "arrow.triangle.2.circlepath", LC.accent)
-    }
-
-    private func actionLabel(_ action: ChallengeAction) -> (String, String, Color) {
-        switch action {
-        case .join: return ("Join", "person.badge.plus", LC.accent)
-        case .claim: return ("Claim", "trophy.fill", LC.success)
-        case .none: return ("", "", .clear)
-        }
-    }
-
-    private func handleAction(_ action: ChallengeAction, challenge: ChallengeMeta) {
-        switch action {
-        case .join:
-            navigationPath.append(challenge.id)
-        case .claim:
-            navigationPath.append(challenge.id)
-        case .none:
-            break
-        }
-    }
-
-    // MARK: - Data
+    // MARK: - Data Loading
 
     private func loadChallenges() async {
         isLoading = true
@@ -874,12 +513,9 @@ struct ExploreView: View {
             for a in activities { lookup[a.challengeId] = a }
             myActivities = lookup
 
-            // Check claim eligibility for all finalized challenges the user participated in
-            // (winners, losers, and refunds on canceled challenges)
             for a in activities where a.verdictPass != nil {
                 if let cid = UInt64(a.challengeId) {
                     let challenge = challenges.first { $0.id == a.challengeId }
-                    // Only check on-chain if challenge is no longer active
                     if challenge?.isActive == false || challenge == nil {
                         let elig = await ContractService.shared.checkClaimEligibility(
                             challengeId: cid,
@@ -890,7 +526,6 @@ struct ExploreView: View {
                 }
             }
 
-            // Auto-proof: check for joined challenges that need proof submission
             autoProofService.checkPendingChallenges(
                 challenges: challenges,
                 activities: lookup,

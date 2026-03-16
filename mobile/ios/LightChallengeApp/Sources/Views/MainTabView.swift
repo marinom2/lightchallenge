@@ -54,12 +54,20 @@ struct MainTabView: View {
 
     private var iPadLayout: some View {
         NavigationSplitView {
-            List(selection: $appState.selectedTab) {
+            List {
                 Section {
                     ForEach(AppState.Tab.allCases, id: \.self) { tab in
-                        Label(tab.label, systemImage: tab.icon)
-                            .tag(tab)
-                            .badge(tab == .profile ? notificationService.unreadCount : 0)
+                        Button {
+                            appState.selectedTab = tab
+                        } label: {
+                            Label(tab.label, systemImage: tab.icon)
+                                .badge(tab == .profile ? notificationService.unreadCount : 0)
+                        }
+                        .listRowBackground(
+                            appState.selectedTab == tab
+                                ? LC.accent.opacity(0.12)
+                                : Color.clear
+                        )
                     }
                 } header: {
                     Text("LightChallenge")

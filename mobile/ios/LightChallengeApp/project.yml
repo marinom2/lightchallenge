@@ -64,6 +64,7 @@ targets:
         INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: com.apple.widgetkit-extension
         TARGETED_DEVICE_FAMILY: "1,2"
     entitlements:
+      path: LightChallengeWidget/LightChallengeWidgetExtension.entitlements
       properties:
         com.apple.security.application-groups:
           - group.io.lightchallenge.app
