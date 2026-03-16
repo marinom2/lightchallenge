@@ -36,20 +36,16 @@
 		79B0FA11187316181EBBA291 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F96382A6786E825D5D51804 /* NotificationService.swift */; };
 		845A1BC5FB1B4358FCF9F306 /* LibraryView.swift.bak in Resources */ = {isa = PBXBuildFile; fileRef = F139A8BDB67BE8BC3F759294 /* LibraryView.swift.bak */; };
 		8F8708FE2BD6A1ED9EDFABC4 /* ProofSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D94260A11D17C7A7822B284E /* ProofSelectionView.swift */; };
-		9FBB2AEFF6D2209AF3DD4E53 /* LightChallengeWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FF63B78064C9D37EF056212D /* LightChallengeWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AE34E10980EB1777EF9B796A /* Templates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC47CBD7AC0CC24C0ED5661 /* Templates.swift */; };
 		B9CCD6D0708DFFC22FAF4F3C /* AchievementShareCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = C87D4DAF081C5E62A534D5FE /* AchievementShareCard.swift */; };
 		C99732FF05C96BF08272CD05 /* Challenge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6718450D0B114CD3CDB048BB /* Challenge.swift */; };
 		CF3E4B50FF79FA9FE4F9A8F3 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2386C28BB1920D7EE693D754 /* AppState.swift */; };
 		D0F90181D6CFF43A2E6E14D4 /* CacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED219551AFC2F563795F7780 /* CacheService.swift */; };
 		D12B98D622D360BFD4F09C4C /* OAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 056B46502BB7A0127704ABD6 /* OAuthService.swift */; };
-		D21187C8EB559DF7E4DC339A /* ChallengeTimelineProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 910BB888E81D301CF6B22FE2 /* ChallengeTimelineProvider.swift */; };
 		D7BCAFE3F5319C7855539792 /* CategoryDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1B027F2BAC338988466114F /* CategoryDetailView.swift */; };
 		D9B09F9D0D1924CF11D29A54 /* GamingHandoffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 262C604C08756AF00CE8B815 /* GamingHandoffView.swift */; };
 		DB612A03EB280A97BE0AF778 /* ChallengeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEE7B27C2A3DF0F5E387AD12 /* ChallengeDetailView.swift */; };
 		DFFE19E2E45331BE9EBF4483 /* LightChallengeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD15E3C529E1B744F2F63518 /* LightChallengeApp.swift */; };
-		E0F7E9B0DABF03E44808F52E /* ChallengeWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19355D0040808380E8562D02 /* ChallengeWidgetView.swift */; };
-		E29E51C99151AA3D1F65FB33 /* LightChallengeWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04AFA65FB48E1F9F97E399BD /* LightChallengeWidget.swift */; };
 		E4ADD5075FF83E61FB7A5EBE /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 204B2D7C9B26D8265BDA995C /* OnboardingView.swift */; };
 		E76C1AC9F1CD842862BB0C50 /* ChallengeRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92616EA76D9D58987F97E9DF /* ChallengeRow.swift */; };
 		E8DA5005C7B7D20CEA1B862C /* AchievementsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07B4E3038A54D8DA0F3B3329 /* AchievementsView.swift */; };
@@ -60,38 +56,12 @@
 		FB927A4629D531B77493E5CC /* ChallengesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05D4352BB8C482916116273A /* ChallengesView.swift */; };
 /* End PBXBuildFile section */
 
-/* Begin PBXContainerItemProxy section */
-		05A1202A3DB76DD3DA0783A5 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 5B2A9953DC234C80040C08BF /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = A0D0DD3B15FBB3A88387194F;
-			remoteInfo = LightChallengeWidgetExtension;
-		};
-/* End PBXContainerItemProxy section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		5F737477E17A14A3497825DC /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				9FBB2AEFF6D2209AF3DD4E53 /* LightChallengeWidgetExtension.appex in Embed Foundation Extensions */,
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
-
 /* Begin PBXFileReference section */
 		0248C14F16C23664FB00C648 /* AvatarPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarPickerView.swift; sourceTree = "<group>"; };
 		04648F9975C483F7D4596C37 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		04AFA65FB48E1F9F97E399BD /* LightChallengeWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightChallengeWidget.swift; sourceTree = "<group>"; };
 		056B46502BB7A0127704ABD6 /* OAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthService.swift; sourceTree = "<group>"; };
 		05D4352BB8C482916116273A /* ChallengesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengesView.swift; sourceTree = "<group>"; };
 		07B4E3038A54D8DA0F3B3329 /* AchievementsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementsView.swift; sourceTree = "<group>"; };
-		19355D0040808380E8562D02 /* ChallengeWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeWidgetView.swift; sourceTree = "<group>"; };
 		204B2D7C9B26D8265BDA995C /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		2386C28BB1920D7EE693D754 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		262C604C08756AF00CE8B815 /* GamingHandoffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamingHandoffView.swift; sourceTree = "<group>"; };
@@ -116,7 +86,6 @@
 		8600C50E8158C81C2EA3E6A3 /* LeaderboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeaderboardView.swift; sourceTree = "<group>"; };
 		87C8F03B75271A197ACEF743 /* VictoryCelebrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VictoryCelebrationView.swift; sourceTree = "<group>"; };
 		8F62E4EABF64E587DE752B97 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
-		910BB888E81D301CF6B22FE2 /* ChallengeTimelineProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeTimelineProvider.swift; sourceTree = "<group>"; };
 		92616EA76D9D58987F97E9DF /* ChallengeRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeRow.swift; sourceTree = "<group>"; };
 		940344AA346043032B852F8B /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		956AFB8941781516AFD70596 /* FitnessProofView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitnessProofView.swift; sourceTree = "<group>"; };
@@ -134,11 +103,9 @@
 		DD15E3C529E1B744F2F63518 /* LightChallengeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightChallengeApp.swift; sourceTree = "<group>"; };
 		DD8D4367DFBB21CB51AFDB57 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		E2B368DB02FABEB0FE873AF1 /* Contracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contracts.swift; sourceTree = "<group>"; };
-		ED20C75EA49B5ED25AA18A1A /* LightChallengeWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LightChallengeWidgetExtension.entitlements; sourceTree = "<group>"; };
 		ED219551AFC2F563795F7780 /* CacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheService.swift; sourceTree = "<group>"; };
 		F139A8BDB67BE8BC3F759294 /* LibraryView.swift.bak */ = {isa = PBXFileReference; path = LibraryView.swift.bak; sourceTree = "<group>"; };
 		F1C1D766527690196F6FB79F /* AvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarView.swift; sourceTree = "<group>"; };
-		FF63B78064C9D37EF056212D /* LightChallengeWidgetExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = LightChallengeWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -233,7 +200,6 @@
 			isa = PBXGroup;
 			children = (
 				6C9F9B4D909FEAE5EC4A1D5B /* LightChallengeApp.app */,
-				FF63B78064C9D37EF056212D /* LightChallengeWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -332,17 +298,6 @@
 			path = Services;
 			sourceTree = "<group>";
 		};
-		B5EC5DD6CFFABAE886265AD4 /* LightChallengeWidget */ = {
-			isa = PBXGroup;
-			children = (
-				910BB888E81D301CF6B22FE2 /* ChallengeTimelineProvider.swift */,
-				19355D0040808380E8562D02 /* ChallengeWidgetView.swift */,
-				04AFA65FB48E1F9F97E399BD /* LightChallengeWidget.swift */,
-				ED20C75EA49B5ED25AA18A1A /* LightChallengeWidgetExtension.entitlements */,
-			);
-			path = LightChallengeWidget;
-			sourceTree = "<group>";
-		};
 		C42833E44A155643F82279BC /* Notifications */ = {
 			isa = PBXGroup;
 			children = (
@@ -354,7 +309,6 @@
 		CD706F489E4E330AB70FCECA = {
 			isa = PBXGroup;
 			children = (
-				B5EC5DD6CFFABAE886265AD4 /* LightChallengeWidget */,
 				1148515955EEF48BCF0FDB29 /* Sources */,
 				6358672D8E0CF8BAB62D6C68 /* Products */,
 			);
@@ -399,12 +353,10 @@
 				851AF03820E8F80E7A4082DA /* Sources */,
 				286F3FD69E2FC97AB91D6D30 /* Resources */,
 				21E2B1800FC204947470065B /* Frameworks */,
-				5F737477E17A14A3497825DC /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				191167BB94D109A4E4973D8C /* PBXTargetDependency */,
 			);
 			name = LightChallengeApp;
 			packageProductDependencies = (
@@ -413,23 +365,6 @@
 			productName = LightChallengeApp;
 			productReference = 6C9F9B4D909FEAE5EC4A1D5B /* LightChallengeApp.app */;
 			productType = "com.apple.product-type.application";
-		};
-		A0D0DD3B15FBB3A88387194F /* LightChallengeWidgetExtension */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 54E5D7CC35919EC55CF69E9B /* Build configuration list for PBXNativeTarget "LightChallengeWidgetExtension" */;
-			buildPhases = (
-				AED13FD4E49D59669E76F6B9 /* Sources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = LightChallengeWidgetExtension;
-			packageProductDependencies = (
-			);
-			productName = LightChallengeWidgetExtension;
-			productReference = FF63B78064C9D37EF056212D /* LightChallengeWidgetExtension.appex */;
-			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -441,10 +376,6 @@
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
 					84B7B1FC6E8B024E9ACD1DF5 = {
-						DevelopmentTeam = 84SJ6FKXLJ;
-						ProvisioningStyle = Automatic;
-					};
-					A0D0DD3B15FBB3A88387194F = {
 						DevelopmentTeam = 84SJ6FKXLJ;
 						ProvisioningStyle = Automatic;
 					};
@@ -468,7 +399,6 @@
 			projectRoot = "";
 			targets = (
 				84B7B1FC6E8B024E9ACD1DF5 /* LightChallengeApp */,
-				A0D0DD3B15FBB3A88387194F /* LightChallengeWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -537,25 +467,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		AED13FD4E49D59669E76F6B9 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				D21187C8EB559DF7E4DC339A /* ChallengeTimelineProvider.swift in Sources */,
-				E0F7E9B0DABF03E44808F52E /* ChallengeWidgetView.swift in Sources */,
-				E29E51C99151AA3D1F65FB33 /* LightChallengeWidget.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-		191167BB94D109A4E4973D8C /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = A0D0DD3B15FBB3A88387194F /* LightChallengeWidgetExtension */;
-			targetProxy = 05A1202A3DB76DD3DA0783A5 /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		240F34817C6E693E9C00C626 /* Debug */ = {
@@ -623,27 +535,6 @@
 			};
 			name = Debug;
 		};
-		2E570F10C1DA11027E99852B /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = LightChallengeWidget/LightChallengeWidgetExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
-				DEVELOPMENT_TEAM = 84SJ6FKXLJ;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.2.0;
-				PRODUCT_BUNDLE_IDENTIFIER = io.lightchallenge.app.widget;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
 		422FAA4C550DAB0FE98BEAB4 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -664,27 +555,6 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
-		};
-		4B12A64E1D3FD8C96514B6CA /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = LightChallengeWidget/LightChallengeWidgetExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
-				DEVELOPMENT_TEAM = 84SJ6FKXLJ;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.2.0;
-				PRODUCT_BUNDLE_IDENTIFIER = io.lightchallenge.app.widget;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
 		};
 		7F66561ACB07959573A16D59 /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -773,15 +643,6 @@
 			buildConfigurations = (
 				240F34817C6E693E9C00C626 /* Debug */,
 				7F66561ACB07959573A16D59 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
-		};
-		54E5D7CC35919EC55CF69E9B /* Build configuration list for PBXNativeTarget "LightChallengeWidgetExtension" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				4B12A64E1D3FD8C96514B6CA /* Debug */,
-				2E570F10C1DA11027E99852B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

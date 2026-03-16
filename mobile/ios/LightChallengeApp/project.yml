@@ -46,25 +46,26 @@ targets:
     dependencies:
       - package: reown-swift
         product: ReownAppKit
-      - target: LightChallengeWidgetExtension
+      # Widget extension temporarily disabled — needs provisioning profile setup
+      # - target: LightChallengeWidgetExtension
 
-  LightChallengeWidgetExtension:
-    type: app-extension
-    platform: iOS
-    sources:
-      - path: LightChallengeWidget
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: io.lightchallenge.app.widget
-        DEVELOPMENT_TEAM: "84SJ6FKXLJ"
-        CODE_SIGN_STYLE: Automatic
-        MARKETING_VERSION: "1.2.0"
-        CURRENT_PROJECT_VERSION: 3
-        GENERATE_INFOPLIST_FILE: true
-        INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: com.apple.widgetkit-extension
-        TARGETED_DEVICE_FAMILY: "1,2"
-    entitlements:
-      path: LightChallengeWidget/LightChallengeWidgetExtension.entitlements
-      properties:
-        com.apple.security.application-groups:
-          - group.io.lightchallenge.app
+  # LightChallengeWidgetExtension:
+  #   type: app-extension
+  #   platform: iOS
+  #   sources:
+  #     - path: LightChallengeWidget
+  #   settings:
+  #     base:
+  #       PRODUCT_BUNDLE_IDENTIFIER: io.lightchallenge.app.widget
+  #       DEVELOPMENT_TEAM: "84SJ6FKXLJ"
+  #       CODE_SIGN_STYLE: Automatic
+  #       MARKETING_VERSION: "1.2.0"
+  #       CURRENT_PROJECT_VERSION: 3
+  #       GENERATE_INFOPLIST_FILE: true
+  #       INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: com.apple.widgetkit-extension
+  #       TARGETED_DEVICE_FAMILY: "1,2"
+  #   entitlements:
+  #     path: LightChallengeWidget/LightChallengeWidgetExtension.entitlements
+  #     properties:
+  #       com.apple.security.application-groups:
+  #         - group.io.lightchallenge.app
