@@ -2,6 +2,25 @@
 // Full challenge detail with premium Cosmic-Glass design.
 
 import SwiftUI
+import UniformTypeIdentifiers
+
+/// Tracks the state of a manual file evidence upload.
+enum FileUploadStatus: Equatable {
+    case idle
+    case uploading
+    case success(evidenceId: String?)
+    case error(String)
+
+    static func == (lhs: FileUploadStatus, rhs: FileUploadStatus) -> Bool {
+        switch (lhs, rhs) {
+        case (.idle, .idle): return true
+        case (.uploading, .uploading): return true
+        case (.success(let a), .success(let b)): return a == b
+        case (.error(let a), .error(let b)): return a == b
+        default: return false
+        }
+    }
+}
 
 struct ChallengeDetailView: View {
     let challengeId: String
@@ -9,6 +28,7 @@ struct ChallengeDetailView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var healthService: HealthKitService
     @EnvironmentObject private var walletManager: WalletManager
+    @EnvironmentObject private var notificationService: NotificationService
     @ObservedObject private var autoProofService = AutoProofService.shared
     @State private var detail: ChallengeDetail?
     @State private var progress: ChallengeProgress?
@@ -22,7 +42,16 @@ struct ChallengeDetailView: View {
     @State private var showingShareCard = false
     @State private var isJoining = false
     @State private var joinError: String?
+    // Manual file upload state
+    @State private var showingFileImporter = false
+    @State private var fileUploadStatus: FileUploadStatus = .idle
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    /// Maximum content width on iPad — keeps detail readable on wide screens.
+    private var maxContentWidth: CGFloat {
+        sizeClass == .regular ? 680 : .infinity
+    }
 
     private var category: ChallengeCategory {
         detail?.resolvedCategory ?? .unknown
@@ -82,6 +111,13 @@ struct ChallengeDetailView: View {
                 )
             }
         }
+        .fileImporter(
+            isPresented: $showingFileImporter,
+            allowedContentTypes: [.json, .xml, .zip],
+            allowsMultipleSelection: false
+        ) { result in
+            Task { await handleFileImport(result) }
+        }
     }
 
     @State private var _reputation: Reputation?
@@ -110,6 +146,8 @@ struct ChallengeDetailView: View {
             // Action area
             actionSection(detail)
         }
+        .frame(maxWidth: maxContentWidth)
+        .frame(maxWidth: .infinity) // Center on iPad
         .padding(.horizontal, LC.space16)
         .padding(.bottom, LC.space32)
     }
@@ -459,6 +497,9 @@ struct ChallengeDetailView: View {
                                 Label("Submit Manually", systemImage: "heart.fill")
                             }
                             .buttonStyle(LCSecondaryButton())
+
+                            // Manual file upload fallback
+                            manualUploadSection
                         default:
                             EmptyView()
                         }
@@ -484,6 +525,9 @@ struct ChallengeDetailView: View {
                                     healthService: healthService
                                 )
                             }
+
+                        // Manual file upload fallback
+                        manualUploadSection
                     }
                 }
             } else if detail.isActive {
@@ -608,6 +652,161 @@ struct ChallengeDetailView: View {
         isJoining = false
     }
 
+    // MARK: - Manual File Upload
+
+    /// Whether the manual upload option should be available.
+    private var canShowManualUpload: Bool {
+        guard appState.hasWallet else { return false }
+        guard detail?.youJoined == true || participantStatus != nil else { return false }
+        guard participantStatus?.hasEvidence != true else { return false }
+        let now = Date()
+        let challengeEnded = detail?.endsDate.map { $0 <= now } ?? true
+        let proofDeadlinePassed = detail?.proofDeadlineDate.map { $0 <= now } ?? false
+        return challengeEnded && !proofDeadlinePassed
+    }
+
+    /// Upload button + status display for manual file evidence.
+    @ViewBuilder
+    private var manualUploadSection: some View {
+        if canShowManualUpload {
+            Divider().padding(.vertical, LC.space4)
+
+            VStack(spacing: LC.space8) {
+                Text("Or upload an exported file")
+                    .font(.caption)
+                    .foregroundStyle(LC.textSecondary(scheme))
+
+                switch fileUploadStatus {
+                case .idle:
+                    Button {
+                        showingFileImporter = true
+                    } label: {
+                        Label("Upload Evidence File", systemImage: "doc.badge.arrow.up")
+                    }
+                    .buttonStyle(LCSecondaryButton())
+
+                    Text("Supports TCX, GPX, JSON (Garmin, Google Fit Takeout), or ZIP exports.")
+                        .font(.caption2)
+                        .foregroundStyle(LC.textTertiary(scheme))
+                        .multilineTextAlignment(.center)
+
+                case .uploading:
+                    ProgressView("Uploading...")
+                        .tint(LC.accent)
+
+                case .success(let evidenceId):
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundStyle(LC.success)
+                    Text("File uploaded successfully")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(LC.success)
+                    if let eid = evidenceId {
+                        Text("Evidence ID: \(eid)")
+                            .font(.caption2)
+                            .foregroundStyle(LC.textTertiary(scheme))
+                    }
+
+                case .error(let msg):
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(LC.warning)
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundStyle(LC.danger)
+                        .multilineTextAlignment(.center)
+                    Button {
+                        fileUploadStatus = .idle
+                        showingFileImporter = true
+                    } label: {
+                        Label("Try Again", systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(LCSecondaryButton())
+                }
+            }
+        }
+    }
+
+    /// Handle the file importer result: read file data and upload via APIClient.
+    private func handleFileImport(_ result: Result<[URL], Error>) async {
+        switch result {
+        case .failure(let err):
+            fileUploadStatus = .error("Could not select file: \(err.localizedDescription)")
+            return
+
+        case .success(let urls):
+            guard let fileURL = urls.first else {
+                fileUploadStatus = .error("No file selected.")
+                return
+            }
+
+            // Gain security-scoped access
+            guard fileURL.startAccessingSecurityScopedResource() else {
+                fileUploadStatus = .error("Unable to access the selected file.")
+                return
+            }
+            defer { fileURL.stopAccessingSecurityScopedResource() }
+
+            let fileName = fileURL.lastPathComponent
+            let ext = fileURL.pathExtension.lowercased()
+
+            // Determine MIME type from extension
+            let mimeType: String
+            switch ext {
+            case "json":
+                mimeType = "application/json"
+            case "xml", "tcx", "gpx":
+                mimeType = "application/xml"
+            case "zip":
+                mimeType = "application/zip"
+            default:
+                mimeType = "application/octet-stream"
+            }
+
+            // Read file data
+            let fileData: Data
+            do {
+                fileData = try Data(contentsOf: fileURL)
+            } catch {
+                fileUploadStatus = .error("Failed to read file: \(error.localizedDescription)")
+                return
+            }
+
+            guard !fileData.isEmpty else {
+                fileUploadStatus = .error("Selected file is empty.")
+                return
+            }
+
+            // Upload
+            fileUploadStatus = .uploading
+            let modelHash = detail?.proof?.modelHash ?? detail?.modelHash ?? ServerConfig.appleStepsModelHash
+
+            do {
+                let result = try await APIClient.shared.uploadEvidenceFile(
+                    baseURL: appState.serverURL,
+                    challengeId: challengeId,
+                    subject: appState.walletAddress,
+                    modelHash: modelHash,
+                    fileData: fileData,
+                    fileName: fileName,
+                    mimeType: mimeType,
+                    evidenceToken: appState.deepLinkToken,
+                    evidenceExpires: appState.deepLinkExpires
+                )
+
+                if result.ok {
+                    fileUploadStatus = .success(evidenceId: result.evidenceId)
+                    // Refresh participant status to reflect evidence submission
+                    await loadParticipantStatus()
+                } else {
+                    fileUploadStatus = .error("Upload was not accepted by the server.")
+                }
+            } catch {
+                fileUploadStatus = .error("Upload failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
     // MARK: - Helpers
 
     private var categoryAccent: Color {
@@ -682,6 +881,16 @@ struct ChallengeDetailView: View {
             )
             detail = fresh
             await CacheService.shared.cacheDetail(fresh, id: challengeId)
+
+            // Schedule proof window reminder if challenge is in progress
+            // (has an end date in the future and user is viewing it)
+            if let endDate = fresh.endsDate, endDate > Date() {
+                notificationService.scheduleProofWindowReminder(
+                    challengeId: challengeId,
+                    title: fresh.displayTitle,
+                    endDate: endDate
+                )
+            }
 
             async let progressTask: () = loadProgress()
             async let participantTask: () = loadParticipantStatus()

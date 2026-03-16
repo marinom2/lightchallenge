@@ -21,6 +21,16 @@ struct ExploreView: View {
     @State private var showingDesktopOnly = false
     @State private var desktopOnlyChallenge: ChallengeMeta?
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    /// Adaptive grid columns: 2 columns on iPad (regular width), single column on iPhone.
+    private var trendingColumns: [GridItem] {
+        if sizeClass == .regular {
+            [GridItem(.flexible(), spacing: LC.space12), GridItem(.flexible(), spacing: LC.space12)]
+        } else {
+            [GridItem(.flexible())]
+        }
+    }
 
     // MARK: - Computed Sections
 
@@ -308,8 +318,8 @@ struct ExploreView: View {
     // MARK: - Trending List
 
     private var trendingList: some View {
-        LazyVStack(spacing: LC.space12) {
-            ForEach(trendingChallenges.prefix(6)) { challenge in
+        LazyVGrid(columns: trendingColumns, spacing: LC.space12) {
+            ForEach(trendingChallenges.prefix(sizeClass == .regular ? 12 : 6)) { challenge in
                 Button {
                     navigationPath.append(challenge.id)
                 } label: {
@@ -470,7 +480,7 @@ struct ExploreView: View {
 
             VStack(alignment: .leading, spacing: LC.space12) {
                 desktopFeatureRow(icon: "gamecontroller.fill", text: "Gaming challenges require desktop tools for proof submission")
-                desktopFeatureRow(icon: "display", text: "Visit lightchallenge.io on your computer to participate")
+                desktopFeatureRow(icon: "display", text: "Visit lightchallenge.app on your computer to participate")
                 desktopFeatureRow(icon: "eye.fill", text: "You can still view challenge details and results here on mobile")
             }
             .padding(.horizontal, LC.space8)
@@ -529,7 +539,7 @@ struct ExploreView: View {
             if searchResults.isEmpty {
                 emptyState
             } else {
-                LazyVStack(spacing: LC.space12) {
+                LazyVGrid(columns: trendingColumns, spacing: LC.space12) {
                     ForEach(searchResults) { challenge in
                         Button {
                             if challenge.resolvedCategory.isGaming {
@@ -838,6 +848,9 @@ struct ExploreView: View {
             }
             challenges = fresh
             await CacheService.shared.cacheChallenges(fresh)
+
+            // Update widget with the most urgent active challenge
+            appState.updateWidgetChallenge(challenges: fresh)
         } catch {
             if challenges.isEmpty {
                 self.error = error.localizedDescription

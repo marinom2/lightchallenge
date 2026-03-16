@@ -4,7 +4,7 @@
 // Deep links:
 //   lightchallengeapp://challenge/{id}?subject={wallet}&token={token}&expires={expiry}
 //   lightchallengeapp://auth/callback?provider={strava|fitbit}&status=ok
-//   https://app.lightchallenge.io/proofs/{id}?subject={wallet}
+//   https://uat.lightchallenge.app/challenge/{id}?subject={wallet}
 
 import SwiftUI
 
@@ -34,6 +34,12 @@ struct LightChallengeApp: App {
                     walletManager.handleDeepLink(url)
                     propagateToHealthService(url)
                 }
+                // Universal links (HTTPS URLs from uat.lightchallenge.app / lightchallenge.app)
+                .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                    guard let url = activity.webpageURL else { return }
+                    appState.handleDeepLink(url)
+                    propagateToHealthService(url)
+                }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active && appState.hasWallet {
                         // Refresh linked accounts when app comes to foreground
@@ -44,6 +50,11 @@ struct LightChallengeApp: App {
                                 wallet: appState.walletAddress
                             )
                             oauthService.isAuthenticating = false
+                        }
+
+                        // Check pending challenges for auto-proof submission
+                        Task {
+                            await checkPendingAutoProofs()
                         }
                     }
                 }
@@ -110,6 +121,39 @@ struct LightChallengeApp: App {
         } else {
             OnboardingView()
                 .transition(.opacity)
+        }
+    }
+
+    /// Fetch the user's challenges and activities, then run auto-proof checks.
+    private func checkPendingAutoProofs() async {
+        let baseURL = appState.serverURL
+        let wallet = appState.walletAddress
+
+        do {
+            async let challengesTask = APIClient.shared.fetchChallenges(baseURL: baseURL)
+            async let activitiesTask = APIClient.shared.fetchMyActivity(baseURL: baseURL, subject: wallet)
+
+            let challenges = try await challengesTask
+            let activities = try await activitiesTask
+
+            // Update widget with the most urgent active challenge
+            appState.updateWidgetChallenge(challenges: challenges)
+
+            // Build lookup keyed by challengeId
+            var activityMap: [String: MyChallenge] = [:]
+            for activity in activities {
+                activityMap[activity.challengeId] = activity
+            }
+
+            AutoProofService.shared.checkPendingChallenges(
+                challenges: challenges,
+                activities: activityMap,
+                appState: appState,
+                healthService: healthService
+            )
+        } catch {
+            // Silently fail — auto-proof is best-effort on foreground
+            print("[AutoProof] foreground check failed: \(error.localizedDescription)")
         }
     }
 

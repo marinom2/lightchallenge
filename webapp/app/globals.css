@@ -3771,6 +3771,71 @@ html[data-theme="light"] .hp-aivm {
   word-break: break-all;
 }
 
+/* ── Phase Banner (cd-phase-banner) ──────────────────────────────────────── */
+.cd-phase-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--lc-space-2);
+  padding: var(--lc-space-2) var(--lc-space-3);
+  border-radius: var(--lc-radius-md);
+  font-size: var(--lc-text-small);
+  font-weight: 500;
+  line-height: 1.4;
+}
+.cd-phase-banner__sep {
+  opacity: 0.5;
+}
+.cd-phase-banner--join {
+  background: var(--lc-success-muted);
+  color: var(--lc-success);
+  border: 1px solid color-mix(in oklab, var(--lc-success) 20%, transparent);
+}
+.cd-phase-banner--active {
+  background: var(--lc-info-muted);
+  color: var(--lc-info);
+  border: 1px solid color-mix(in oklab, var(--lc-info) 20%, transparent);
+}
+.cd-phase-banner--proof {
+  background: var(--lc-warning-muted);
+  color: var(--lc-warning);
+  border: 1px solid color-mix(in oklab, var(--lc-warning) 20%, transparent);
+}
+.cd-phase-banner--expired {
+  background: var(--lc-danger-muted);
+  color: var(--lc-danger);
+  border: 1px solid color-mix(in oklab, var(--lc-danger) 20%, transparent);
+}
+.cd-phase-banner--finalized {
+  background: var(--lc-bg-overlay);
+  color: var(--lc-text-secondary);
+  border: 1px solid var(--lc-border);
+}
+
+/* ── Auto-Proof Indicator (cd-auto-proof) ────────────────────────────────── */
+.cd-auto-proof {
+  overflow: hidden;
+}
+.cd-auto-proof__row {
+  display: flex;
+  align-items: center;
+  gap: var(--lc-space-2);
+  padding: var(--lc-space-2) var(--lc-space-3);
+  border-radius: var(--lc-radius-md);
+  font-size: var(--lc-text-small);
+}
+.cd-auto-proof__row--collecting {
+  background: var(--lc-info-muted);
+  color: var(--lc-info);
+}
+.cd-auto-proof__row--ok {
+  background: var(--lc-success-muted);
+  color: var(--lc-success);
+}
+.cd-auto-proof__row--error {
+  background: var(--lc-danger-muted);
+  color: var(--lc-danger);
+}
+
 /* ── Create Wizard (cw-*) ─────────────────────────────────────────────────── */
 
 .cw-alert {

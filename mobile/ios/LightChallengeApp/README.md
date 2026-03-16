@@ -1,83 +1,60 @@
-# LightChallenge iOS — Apple Health Collector
+# LightChallenge iOS App
 
-A native iOS app that reads Apple Health data (steps + walking distance) and submits it as challenge evidence to the LightChallenge platform.
+A full-featured native SwiftUI client for creating, joining, and completing fitness challenges on-chain.
 
 ## Requirements
 
 - Xcode 15+ (tested with Xcode 16)
 - iOS 17+
-- Physical iPhone (HealthKit is unavailable on Simulator)
+- Physical iPhone (HealthKit unavailable on Simulator)
 - Apple Developer account with HealthKit capability
+- WalletConnect-compatible wallet (MetaMask, Rainbow, Trust, etc.)
 
 ## Build & Run
 
-1. Open `LightChallengeApp.xcodeproj` in Xcode
-2. Set your **Signing Team** in target → Signing & Capabilities
-3. Verify the **HealthKit** capability is enabled
+1. Generate the Xcode project (if needed): `xcodegen generate` from this directory
+2. Open `LightChallengeApp.xcodeproj` in Xcode
+3. Set your **Signing Team** in target → Signing & Capabilities
 4. Connect your iPhone and select it as the build destination
 5. Build and run (Cmd+R)
 
-The app will request HealthKit permission on first launch.
+Or from the command line:
+
+```bash
+xcodebuild \
+  -project LightChallengeApp.xcodeproj \
+  -scheme LightChallengeApp \
+  -destination 'generic/platform=iOS' \
+  build
+```
+
+## Architecture
+
+4-tab SwiftUI app: **Explore** | **Challenges** | **Achievements** | **Profile**
+
+Key services:
+- `WalletManager` — Reown AppKit (WalletConnect v2) wallet connection
+- `ContractService` — On-chain create/join/claim via ChallengePay
+- `HealthKitService` — Apple Health data collection (7 metrics, date-range scoped)
+- `AutoProofService` — Automatic evidence submission during proof window
+- `OAuthService` — Strava/Fitbit/Garmin OAuth linking
 
 ## Deep Links
 
-The app supports two deep link formats:
+- **Custom scheme:** `lightchallengeapp://challenge/{id}?subject={wallet}&token={token}&expires={expiry}`
+- **OAuth callback:** `lightchallengeapp://auth/callback?provider={strava|fitbit}&status=ok`
+- **Universal link:** `https://uat.lightchallenge.app/challenge/{id}?subject={wallet}`
 
-- **Custom scheme:** `lightchallenge://challenge/{id}?subject={wallet}`
-- **Universal link:** `https://app.lightchallenge.io/proofs/{id}?subject={wallet}`
+## Server URL
 
-The webapp QR code feature generates these links so users can scan and open directly in the app.
+The API base URL defaults to `https://uat.lightchallenge.app`. Change at runtime in **Profile → Settings**, or edit `Sources/Models/Models.swift`:
 
-## How It Works
+| Environment | URL |
+|-------------|-----|
+| UAT (default) | `https://uat.lightchallenge.app` |
+| Production | `https://lightchallenge.app` |
+| Local dev | `http://{YOUR_MAC_IP}:3000` |
 
-1. User opens app (via QR code or manually)
-2. App requests HealthKit read permission (steps + distance)
-3. User enters challenge ID and wallet address (or pre-filled from deep link)
-4. App reads daily aggregates from HealthKit for the selected period
-5. Data is submitted to `POST /api/aivm/intake` as multipart/form-data
-6. Server validates, persists evidence, and triggers evaluation pipeline
+## Documentation
 
-## API Endpoint
-
-The app submits to the same endpoint as the web upload:
-
-```
-POST {baseURL}/api/aivm/intake
-Content-Type: multipart/form-data
-
-Fields:
-  - modelHash: 0x2e3f88a0496e6650c192355be471a62cae0bda1aece751eb2b30affd0f010c9e
-  - challengeId: {number}
-  - subject: {wallet address}
-  - json: [{provider, user_id, activity_id, type, start_ts, end_ts, ...}]
-```
-
-## Configuration
-
-The API base URL defaults to `https://app.lightchallenge.io`. To change it for development, edit `HealthKitService.swift`:
-
-```swift
-static let defaultBaseURL = "http://localhost:3000"
-```
-
-## Project Structure
-
-```
-Sources/
-├── LightChallengeApp.swift       # @main entry point + deep link handler
-├── Info.plist                    # HealthKit permissions + URL scheme
-├── LightChallengeApp.entitlements # HealthKit entitlement
-├── Assets.xcassets/              # App icon placeholder
-├── Models/
-│   └── Models.swift              # DailySteps, DailyDistance, EvidencePayload
-├── Services/
-│   └── HealthKitService.swift    # HealthKit queries + API submission
-└── Views/
-    └── ContentView.swift         # SwiftUI UI (auth, preview, submit)
-```
-
-## Remaining Setup (User-Specific)
-
-- [ ] Set your Apple Developer Team ID in Signing & Capabilities
-- [ ] Add a 1024x1024 app icon to `Assets.xcassets/AppIcon.appiconset/`
-- [ ] Configure universal links (apple-app-site-association on your domain)
+Full documentation: [uat.docs.lightchallenge.app/ios](https://uat.docs.lightchallenge.app/ios)

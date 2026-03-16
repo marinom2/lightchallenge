@@ -3,10 +3,11 @@
     "apps": [],
     "details": [
       {
-        "appID": "TEAM_ID.com.lightchallenge.app",
+        "appID": "84SJ6FKXLJ.io.lightchallenge.app",
         "paths": [
           "/challenge/*",
-          "/proofs/*"
+          "/explore",
+          "/me/challenges"
         ]
       }
     ]

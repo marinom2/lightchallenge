@@ -21,6 +21,56 @@ import type { ChallengeConfig } from "../db/challenges";
 
 export type { EvidenceRow, ChallengeConfig };
 
+// ─── Simplified rules format (stored in challenges.params.rules) ────────────
+
+/**
+ * Simplified fitness challenge rules.
+ * Stored in challenges.params JSONB under the `rules` key.
+ *
+ * Example:
+ * ```json
+ * { "rules": { "type": "fitness", "metric": "steps", "threshold": 10000, "period": "daily", "minDays": 7 } }
+ * ```
+ */
+export type FitnessRules = {
+  type: "fitness";
+  /** Metric to evaluate: steps, distance_km, active_minutes, cycling_km, swimming_km */
+  metric: "steps" | "distance_km" | "active_minutes" | "cycling_km" | "swimming_km";
+  /** Minimum value per period unit (e.g., per day for daily period) */
+  threshold: number;
+  /** Aggregation period: daily (per-day threshold), total (sum all), average (mean per day) */
+  period: "daily" | "total" | "average";
+  /** Minimum number of qualifying days (used with "daily" period) */
+  minDays?: number;
+};
+
+/**
+ * Simplified gaming challenge rules.
+ * Stored in challenges.params JSONB under the `rules` key.
+ *
+ * Example:
+ * ```json
+ * { "rules": { "type": "gaming", "metric": "wins", "threshold": 5, "period": "total", "minMatches": 3 } }
+ * ```
+ */
+export type GamingRules = {
+  type: "gaming";
+  /** Metric to evaluate: wins, kills, headshots, kda */
+  metric: "wins" | "kills" | "headshots" | "kda";
+  /** Minimum value required */
+  threshold: number;
+  /** Aggregation period: total (sum all), per_match (average per match), best_match (single best) */
+  period: "total" | "per_match" | "best_match";
+  /** Minimum number of qualifying matches required */
+  minMatches?: number;
+};
+
+/**
+ * Union type for simplified challenge rules.
+ * Discriminated on `type` field.
+ */
+export type ChallengeRules = FitnessRules | GamingRules;
+
 export type EvaluationResult = {
   /** Whether the evidence passes the challenge condition. */
   verdict: boolean;

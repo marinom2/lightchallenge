@@ -32,9 +32,13 @@ targets:
         MARKETING_VERSION: "1.2.0"
         CURRENT_PROJECT_VERSION: 3
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1,2"
     entitlements:
       path: Sources/LightChallengeApp.entitlements
       properties:
+        com.apple.developer.associated-domains:
+          - applinks:uat.lightchallenge.app
+          - applinks:lightchallenge.app
         com.apple.security.application-groups:
           - group.io.lightchallenge.app
         com.apple.developer.healthkit: true
@@ -42,3 +46,24 @@ targets:
     dependencies:
       - package: reown-swift
         product: ReownAppKit
+      - target: LightChallengeWidgetExtension
+
+  LightChallengeWidgetExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: LightChallengeWidget
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.lightchallenge.app.widget
+        DEVELOPMENT_TEAM: "84SJ6FKXLJ"
+        CODE_SIGN_STYLE: Automatic
+        MARKETING_VERSION: "1.2.0"
+        CURRENT_PROJECT_VERSION: 3
+        GENERATE_INFOPLIST_FILE: true
+        INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        TARGETED_DEVICE_FAMILY: "1,2"
+    entitlements:
+      properties:
+        com.apple.security.application-groups:
+          - group.io.lightchallenge.app

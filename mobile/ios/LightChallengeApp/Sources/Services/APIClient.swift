@@ -226,6 +226,85 @@ actor APIClient {
         return try decoder.decode(LeaderboardResponse.self, from: data)
     }
 
+    // MARK: - File Evidence Upload
+
+    /// Upload a raw file (TCX, GPX, JSON, ZIP) as evidence via multipart/form-data
+    /// to POST /api/aivm/intake. Returns a SubmissionResult.
+    func uploadEvidenceFile(
+        baseURL: String,
+        challengeId: String,
+        subject: String,
+        modelHash: String,
+        fileData: Data,
+        fileName: String,
+        mimeType: String,
+        evidenceToken: String? = nil,
+        evidenceExpires: String? = nil
+    ) async throws -> SubmissionResult {
+        guard let url = URL(string: "\(baseURL)/api/aivm/intake") else {
+            throw APIError.invalidURL
+        }
+
+        let boundary = UUID().uuidString
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 120
+
+        var body = Data()
+
+        func appendField(_ name: String, _ value: String) {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(value)\r\n".data(using: .utf8)!)
+        }
+
+        appendField("modelHash", modelHash)
+        appendField("challengeId", challengeId)
+        appendField("subject", subject)
+
+        if let token = evidenceToken, !token.isEmpty,
+           let expires = evidenceExpires, !expires.isEmpty {
+            appendField("evidenceToken", token)
+            appendField("evidenceExpires", expires)
+        }
+
+        // Attach the file as the "json" field with filename metadata
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+        body.append(fileData)
+        body.append("\r\n".data(using: .utf8)!)
+
+        // Also send the file contents as the json field for compatibility
+        // (the intake route reads the "json" form field for evidence data)
+        if let jsonString = String(data: fileData, encoding: .utf8) {
+            appendField("json", jsonString)
+        }
+
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        request.httpBody = body
+
+        let (data, response) = try await session.data(for: request)
+        let httpResponse = response as? HTTPURLResponse
+
+        guard let status = httpResponse?.statusCode, status >= 200, status < 300 else {
+            let errBody = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw APIError.httpError(httpResponse?.statusCode ?? 0, errBody)
+        }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw APIError.decodingFailed("Could not parse upload response")
+        }
+
+        return SubmissionResult(
+            ok: json["ok"] as? Bool ?? false,
+            evidenceId: json["evidenceId"] as? String,
+            recordCount: json["recordCount"] as? Int ?? 0,
+            dataHash: json["dataHash"] as? String ?? ""
+        )
+    }
+
     // MARK: - Competition Stats
 
     /// Fetch competition stats (wins, losses, streak, rank) for a wallet.

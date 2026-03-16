@@ -4,13 +4,26 @@
  * Evaluates gaming evidence (OpenDota, Riot/LoL, Steam, FACEIT) against
  * challenge-specific gaming thresholds.
  *
- * Supports two evaluation modes:
+ * Supports three rule formats (checked in priority order):
+ *
+ *   A. Simplified GamingRules (challenges.params.rules)
+ *      New format: { type:"gaming", metric, threshold, period, minMatches }
+ *      Checked first via extractSimpleGamingRules().
+ *
+ *   B. Full GamingRule (proof.params / legacy)
+ *      Original format with minWins, hero, rankedOnly, period, streakLength.
+ *      Checked via extractGamingRule().
+ *
+ *   C. Structural pass (fallback)
+ *      When no rule config is found, passes if any wins exist.
+ *
+ * Supports two evaluation modes (for full GamingRule format):
  *   - Threshold (default): Evidence must meet minWins / streakLength to pass.
  *   - Competitive: All valid evidence passes; a numeric score (kills, wins,
  *     assists, etc.) is computed for ranking. The competitive ranking step
  *     (in challengeDispatcher) later determines top-N winners.
  *
- * Gaming Rule fields (all optional — absent means "no filter"):
+ * Full Gaming Rule fields (all optional — absent means "no filter"):
  *   minWins    — minimum number of qualifying wins required (default: 1)
  *   hero       — required hero / champion name (case-insensitive substring)
  *   rankedOnly — when true, only count ranked matches
@@ -20,7 +33,7 @@
  *   competitiveMetric — which metric to score on ("wins", "kills", "assists", "kda")
  */
 
-import type { Evaluator, EvaluationResult, EvidenceRow, ChallengeConfig } from "./types";
+import type { Evaluator, EvaluationResult, EvidenceRow, ChallengeConfig, GamingRules } from "./types";
 
 const GAMING_PROVIDERS = ["opendota", "riot", "steam", "faceit"] as const;
 
@@ -136,6 +149,195 @@ function numericField(record: unknown, ...fields: string[]): number {
   return 0;
 }
 
+// ─── Simplified rules (challenges.params.rules) ──────────────────────────────
+
+const SIMPLE_GAMING_METRICS = new Set(["wins", "kills", "headshots", "kda"]);
+
+/**
+ * Detect whether an object matches the simplified GamingRules shape
+ * (type:"gaming", metric, threshold, period).
+ */
+function isSimpleGamingRules(v: unknown): v is GamingRules {
+  if (typeof v !== "object" || v === null) return false;
+  const obj = v as Record<string, unknown>;
+  return (
+    obj.type === "gaming" &&
+    typeof obj.metric === "string" &&
+    SIMPLE_GAMING_METRICS.has(obj.metric as string) &&
+    typeof obj.threshold === "number" &&
+    typeof obj.period === "string"
+  );
+}
+
+/**
+ * Extract simplified GamingRules from challenge config.
+ * Looks in params.rules (the canonical location for the new format).
+ */
+function extractSimpleGamingRules(cfg: ChallengeConfig | null | undefined): GamingRules | null {
+  if (!cfg) return null;
+
+  // Primary location: params.rules
+  const paramsRules = parseMaybeJson((cfg.params as any)?.rules);
+  if (isSimpleGamingRules(paramsRules)) return paramsRules;
+
+  // Also check proof.params.rules for consistency
+  const proofParams = parseMaybeJson((cfg.proof as any)?.params);
+  const proofRules = parseMaybeJson((proofParams as any)?.rules);
+  if (isSimpleGamingRules(proofRules)) return proofRules;
+
+  return null;
+}
+
+/**
+ * Extract a per-record metric value based on the simplified metric name.
+ */
+function simpleGamingMetricValue(record: unknown, metric: GamingRules["metric"]): number {
+  switch (metric) {
+    case "wins":
+      return isWin(record) ? 1 : 0;
+    case "kills":
+      return numericField(record, "kills", "kill_count");
+    case "headshots":
+      return numericField(record, "headshots", "headshot_count", "hs_count");
+    case "kda": {
+      const kills = numericField(record, "kills", "kill_count");
+      const deaths = numericField(record, "deaths", "death_count");
+      const assists = numericField(record, "assists", "assist_count");
+      return deaths === 0 ? kills + assists : (kills + assists) / deaths;
+    }
+  }
+}
+
+/**
+ * Evaluate gaming records against simplified gaming rules.
+ *
+ * Period semantics:
+ *   "total"      — sum metric across all matches; compare to threshold
+ *   "per_match"  — average metric per match; compare to threshold
+ *   "best_match" — best single-match metric value; compare to threshold
+ *
+ * minMatches — minimum number of records required for evaluation
+ */
+function evaluateSimpleGamingRules(
+  records: unknown[],
+  rules: GamingRules,
+): EvaluationResult {
+  const minMatches = rules.minMatches ?? 1;
+
+  if (records.length < minMatches) {
+    return {
+      verdict: false,
+      reasons: [
+        `Only ${records.length} match(es) found, minimum required: ${minMatches}`,
+      ],
+      score: 0,
+      metadata: {
+        rulesFormat: "simple",
+        metric: rules.metric,
+        period: rules.period,
+        threshold: rules.threshold,
+        minMatches,
+        matchCount: records.length,
+      },
+    };
+  }
+
+  const perMatchValues = records.map((r) => simpleGamingMetricValue(r, rules.metric));
+
+  switch (rules.period) {
+    case "total": {
+      const total = perMatchValues.reduce((sum, v) => sum + v, 0);
+      const roundedTotal = Math.round(total * 100) / 100;
+      const verdict = total >= rules.threshold;
+      const reasons: string[] = [];
+      if (!verdict) {
+        reasons.push(
+          `Total ${rules.metric}: ${roundedTotal}, required: ${rules.threshold}`
+        );
+      }
+
+      return {
+        verdict,
+        reasons,
+        score: roundedTotal,
+        metadata: {
+          rulesFormat: "simple",
+          metric: rules.metric,
+          period: rules.period,
+          threshold: rules.threshold,
+          total: roundedTotal,
+          matchCount: records.length,
+          minMatches,
+        },
+      };
+    }
+
+    case "per_match": {
+      const total = perMatchValues.reduce((sum, v) => sum + v, 0);
+      const average = records.length > 0 ? total / records.length : 0;
+      const roundedAvg = Math.round(average * 100) / 100;
+      const verdict = average >= rules.threshold;
+      const reasons: string[] = [];
+      if (!verdict) {
+        reasons.push(
+          `Average ${rules.metric} per match: ${roundedAvg}, required: ${rules.threshold}`
+        );
+      }
+
+      return {
+        verdict,
+        reasons,
+        score: roundedAvg,
+        metadata: {
+          rulesFormat: "simple",
+          metric: rules.metric,
+          period: rules.period,
+          threshold: rules.threshold,
+          average: roundedAvg,
+          total: Math.round(total * 100) / 100,
+          matchCount: records.length,
+          minMatches,
+        },
+      };
+    }
+
+    case "best_match": {
+      const best = Math.max(...perMatchValues);
+      const roundedBest = Math.round(best * 100) / 100;
+      const verdict = best >= rules.threshold;
+      const reasons: string[] = [];
+      if (!verdict) {
+        reasons.push(
+          `Best single-match ${rules.metric}: ${roundedBest}, required: ${rules.threshold}`
+        );
+      }
+
+      return {
+        verdict,
+        reasons,
+        score: roundedBest,
+        metadata: {
+          rulesFormat: "simple",
+          metric: rules.metric,
+          period: rules.period,
+          threshold: rules.threshold,
+          best: roundedBest,
+          matchCount: records.length,
+          minMatches,
+        },
+      };
+    }
+
+    default:
+      return {
+        verdict: false,
+        reasons: [`Unknown period type "${(rules as any).period}" in simplified gaming rules`],
+        score: 0,
+        metadata: { rulesFormat: "simple", rules },
+      };
+  }
+}
+
 // ─── Competitive scoring ──────────────────────────────────────────────────────
 
 /**
@@ -186,9 +388,15 @@ export const gamingEvaluator: Evaluator = {
       return { verdict: false, reasons: ["No game records in evidence"] };
     }
 
+    // ── Simplified rules evaluation (challenges.params.rules) ──────────────
+    const simpleRules = extractSimpleGamingRules(challengeConfig);
+    if (simpleRules) {
+      return evaluateSimpleGamingRules(records, simpleRules);
+    }
+
     const rule = extractGamingRule(challengeConfig);
 
-    // ── Real rule evaluation ─────────────────────────────────────────────────
+    // ── Full gaming rule evaluation (proof.params / legacy) ──────────────────
     if (rule) {
       let eligible = records as unknown[];
 

@@ -2,6 +2,7 @@
 // Persistent app state: wallet address, server URL, preferences, navigation.
 
 import SwiftUI
+import WidgetKit
 
 @MainActor
 class AppState: ObservableObject {
@@ -99,7 +100,38 @@ class AppState: ObservableObject {
                 challengeId = last
             }
         }
-        // Universal link: /proofs/{id}
+        // Universal links: https://uat.lightchallenge.app/challenge/{id}
+        //                   https://lightchallenge.app/explore
+        //                   https://lightchallenge.app/me/challenges
+        else if url.scheme == "https" || url.scheme == "http" {
+            let host = url.host ?? ""
+            let isOurDomain = host == "uat.lightchallenge.app"
+                           || host == "lightchallenge.app"
+                           || host == "app.lightchallenge.app"
+            guard isOurDomain else { return }
+
+            let pathSegments = url.pathComponents.filter { $0 != "/" }
+            print("[DEEPLINK] universal link pathSegments=\(pathSegments)")
+
+            // /challenge/{id}
+            if pathSegments.count >= 2, pathSegments[0] == "challenge" {
+                let idSegment = pathSegments[1]
+                if idSegment.allSatisfy(\.isNumber), !idSegment.isEmpty {
+                    challengeId = idSegment
+                }
+            }
+            // /explore — switch to explore tab
+            else if pathSegments.first == "explore" {
+                selectedTab = .explore
+                return
+            }
+            // /me/challenges — switch to challenges tab
+            else if pathSegments.count >= 2, pathSegments[0] == "me", pathSegments[1] == "challenges" {
+                selectedTab = .challenges
+                return
+            }
+        }
+        // Fallback: legacy /proofs/{id}
         else if let path = components.path.split(separator: "/").last {
             challengeId = String(path)
         }
@@ -137,4 +169,81 @@ class AppState: ObservableObject {
             }
         }
     }
+
+    // MARK: - Widget Data (shared via App Group)
+
+    /// Persist the most urgent active challenge to the shared app group for the widget.
+    /// Call this after loading challenges from the API.
+    func updateWidgetChallenge(challenges: [ChallengeMeta]) {
+        let suiteName = "group.io.lightchallenge.app"
+        let key = "widget_active_challenge"
+        guard let defaults = UserDefaults(suiteName: suiteName) else { return }
+
+        // Find the most urgent active challenge (earliest deadline)
+        let activeChallenges = challenges.filter { $0.isActive }
+
+        guard let most = pickMostUrgent(activeChallenges) else {
+            // No active challenges — clear widget data
+            defaults.removeObject(forKey: key)
+            reloadWidgetTimelines()
+            return
+        }
+
+        // Determine phase and phase end timestamp
+        let now = Date()
+        let phase: String
+        let phaseEndTimestamp: Double
+
+        if let endsDate = most.endsDate, endsDate > now {
+            phase = "In Progress"
+            phaseEndTimestamp = endsDate.timeIntervalSince1970
+        } else if let deadline = most.proofDeadlineDate, deadline > now {
+            phase = "Proof Window"
+            phaseEndTimestamp = deadline.timeIntervalSince1970
+        } else {
+            phase = "Ended"
+            phaseEndTimestamp = now.timeIntervalSince1970
+        }
+
+        let widgetData = WidgetChallengePayload(
+            challengeId: most.id,
+            title: most.displayTitle,
+            phase: phase,
+            phaseEndTimestamp: phaseEndTimestamp,
+            stakeDisplay: most.stakeDisplay,
+            updatedAt: now.timeIntervalSince1970
+        )
+
+        if let encoded = try? JSONEncoder().encode(widgetData) {
+            defaults.set(encoded, forKey: key)
+            reloadWidgetTimelines()
+        }
+    }
+
+    /// Pick the active challenge with the soonest deadline.
+    private func pickMostUrgent(_ challenges: [ChallengeMeta]) -> ChallengeMeta? {
+        challenges.min { a, b in
+            let aEnd = a.endsDate ?? Date.distantFuture
+            let bEnd = b.endsDate ?? Date.distantFuture
+            return aEnd < bEnd
+        }
+    }
+
+    /// Tell WidgetKit to refresh all widget timelines.
+    private func reloadWidgetTimelines() {
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+}
+
+// MARK: - Widget Payload (Codable, written by main app)
+
+/// Matches the WidgetChallengeData struct in the widget extension.
+/// Duplicated here to avoid cross-target source sharing complexity.
+struct WidgetChallengePayload: Codable {
+    let challengeId: String
+    let title: String
+    let phase: String
+    let phaseEndTimestamp: Double
+    let stakeDisplay: String?
+    let updatedAt: Double
 }

@@ -4,13 +4,26 @@
  * Evaluates fitness evidence (Apple Health, Strava, Garmin, Fitbit,
  * Google Fit) against the challenge's Rule configuration.
  *
- * Supports two evaluation modes:
+ * Supports three rule formats (checked in priority order):
+ *
+ *   A. Simplified FitnessRules (challenges.params.rules)
+ *      New format: { type:"fitness", metric, threshold, period, minDays }
+ *      Checked first via extractSimpleFitnessRules().
+ *
+ *   B. Full Rule (proof.params.rule / legacy)
+ *      Original format with challengeType, period, conditions, weeklyTarget,
+ *      dailyTarget, antiCheat. Checked via extractFitnessRule().
+ *
+ *   C. Structural pass (fallback)
+ *      When no rule config is found, passes if valid activities exist.
+ *
+ * Supports two evaluation modes (for full Rule format):
  *   - Threshold (default): Evidence must meet the rule's conditions to pass.
  *   - Competitive: All valid evidence passes; a numeric score is computed
  *     for ranking. The competitive ranking step (in challengeDispatcher)
  *     later determines top-N winners.
  *
- * Rule extraction order:
+ * Full Rule extraction order:
  *   1. challengeConfig.proof.params.rule  — canonical (set by ruleBuilder at challenge creation)
  *   2. challengeConfig.proof.params       — legacy direct-embedded Rule
  *   3. challengeConfig.params.rule        — top-level column + nested rule
@@ -26,7 +39,7 @@
 
 import { evaluate as metricsEvaluate, inPeriod } from "../inference/metrics";
 import type { Activity, Rule } from "../inference/metrics";
-import type { Evaluator, EvaluationResult, EvidenceRow, ChallengeConfig } from "./types";
+import type { Evaluator, EvaluationResult, EvidenceRow, ChallengeConfig, FitnessRules } from "./types";
 
 const FITNESS_PROVIDERS = ["apple", "strava", "garmin", "fitbit", "googlefit"] as const;
 
@@ -266,6 +279,220 @@ function computeFitnessScore(
   return total;
 }
 
+// ─── Simplified rules (challenges.params.rules) ──────────────────────────────
+
+const SIMPLE_FITNESS_METRICS = new Set(["steps", "distance_km", "active_minutes", "cycling_km", "swimming_km"]);
+
+/**
+ * Detect whether an object matches the simplified FitnessRules shape
+ * (type:"fitness", metric, threshold, period).
+ */
+function isSimpleFitnessRules(v: unknown): v is FitnessRules {
+  if (typeof v !== "object" || v === null) return false;
+  const obj = v as Record<string, unknown>;
+  return (
+    obj.type === "fitness" &&
+    typeof obj.metric === "string" &&
+    SIMPLE_FITNESS_METRICS.has(obj.metric as string) &&
+    typeof obj.threshold === "number" &&
+    typeof obj.period === "string"
+  );
+}
+
+/**
+ * Extract simplified FitnessRules from challenge config.
+ * Looks in params.rules (the canonical location for the new format).
+ */
+function extractSimpleFitnessRules(cfg: ChallengeConfig | null | undefined): FitnessRules | null {
+  if (!cfg) return null;
+
+  // Primary location: params.rules
+  const paramsRules = parseMaybeJson((cfg.params as any)?.rules);
+  if (isSimpleFitnessRules(paramsRules)) return paramsRules;
+
+  // Also check proof.params.rules for consistency
+  const proofParams = parseMaybeJson((cfg.proof as any)?.params);
+  const proofRules = parseMaybeJson((proofParams as any)?.rules);
+  if (isSimpleFitnessRules(proofRules)) return proofRules;
+
+  return null;
+}
+
+/**
+ * Extract the metric value from an Activity based on the simplified metric name.
+ * Maps metric names like "steps" → steps_count, "active_minutes" → duration_min, etc.
+ */
+function simpleMetricValue(a: Activity, metric: FitnessRules["metric"]): number {
+  switch (metric) {
+    case "steps":          return a.steps_count ?? 0;
+    case "distance_km":    return a.distance_km ?? 0;
+    case "active_minutes": return a.duration_min ?? 0;
+    case "cycling_km":     return a.type === "cycle" ? (a.distance_km ?? 0) : 0;
+    case "swimming_km":    return a.type === "swim" ? (a.distance_km ?? 0) : 0;
+  }
+}
+
+/**
+ * Activity type filter for cycling_km and swimming_km metrics.
+ * Other metrics accept all activity types.
+ */
+function activityMatchesSimpleMetric(a: Activity, metric: FitnessRules["metric"]): boolean {
+  if (metric === "cycling_km") return a.type === "cycle";
+  if (metric === "swimming_km") return a.type === "swim";
+  return true;
+}
+
+/**
+ * Group activities by calendar day (YYYY-MM-DD based on start timestamp).
+ * Returns a Map of dayKey → Activity[].
+ */
+function groupByDay(activities: Activity[]): Map<string, Activity[]> {
+  const dayMap = new Map<string, Activity[]>();
+  for (const a of activities) {
+    const dayKey = a.start.slice(0, 10); // YYYY-MM-DD
+    const existing = dayMap.get(dayKey);
+    if (existing) existing.push(a);
+    else dayMap.set(dayKey, [a]);
+  }
+  return dayMap;
+}
+
+/**
+ * Evaluate activities against simplified fitness rules.
+ *
+ * Period semantics:
+ *   "daily"   — sum metric per day; count days >= threshold; require >= minDays
+ *   "total"   — sum metric across all activities; compare to threshold
+ *   "average" — mean metric per day; compare to threshold
+ */
+function evaluateSimpleFitnessRules(
+  activities: Activity[],
+  rules: FitnessRules,
+): EvaluationResult {
+  const relevant = activities.filter((a) => activityMatchesSimpleMetric(a, rules.metric));
+
+  if (relevant.length === 0) {
+    return {
+      verdict: false,
+      reasons: [`No activities found matching metric "${rules.metric}"`],
+      score: 0,
+      metadata: { rulesFormat: "simple", metric: rules.metric, period: rules.period, totalActivities: activities.length },
+    };
+  }
+
+  switch (rules.period) {
+    case "daily": {
+      const dayMap = groupByDay(relevant);
+      const minDays = rules.minDays ?? 1;
+      let qualifyingDays = 0;
+      const dayDetails: Record<string, { value: number; passed: boolean }> = {};
+
+      for (const [day, acts] of dayMap.entries()) {
+        const dayTotal = acts.reduce((sum, a) => sum + simpleMetricValue(a, rules.metric), 0);
+        const passed = dayTotal >= rules.threshold;
+        if (passed) qualifyingDays++;
+        dayDetails[day] = { value: Math.round(dayTotal * 100) / 100, passed };
+      }
+
+      const verdict = qualifyingDays >= minDays;
+      const reasons: string[] = [];
+      if (!verdict) {
+        reasons.push(
+          `Only ${qualifyingDays} of ${minDays} required days met the ${rules.threshold} ${rules.metric} threshold`
+        );
+      }
+
+      return {
+        verdict,
+        reasons,
+        score: qualifyingDays,
+        metadata: {
+          rulesFormat: "simple",
+          metric: rules.metric,
+          period: rules.period,
+          threshold: rules.threshold,
+          minDays,
+          qualifyingDays,
+          totalDays: dayMap.size,
+          dayDetails,
+        },
+      };
+    }
+
+    case "total": {
+      const total = relevant.reduce((sum, a) => sum + simpleMetricValue(a, rules.metric), 0);
+      const roundedTotal = Math.round(total * 100) / 100;
+      const verdict = total >= rules.threshold;
+      const reasons: string[] = [];
+      if (!verdict) {
+        reasons.push(
+          `Total ${rules.metric}: ${roundedTotal}, required: ${rules.threshold}`
+        );
+      }
+
+      return {
+        verdict,
+        reasons,
+        score: roundedTotal,
+        metadata: {
+          rulesFormat: "simple",
+          metric: rules.metric,
+          period: rules.period,
+          threshold: rules.threshold,
+          total: roundedTotal,
+          activityCount: relevant.length,
+        },
+      };
+    }
+
+    case "average": {
+      const dayMap = groupByDay(relevant);
+      if (dayMap.size === 0) {
+        return {
+          verdict: false,
+          reasons: [`No days with activities for metric "${rules.metric}"`],
+          score: 0,
+          metadata: { rulesFormat: "simple", metric: rules.metric, period: rules.period },
+        };
+      }
+
+      const total = relevant.reduce((sum, a) => sum + simpleMetricValue(a, rules.metric), 0);
+      const average = total / dayMap.size;
+      const roundedAvg = Math.round(average * 100) / 100;
+      const verdict = average >= rules.threshold;
+      const reasons: string[] = [];
+      if (!verdict) {
+        reasons.push(
+          `Average daily ${rules.metric}: ${roundedAvg}, required: ${rules.threshold}`
+        );
+      }
+
+      return {
+        verdict,
+        reasons,
+        score: roundedAvg,
+        metadata: {
+          rulesFormat: "simple",
+          metric: rules.metric,
+          period: rules.period,
+          threshold: rules.threshold,
+          average: roundedAvg,
+          totalDays: dayMap.size,
+          totalValue: Math.round(total * 100) / 100,
+        },
+      };
+    }
+
+    default:
+      return {
+        verdict: false,
+        reasons: [`Unknown period type "${(rules as any).period}" in simplified fitness rules`],
+        score: 0,
+        metadata: { rulesFormat: "simple", rules },
+      };
+  }
+}
+
 // ─── Evaluator ────────────────────────────────────────────────────────────────
 
 export const fitnessEvaluator: Evaluator = {
@@ -299,7 +526,13 @@ export const fitnessEvaluator: Evaluator = {
       };
     }
 
-    // ── Real rule evaluation ─────────────────────────────────────────────────
+    // ── Simplified rules evaluation (challenges.params.rules) ──────────────
+    const simpleRules = extractSimpleFitnessRules(challengeConfig);
+    if (simpleRules) {
+      return evaluateSimpleFitnessRules(valid, simpleRules);
+    }
+
+    // ── Full Rule evaluation (proof.params.rule / legacy) ────────────────────
     const rule = extractFitnessRule(challengeConfig);
 
     if (rule) {

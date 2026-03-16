@@ -57,6 +57,13 @@ const {
   CheckCircle2,
   Vote,
   Receipt,
+  Timer,
+  Loader2,
+  AlertCircle,
+  Trophy,
+  XCircle,
+  Play,
+  DoorOpen,
 } = Lucide;
 
 // NOTE: Types (Status, ApiOut, SnapshotOut, TabKey) → ./lib/types.ts
@@ -64,6 +71,207 @@ const {
 // NOTE: Decoders (decodeChallenge, decodeSnapshot, normalizeApi) → ./lib/decoders.ts
 // NOTE: Formatters (formatLCAI, timeAgo, etc.) → ./lib/formatters.tsx
 // NOTE: UI components → ./components/*.tsx
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Countdown Display — reusable real-time countdown (inline)
+// ─────────────────────────────────────────────────────────────────────────────
+function CountdownDisplay({ targetSec }: { targetSec: number }) {
+  const [now, setNow] = React.useState(() => Math.floor(Date.now() / 1000));
+
+  React.useEffect(() => {
+    const t = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const diff = Math.max(0, targetSec - now);
+  const d = Math.floor(diff / 86400);
+  const h = Math.floor((diff % 86400) / 3600);
+  const m = Math.floor((diff % 3600) / 60);
+  const s = diff % 60;
+  const pad = (n: number) => n.toString().padStart(2, "0");
+
+  if (diff <= 0) return <span className="tabular-nums">0:00</span>;
+
+  return (
+    <span className="tabular-nums font-semibold">
+      {d > 0 ? `${d}d ${pad(h)}:${pad(m)}:${pad(s)}` : h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`}
+    </span>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase Banner — lifecycle-aware banner (inline)
+// ─────────────────────────────────────────────────────────────────────────────
+type PhaseKind = "join" | "active" | "proof" | "expired" | "finalized" | null;
+
+function resolvePhase(input: {
+  joinCloseSec: number | null;
+  startSec: number | null;
+  endSec: number | null;
+  proofDeadlineSec: number | null;
+  effectiveStatus?: string;
+  snapshotSet?: boolean;
+}): PhaseKind {
+  const now = Math.floor(Date.now() / 1000);
+  const { joinCloseSec, startSec, endSec, proofDeadlineSec, effectiveStatus, snapshotSet } = input;
+
+  if (effectiveStatus === "Canceled") return null;
+  if (effectiveStatus === "Finalized" || snapshotSet) return "finalized";
+
+  if (startSec && endSec) {
+    // Proof window: challenge ended, deadline not passed
+    if (now >= endSec && proofDeadlineSec && now < proofDeadlineSec) return "proof";
+    // Proof deadline passed
+    if (now >= endSec && proofDeadlineSec && now >= proofDeadlineSec) return "expired";
+    // Challenge ended but no proof deadline set
+    if (now >= endSec) return "expired";
+    // Challenge in progress
+    if (now >= startSec && now < endSec) return "active";
+  }
+
+  // Join window open
+  if (joinCloseSec && Math.floor(Date.now() / 1000) < joinCloseSec) return "join";
+  if (startSec && Math.floor(Date.now() / 1000) < startSec) return "join";
+
+  return null;
+}
+
+function PhaseBanner({
+  joinCloseSec,
+  startSec,
+  endSec,
+  proofDeadlineSec,
+  effectiveStatus,
+  snapshotSet,
+  snapshotSuccess,
+}: {
+  joinCloseSec: number | null;
+  startSec: number | null;
+  endSec: number | null;
+  proofDeadlineSec: number | null;
+  effectiveStatus?: string;
+  snapshotSet?: boolean;
+  snapshotSuccess?: boolean;
+}) {
+  // Force re-render every second so phase transitions are detected
+  const [, setTick] = React.useState(0);
+  React.useEffect(() => {
+    const t = setInterval(() => setTick((x) => x + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const phase = resolvePhase({ joinCloseSec, startSec, endSec, proofDeadlineSec, effectiveStatus, snapshotSet });
+  if (!phase) return null;
+
+  const bannerConfig: Record<
+    Exclude<PhaseKind, null>,
+    {
+      className: string;
+      icon: typeof Clock;
+      label: string;
+      target: number | null;
+    }
+  > = {
+    join: {
+      className: "cd-phase-banner cd-phase-banner--join",
+      icon: DoorOpen,
+      label: "Join window open",
+      target: joinCloseSec ?? startSec,
+    },
+    active: {
+      className: "cd-phase-banner cd-phase-banner--active",
+      icon: Play,
+      label: "Challenge in progress",
+      target: endSec,
+    },
+    proof: {
+      className: "cd-phase-banner cd-phase-banner--proof",
+      icon: Timer,
+      label: "Proof submission open",
+      target: proofDeadlineSec,
+    },
+    expired: {
+      className: "cd-phase-banner cd-phase-banner--expired",
+      icon: XCircle,
+      label: "Proof deadline has passed",
+      target: null,
+    },
+    finalized: {
+      className: "cd-phase-banner cd-phase-banner--finalized",
+      icon: Trophy,
+      label: snapshotSuccess ? "Challenge passed" : "Challenge completed",
+      target: null,
+    },
+  };
+
+  const cfg = bannerConfig[phase];
+  const Icon = cfg.icon;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: [0.2, 0.8, 0.2, 1] }}
+      className={cfg.className}
+      role="status"
+    >
+      <Icon size={16} className="shrink-0" />
+      <span>{cfg.label}</span>
+      {cfg.target ? (
+        <>
+          <span className="cd-phase-banner__sep">—</span>
+          <CountdownDisplay targetSec={cfg.target} />
+        </>
+      ) : null}
+    </motion.div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auto-Proof Status Indicator (inline)
+// ─────────────────────────────────────────────────────────────────────────────
+function AutoProofIndicator({
+  status,
+  onRetry,
+}: {
+  status: { state: "idle" } | { state: "collecting" } | { state: "submitted" } | { state: "error"; message: string };
+  onRetry?: () => void;
+}) {
+  if (status.state === "idle") return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      className="cd-auto-proof"
+    >
+      {status.state === "collecting" && (
+        <div className="cd-auto-proof__row cd-auto-proof__row--collecting">
+          <Loader2 size={14} className="animate-spin shrink-0" />
+          <span>Collecting evidence...</span>
+        </div>
+      )}
+      {status.state === "submitted" && (
+        <div className="cd-auto-proof__row cd-auto-proof__row--ok">
+          <CheckCircle2 size={14} className="shrink-0" />
+          <span>Evidence submitted</span>
+        </div>
+      )}
+      {status.state === "error" && (
+        <div className="cd-auto-proof__row cd-auto-proof__row--error">
+          <AlertCircle size={14} className="shrink-0" />
+          <span>Error: {status.message}</span>
+          {onRetry && (
+            <button type="button" className="btn btn-ghost btn-sm ml-auto" onClick={onRetry}>
+              Retry
+            </button>
+          )}
+        </div>
+      )}
+    </motion.div>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Dynamic bits
@@ -347,6 +555,7 @@ export default function ChallengePage() {
   }, [decoded.duration, decoded.startTs, scheduleBucket?.endTs, data?.endTs]);
 
   const joinCloseSec = toNum(scheduleBucket?.joinClosesTs ?? decoded.joinClosesTs);
+  const proofDeadlineSec = decoded.proofDeadlineTs ?? null;
 
   const publicStatus = React.useMemo(() => {
     const now = Math.floor(Date.now() / 1000);
@@ -397,6 +606,11 @@ export default function ChallengePage() {
     }
   }
 
+  // Auto-proof status tracking
+  const [autoProofStatus, setAutoProofStatus] = React.useState<
+    { state: "idle" } | { state: "collecting" } | { state: "submitted" } | { state: "error"; message: string }
+  >({ state: "idle" });
+
   // Fire-and-forget: trigger auto-proof collection.
   // Only works during the proof window (after challenge ends, before deadline).
   // For Strava/Fitbit this pulls evidence server-side for the challenge period.
@@ -405,13 +619,20 @@ export default function ChallengePage() {
   async function triggerAutoProof() {
     if (!address || !challengeId) return;
     try {
-      await fetch(`/api/challenge/${challengeId}/auto-proof`, {
+      setAutoProofStatus({ state: "collecting" });
+      const res = await fetch(`/api/challenge/${challengeId}/auto-proof`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subject: address }),
       });
-    } catch {
-      // non-blocking — the 5-min evidence collector will catch it
+      if (res.ok) {
+        setAutoProofStatus({ state: "submitted" });
+      } else {
+        const body = await res.text().catch(() => "");
+        setAutoProofStatus({ state: "error", message: body || `Status ${res.status}` });
+      }
+    } catch (e: any) {
+      setAutoProofStatus({ state: "error", message: e?.message || "Network error" });
     }
   }
 
@@ -1405,6 +1626,26 @@ const primaryAction = React.useMemo(() => {
       {/* Progress bar */}
       {!isInitialLoading && (
         <HeroProgress start={startSec ?? null} end={endSec ?? null} joinClose={joinCloseSec ?? null} status={effectiveStatus} />
+      )}
+
+      {/* Phase banner — lifecycle countdown */}
+      {!isInitialLoading && (startSec || endSec) && (
+        <PhaseBanner
+          joinCloseSec={joinCloseSec ?? null}
+          startSec={startSec ?? null}
+          endSec={endSec ?? null}
+          proofDeadlineSec={proofDeadlineSec}
+          effectiveStatus={effectiveStatus}
+          snapshotSet={snapshotSet}
+          snapshotSuccess={decodedSnapshot?.success}
+        />
+      )}
+
+      {/* Auto-proof status indicator */}
+      {hasJoined && autoProofStatus.state !== "idle" && (
+        <AnimatePresence>
+          <AutoProofIndicator status={autoProofStatus} onRetry={triggerAutoProof} />
+        </AnimatePresence>
       )}
 
       {/* Error */}

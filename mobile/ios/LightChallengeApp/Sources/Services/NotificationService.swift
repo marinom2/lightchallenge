@@ -113,6 +113,40 @@ class NotificationService: ObservableObject {
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request)
     }
+
+    // MARK: - Proof Window Reminder
+
+    /// Schedule a local notification when a challenge ends (proof window opens).
+    /// This is informational only — server-side evidence collection handles auto-proof independently.
+    /// When tapped, the notification deep links to the challenge detail.
+    func scheduleProofWindowReminder(challengeId: String, title: String, endDate: Date) {
+        // Only schedule if the end date is in the future
+        guard endDate > Date() else { return }
+
+        let identifier = "proof-window-\(challengeId)"
+
+        // Remove any existing notification for this challenge to avoid duplicates
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [identifier])
+
+        let content = UNMutableNotificationContent()
+        content.title = "Proof Window Open"
+        content.body = "Your challenge '\(title)' has ended — proof submission is now open!"
+        content.sound = .default
+
+        // Deep link to challenge detail when tapped
+        content.userInfo = [
+            "challengeId": challengeId,
+            "deepLink": "lightchallengeapp://challenge/\(challengeId)"
+        ]
+
+        let trigger = UNTimeIntervalNotificationTrigger(
+            timeInterval: max(1, endDate.timeIntervalSinceNow),
+            repeats: false
+        )
+
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request)
+    }
 }
 
 // MARK: - Notification Model

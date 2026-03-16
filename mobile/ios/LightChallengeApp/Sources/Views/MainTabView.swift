@@ -1,14 +1,26 @@
 // MainTabView.swift
-// Root tab navigation — 4-tab layout.
-// Explore | Challenges | Achievements | Profile
+// Root navigation — adaptive layout.
+// iPhone: 4-tab bottom bar.
+// iPad: sidebar NavigationSplitView.
 
 import SwiftUI
 
 struct MainTabView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var notificationService: NotificationService
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
+        if sizeClass == .regular {
+            iPadLayout
+        } else {
+            iPhoneLayout
+        }
+    }
+
+    // MARK: - iPhone (Bottom Tabs)
+
+    private var iPhoneLayout: some View {
         TabView(selection: $appState.selectedTab) {
             ExploreView()
                 .tabItem {
@@ -34,6 +46,43 @@ struct MainTabView: View {
                 }
                 .tag(AppState.Tab.profile)
                 .badge(notificationService.unreadCount)
+        }
+        .tint(LC.accent)
+    }
+
+    // MARK: - iPad (Sidebar)
+
+    private var iPadLayout: some View {
+        NavigationSplitView {
+            List(selection: $appState.selectedTab) {
+                Section {
+                    ForEach(AppState.Tab.allCases, id: \.self) { tab in
+                        Label(tab.label, systemImage: tab.icon)
+                            .tag(tab)
+                            .badge(tab == .profile ? notificationService.unreadCount : 0)
+                    }
+                } header: {
+                    Text("LightChallenge")
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(LC.accent)
+                        .textCase(nil)
+                        .padding(.bottom, LC.space4)
+                }
+            }
+            .listStyle(.sidebar)
+            .navigationTitle("Menu")
+            .tint(LC.accent)
+        } detail: {
+            switch appState.selectedTab {
+            case .explore:
+                ExploreView()
+            case .challenges:
+                ChallengesView()
+            case .achievements:
+                AchievementsView()
+            case .profile:
+                ProfileView()
+            }
         }
         .tint(LC.accent)
     }
