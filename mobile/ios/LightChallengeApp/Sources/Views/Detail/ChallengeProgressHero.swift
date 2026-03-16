@@ -5,8 +5,8 @@
 // Layout:
 //   [ phase timer pill ]
 //   [ large activity figure ]
-//   [ themed progress bar ]
-//   [ 7.2 / 10 km ]
+//   [ themed progress bar ]    ← only when rules/goal available
+//   [ 7.2 / 10 km ]           ← only when rules/goal available
 //   [ title + description ]
 
 import SwiftUI
@@ -23,10 +23,11 @@ struct ActivityTheme {
 
     static func from(detail: ChallengeDetail) -> ActivityTheme {
         let title = (detail.title ?? "").lowercased()
+        let desc = (detail.description ?? "").lowercased()
         let metric = detail.rules?.metric ?? ""
         let modelId = (detail.modelId ?? "").lowercased()
         let tags = (detail.tags ?? []).map { $0.lowercased() }
-        let all = [title, metric, modelId, tags.joined(separator: " ")].joined(separator: " ")
+        let all = [title, desc, metric, modelId, tags.joined(separator: " ")].joined(separator: " ")
 
         if all.contains("swim") || all.contains("pool") || all.contains("lap") || metric == "swimming_km" {
             return ActivityTheme(
@@ -142,6 +143,11 @@ enum ChallengePhase {
         }
     }
 
+    var isActive: Bool {
+        if case .active = self { return true }
+        return false
+    }
+
     private static func formatDuration(_ ti: TimeInterval) -> String {
         let total = Int(max(0, ti))
         let d = total / 86400
@@ -153,19 +159,33 @@ enum ChallengePhase {
     }
 
     static func from(detail: ChallengeDetail, verdictPass: Bool?) -> ChallengePhase {
+        // Check finalized status first
         if detail.status == "Finalized" || detail.status == "Canceled" {
             return .finalized(passed: verdictPass)
         }
+
         let now = Date()
+
+        // Use dates when available
         if let start = detail.startDate, start > now {
             return .upcoming(startsIn: start.timeIntervalSince(now))
         }
         if let end = detail.endsDate, end > now {
             return .active(remaining: end.timeIntervalSince(now))
         }
-        if let deadline = detail.proofDeadlineDate, deadline > now {
-            return .proofWindow(remaining: deadline.timeIntervalSince(now))
+        if let end = detail.endsDate, end <= now {
+            // Challenge period ended
+            if let deadline = detail.proofDeadlineDate, deadline > now {
+                return .proofWindow(remaining: deadline.timeIntervalSince(now))
+            }
+            return .ended
         }
+
+        // Dates are nil — fall back to on-chain status
+        if detail.isActive {
+            return .active(remaining: 0)
+        }
+
         return .ended
     }
 }
@@ -181,6 +201,7 @@ struct ChallengeProgressHero: View {
     @State private var currentValue: Double = 0
     @State private var goalValue: Double = 0
     @State private var hasLoaded = false
+    @State private var figureAppeared = false
     @Environment(\.colorScheme) private var scheme
 
     private var theme: ActivityTheme { ActivityTheme.from(detail: detail) }
@@ -189,7 +210,6 @@ struct ChallengeProgressHero: View {
     }
     private var rules: ChallengeRules? { detail.rules }
     private var metricLabel: String { rules?.metricLabel ?? "km" }
-    private var metricName: String { rules?.metricName ?? "Activity" }
 
     var body: some View {
         VStack(spacing: LC.space16) {
@@ -199,7 +219,7 @@ struct ChallengeProgressHero: View {
             // Activity figure
             activityFigure
 
-            // Progress bar
+            // Progress bar — only when we have a goal
             if goalValue > 0 {
                 progressBar
                 progressLabel
@@ -217,6 +237,17 @@ struct ChallengeProgressHero: View {
                     .multilineTextAlignment(.center)
                     .lineLimit(3)
             }
+
+            // Activity type label when no progress bar
+            if goalValue == 0 {
+                Text(theme.label)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(theme.figureTint)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .background(theme.figureTint.opacity(0.12))
+                    .clipShape(Capsule())
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, LC.space24)
@@ -226,6 +257,12 @@ struct ChallengeProgressHero: View {
                 .fill(Color(.secondarySystemGroupedBackground))
         )
         .task { await loadProgress() }
+        .onAppear {
+            // Trigger figure entrance animation
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.6).delay(0.2)) {
+                figureAppeared = true
+            }
+        }
     }
 
     // MARK: - Phase Pill
@@ -250,14 +287,11 @@ struct ChallengeProgressHero: View {
         Image(systemName: theme.icon)
             .font(.system(size: 64, weight: .light))
             .foregroundStyle(theme.figureTint)
-            .symbolEffect(.pulse, options: .repeating, isActive: isActivePhase)
+            .symbolEffect(.pulse, options: .repeating, isActive: phase.isActive)
+            .scaleEffect(figureAppeared ? 1.0 : 0.3)
+            .opacity(figureAppeared ? 1.0 : 0.0)
             .frame(height: 80)
             .padding(.vertical, LC.space8)
-    }
-
-    private var isActivePhase: Bool {
-        if case .active = phase { return true }
-        return false
     }
 
     // MARK: - Themed Progress Bar
@@ -335,14 +369,12 @@ struct ChallengeProgressHero: View {
         case "distance":
             value = healthService.distanceDays.reduce(0) { $0 + $1.distanceMeters } / 1000.0
         case "active_minutes":
-            // Approximate: 1 kcal ≈ 1 active minute for moderate activity
             value = healthService.activeEnergyDays.reduce(0) { $0 + $1.kilocalories } / 5.0
         case "cycling_km":
             value = healthService.cyclingDays.reduce(0) { $0 + $1.distanceMeters } / 1000.0
         case "swimming_km":
             value = healthService.swimmingDays.reduce(0) { $0 + $1.distanceMeters } / 1000.0
         default:
-            // Fallback to steps
             value = Double(healthService.stepDays.reduce(0) { $0 + $1.steps })
         }
 

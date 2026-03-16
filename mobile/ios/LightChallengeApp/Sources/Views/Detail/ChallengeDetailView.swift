@@ -399,9 +399,13 @@ struct ChallengeDetailView: View {
                 } else {
                     // Joined, no evidence yet — show phase-appropriate UI
                     let meta = detail.toChallengeMeta()
-                    let now = Date()
-                    let challengeEnded = detail.endsDate.map { $0 <= now } ?? false
-                    let proofDeadlinePassed = detail.proofDeadlineDate.map { $0 <= now } ?? false
+                    let heroPhase = ChallengePhase.from(detail: detail, verdictPass: participantStatus?.verdictPass)
+                    let challengeEnded = !heroPhase.isActive
+                    let proofDeadlinePassed: Bool = {
+                        if case .ended = heroPhase { return true }
+                        if case .finalized = heroPhase { return true }
+                        return false
+                    }()
                     let proofStatus = autoProofService.status[challengeId]
 
                     if !challengeEnded {
@@ -623,9 +627,14 @@ struct ChallengeDetailView: View {
         guard appState.hasWallet else { return false }
         guard detail?.youJoined == true || participantStatus != nil else { return false }
         guard participantStatus?.hasEvidence != true else { return false }
-        let now = Date()
-        let challengeEnded = detail?.endsDate.map { $0 <= now } ?? true
-        let proofDeadlinePassed = detail?.proofDeadlineDate.map { $0 <= now } ?? false
+        guard let detail else { return false }
+        let phase = ChallengePhase.from(detail: detail, verdictPass: participantStatus?.verdictPass)
+        let challengeEnded = !phase.isActive
+        let proofDeadlinePassed: Bool = {
+            if case .ended = phase { return true }
+            if case .finalized = phase { return true }
+            return false
+        }()
         return challengeEnded && !proofDeadlinePassed
     }
 

@@ -236,11 +236,20 @@ struct ChallengeDetail: Codable {
 
     let timeline: [TimelineEvent]?
 
+    // The detail API returns timestamps as string epoch values with "Ts" suffix
+    // (startTs, endTs, joinClosesTs) while the list API uses double "At" suffix
+    // (startsAt, endsAt). We decode both conventions.
     let startsAt: Double?
     let endsAt: Double?
+    let startTs: String?
+    let endTs: String?
     let proofDeadline: Double?
     let joinClosesTs: String?
     let createdAt: Double?
+
+    // Parsed params from the API's semicolon-delimited params string.
+    // e.g. { "period": "weekly", "metric": "steps", "threshold": "10000" }
+    let form: [String: FormValue]?
 
     var resolvedCategory: ChallengeCategory {
         if let c = category {
@@ -254,22 +263,38 @@ struct ChallengeDetail: Codable {
     var isActive: Bool { status == "Active" }
 
     var startDate: Date? {
-        guard let ts = startsAt, ts > 0 else { return nil }
-        return Date(timeIntervalSince1970: ts)
+        if let ts = startsAt, ts > 0 { return Date(timeIntervalSince1970: ts) }
+        if let s = startTs, let ts = Double(s), ts > 0 { return Date(timeIntervalSince1970: ts) }
+        return nil
     }
 
     var endsDate: Date? {
-        guard let ts = endsAt, ts > 0 else { return nil }
-        return Date(timeIntervalSince1970: ts)
+        if let ts = endsAt, ts > 0 { return Date(timeIntervalSince1970: ts) }
+        if let s = endTs, let ts = Double(s), ts > 0 { return Date(timeIntervalSince1970: ts) }
+        return nil
     }
 
     var proofDeadlineDate: Date? {
-        guard let ts = proofDeadline, ts > 0 else { return nil }
-        return Date(timeIntervalSince1970: ts)
+        if let ts = proofDeadline, ts > 0 { return Date(timeIntervalSince1970: ts) }
+        // Fallback: proof deadline = endDate + 3 days
+        if let end = endsDate { return end.addingTimeInterval(3 * 86400) }
+        return nil
     }
 
-    /// Challenge rules from params.rules (metric, threshold, period).
-    var rules: ChallengeRules? { params?.rules }
+    /// Challenge rules: from params.rules first, then from form fields.
+    var rules: ChallengeRules? {
+        if let r = params?.rules { return r }
+        // Build rules from the API's form dict (parsed params string)
+        if let form {
+            let metric = form["metric"]?.stringValue
+            let period = form["period"]?.stringValue
+            let threshold = form["threshold"]?.doubleValue
+            if metric != nil || threshold != nil {
+                return ChallengeRules(period: period, metric: metric, threshold: threshold)
+            }
+        }
+        return nil
+    }
 
     var stakeDisplay: String? {
         guard let wei = money?.stakeWei, let amount = Double(wei), amount > 0 else { return nil }
@@ -296,12 +321,57 @@ struct ChallengeDetail: Codable {
             modelKind: nil,
             modelHash: modelHash,
             createdAt: createdAt,
-            startsAt: startsAt,
-            endsAt: endsAt,
+            startsAt: startsAt ?? (startTs.flatMap { Double($0) }),
+            endsAt: endsAt ?? (endTs.flatMap { Double($0) }),
             proofDeadline: proofDeadline,
             proof: proof,
             funds: FundsConfig(stake: money?.stakeWei)
         )
+    }
+}
+
+/// Flexible JSON value that can be a string or number in the form dict.
+enum FormValue: Codable {
+    case string(String)
+    case number(Double)
+    case int(Int)
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let v = try? container.decode(Int.self) {
+            self = .int(v)
+        } else if let v = try? container.decode(Double.self) {
+            self = .number(v)
+        } else if let v = try? container.decode(String.self) {
+            self = .string(v)
+        } else {
+            self = .string("")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .string(let s): try container.encode(s)
+        case .number(let d): try container.encode(d)
+        case .int(let i): try container.encode(i)
+        }
+    }
+
+    var stringValue: String? {
+        switch self {
+        case .string(let s): return s
+        case .number(let d): return String(d)
+        case .int(let i): return String(i)
+        }
+    }
+
+    var doubleValue: Double? {
+        switch self {
+        case .number(let d): return d
+        case .int(let i): return Double(i)
+        case .string(let s): return Double(s)
+        }
     }
 }
 
