@@ -81,7 +81,8 @@ actor APIClient {
             endsAt: meta.endsAt,
             proofDeadline: meta.proofDeadline,
             proof: meta.proof,
-            funds: nil
+            funds: nil,
+            params: nil
         )
     }
 
