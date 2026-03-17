@@ -4,7 +4,8 @@
 import * as React from "react";
 import type { Address } from "viem";
 import { txUrl, addressUrl, blockUrl } from "@/lib/explorer";
-import { formatLCAIShort } from "@/lib/formatLCAI";
+import { formatWeiAsUSD } from "@/lib/tokenPrice";
+import { useTokenPrice } from "@/lib/useTokenPrice";
 import type { Status } from "@/lib/types/status";
 type Row = {
   id: bigint;
@@ -30,10 +31,6 @@ const statusClass = (s: Status) => (
   s === "Canceled" ? "chip chip--warn" : "chip"
 );
 
-function fmtLCAI(wei?: string | null) {
-  return formatLCAIShort(wei) ?? "—";
-}
-
 export default function SmartTable({
   rows,
   isFav,
@@ -47,6 +44,9 @@ export default function SmartTable({
   loading?: boolean;
   onLoadOlder?: () => void;
 }) {
+  const tokenPrice = useTokenPrice();
+  const fmtUSD = (wei?: string | null) => wei ? formatWeiAsUSD(wei, tokenPrice) : "\u2014";
+
   return (
     <div className="panel">
       <div className="panel-header">
@@ -110,7 +110,7 @@ export default function SmartTable({
                         </div>
                       </td>
                       <td className="text-right mono">
-                        <span>{fmtLCAI(r.stakeWei)} / {fmtLCAI(r.poolCommittedWei)}</span>
+                        <span>{fmtUSD(r.stakeWei)} / {fmtUSD(r.poolCommittedWei)}</span>
                       </td>
                       <td className="text-center">
                         <button

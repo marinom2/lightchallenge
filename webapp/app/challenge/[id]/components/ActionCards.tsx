@@ -4,7 +4,8 @@ import * as React from "react";
 import type { LucideIcon } from "lucide-react";
 import { GlassIcon } from "@/app/components/ui/GlassIcon";
 import { normalizeDecimalInput } from "../lib/utils";
-import { formatLCAI } from "../lib/formatters";
+import { formatWeiAsUSD } from "@/lib/tokenPrice";
+import { useTokenPrice } from "@/lib/useTokenPrice";
 
 export function PrimaryActionCard({
   action,
@@ -128,6 +129,7 @@ export function JoinCard({
   onJoin: (amount: string) => Promise<void> | void;
 }) {
   const [joinAmt, setJoinAmt] = React.useState<string>("0.10");
+  const tokenPrice = useTokenPrice();
 
   const bump = (n: number) => {
     const v = Number(normalizeDecimalInput(joinAmt || "0"));
@@ -156,7 +158,7 @@ export function JoinCard({
       <div className="panel-body">
         {typeof myJoinedTotalWei === "bigint" ? (
           <div className="mb-3 text-xs text-(--text-muted)">
-            You've joined with <span className="font-semibold">{formatLCAI(myJoinedTotalWei.toString())}</span>.
+            You've joined with <span className="font-semibold">{formatWeiAsUSD(myJoinedTotalWei.toString(), tokenPrice)}</span>.
           </div>
         ) : null}
 

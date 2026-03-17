@@ -1,6 +1,6 @@
 // ExploreView.swift
-// Apple Music-style category grid — tap a fitness type to drill into challenges.
-// Walking | Running | Cycling | Swimming | Strength | All
+// Static featured hero + live signals + category grid.
+// No carousel, no dots, no rotation, no "+" button.
 
 import SwiftUI
 
@@ -34,8 +34,6 @@ enum FitnessType: String, CaseIterable, Identifiable, Hashable {
     }
 
     /// Optical centering offset for the decorative card icon.
-    /// Each SF Symbol has a different visual center-of-mass, so we
-    /// nudge per-symbol to achieve perceived balance on the card.
     var iconOpticalOffset: CGSize {
         switch self {
         case .walking:   CGSize(width: 4, height: -4)
@@ -50,31 +48,34 @@ enum FitnessType: String, CaseIterable, Identifiable, Hashable {
     /// Scale factor to normalize visual weight across different symbols.
     var iconScale: CGFloat {
         switch self {
-        case .strength:  0.85  // very wide symbol
-        case .cycling:   0.90  // wide symbol
-        case .swimming:  0.90  // wide symbol
+        case .strength:  0.85
+        case .cycling:   0.90
+        case .swimming:  0.90
         default:         1.0
         }
     }
 
     var gradient: [Color] {
         switch self {
-        case .walking: [Color(hex: 0x22C55E), Color(hex: 0x16A34A)]
-        case .running: [Color(hex: 0x2563EB), Color(hex: 0x3B82F6)]
-        case .cycling: [Color(hex: 0xF97316), Color(hex: 0xEA580C)]
+        case .walking:  [Color(hex: 0x22C55E), Color(hex: 0x16A34A)]
+        case .running:  [Color(hex: 0x2563EB), Color(hex: 0x3B82F6)]
+        case .cycling:  [Color(hex: 0xF97316), Color(hex: 0xEA580C)]
         case .swimming: [Color(hex: 0x06B6D4), Color(hex: 0x0891B2)]
         case .strength: [Color(hex: 0xEF4444), Color(hex: 0xDC2626)]
-        case .hiking: [Color(hex: 0x22C55E), Color(hex: 0x15803D)]
+        case .hiking:   [Color(hex: 0x8B5CF6), Color(hex: 0x7C3AED)]  // Purple — distinct from Walking green
         }
     }
 
+    /// Subtle glow color for the category card.
+    var glowColor: Color {
+        gradient.first ?? LC.accent
+    }
+
     /// modelId segments that identify this fitness type in the DB.
-    /// Challenges always have modelId set at creation (user selects the type).
-    /// e.g. fitness.steps@1 → walking, fitness.distance@1 → running
     private var modelIdSegments: [String] {
         switch self {
         case .walking:  return ["steps"]
-        case .running:  return ["running", "distance"]  // distance_km models are running
+        case .running:  return ["running", "distance"]
         case .cycling:  return ["cycling"]
         case .swimming: return ["swimming"]
         case .strength: return ["strength"]
@@ -83,7 +84,6 @@ enum FitnessType: String, CaseIterable, Identifiable, Hashable {
     }
 
     /// Tag values that identify this fitness type.
-    /// Tags are set at challenge creation from the selected template.
     private var tagValues: [String] {
         switch self {
         case .walking:  return ["walking", "steps"]
@@ -96,27 +96,17 @@ enum FitnessType: String, CaseIterable, Identifiable, Hashable {
     }
 
     /// Match a challenge to this fitness type using DB-set fields only.
-    /// Every challenge has a type selected at creation — no keyword guessing needed.
-    ///
-    /// Priority 1: modelId (e.g. "fitness.cycling@1") — always set for new challenges
-    /// Priority 2: tags array (e.g. ["cycling", "test"]) — set from template at creation
-    /// No title/description keyword matching — that's unreliable and causes cross-contamination.
     func matches(_ challenge: ChallengeMeta) -> Bool {
-        // Priority 1: modelId — most reliable, always set at creation
         if let mid = challenge.modelId?.lowercased() {
-            // Provider-agnostic: fitness.steps@1, fitness.cycling@1, etc.
             if mid.hasPrefix("fitness.") {
                 return modelIdSegments.contains { mid.hasPrefix("fitness.\($0)") }
             }
-            // Legacy provider-specific: strava.distance_in_window@1, apple_health.steps@1
-            // Map by the metric segment after the provider prefix
             let afterDot = mid.components(separatedBy: ".").dropFirst().joined(separator: ".")
             if !afterDot.isEmpty {
                 return modelIdSegments.contains { afterDot.hasPrefix($0) }
             }
         }
 
-        // Priority 2: tags — set from template at challenge creation
         if let tags = challenge.tags?.map({ $0.lowercased() }), !tags.isEmpty {
             return tagValues.contains { tags.contains($0) }
         }
@@ -138,13 +128,9 @@ struct ExploreView: View {
     @State private var isLoading = false
     @State private var error: String?
     @State private var navigationPath = NavigationPath()
-    @State private var showingCreateChallenge = false
     @State private var searchText = ""
-    @State private var featuredPage = 0
+    @State private var tokenPrice: Double?
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.horizontalSizeClass) private var sizeClass
-
-    private let autoScrollInterval: TimeInterval = 5
 
     // MARK: - Grid
 
@@ -161,18 +147,48 @@ struct ExploreView: View {
         }
     }
 
-    /// Top active fitness challenges sorted by highest stake — used for the featured carousel.
-    private var featuredChallenges: [ChallengeMeta] {
-        sortedChallenges
-            .filter { $0.isActive && $0.resolvedCategory.isFitness }
-            .sorted { a, b in
-                let sa = Double(a.funds?.stake ?? "0") ?? 0
-                let sb = Double(b.funds?.stake ?? "0") ?? 0
-                if sa != sb { return sa > sb }
-                return (a.createdAt ?? 0) > (b.createdAt ?? 0)
+    private var activeChallenges: [ChallengeMeta] {
+        sortedChallenges.filter { $0.isActive && $0.resolvedCategory.isFitness }
+    }
+
+    /// Single featured challenge: highest combined score (participants + pool).
+    private var featuredChallenge: ChallengeMeta? {
+        activeChallenges
+            .max { a, b in
+                let scoreA = featuredScore(a)
+                let scoreB = featuredScore(b)
+                return scoreA < scoreB
             }
-            .prefix(8)
-            .map { $0 }
+    }
+
+    /// Score = stake + (participantCount * 0.01) so participants break ties.
+    private func featuredScore(_ c: ChallengeMeta) -> Double {
+        let stake = Double(c.funds?.stake ?? "0") ?? 0
+        let participants = Double(c.participantCount ?? 0)
+        return stake + participants * 0.01
+    }
+
+    /// Total value in play across active challenges (formatted as USD or LCAI).
+    private var totalInPlay: String {
+        let totalWei = activeChallenges.reduce(0.0) { sum, c in
+            let wei = Double(c.funds?.stake ?? "0") ?? 0
+            return sum + wei
+        }
+        return LCFormatter.formatUSD(wei: totalWei, tokenPrice: tokenPrice)
+    }
+
+    private func activeCount(for type: FitnessType) -> Int {
+        sortedChallenges.filter { $0.isActive && type.matches($0) }.count
+    }
+
+    /// Max stake for a fitness type, formatted as USD or LCAI.
+    private func maxStakeDisplay(for type: FitnessType) -> String? {
+        let maxWei = sortedChallenges
+            .filter { $0.isActive && type.matches($0) }
+            .compactMap { Double($0.funds?.stake ?? "0") }
+            .max() ?? 0
+        guard maxWei > 0 else { return nil }
+        return LCFormatter.formatUSD(wei: maxWei, tokenPrice: tokenPrice)
     }
 
     private var isSearching: Bool { !searchText.isEmpty }
@@ -184,11 +200,6 @@ struct ExploreView: View {
             || c.displayDescription.lowercased().contains(q)
             || (c.tags ?? []).contains(where: { $0.lowercased().contains(q) })
         }
-    }
-
-    /// Count of active challenges matching each fitness type.
-    private func activeCount(for type: FitnessType) -> Int {
-        sortedChallenges.filter { $0.isActive && type.matches($0) }.count
     }
 
     // MARK: - Body
@@ -203,26 +214,13 @@ struct ExploreView: View {
                 } else if isSearching {
                     searchResultsList
                 } else {
-                    categoryGrid
+                    mainContent
                 }
             }
-            .background(Color(.systemGroupedBackground))
+            .background(LC.pageBg(scheme))
             .navigationTitle("Explore")
             .navigationBarTitleDisplayMode(.large)
             .searchable(text: $searchText, prompt: "Search challenges")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingCreateChallenge = true
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(LC.accent)
-                    }
-                    .disabled(!walletManager.isConnected)
-                    .opacity(walletManager.isConnected ? 1 : 0.4)
-                }
-            }
             .navigationDestination(for: String.self) { challengeId in
                 ChallengeDetailView(challengeId: challengeId)
             }
@@ -234,10 +232,15 @@ struct ExploreView: View {
                     eligibility: eligibility
                 )
             }
-            .task { await loadChallenges() }
-            .refreshable { await loadChallenges() }
-            .sheet(isPresented: $showingCreateChallenge) {
-                CreateChallengeView()
+            .task {
+                async let priceTask: () = loadTokenPrice()
+                async let challengesTask: () = loadChallenges()
+                _ = await (priceTask, challengesTask)
+            }
+            .refreshable {
+                async let priceTask: () = loadTokenPrice()
+                async let challengesTask: () = loadChallenges()
+                _ = await (priceTask, challengesTask)
             }
             .onChange(of: appState.deepLinkChallengeId) { _, newId in
                 if let newId {
@@ -254,16 +257,21 @@ struct ExploreView: View {
         }
     }
 
-    // MARK: - Category Grid (Apple Music style)
+    // MARK: - Main Content
 
-    private var categoryGrid: some View {
+    private var mainContent: some View {
         VStack(spacing: LC.space24) {
-            // Featured carousel
-            if !featuredChallenges.isEmpty {
-                featuredCarousel
+            // Featured hero (single static card)
+            if let featured = featuredChallenge {
+                featuredHero(featured)
             }
 
-            // 2-column category grid
+            // Live signals
+            if !activeChallenges.isEmpty {
+                liveSignals
+            }
+
+            // Category grid
             LazyVGrid(columns: gridColumns, spacing: LC.space12) {
                 ForEach(FitnessType.allCases) { type in
                     categoryCard(type)
@@ -274,13 +282,94 @@ struct ExploreView: View {
         .padding(.bottom, LC.space32)
     }
 
+    // MARK: - Featured Hero (single static card, entire card tappable)
+
+    private func featuredHero(_ challenge: ChallengeMeta) -> some View {
+        let theme = featuredTheme(for: challenge)
+
+        return Button {
+            navigationPath.append(challenge.id)
+        } label: {
+            ZStack(alignment: .bottomLeading) {
+                // Gradient background
+                RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: theme.gradient.map { $0.opacity(0.9) },
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+
+                // Content
+                VStack(alignment: .leading, spacing: LC.space12) {
+                    // Featured badge
+                    Text("FEATURED")
+                        .font(.caption2.weight(.bold))
+                        .tracking(0.5)
+                        .foregroundStyle(.white.opacity(0.7))
+
+                    Spacer()
+
+                    // Title
+                    Text(challenge.displayTitle)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+
+                    // Stats row: count left, amount right
+                    HStack {
+                        if let count = challenge.participantCount, count > 0 {
+                            Text("\(count) joined")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.9))
+                        }
+                        Spacer()
+                        if let stake = challenge.stakeDisplay {
+                            Text(stake)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.9))
+                        }
+                    }
+                }
+                .padding(LC.space20)
+            }
+            .frame(height: 200)
+            .clipShape(RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, LC.space16)
+        .padding(.top, LC.space8)
+    }
+
+    // MARK: - Live Signals
+
+    private var liveSignals: some View {
+        HStack {
+            Text("\(activeChallenges.count) challenges")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(LC.textSecondary(scheme))
+
+            Spacer()
+
+            Text("\(totalInPlay) in play")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(LC.textSecondary(scheme))
+        }
+        .padding(.horizontal, LC.space16)
+    }
+
     // MARK: - Category Card
 
     private func categoryCard(_ type: FitnessType) -> some View {
-        Button {
+        let count = activeCount(for: type)
+        let stake = maxStakeDisplay(for: type)
+
+        return Button {
             navigationPath.append(type)
         } label: {
-            ZStack(alignment: .bottomLeading) {
+            ZStack {
                 // Gradient background
                 RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
                     .fill(
@@ -291,26 +380,35 @@ struct ExploreView: View {
                         )
                     )
 
-                // Decorative large icon — optically centered in card
-                Image(systemName: type.icon)
-                    .font(.system(size: 80 * type.iconScale, weight: .thin))
-                    .foregroundStyle(.white.opacity(0.2))
-                    .offset(type.iconOpticalOffset)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-
-                // Label + count
-                VStack(alignment: .leading, spacing: LC.space4) {
+                // Content overlay
+                VStack(spacing: 0) {
+                    // Title centered
                     Spacer()
 
                     Text(type.label)
-                        .font(.headline.weight(.bold))
+                        .font(.title3.weight(.bold))
                         .foregroundStyle(.white)
 
-                    let count = activeCount(for: type)
-                    if count > 0 {
-                        Text("\(count) active")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.white.opacity(0.8))
+                    Spacer()
+
+                    // Bottom row: count badge left, amount right
+                    if count > 0 || stake != nil {
+                        HStack {
+                            if count > 0 {
+                                Text("\(count)")
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(Capsule().fill(.white.opacity(0.25)))
+                            }
+                            Spacer()
+                            if let stake {
+                                Text(stake)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.white.opacity(0.85))
+                            }
+                        }
                     }
                 }
                 .padding(LC.space16)
@@ -321,147 +419,16 @@ struct ExploreView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Featured Carousel (single-card paging with auto-scroll)
+    // MARK: - Featured Theme
 
-    private var featuredCarousel: some View {
-        VStack(alignment: .leading, spacing: LC.space12) {
-            HStack(spacing: LC.space6) {
-                Image(systemName: "flame.fill")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(LC.accent)
-                Text("FEATURED")
-                    .font(.caption.weight(.bold))
-                    .tracking(0.5)
-                    .foregroundStyle(LC.textSecondary(scheme))
-            }
-            .padding(.horizontal, LC.space16)
-
-            TabView(selection: $featuredPage) {
-                ForEach(Array(featuredChallenges.enumerated()), id: \.element.id) { index, challenge in
-                    Button {
-                        navigationPath.append(challenge.id)
-                    } label: {
-                        featuredCard(challenge)
-                            .padding(.horizontal, LC.space16)
-                    }
-                    .buttonStyle(.plain)
-                    .tag(index)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .always))
-            .frame(height: 250)
-            .onReceive(
-                Timer.publish(every: autoScrollInterval, on: .main, in: .common).autoconnect()
-            ) { _ in
-                guard !featuredChallenges.isEmpty else { return }
-                withAnimation(.easeInOut(duration: 0.4)) {
-                    featuredPage = (featuredPage + 1) % featuredChallenges.count
-                }
-            }
-        }
-        .padding(.top, LC.space8)
-    }
-
-    private func featuredCard(_ challenge: ChallengeMeta) -> some View {
-        let theme = featuredTheme(for: challenge)
-        return HStack(spacing: 0) {
-            // Left: gradient panel with activity icon
-            ZStack {
-                LinearGradient(
-                    colors: theme.gradient,
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-
-                Image(systemName: theme.icon)
-                    .font(.system(size: 56, weight: .ultraLight))
-                    .foregroundStyle(.white.opacity(0.3))
-            }
-            .frame(width: 110)
-
-            // Right: content
-            VStack(alignment: .leading, spacing: LC.space8) {
-                Text(challenge.displayTitle)
-                    .font(.headline.weight(.bold))
-                    .foregroundStyle(LC.textPrimary(scheme))
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-
-                // Pills: stake + time
-                HStack(spacing: LC.space6) {
-                    if let stake = challenge.stakeDisplay {
-                        featuredPill("lock.fill", stake, theme.gradient.first ?? LC.accent)
-                    }
-                    if let end = challenge.endsDate, end.timeIntervalSinceNow > 0 {
-                        let days = max(0, Int(end.timeIntervalSinceNow / 86400))
-                        featuredPill("clock", "\(days)d left", LC.textTertiary(scheme))
-                    }
-                }
-
-                Spacer()
-
-                // CTA
-                HStack(spacing: LC.space4) {
-                    Text("Join Challenge")
-                        .font(.caption.weight(.bold))
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 10, weight: .bold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, LC.space12)
-                .padding(.vertical, LC.space8)
-                .frame(maxWidth: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: theme.gradient,
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                )
-            }
-            .padding(LC.space12)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 180)
-        .background(
-            RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
-                .fill(LC.cardBg(scheme))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
-                .stroke(LC.cardBorder(scheme), lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous))
-    }
-
-    private func featuredPill(_ icon: String, _ text: String, _ color: Color) -> some View {
-        HStack(spacing: 3) {
-            Image(systemName: icon)
-                .font(.system(size: 8, weight: .bold))
-            Text(text)
-                .font(.caption2.weight(.semibold))
-        }
-        .foregroundStyle(color)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(color.opacity(0.1))
-        .clipShape(Capsule())
-    }
-
-    /// Derive gradient + icon for a featured card from challenge metadata.
-    /// Priority: modelId pattern > tags > title/description keywords.
     private func featuredTheme(for c: ChallengeMeta) -> (icon: String, gradient: [Color]) {
         let swim    = (icon: "figure.pool.swim",                     gradient: [Color(hex: 0x06B6D4), Color(hex: 0x0891B2)])
         let cycle   = (icon: "figure.outdoor.cycle",                 gradient: [Color(hex: 0xF97316), Color(hex: 0xEA580C)])
         let run     = (icon: "figure.run",                           gradient: [Color(hex: 0x2563EB), Color(hex: 0x3B82F6)])
         let str     = (icon: "figure.strengthtraining.traditional",  gradient: [Color(hex: 0xEF4444), Color(hex: 0xDC2626)])
-        let hike    = (icon: "figure.hiking",                        gradient: [Color(hex: 0x22C55E), Color(hex: 0x15803D)])
+        let hike    = (icon: "figure.hiking",                        gradient: [Color(hex: 0x8B5CF6), Color(hex: 0x7C3AED)])
         let walk    = (icon: "figure.walk",                          gradient: [Color(hex: 0x22C55E), Color(hex: 0x16A34A)])
 
-        // 1. Match from modelId (most reliable — set by DB, e.g. "fitness.cycling@1")
         if let mid = c.modelId?.lowercased() {
             if mid.contains("swimming")  { return swim }
             if mid.contains("cycling")   { return cycle }
@@ -471,7 +438,6 @@ struct ExploreView: View {
             if mid.contains("steps")     { return walk }
         }
 
-        // 2. Match from tags (e.g. ["cycling", "test"])
         let tags = (c.tags ?? []).joined(separator: " ").lowercased()
         if tags.contains("swimming")  { return swim }
         if tags.contains("cycling")   { return cycle }
@@ -480,7 +446,6 @@ struct ExploreView: View {
         if tags.contains("hiking")    { return hike }
         if tags.contains("walking")   { return walk }
 
-        // 3. Fallback: keyword search in title + description
         let text = [c.displayTitle, c.displayDescription].joined(separator: " ").lowercased()
         if text.contains("swim") || text.contains("pool") || text.contains("lap")     { return swim }
         if text.contains("cycl") || text.contains("bike") || text.contains("ride")    { return cycle }
@@ -629,6 +594,10 @@ struct ExploreView: View {
 
     // MARK: - Data Loading
 
+    private func loadTokenPrice() async {
+        tokenPrice = await TokenPriceService.shared.getUSDPrice()
+    }
+
     private func loadChallenges() async {
         isLoading = true
         error = nil
@@ -646,7 +615,6 @@ struct ExploreView: View {
             challenges = fresh
             await CacheService.shared.cacheChallenges(fresh)
 
-            // Update widget with the most urgent active challenge
             appState.updateWidgetChallenge(challenges: fresh)
         } catch {
             if challenges.isEmpty {

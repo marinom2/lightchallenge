@@ -13,7 +13,9 @@ import type { LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GlassIcon } from "@/app/components/ui/GlassIcon";
 import type { Status } from "../lib/types";
-import { formatLCAI, formatDateShort, prettyCountdown } from "../lib/formatters";
+import { formatDateShort, prettyCountdown } from "../lib/formatters";
+import { formatWeiAsUSD } from "@/lib/tokenPrice";
+import { useTokenPrice } from "@/lib/useTokenPrice";
 
 export function StatusCapsule({ label, note }: { label?: string; note?: string }) {
   if (!label) return null;
@@ -71,7 +73,8 @@ export function HeroMetricsRow({
   startTs?: number | null;
   endTs?: number | null;
 }) {
-  const pot = formatLCAI(treasuryWei);
+  const tokenPrice = useTokenPrice();
+  const pot = formatWeiAsUSD(treasuryWei, tokenPrice);
 
   return (
     <div className="grid grid-cols-1 gap-3">

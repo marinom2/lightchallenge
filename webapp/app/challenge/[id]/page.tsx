@@ -32,8 +32,10 @@ import { decodeSnapshot, decodeChallenge, normalizeApi } from "./lib/decoders";
 import {
   safeText, code, safe, yesno, ts, fmtNum, short, shortOrDash,
   linkAddr, linkBlock, linkTx, timeAgo,
-  formatLCAI, formatMaxParticipants, formatDuration, enumLabel, computePublicStatus,
+  formatMaxParticipants, formatDuration, enumLabel, computePublicStatus,
 } from "./lib/formatters";
+import { formatWeiAsUSD } from "@/lib/tokenPrice";
+import { useTokenPrice } from "@/lib/useTokenPrice";
 import { usePullToRefresh } from "./hooks/usePullToRefresh";
 import { SkeletonLine, HeroSummarySkeleton, PrimaryActionSkeleton } from "./components/Skeletons";
 import { StatusCapsule, HeroProgress } from "./components/HeroSection";
@@ -70,7 +72,7 @@ const {
 // NOTE: Types (Status, ApiOut, SnapshotOut, TabKey) → ./lib/types.ts
 // NOTE: Utilities (isHexAddress, safeLower, etc.) → ./lib/utils.ts
 // NOTE: Decoders (decodeChallenge, decodeSnapshot, normalizeApi) → ./lib/decoders.ts
-// NOTE: Formatters (formatLCAI, timeAgo, etc.) → ./lib/formatters.tsx
+// NOTE: Formatters (formatWeiAsUSD, timeAgo, etc.) → ./lib/formatters.tsx + @/lib/tokenPrice
 // NOTE: UI components → ./components/*.tsx
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -325,6 +327,7 @@ export default function ChallengePage() {
   const pc = usePublicClient();
   const { writeContractAsync } = useWriteContract();
   const { signTypedDataAsync } = useSignTypedData();
+  const tokenPrice = useTokenPrice();
   const { push: toastPush } = useToasts();
 
   // A11y: screen-reader live updates + unified toast
@@ -1616,7 +1619,7 @@ const primaryAction = React.useMemo(() => {
         <div className="cd-stats">
           <div className="cd-stat">
             <span className="cd-stat__label">{treasuryLabel}</span>
-            <span className="cd-stat__value">{formatLCAI(treasuryWei)}</span>
+            <span className="cd-stat__value">{formatWeiAsUSD(treasuryWei, tokenPrice)}</span>
           </div>
           <div className="cd-stat">
             <span className="cd-stat__label">Participants</span>
@@ -1696,7 +1699,7 @@ const primaryAction = React.useMemo(() => {
               ...(data?.mode ? [["Mode", safe(data.mode)] as [string, string]] : []),
               ["Participants", `${fmtNum(participantsCountFromChain)} / ${formatMaxParticipants(maxParticipantsFromChain)}`],
               ["Join closes", ts(joinCloseSec, "Open until start")],
-              ["Your stake", myJoinedTotalWei != null ? formatLCAI(myJoinedTotalWei.toString()) : "Not joined"],
+              ["Your stake", myJoinedTotalWei != null ? formatWeiAsUSD(myJoinedTotalWei.toString(), tokenPrice) : "Not joined"],
             ]}
           />
 
@@ -1704,18 +1707,18 @@ const primaryAction = React.useMemo(() => {
           <div className="cd-metrics-row">
             <div className="cd-metric-card">
               <div className="cd-metric-card__label">{treasuryLabel}</div>
-              <div className="cd-metric-card__value">{formatLCAI(treasuryWei)}</div>
+              <div className="cd-metric-card__value">{formatWeiAsUSD(treasuryWei, tokenPrice)}</div>
             </div>
             <div className="cd-metric-card">
               <div className="cd-metric-card__label">Creator stake</div>
-              <div className="cd-metric-card__value">{formatLCAI(stakeWei)}</div>
+              <div className="cd-metric-card__value">{formatWeiAsUSD(stakeWei, tokenPrice)}</div>
             </div>
             <div className="cd-metric-card">
               <div className="cd-metric-card__label">Currency</div>
               <div className="cd-metric-card__value">
                 {currencyFromChain === 0 || tokenFromChain === ZERO
-                  ? "LCAI (native)"
-                  : tokenFromChain ? `ERC-20 ${short(tokenFromChain)}` : "LCAI"}
+                  ? "Native"
+                  : tokenFromChain ? `ERC-20 ${short(tokenFromChain)}` : "Native"}
               </div>
             </div>
           </div>
@@ -1729,15 +1732,15 @@ const primaryAction = React.useMemo(() => {
               <div className="cd-metrics-row">
                 <div className="cd-metric-card">
                   <div className="cd-metric-card__label">Committed</div>
-                  <div className="cd-metric-card__value">{formatLCAI(data.snapshot.committedPool)}</div>
+                  <div className="cd-metric-card__value">{formatWeiAsUSD(data.snapshot.committedPool, tokenPrice)}</div>
                 </div>
                 <div className="cd-metric-card">
                   <div className="cd-metric-card__label">Forfeited</div>
-                  <div className="cd-metric-card__value">{formatLCAI(data.snapshot.forfeitedPool)}</div>
+                  <div className="cd-metric-card__value">{formatWeiAsUSD(data.snapshot.forfeitedPool, tokenPrice)}</div>
                 </div>
                 <div className="cd-metric-card">
                   <div className="cd-metric-card__label">Cashback</div>
-                  <div className="cd-metric-card__value">{formatLCAI(data.snapshot.cashback)}</div>
+                  <div className="cd-metric-card__value">{formatWeiAsUSD(data.snapshot.cashback, tokenPrice)}</div>
                 </div>
               </div>
             </div>
@@ -1924,7 +1927,7 @@ const primaryAction = React.useMemo(() => {
             {allowanceBn > 0n && (
               <div className="flex gap-2 mt-2">
                 <span className="text-(--text-muted) w-32 shrink-0">Claimable</span>
-                <span className="font-semibold">{formatLCAI(allowanceBn.toString())} LCAI</span>
+                <span className="font-semibold">{formatWeiAsUSD(allowanceBn.toString(), tokenPrice)}</span>
               </div>
             )}
           </div>

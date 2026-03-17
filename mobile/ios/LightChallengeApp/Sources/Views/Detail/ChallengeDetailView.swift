@@ -1,5 +1,5 @@
 // ChallengeDetailView.swift
-// Full challenge detail with premium Cosmic-Glass design.
+// Challenge detail: hero card + milestone timeline + contextual actions.
 
 import SwiftUI
 import UniformTypeIdentifiers
@@ -42,13 +42,12 @@ struct ChallengeDetailView: View {
     @State private var showingShareCard = false
     @State private var isJoining = false
     @State private var joinError: String?
-    // Manual file upload state
     @State private var showingFileImporter = false
     @State private var fileUploadStatus: FileUploadStatus = .idle
+    @State private var _reputation: Reputation?
     @Environment(\.colorScheme) private var scheme
     @Environment(\.horizontalSizeClass) private var sizeClass
 
-    /// Maximum content width on iPad — keeps detail readable on wide screens.
     private var maxContentWidth: CGFloat {
         sizeClass == .regular ? 680 : .infinity
     }
@@ -67,7 +66,7 @@ struct ChallengeDetailView: View {
                 detailContent(detail)
             }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(LC.pageBg(scheme))
         .navigationTitle(detail?.displayTitle ?? "Challenge #\(challengeId)")
         .navigationBarTitleDisplayMode(.inline)
         .task { await loadData() }
@@ -120,480 +119,492 @@ struct ChallengeDetailView: View {
         }
     }
 
-    @State private var _reputation: Reputation?
-
     // MARK: - Detail Content
 
     @ViewBuilder
     private func detailContent(_ detail: ChallengeDetail) -> some View {
         VStack(spacing: LC.space16) {
-            // Hero — Apple Fitness-style progress
+            // Hero card (ring + title + status + prize + insight + action)
             ChallengeProgressHero(
                 detail: detail,
                 participantStatus: participantStatus,
-                healthService: healthService
+                healthService: healthService,
+                progress: progress,
+                onAction: { handleHeroAction($0, detail: detail) }
             )
 
-            // Info card
-            infoSection(detail)
+            // Contextual secondary content
+            secondaryContent(detail)
 
-            // Stats
-            if let progress {
-                statsSection(progress)
-            }
-
-            // Timeline
-            if let events = detail.timeline, !events.isEmpty {
-                timelineSection(events)
-            }
-
-            // Action area
-            actionSection(detail)
+            // Milestone timeline
+            milestoneTimeline(detail)
         }
         .frame(maxWidth: maxContentWidth)
-        .frame(maxWidth: .infinity) // Center on iPad
+        .frame(maxWidth: .infinity)
         .padding(.horizontal, LC.space16)
         .padding(.bottom, LC.space32)
     }
 
-    // MARK: - Info Section
+    // MARK: - Hero Action Handler
 
-    private func infoSection(_ detail: ChallengeDetail) -> some View {
-        VStack(spacing: 0) {
-            if let stake = detail.stakeDisplay {
-                infoRow("Stake", value: stake, icon: "dollarsign.circle.fill", valueColor: LC.gold)
-                Divider().padding(.leading, 44)
+    private func handleHeroAction(_ action: HeroAction, detail: ChallengeDetail) {
+        switch action {
+        case .join:
+            if !walletManager.isConnected {
+                showingWalletSheet = true
+            } else {
+                Task { await joinChallenge(detail) }
             }
-            if let pool = detail.poolDisplay {
-                infoRow("Prize Pool", value: pool, icon: "banknote.fill", valueColor: LC.gold)
-                Divider().padding(.leading, 44)
-            }
-            if let end = detail.endsDate {
-                infoRow("Ends", value: end.formatted(date: .abbreviated, time: .shortened), icon: "calendar")
-                Divider().padding(.leading, 44)
-            }
-            if let deadline = detail.proofDeadlineDate {
-                let isUrgent = deadline.timeIntervalSinceNow < 86400
-                infoRow("Proof Deadline", value: deadline.formatted(date: .abbreviated, time: .shortened), icon: "exclamationmark.clock.fill", valueColor: isUrgent ? LC.danger : nil)
-                Divider().padding(.leading, 44)
-            }
-            if let count = detail.participantsCount {
-                infoRow("Participants", value: "\(count)", icon: "person.2.fill")
-            }
-
-            if let status = participantStatus {
-                Divider().padding(.leading, 44)
-                participantStatusRow(status)
-            } else if detail.youJoined == true {
-                Divider().padding(.leading, 44)
-                infoRow("Your Status", value: "Joined", icon: "checkmark.circle.fill", valueColor: LC.success)
-            }
-        }
-        .padding(.vertical, LC.space4)
-        .lcCard()
-    }
-
-    private func infoRow(_ label: String, value: String, icon: String, valueColor: Color? = nil) -> some View {
-        HStack(spacing: LC.space12) {
-            Image(systemName: icon)
-                .font(.system(size: 16))
-                .foregroundStyle(valueColor ?? LC.textTertiary(scheme))
-                .frame(width: 24)
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(LC.textSecondary(scheme))
-            Spacer()
-            Text(value)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(valueColor ?? LC.textPrimary(scheme))
-        }
-        .padding(.horizontal, LC.space16)
-        .padding(.vertical, LC.space12)
-    }
-
-    private func participantStatusRow(_ status: ParticipantStatus) -> some View {
-        VStack(alignment: .leading, spacing: LC.space8) {
-            HStack(spacing: LC.space12) {
-                Image(systemName: "person.crop.circle.badge.checkmark")
-                    .foregroundStyle(LC.gradBlue)
-                    .frame(width: 24)
-                Text("Your Progress")
-                    .font(.subheadline.weight(.medium))
-                Spacer()
-            }
-
-            HStack(spacing: LC.space8) {
-                Spacer().frame(width: 24)
-                statusPill("Joined", active: true)
-                statusPill("Evidence", active: status.hasEvidence == true)
-                statusPill(
-                    status.verdictPass == true ? "Passed" : status.verdictPass == false ? "Failed" : "Verdict",
-                    active: status.verdictPass != nil,
-                    color: status.verdictPass == true ? LC.success : status.verdictPass == false ? LC.danger : .secondary
-                )
-            }
-        }
-        .padding(.horizontal, LC.space16)
-        .padding(.vertical, LC.space12)
-    }
-
-    private func statusPill(_ label: String, active: Bool, color: Color = LC.info) -> some View {
-        Text(label)
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(active ? color.opacity(0.12) : Color.secondary.opacity(0.06))
-            .foregroundStyle(active ? color : .secondary)
-            .clipShape(Capsule())
-    }
-
-    // MARK: - Stats
-
-    private func statsSection(_ progress: ChallengeProgress) -> some View {
-        HStack(spacing: LC.space12) {
-            statCard("Joined", value: "\(progress.participantCount ?? 0)", icon: "person.2.fill", color: LC.info)
-            statCard("Proofs", value: "\(progress.evidenceCount ?? 0)", icon: "doc.text.fill", color: LC.warning)
-            statCard("Passed", value: "\(progress.passCount ?? 0)", icon: "checkmark.circle.fill", color: LC.success)
+        case .submitProof:
+            showingProofFlow = true
+        case .claimReward:
+            appState.selectedTab = .challenges
+        case .viewResults:
+            showingShareCard = true
+        case .share:
+            showingShareCard = true
         }
     }
 
-    private func statCard(_ label: String, value: String, icon: String, color: Color) -> some View {
-        VStack(spacing: LC.space6) {
-            Image(systemName: icon)
-                .font(.system(size: 18))
-                .foregroundStyle(color)
-            Text(value)
-                .font(.title3.weight(.bold))
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(LC.textTertiary(scheme))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, LC.space16)
-        .lcCard()
-    }
-
-    // MARK: - Timeline
-
-    private func timelineSection(_ events: [TimelineEvent]) -> some View {
-        VStack(alignment: .leading, spacing: LC.space12) {
-            Text("Timeline")
-                .font(.subheadline.weight(.semibold))
-                .padding(.horizontal, LC.space16)
-
-            ForEach(events.suffix(6)) { event in
-                HStack(spacing: LC.space12) {
-                    Circle()
-                        .fill(LC.gradBlue.opacity(0.4))
-                        .frame(width: 8, height: 8)
-                    VStack(alignment: .leading, spacing: LC.space2) {
-                        Text(event.label ?? event.name ?? "Event")
-                            .font(.caption.weight(.medium))
-                        if let date = event.date {
-                            Text(date.formatted(date: .abbreviated, time: .shortened))
-                                .font(.caption2)
-                                .foregroundStyle(LC.textTertiary(scheme))
-                        }
-                    }
-                    Spacer()
-                }
-            }
-            .padding(.horizontal, LC.space16)
-        }
-        .padding(.vertical, LC.space16)
-        .lcCard()
-    }
-
-    // MARK: - Action Section
+    // MARK: - Secondary Content (state-driven)
 
     @ViewBuilder
-    private func actionSection(_ detail: ChallengeDetail) -> some View {
-        if !appState.hasWallet {
-            walletPrompt
-        } else if category.isFitness || category == .unknown {
-            fitnessActionCard(detail)
-        } else {
-            genericInfoCard
+    private func secondaryContent(_ detail: ChallengeDetail) -> some View {
+        let phase = ChallengePhase.from(detail: detail, verdictPass: participantStatus?.verdictPass)
+        let userState = UserChallengeState.from(detail: detail, participantStatus: participantStatus, phase: phase)
+
+        switch userState {
+        case .notJoined:
+            if !appState.hasWallet {
+                walletPrompt
+            } else if let joinError {
+                joinErrorCard(joinError)
+            } else if isJoining {
+                joiningCard
+            } else if let stake = detail.stakeDisplay {
+                stakeInfoCard(stake)
+            }
+
+        case .active:
+            activeCard(detail)
+
+        case .awaitingProof:
+            proofCard(detail)
+
+        case .awaitingVerdict:
+            verdictCard
+
+        case .completed:
+            completedCard(detail)
+
+        case .failed:
+            failedCard
+
+        case .ended:
+            endedCard
         }
     }
 
+    // MARK: - State Cards
+
     private var walletPrompt: some View {
-        VStack(spacing: LC.space16) {
+        HStack(spacing: LC.space12) {
             Image(systemName: "wallet.bifold")
-                .font(.system(size: 32))
+                .font(.system(size: 20))
                 .foregroundStyle(LC.textTertiary(scheme))
-            Text("Connect Your Wallet")
-                .font(.subheadline.weight(.semibold))
-            Text("Connect a wallet to participate in this challenge.")
-                .font(.caption)
-                .foregroundStyle(LC.textSecondary(scheme))
-                .multilineTextAlignment(.center)
+                .frame(width: 36)
+            VStack(alignment: .leading, spacing: LC.space2) {
+                Text("Connect Your Wallet")
+                    .font(.subheadline.weight(.semibold))
+                Text("Required to join and participate")
+                    .font(.caption)
+                    .foregroundStyle(LC.textSecondary(scheme))
+            }
+            Spacer()
             Button {
                 showingWalletSheet = true
             } label: {
-                Label("Connect Wallet", systemImage: "wallet.bifold")
+                Text("Connect")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(LC.accent)
+                    .clipShape(Capsule())
             }
-            .buttonStyle(LCGoldButton())
         }
-        .padding(LC.space24)
+        .padding(LC.space16)
         .lcCard()
     }
 
-    private func fitnessActionCard(_ detail: ChallengeDetail) -> some View {
-        VStack(spacing: LC.space16) {
-            if detail.youJoined == true || participantStatus != nil {
-                if participantStatus?.hasEvidence == true {
-                    if let pass = participantStatus?.verdictPass {
-                        // Verdict received
-                        Image(systemName: pass ? "checkmark.seal.fill" : "xmark.seal.fill")
-                            .font(.system(size: 40))
-                            .foregroundStyle(pass ? LC.success : LC.danger)
-                        Text(pass ? "Challenge Passed!" : "Challenge Failed")
-                            .font(.headline.weight(.bold))
-                        if pass && walletManager.isConnected {
-                            Button {
-                                appState.selectedTab = .challenges
-                            } label: {
-                                Label("Claim Reward", systemImage: "gift.fill")
-                            }
-                            .buttonStyle(LCGoldButton())
-                        }
-
-                        Button {
-                            showingShareCard = true
-                        } label: {
-                            Label("Share Result", systemImage: "square.and.arrow.up")
-                        }
-                        .buttonStyle(LCSecondaryButton())
-
-                        ShareLink(
-                            item: URL(string: "https://app.lightchallenge.app/challenge/\(challengeId)")!,
-                            subject: Text("Challenge a Friend"),
-                            message: Text("Think you can beat me? Join \"\(detail.displayTitle)\" on LightChallenge!")
-                        ) {
-                            Label("Challenge a Friend", systemImage: "person.badge.plus")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(LC.accent)
-                        }
-
-                        if detail.status == "Finalized" {
-                            Divider().padding(.vertical, LC.space4)
-                            Button {} label: {
-                                Label("Rematch", systemImage: "arrow.counterclockwise")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(LC.accent)
-                            }
-                        }
-                    } else {
-                        // Evidence submitted, awaiting verdict
-                        Image(systemName: "hourglass")
-                            .font(.system(size: 36))
-                            .foregroundStyle(LC.warning)
-                        Text("Proof Under Review")
-                            .font(.subheadline.weight(.semibold))
-                        Text("Your evidence is being evaluated by AI verification.")
-                            .font(.caption)
-                            .foregroundStyle(LC.textSecondary(scheme))
-                            .multilineTextAlignment(.center)
-                    }
-                } else {
-                    // Joined, no evidence yet — show phase-appropriate UI
-                    let meta = detail.toChallengeMeta()
-                    let heroPhase = ChallengePhase.from(detail: detail, verdictPass: participantStatus?.verdictPass)
-                    let challengeEnded = !heroPhase.isActive
-                    let proofDeadlinePassed: Bool = {
-                        if case .ended = heroPhase { return true }
-                        if case .finalized = heroPhase { return true }
-                        return false
-                    }()
-                    let proofStatus = autoProofService.status[challengeId]
-
-                    if !challengeEnded {
-                        // Challenge period still running
-                        Image(systemName: "figure.run")
-                            .font(.system(size: 36))
-                            .foregroundStyle(LC.accent)
-                        Text("Challenge In Progress")
-                            .font(.subheadline.weight(.semibold))
-                        if let endDate = detail.endsDate {
-                            Text("Complete your activity by \(endDate.formatted(date: .abbreviated, time: .shortened)). Proof will be auto-submitted after the challenge ends.")
-                                .font(.caption)
-                                .foregroundStyle(LC.textSecondary(scheme))
-                                .multilineTextAlignment(.center)
-                        }
-
-                        // Data source tips
-                        garminHealthKitTip
-                    } else if proofDeadlinePassed {
-                        // Proof window closed
-                        Image(systemName: "clock.badge.xmark")
-                            .font(.system(size: 36))
-                            .foregroundStyle(LC.danger)
-                        Text("Proof Deadline Passed")
-                            .font(.subheadline.weight(.semibold))
-                        Text("The submission window has closed.")
-                            .font(.caption)
-                            .foregroundStyle(LC.textSecondary(scheme))
-                            .multilineTextAlignment(.center)
-                    } else if let proofStatus {
-                        // Auto-proof in progress — show live status
-                        Image(systemName: proofStatus.icon)
-                            .font(.system(size: 36))
-                            .foregroundStyle(proofStatus.color)
-                            .symbolEffect(.pulse, isActive: proofStatus == .pending || proofStatus == .collectingHealth || proofStatus == .submitting)
-                        Text(proofStatus.label)
-                            .font(.subheadline.weight(.semibold))
-
-                        switch proofStatus {
-                        case .pending, .collectingHealth, .submitting:
-                            Text("Collecting your fitness data for the challenge period and submitting.")
-                                .font(.caption)
-                                .foregroundStyle(LC.textSecondary(scheme))
-                                .multilineTextAlignment(.center)
-                            ProgressView()
-                                .tint(LC.accent)
-                        case .submitted:
-                            Text("Your proof has been submitted and is queued for evaluation.")
-                                .font(.caption)
-                                .foregroundStyle(LC.textSecondary(scheme))
-                                .multilineTextAlignment(.center)
-                        case .error(let msg):
-                            Text(msg)
-                                .font(.caption)
-                                .foregroundStyle(LC.danger)
-                                .multilineTextAlignment(.center)
-                            Button {
-                                showingProofFlow = true
-                            } label: {
-                                Label("Submit Manually", systemImage: "heart.fill")
-                            }
-                            .buttonStyle(LCSecondaryButton())
-
-                            // Manual file upload fallback
-                            manualUploadSection
-                        default:
-                            EmptyView()
-                        }
-                    } else {
-                        // In proof window, no status yet — trigger auto-proof
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 36))
-                            .foregroundStyle(LC.accent)
-                            .symbolEffect(.pulse)
-                        Text("Auto-submitting proof...")
-                            .font(.subheadline.weight(.semibold))
-                        Text("Collecting fitness data for the challenge period.")
-                            .font(.caption)
-                            .foregroundStyle(LC.textSecondary(scheme))
-                            .multilineTextAlignment(.center)
-                        ProgressView()
-                            .tint(LC.accent)
-                            .onAppear {
-                                autoProofService.triggerAutoProof(
-                                    challengeId: challengeId,
-                                    challenge: meta,
-                                    appState: appState,
-                                    healthService: healthService
-                                )
-                            }
-
-                        // Manual file upload fallback
-                        manualUploadSection
-                    }
-                }
-            } else if detail.isActive {
-                // Join section
-                Image(systemName: "figure.run")
-                    .font(.system(size: 36))
-                    .foregroundStyle(LC.accent)
-                Text("Join This Challenge")
-                    .font(.headline.weight(.bold))
-
-                if walletManager.isConnected {
-                    if let stake = detail.stakeDisplay {
-                        Text("Stake \(stake) to join and compete.")
-                            .font(.caption)
-                            .foregroundStyle(LC.textSecondary(scheme))
-                    }
-
-                    if let joinError {
-                        Text(joinError)
-                            .font(.caption)
-                            .foregroundStyle(LC.danger)
-                            .multilineTextAlignment(.center)
-                    }
-
-                    Button {
-                        Task { await joinChallenge(detail) }
-                    } label: {
-                        if isJoining {
-                            ProgressView()
-                                .tint(.white)
-                        } else {
-                            Label("Join Challenge", systemImage: "bolt.fill")
-                        }
-                    }
-                    .buttonStyle(LCGoldButton(isDisabled: isJoining))
-                    .disabled(isJoining)
-                } else {
-                    Text("Connect your wallet to join.")
-                        .font(.caption)
-                        .foregroundStyle(LC.textSecondary(scheme))
-
-                    Button {
-                        showingWalletSheet = true
-                    } label: {
-                        Label("Connect Wallet", systemImage: "wallet.bifold")
-                    }
-                    .buttonStyle(LCGoldButton())
-
-                    Button {
-                        showingGamingHandoff = true
-                    } label: {
-                        Label("Join on Desktop", systemImage: "arrow.up.forward.square")
-                    }
-                    .buttonStyle(LCSecondaryButton())
-                }
-
-                if appState.deepLinkToken != nil {
-                    Button {
-                        showingProofFlow = true
-                    } label: {
-                        Label("Submit Proof Now", systemImage: "heart.fill")
-                    }
-                    .buttonStyle(LCSecondaryButton())
-                }
-            } else {
-                // Challenge ended
-                Image(systemName: "flag.checkered")
-                    .font(.system(size: 36))
-                    .foregroundStyle(LC.textTertiary(scheme))
-                Text("Challenge Ended")
-                    .font(.subheadline.weight(.semibold))
-                Text("This challenge is no longer accepting participants.")
-                    .font(.caption)
-                    .foregroundStyle(LC.textSecondary(scheme))
-                    .multilineTextAlignment(.center)
-            }
+    private func joinErrorCard(_ message: String) -> some View {
+        HStack(spacing: LC.space12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(LC.danger)
+                .frame(width: 24)
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(LC.danger)
         }
-        .padding(LC.space24)
+        .padding(LC.space16)
+        .lcCard()
+    }
+
+    private var joiningCard: some View {
+        HStack(spacing: LC.space12) {
+            ProgressView()
+                .tint(LC.accent)
+            Text("Joining challenge...")
+                .font(.subheadline)
+                .foregroundStyle(LC.textSecondary(scheme))
+        }
+        .padding(LC.space16)
         .frame(maxWidth: .infinity)
         .lcCard()
     }
 
-    private var genericInfoCard: some View {
-        VStack(spacing: LC.space12) {
-            Image(systemName: "info.circle")
-                .font(.system(size: 28))
-                .foregroundStyle(LC.textTertiary(scheme))
-            Text("View this challenge on desktop for full options.")
+    private func stakeInfoCard(_ stake: String) -> some View {
+        HStack(spacing: LC.space12) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 14))
+                .foregroundStyle(LC.accent)
+                .frame(width: 24)
+            Text("Stake \(stake) to join and compete")
                 .font(.caption)
                 .foregroundStyle(LC.textSecondary(scheme))
-                .multilineTextAlignment(.center)
+            Spacer()
         }
-        .padding(LC.space24)
-        .frame(maxWidth: .infinity)
+        .padding(LC.space16)
         .lcCard()
+    }
+
+    /// Whether the join window is still open for this challenge.
+    private var isJoinWindowOpen: Bool {
+        guard let detail else { return false }
+        // Join closes at joinClosesTs or startDate, whichever is set
+        if let joinCloses = detail.joinClosesTs, let ts = Double(joinCloses), ts > 0 {
+            return Date().timeIntervalSince1970 < ts
+        }
+        // Fallback: join open if challenge hasn't started yet or is active
+        if let start = detail.startDate, start > Date() { return true }
+        return detail.isActive
+    }
+
+    private func activeCard(_ detail: ChallengeDetail) -> some View {
+        VStack(spacing: LC.space12) {
+            HStack(spacing: LC.space12) {
+                Image(systemName: "figure.run")
+                    .font(.system(size: 18))
+                    .foregroundStyle(LC.accent)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: LC.space2) {
+                    Text("Challenge In Progress")
+                        .font(.subheadline.weight(.semibold))
+                    if let endDate = detail.endsDate {
+                        Text("Complete your activity by \(endDate.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.caption)
+                            .foregroundStyle(LC.textSecondary(scheme))
+                    }
+                }
+                Spacer()
+            }
+
+            garminHealthKitTip
+
+            // Auto-proof status
+            if let proofStatus = autoProofService.status[challengeId] {
+                autoProofStatusRow(proofStatus)
+            }
+
+            // Invite a friend — only when join window is still open
+            if isJoinWindowOpen {
+                ShareLink(
+                    item: URL(string: "\(appState.serverURL)/challenge/\(challengeId)")!,
+                    subject: Text("Join my challenge"),
+                    message: Text("Think you can beat me? Join \"\(detail.displayTitle)\" on LightChallenge!")
+                ) {
+                    HStack(spacing: LC.space8) {
+                        Image(systemName: "person.badge.plus")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Invite a Friend")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
+                    .background(
+                        LinearGradient(
+                            colors: [LC.accent, LC.accent.opacity(0.85)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous))
+                }
+            }
+        }
+        .padding(LC.space16)
+        .lcCard()
+    }
+
+    private func proofCard(_ detail: ChallengeDetail) -> some View {
+        VStack(spacing: LC.space12) {
+            HStack(spacing: LC.space12) {
+                Image(systemName: "arrow.up.doc.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(LC.warning)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: LC.space2) {
+                    Text("Proof Submission Open")
+                        .font(.subheadline.weight(.semibold))
+                    if let deadline = detail.proofDeadlineDate {
+                        Text("Submit by \(deadline.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.caption)
+                            .foregroundStyle(LC.textSecondary(scheme))
+                    }
+                }
+                Spacer()
+            }
+
+            // Auto-proof status
+            let proofStatus = autoProofService.status[challengeId]
+            if let proofStatus {
+                autoProofStatusRow(proofStatus)
+            } else {
+                // Trigger auto-proof
+                HStack(spacing: LC.space8) {
+                    ProgressView()
+                        .tint(LC.accent)
+                        .scaleEffect(0.8)
+                    Text("Auto-submitting proof...")
+                        .font(.caption)
+                        .foregroundStyle(LC.textSecondary(scheme))
+                }
+                .onAppear {
+                    let meta = detail.toChallengeMeta()
+                    autoProofService.triggerAutoProof(
+                        challengeId: challengeId,
+                        challenge: meta,
+                        appState: appState,
+                        healthService: healthService
+                    )
+                }
+            }
+
+            // Manual submit + file upload
+            Button {
+                showingProofFlow = true
+            } label: {
+                Label("Submit Manually", systemImage: "heart.fill")
+            }
+            .buttonStyle(LCSecondaryButton())
+
+            manualUploadSection
+        }
+        .padding(LC.space16)
+        .lcCard()
+    }
+
+    private var verdictCard: some View {
+        HStack(spacing: LC.space12) {
+            Image(systemName: "hourglass")
+                .font(.system(size: 18))
+                .foregroundStyle(LC.warning)
+                .symbolEffect(.pulse)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: LC.space2) {
+                Text("Proof Under Review")
+                    .font(.subheadline.weight(.semibold))
+                Text("Your evidence is being evaluated")
+                    .font(.caption)
+                    .foregroundStyle(LC.textSecondary(scheme))
+            }
+            Spacer()
+        }
+        .padding(LC.space16)
+        .lcCard()
+    }
+
+    private func completedCard(_ detail: ChallengeDetail) -> some View {
+        VStack(spacing: LC.space12) {
+            HStack(spacing: LC.space12) {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(LC.success)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: LC.space2) {
+                    Text("Challenge Passed")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(LC.success)
+                    Text("You completed this challenge successfully")
+                        .font(.caption)
+                        .foregroundStyle(LC.textSecondary(scheme))
+                }
+                Spacer()
+            }
+
+            Button {
+                showingShareCard = true
+            } label: {
+                Label("Share", systemImage: "square.and.arrow.up")
+            }
+            .buttonStyle(LCSecondaryButton())
+        }
+        .padding(LC.space16)
+        .lcCard()
+    }
+
+    private var failedCard: some View {
+        HStack(spacing: LC.space12) {
+            Image(systemName: "xmark.seal.fill")
+                .font(.system(size: 20))
+                .foregroundStyle(LC.danger)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: LC.space2) {
+                Text("Challenge Failed")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(LC.danger)
+                Text("Your activity did not meet the requirements")
+                    .font(.caption)
+                    .foregroundStyle(LC.textSecondary(scheme))
+            }
+            Spacer()
+        }
+        .padding(LC.space16)
+        .lcCard()
+    }
+
+    private var endedCard: some View {
+        HStack(spacing: LC.space12) {
+            Image(systemName: "flag.checkered")
+                .font(.system(size: 18))
+                .foregroundStyle(LC.textTertiary(scheme))
+                .frame(width: 28)
+            Text("This challenge has ended")
+                .font(.caption)
+                .foregroundStyle(LC.textSecondary(scheme))
+            Spacer()
+        }
+        .padding(LC.space16)
+        .lcCard()
+    }
+
+    // MARK: - Auto-Proof Status Row
+
+    private func autoProofStatusRow(_ status: AutoProofService.ProofStatus) -> some View {
+        HStack(spacing: LC.space8) {
+            Image(systemName: status.icon)
+                .font(.system(size: 14))
+                .foregroundStyle(status.color)
+                .symbolEffect(.pulse, isActive: status == .pending || status == .collectingHealth || status == .submitting)
+            Text(status.label)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(LC.textSecondary(scheme))
+            Spacer()
+            if status == .pending || status == .collectingHealth || status == .submitting {
+                ProgressView()
+                    .tint(LC.accent)
+                    .scaleEffect(0.7)
+            }
+        }
+        .padding(LC.space8)
+        .background(status.color.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous))
+    }
+
+    // MARK: - Milestone Timeline
+
+    private func milestoneTimeline(_ detail: ChallengeDetail) -> some View {
+        let milestones = buildMilestones(detail)
+        guard !milestones.isEmpty else { return AnyView(EmptyView()) }
+
+        return AnyView(
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Timeline")
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.bottom, LC.space12)
+
+                ForEach(Array(milestones.enumerated()), id: \.element.id) { index, milestone in
+                    HStack(alignment: .top, spacing: LC.space12) {
+                        // Stepper line + dot
+                        VStack(spacing: 0) {
+                            Circle()
+                                .fill(milestone.isCompleted ? LC.accent : LC.textTertiary(scheme).opacity(0.3))
+                                .frame(width: 8, height: 8)
+                            if index < milestones.count - 1 {
+                                Rectangle()
+                                    .fill(milestone.isCompleted ? LC.accent.opacity(0.3) : LC.textTertiary(scheme).opacity(0.15))
+                                    .frame(width: 1)
+                                    .frame(maxHeight: .infinity)
+                            }
+                        }
+                        .frame(width: 8)
+
+                        VStack(alignment: .leading, spacing: LC.space2) {
+                            Text(milestone.label)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(milestone.isCompleted ? LC.textPrimary(scheme) : LC.textTertiary(scheme))
+                            if let date = milestone.date {
+                                Text(date.formatted(date: .abbreviated, time: .shortened))
+                                    .font(.caption2)
+                                    .foregroundStyle(LC.textTertiary(scheme))
+                            }
+                        }
+                        .padding(.bottom, index < milestones.count - 1 ? LC.space16 : 0)
+
+                        Spacer()
+                    }
+                }
+            }
+            .padding(LC.space16)
+            .lcCard()
+        )
+    }
+
+    private struct Milestone: Identifiable {
+        let id: String
+        let label: String
+        let date: Date?
+        let isCompleted: Bool
+    }
+
+    private func buildMilestones(_ detail: ChallengeDetail) -> [Milestone] {
+        var milestones: [Milestone] = []
+        let now = Date()
+
+        // Created
+        if let created = detail.createdAt.flatMap({ $0 > 0 ? Date(timeIntervalSince1970: $0) : nil }) {
+            milestones.append(Milestone(id: "created", label: "Created", date: created, isCompleted: true))
+        }
+
+        // You Joined
+        if detail.youJoined == true || participantStatus != nil {
+            milestones.append(Milestone(id: "joined", label: "You Joined", date: nil, isCompleted: true))
+        }
+
+        // Start Date
+        if let start = detail.startDate {
+            milestones.append(Milestone(id: "start", label: "Challenge Start", date: start, isCompleted: start <= now))
+        }
+
+        // End Date
+        if let end = detail.endsDate {
+            milestones.append(Milestone(id: "end", label: "Challenge End", date: end, isCompleted: end <= now))
+        }
+
+        // Proof Deadline
+        if let deadline = detail.proofDeadlineDate {
+            milestones.append(Milestone(id: "proof", label: "Proof Deadline", date: deadline, isCompleted: deadline <= now))
+        }
+
+        // Finalized
+        if detail.status == "Finalized" {
+            let passed = participantStatus?.verdictPass
+            let label = passed == true ? "Finalized — Passed" : passed == false ? "Finalized — Failed" : "Finalized"
+            milestones.append(Milestone(id: "finalized", label: label, date: nil, isCompleted: true))
+        }
+
+        return milestones
     }
 
     // MARK: - Join Challenge
@@ -614,8 +625,6 @@ struct ChallengeDetailView: View {
                 baseURL: appState.serverURL
             )
             await loadData()
-            // Note: auto-proof is NOT triggered at join time.
-            // It triggers during the proof window (after challenge ends).
         } catch {
             joinError = error.localizedDescription
         }
@@ -625,7 +634,6 @@ struct ChallengeDetailView: View {
 
     // MARK: - Manual File Upload
 
-    /// Whether the manual upload option should be available.
     private var canShowManualUpload: Bool {
         guard appState.hasWallet else { return false }
         guard detail?.youJoined == true || participantStatus != nil else { return false }
@@ -641,17 +649,10 @@ struct ChallengeDetailView: View {
         return challengeEnded && !proofDeadlinePassed
     }
 
-    /// Upload button + status display for manual file evidence.
     @ViewBuilder
     private var manualUploadSection: some View {
         if canShowManualUpload {
-            Divider().padding(.vertical, LC.space4)
-
             VStack(spacing: LC.space8) {
-                Text("Or upload an exported file")
-                    .font(.caption)
-                    .foregroundStyle(LC.textSecondary(scheme))
-
                 switch fileUploadStatus {
                 case .idle:
                     Button {
@@ -661,36 +662,37 @@ struct ChallengeDetailView: View {
                     }
                     .buttonStyle(LCSecondaryButton())
 
-                    Text("Supports TCX, GPX, JSON (Garmin, Google Fit Takeout), or ZIP exports.")
+                    Text("TCX, GPX, JSON, or ZIP exports")
                         .font(.caption2)
                         .foregroundStyle(LC.textTertiary(scheme))
-                        .multilineTextAlignment(.center)
 
                 case .uploading:
                     ProgressView("Uploading...")
                         .tint(LC.accent)
 
                 case .success(let evidenceId):
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(LC.success)
-                    Text("File uploaded successfully")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(LC.success)
-                    if let eid = evidenceId {
-                        Text("Evidence ID: \(eid)")
-                            .font(.caption2)
-                            .foregroundStyle(LC.textTertiary(scheme))
+                    HStack(spacing: LC.space8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(LC.success)
+                        Text("Uploaded")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(LC.success)
+                        if let eid = evidenceId {
+                            Text("ID: \(eid)")
+                                .font(.caption2)
+                                .foregroundStyle(LC.textTertiary(scheme))
+                        }
                     }
 
                 case .error(let msg):
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(LC.warning)
-                    Text(msg)
-                        .font(.caption)
-                        .foregroundStyle(LC.danger)
-                        .multilineTextAlignment(.center)
+                    HStack(spacing: LC.space8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(LC.warning)
+                        Text(msg)
+                            .font(.caption)
+                            .foregroundStyle(LC.danger)
+                            .lineLimit(2)
+                    }
                     Button {
                         fileUploadStatus = .idle
                         showingFileImporter = true
@@ -703,7 +705,6 @@ struct ChallengeDetailView: View {
         }
     }
 
-    /// Handle the file importer result: read file data and upload via APIClient.
     private func handleFileImport(_ result: Result<[URL], Error>) async {
         switch result {
         case .failure(let err):
@@ -716,7 +717,6 @@ struct ChallengeDetailView: View {
                 return
             }
 
-            // Gain security-scoped access
             guard fileURL.startAccessingSecurityScopedResource() else {
                 fileUploadStatus = .error("Unable to access the selected file.")
                 return
@@ -726,20 +726,14 @@ struct ChallengeDetailView: View {
             let fileName = fileURL.lastPathComponent
             let ext = fileURL.pathExtension.lowercased()
 
-            // Determine MIME type from extension
             let mimeType: String
             switch ext {
-            case "json":
-                mimeType = "application/json"
-            case "xml", "tcx", "gpx":
-                mimeType = "application/xml"
-            case "zip":
-                mimeType = "application/zip"
-            default:
-                mimeType = "application/octet-stream"
+            case "json": mimeType = "application/json"
+            case "xml", "tcx", "gpx": mimeType = "application/xml"
+            case "zip": mimeType = "application/zip"
+            default: mimeType = "application/octet-stream"
             }
 
-            // Read file data
             let fileData: Data
             do {
                 fileData = try Data(contentsOf: fileURL)
@@ -753,7 +747,6 @@ struct ChallengeDetailView: View {
                 return
             }
 
-            // Upload
             fileUploadStatus = .uploading
             let modelHash = detail?.proof?.modelHash ?? detail?.modelHash ?? ServerConfig.defaultFitnessModelHash
 
@@ -772,7 +765,6 @@ struct ChallengeDetailView: View {
 
                 if result.ok {
                     fileUploadStatus = .success(evidenceId: result.evidenceId)
-                    // Refresh participant status to reflect evidence submission
                     await loadParticipantStatus()
                 } else {
                     fileUploadStatus = .error("Upload was not accepted by the server.")
@@ -783,24 +775,16 @@ struct ChallengeDetailView: View {
         }
     }
 
-    // MARK: - Helpers
-
-    private func statusColor(_ status: String) -> Color {
-        switch status {
-        case "Active": LC.success
-        case "Finalized": LC.info
-        case "Canceled": LC.danger
-        default: .secondary
-        }
-    }
-
     // MARK: - Loading / Error
 
     private var loadingView: some View {
         VStack(spacing: LC.space16) {
-            ShimmerView().frame(height: 200)
-            ShimmerView().frame(height: 120)
+            ShimmerView().frame(height: 280)
+                .clipShape(RoundedRectangle(cornerRadius: LC.radiusXL))
             ShimmerView().frame(height: 80)
+                .clipShape(RoundedRectangle(cornerRadius: LC.radiusLG))
+            ShimmerView().frame(height: 120)
+                .clipShape(RoundedRectangle(cornerRadius: LC.radiusLG))
         }
         .padding(.horizontal, LC.space16)
         .padding(.top, LC.space16)
@@ -829,8 +813,6 @@ struct ChallengeDetailView: View {
             detail = cached
         }
 
-        // Fetch DB metadata (fast, ~100ms) and chain detail (slow, 5-15s) in parallel.
-        // DB meta provides title, description, dates. Chain adds on-chain state.
         let metaTask = Task { try? await APIClient.shared.fetchChallengeMeta(baseURL: appState.serverURL, id: challengeId) }
 
         do {
@@ -841,7 +823,6 @@ struct ChallengeDetailView: View {
                 viewer: viewer
             )
 
-            // Merge DB metadata for any fields the chain endpoint didn't provide
             if let meta = await metaTask.value {
                 fresh.mergeFromMeta(meta)
             }
@@ -849,7 +830,6 @@ struct ChallengeDetailView: View {
             detail = fresh
             await CacheService.shared.cacheDetail(fresh, id: challengeId)
 
-            // Schedule proof window reminder if challenge is in progress
             if let endDate = fresh.endsDate, endDate > Date() {
                 notificationService.scheduleProofWindowReminder(
                     challengeId: challengeId,
@@ -863,12 +843,10 @@ struct ChallengeDetailView: View {
             async let reputationTask: () = loadReputation()
             _ = await (progressTask, participantTask, reputationTask)
         } catch {
-            // If chain fetch failed, try meta-only as fallback
             if detail == nil, let meta = await metaTask.value {
                 detail = ChallengeDetail.fromMeta(meta)
             }
             if detail != nil {
-                // Still load progress/participant/reputation even in fallback path
                 async let progressTask: () = loadProgress()
                 async let participantTask: () = loadParticipantStatus()
                 async let reputationTask: () = loadReputation()
@@ -896,7 +874,6 @@ struct ChallengeDetailView: View {
             challengeId: challengeId,
             subject: appState.walletAddress
         )
-        // Trigger victory celebration when verdict first arrives as pass
         if prevPass == nil, participantStatus?.verdictPass == true {
             await MainActor.run { showingVictory = true }
         }
@@ -912,30 +889,20 @@ struct ChallengeDetailView: View {
 
     // MARK: - Garmin HealthKit Tip
 
-    /// Onboarding tip for Garmin users: data flows automatically via Apple Health.
     @ViewBuilder
     private var garminHealthKitTip: some View {
-        if !healthService.isAuthorized {
-            // Don't show tip if HealthKit not authorized — the main prompt will handle that
-            EmptyView()
-        } else {
+        if healthService.isAuthorized {
             HStack(spacing: LC.space8) {
                 Image(systemName: "applewatch.and.arrow.forward")
-                    .font(.system(size: 14))
+                    .font(.system(size: 12))
                     .foregroundStyle(LC.info)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Using a Garmin, Fitbit, or other wearable?")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(LC.textPrimary(scheme))
-                    Text("Your data syncs automatically via Apple Health. Just ensure HealthKit sync is enabled in your wearable's companion app.")
-                        .font(.caption2)
-                        .foregroundStyle(LC.textSecondary(scheme))
-                }
+                Text("Garmin, Fitbit, and other wearables sync via Apple Health automatically")
+                    .font(.caption2)
+                    .foregroundStyle(LC.textSecondary(scheme))
             }
-            .padding(LC.space12)
-            .background(LC.info.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: LC.radius12))
-            .padding(.top, LC.space4)
+            .padding(LC.space8)
+            .background(LC.info.opacity(0.06))
+            .clipShape(RoundedRectangle(cornerRadius: LC.radiusSM))
         }
     }
 }

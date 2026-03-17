@@ -3,7 +3,8 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
-import { formatLCAIShort } from "@/lib/formatLCAI";
+import { formatWeiAsUSD } from "@/lib/tokenPrice";
+import { useTokenPrice } from "@/lib/useTokenPrice";
 import type { Status } from "@/lib/types/status";
 import Badge from "@/app/components/ui/Badge";
 import GameIcon from "./GameIcon";
@@ -36,6 +37,7 @@ export default function ChallengeCard({
   const idStr = id.toString();
   const router = useRouter();
   const { address } = useAccount();
+  const tokenPrice = useTokenPrice();
 
   const startSec = typeof startTs === "bigint" ? Number(startTs) : null;
 
@@ -172,8 +174,8 @@ export default function ChallengeCard({
           value={
             loading
               ? null
-              : formatLCAIShort(stats!.pool) !== null
-                ? `${formatLCAIShort(stats!.pool)} LCAI`
+              : stats!.pool
+                ? formatWeiAsUSD(stats!.pool, tokenPrice)
                 : "\u2014"
           }
           loading={loading}

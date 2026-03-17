@@ -17,6 +17,8 @@ import {
   Target,
   Sparkles,
 } from "lucide-react";
+import { useTokenPrice } from "@/lib/useTokenPrice";
+import { formatLCAIAsUSD } from "@/lib/tokenPrice";
 import { SteamIcon, StravaIcon, AppleIcon, GarminIcon } from "./components/icons/BrandIcons";
 
 /* ── Data hooks ────────────────────────────────────────────────────────────── */
@@ -107,6 +109,7 @@ export default function HomePage() {
   const stats = useStats();
   const challenges = useRecentChallenges();
   const health = useHealth();
+  const tokenPrice = useTokenPrice();
 
   return (
     <div className="hp">
@@ -150,7 +153,7 @@ export default function HomePage() {
         <div className="hp-metrics">
           {[
             { value: fmtNumber(stats?.totalChallenges), label: "Challenges", sub: "Created on-chain" },
-            { value: `${fmtStake(stats?.validatorStake)} LCAI`, label: "Staked", sub: "Validator pool" },
+            { value: stats?.validatorStake ? formatLCAIAsUSD(parseFloat(stats.validatorStake), tokenPrice) : "\u2014", label: "Staked", sub: "Validator pool" },
             { value: stats ? String(stats.modelsCount) : "\u2014", label: "Verifiers", sub: "AI models" },
             {
               value: health?.status === "healthy" ? "Live" : health?.status === "degraded" ? "Degraded" : "\u2014",
@@ -428,7 +431,7 @@ function ChallengePreviewCard({ c }: { c: ChallengeMeta }) {
         {c.intent && <span style={{ textTransform: "capitalize" }}>{c.intent.replace(/-/g, " ")}</span>}
         {c.stake && (
           <span>
-            <strong>{c.stake}</strong> LCAI
+            <strong>{c.stake}</strong>
           </span>
         )}
       </div>

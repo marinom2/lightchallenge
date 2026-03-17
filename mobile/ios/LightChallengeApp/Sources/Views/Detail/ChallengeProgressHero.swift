@@ -1,19 +1,11 @@
 // ChallengeProgressHero.swift
-// Apple Fitness-inspired challenge hero with activity figure, themed progress bar,
-// numeric progress, and phase timer. Replaces the old icon-badge hero.
-//
-// Layout:
-//   [ phase timer pill ]
-//   [ large activity figure ]
-//   [ themed progress bar ]    ← only when rules/goal available
-//   [ 7.2 / 10 km ]           ← only when rules/goal available
-//   [ title + description ]
+// Unified hero card: ring + title + status + prize + insight + action.
+// Communicates in 2 seconds: what, state, stakes, next step.
 
 import SwiftUI
 
 // MARK: - Activity Theme
 
-/// Visual theme derived from the challenge's fitness type.
 struct ActivityTheme {
     let icon: String
     let label: String
@@ -35,13 +27,12 @@ struct ActivityTheme {
             barColors: [Color(hex: 0xEF4444), Color(hex: 0xDC2626)],
             figureTint: Color(hex: 0xEF4444), barBackground: Color(hex: 0xEF4444).opacity(0.15))
         let hikeTheme = ActivityTheme(icon: "figure.hiking", label: "Hiking",
-            barColors: [Color(hex: 0x22C55E), Color(hex: 0x15803D)],
-            figureTint: Color(hex: 0x22C55E), barBackground: Color(hex: 0x22C55E).opacity(0.15))
+            barColors: [Color(hex: 0x8B5CF6), Color(hex: 0x7C3AED)],
+            figureTint: Color(hex: 0x8B5CF6), barBackground: Color(hex: 0x8B5CF6).opacity(0.15))
         let walkTheme = ActivityTheme(icon: "figure.walk", label: "Walking",
             barColors: [Color(hex: 0x22C55E), Color(hex: 0x16A34A)],
             figureTint: Color(hex: 0x22C55E), barBackground: Color(hex: 0x22C55E).opacity(0.15))
 
-        // 1. Match from modelId (most reliable — e.g. "fitness.cycling@1")
         let modelId = (detail.modelId ?? "").lowercased()
         if modelId.contains("swimming")  { return swimTheme }
         if modelId.contains("cycling")   { return cycleTheme }
@@ -50,7 +41,6 @@ struct ActivityTheme {
         if modelId.contains("hiking")    { return hikeTheme }
         if modelId.contains("steps")     { return walkTheme }
 
-        // 2. Match from metric (rules-based)
         let metric = detail.rules?.metric ?? ""
         if metric == "swimming_km"       { return swimTheme }
         if metric == "cycling_km"        { return cycleTheme }
@@ -59,7 +49,6 @@ struct ActivityTheme {
         if metric == "hiking_km"         { return hikeTheme }
         if metric == "steps"             { return walkTheme }
 
-        // 3. Match from tags
         let tags = (detail.tags ?? []).joined(separator: " ").lowercased()
         if tags.contains("swimming")  { return swimTheme }
         if tags.contains("cycling")   { return cycleTheme }
@@ -68,7 +57,6 @@ struct ActivityTheme {
         if tags.contains("hiking")    { return hikeTheme }
         if tags.contains("walking")   { return walkTheme }
 
-        // 4. Fallback: keyword search in title + description
         let text = [(detail.title ?? ""), (detail.description ?? "")].joined(separator: " ").lowercased()
         if text.contains("swim") || text.contains("pool")  { return swimTheme }
         if text.contains("cycl") || text.contains("bike") || text.contains("ride") { return cycleTheme }
@@ -95,15 +83,27 @@ enum ChallengePhase {
             if ti <= 0 { return "Starting soon" }
             return "Starts in \(Self.formatDuration(ti))"
         case .active(let ti):
-            if ti <= 0 { return "Challenge active" }
-            return "\(Self.formatDuration(ti)) left to complete"
+            if ti <= 0 { return "Active" }
+            return "\(Self.formatDuration(ti)) left"
         case .proofWindow(let ti):
-            if ti <= 0 { return "Proof submission open" }
-            return "\(Self.formatDuration(ti)) left to verify"
+            if ti <= 0 { return "Submit Proof" }
+            return "\(Self.formatDuration(ti)) to submit"
         case .ended:
-            return "Challenge ended"
+            return "Ended"
         case .finalized(let passed):
             if let p = passed { return p ? "Completed" : "Failed" }
+            return "Finalized"
+        }
+    }
+
+    var statusLabel: String {
+        switch self {
+        case .upcoming: return "Upcoming"
+        case .active: return "Active"
+        case .proofWindow: return "Awaiting Proof"
+        case .ended: return "Ended"
+        case .finalized(let p):
+            if let p { return p ? "Completed" : "Failed" }
             return "Finalized"
         }
     }
@@ -137,6 +137,27 @@ enum ChallengePhase {
         return false
     }
 
+    /// Ring progress fraction for this phase (decorative when no real progress data).
+    var ringFraction: Double {
+        switch self {
+        case .upcoming: return 0
+        case .active: return 0.15
+        case .proofWindow: return 0.75
+        case .ended: return 0.5
+        case .finalized(let p):
+            return (p == true) ? 1.0 : 0.5
+        }
+    }
+
+    /// Whether the ring should appear dimmed/desaturated.
+    var ringDimmed: Bool {
+        switch self {
+        case .ended: return true
+        case .finalized(let p): return p != true
+        default: return false
+        }
+    }
+
     private static func formatDuration(_ ti: TimeInterval) -> String {
         let total = Int(max(0, ti))
         let d = total / 86400
@@ -148,14 +169,12 @@ enum ChallengePhase {
     }
 
     static func from(detail: ChallengeDetail, verdictPass: Bool?) -> ChallengePhase {
-        // Check finalized status first
         if detail.status == "Finalized" || detail.status == "Canceled" {
             return .finalized(passed: verdictPass)
         }
 
         let now = Date()
 
-        // Use dates when available
         if let start = detail.startDate, start > now {
             return .upcoming(startsIn: start.timeIntervalSince(now))
         }
@@ -163,19 +182,74 @@ enum ChallengePhase {
             return .active(remaining: end.timeIntervalSince(now))
         }
         if let end = detail.endsDate, end <= now {
-            // Challenge period ended
             if let deadline = detail.proofDeadlineDate, deadline > now {
                 return .proofWindow(remaining: deadline.timeIntervalSince(now))
             }
             return .ended
         }
 
-        // Dates are nil — fall back to on-chain status
         if detail.isActive {
             return .active(remaining: 0)
         }
 
         return .ended
+    }
+}
+
+// MARK: - User Challenge State
+
+enum UserChallengeState {
+    case notJoined
+    case active
+    case awaitingProof
+    case awaitingVerdict
+    case completed
+    case failed
+    case ended
+
+    var label: String {
+        switch self {
+        case .notJoined: return "Not Joined"
+        case .active: return "Active"
+        case .awaitingProof: return "Awaiting Proof"
+        case .awaitingVerdict: return "Under Review"
+        case .completed: return "Completed"
+        case .failed: return "Failed"
+        case .ended: return "Ended"
+        }
+    }
+
+    var secondaryLabel: String? {
+        switch self {
+        case .awaitingProof: return "Submit your proof"
+        case .awaitingVerdict: return "Awaiting verdict"
+        default: return nil
+        }
+    }
+
+    static func from(detail: ChallengeDetail, participantStatus: ParticipantStatus?, phase: ChallengePhase) -> UserChallengeState {
+        let joined = detail.youJoined == true || participantStatus != nil
+
+        if let pass = participantStatus?.verdictPass {
+            return pass ? .completed : .failed
+        }
+
+        if joined {
+            if participantStatus?.hasEvidence == true {
+                return .awaitingVerdict
+            }
+            switch phase {
+            case .active: return .active
+            case .proofWindow: return .awaitingProof
+            case .ended, .finalized: return .ended
+            default: return .active
+            }
+        }
+
+        if case .finalized = phase { return .ended }
+        if case .ended = phase { return .ended }
+
+        return .notJoined
     }
 }
 
@@ -185,6 +259,8 @@ struct ChallengeProgressHero: View {
     let detail: ChallengeDetail
     let participantStatus: ParticipantStatus?
     let healthService: HealthKitService
+    let progress: ChallengeProgress?
+    let onAction: (HeroAction) -> Void
 
     @EnvironmentObject private var appState: AppState
     @State private var animatedProgress: Double = 0
@@ -192,60 +268,82 @@ struct ChallengeProgressHero: View {
     @State private var goalValue: Double = 0
     @State private var hasLoaded = false
     @State private var figureAppeared = false
+    @State private var insightIndex = 0
     @Environment(\.colorScheme) private var scheme
 
     private var theme: ActivityTheme { ActivityTheme.from(detail: detail) }
     private var phase: ChallengePhase {
         ChallengePhase.from(detail: detail, verdictPass: participantStatus?.verdictPass)
     }
+    private var userState: UserChallengeState {
+        UserChallengeState.from(detail: detail, participantStatus: participantStatus, phase: phase)
+    }
     private var rules: ChallengeRules? { detail.rules }
     private var metricLabel: String { rules?.metricLabel ?? "km" }
 
     var body: some View {
         VStack(spacing: LC.space16) {
-            // Phase timer pill
-            phasePill
+            // Top row: category + status
+            topRow
 
-            // Progress ring with SF Symbol
-            progressRing
-                .scaleEffect(figureAppeared ? 1.0 : 0.3)
-                .opacity(figureAppeared ? 1.0 : 0.0)
+            // Ring + title block
+            HStack(spacing: LC.space16) {
+                // Progress ring
+                progressRing
+                    .scaleEffect(figureAppeared ? 1.0 : 0.3)
+                    .opacity(figureAppeared ? 1.0 : 0.0)
 
-            // Numeric progress below ring
-            if goalValue > 0 {
-                progressLabel
+                // Title + description + category
+                VStack(alignment: .leading, spacing: LC.space6) {
+                    Text(detail.displayTitle)
+                        .font(.headline.weight(.bold))
+                        .lineLimit(2)
+                        .foregroundStyle(LC.textPrimary(scheme))
+
+                    if let desc = detail.description, !desc.isEmpty {
+                        Text(desc)
+                            .font(.caption)
+                            .foregroundStyle(LC.textSecondary(scheme))
+                            .lineLimit(2)
+                    }
+
+                    // Numeric progress
+                    if goalValue > 0 {
+                        progressLabel
+                    } else {
+                        // Category pill
+                        Text(theme.label)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(theme.figureTint)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(theme.figureTint.opacity(0.1))
+                            .clipShape(Capsule())
+                    }
+                }
+
+                Spacer(minLength: 0)
             }
 
-            // Title
-            Text(detail.displayTitle)
-                .font(.title3.weight(.bold))
-                .multilineTextAlignment(.center)
+            // Prize pool
+            prizeSection
 
-            if let desc = detail.description, !desc.isEmpty {
-                Text(desc)
-                    .font(.subheadline)
-                    .foregroundStyle(LC.textSecondary(scheme))
-                    .multilineTextAlignment(.center)
-                    .lineLimit(3)
+            // Dynamic insight line
+            if !insights.isEmpty {
+                insightLine
             }
 
-            // Activity type label when no progress data
-            if goalValue == 0 {
-                Text(theme.label)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(theme.figureTint)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 5)
-                    .background(theme.figureTint.opacity(0.12))
-                    .clipShape(Capsule())
-            }
+            // Primary action
+            actionButton
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, LC.space24)
-        .padding(.horizontal, LC.space16)
+        .padding(LC.space20)
         .background(
             RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
+                .fill(LC.cardBg(scheme))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
+                .stroke(LC.cardBorder(scheme), lineWidth: 1)
         )
         .task { await loadProgress() }
         .onAppear {
@@ -255,60 +353,280 @@ struct ChallengeProgressHero: View {
         }
     }
 
-    // MARK: - Phase Pill
+    // MARK: - Top Row (Status)
 
-    private var phasePill: some View {
-        HStack(spacing: 6) {
-            Image(systemName: phase.icon)
-                .font(.system(size: 10, weight: .bold))
-            Text(phase.label)
+    private var topRow: some View {
+        HStack {
+            // Phase pill
+            Text(phase.statusLabel)
                 .font(.caption2.weight(.bold))
+                .foregroundStyle(phase.color)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(phase.color.opacity(0.1))
+            .clipShape(Capsule())
+
+            // Secondary status (user state)
+            if let secondary = userState.secondaryLabel {
+                Text(secondary)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(LC.textTertiary(scheme))
+            }
+
+            Spacer()
+
+            // Time remaining (compact)
+            if case .active(let remaining) = phase, remaining > 0 {
+                Text(phase.label)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(LC.textSecondary(scheme))
+            } else if case .proofWindow(let remaining) = phase, remaining > 0 {
+                Text(phase.label)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(LC.warning)
+            }
         }
-        .foregroundStyle(phase.color)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(phase.color.opacity(0.12))
-        .clipShape(Capsule())
     }
 
     // MARK: - Progress Ring
 
     private var ringState: RingState {
-        // Completed challenge
         if case .finalized(let passed) = phase, passed == true {
             return .complete
         }
-        // Has real progress data
         if animatedProgress > 0 {
             return .progress(animatedProgress)
         }
-        // Active but no data yet — show empty
+        if phase.ringDimmed {
+            return .progress(phase.ringFraction)
+        }
         return .empty
     }
+
+    /// Progress-based color: lighter at low progress, more saturated/contrasting at high progress.
+    private var ringColor: Color {
+        if phase.ringDimmed {
+            return .secondary
+        }
+        let base = theme.barColors.first ?? theme.figureTint
+        let fraction = animatedProgress > 0 ? animatedProgress : phase.ringFraction
+        // At 0% → 40% opacity (light), at 100% → full color (high contrast)
+        let opacity = 0.4 + (fraction * 0.6)
+        return base.opacity(opacity)
+    }
+
+    @State private var isPulsing = false
 
     private var progressRing: some View {
         ChallengeProgressRing(
             state: ringState,
             symbol: theme.icon,
-            color: theme.barColors.first ?? theme.figureTint,
-            diameter: 180,
-            lineWidth: 20
+            color: ringColor,
+            diameter: 140,
+            lineWidth: 12
         )
+        .scaleEffect(isPulsing ? 1.03 : 1.0)
+        .animation(
+            phase.isActive
+                ? .easeInOut(duration: 1.5).repeatForever(autoreverses: true)
+                : .default,
+            value: isPulsing
+        )
+        .onAppear {
+            if phase.isActive { isPulsing = true }
+        }
     }
 
     // MARK: - Numeric Progress
 
     private var progressLabel: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 4) {
+        HStack(alignment: .firstTextBaseline, spacing: 3) {
             Text(formatValue(currentValue))
-                .font(.title2.weight(.bold).monospacedDigit())
+                .font(.subheadline.weight(.bold).monospacedDigit())
                 .foregroundStyle(theme.barColors.first ?? LC.accent)
-            Text("/")
-                .font(.subheadline.weight(.medium))
+            Text("/ \(formatValue(goalValue)) \(metricLabel)")
+                .font(.caption2.weight(.medium))
                 .foregroundStyle(LC.textTertiary(scheme))
-            Text("\(formatValue(goalValue)) \(metricLabel)")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(LC.textSecondary(scheme))
+        }
+    }
+
+    // MARK: - Prize Section
+
+    private var prizeSection: some View {
+        HStack(spacing: LC.space16) {
+            // Prize pool
+            if let pool = detail.poolDisplay {
+                VStack(alignment: .leading, spacing: LC.space2) {
+                    Text("Prize Pool")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(LC.textTertiary(scheme))
+                    Text(pool)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(LC.accent)
+                }
+            } else if let stake = detail.stakeDisplay {
+                VStack(alignment: .leading, spacing: LC.space2) {
+                    Text("Stake")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(LC.textTertiary(scheme))
+                    Text(stake)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(LC.accent)
+                }
+            }
+
+            Spacer()
+
+            // Participants
+            if let count = detail.participantsCount, count > 0 {
+                VStack(alignment: .trailing, spacing: LC.space2) {
+                    Text("Participants")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(LC.textTertiary(scheme))
+                    Text("\(count)")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(LC.textPrimary(scheme))
+                }
+            }
+        }
+        .padding(LC.space12)
+        .background(
+            RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
+                .fill(LC.cardBgElevated(scheme))
+        )
+    }
+
+    // MARK: - Dynamic Insight Line
+
+    private var insights: [String] {
+        var lines: [String] = []
+
+        // 1. Urgent
+        if case .proofWindow(let remaining) = phase, remaining > 0 && remaining < 86400 {
+            let hours = Int(remaining / 3600)
+            lines.append("\(hours)h left — submit your proof")
+        }
+
+        // 2. Status-related
+        if userState == .awaitingVerdict {
+            lines.append("Your proof is being verified")
+        }
+        if userState == .completed {
+            lines.append("You completed this challenge")
+        }
+
+        // 3. Competitive
+        if let p = progress {
+            let total = p.participantCount ?? 0
+            let passed = p.passCount ?? 0
+            if total > 1 && userState == .active {
+                lines.append("\(total) participants competing")
+            }
+            if passed > 0 && userState != .completed {
+                lines.append("\(passed) of \(total) have passed")
+            }
+        }
+
+        // 4. Reward
+        if let pool = detail.poolDisplay, userState == .completed {
+            lines.append("Potential reward: \(pool)")
+        }
+
+        // 5. Social
+        if let count = detail.participantsCount, count > 0, userState == .notJoined {
+            lines.append("\(count) people have joined")
+        }
+
+        return lines
+    }
+
+    private var insightLine: some View {
+        Text(insights[insightIndex % insights.count])
+            .font(.caption)
+            .foregroundStyle(LC.textSecondary(scheme))
+            .id(insightIndex)
+            .transition(.asymmetric(
+                insertion: .move(edge: .bottom).combined(with: .opacity),
+                removal: .move(edge: .top).combined(with: .opacity)
+            ))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .onAppear { startInsightRotation() }
+    }
+
+    private func startInsightRotation() {
+        guard insights.count > 1 else { return }
+        // Don't rotate if urgent
+        if case .proofWindow(let remaining) = phase, remaining > 0 && remaining < 86400 {
+            return
+        }
+        Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { _ in
+            withAnimation(.easeInOut(duration: 0.3)) {
+                insightIndex += 1
+            }
+        }
+    }
+
+    // MARK: - Action Button
+
+    @ViewBuilder
+    private var actionButton: some View {
+        switch userState {
+        case .notJoined:
+            Button {
+                onAction(.join)
+            } label: {
+                Text("Join Challenge")
+            }
+            .buttonStyle(LCGoldButton())
+
+        case .active:
+            if case .proofWindow = phase {
+                Button {
+                    onAction(.submitProof)
+                } label: {
+                    Label("Submit Proof", systemImage: "arrow.up.doc.fill")
+                }
+                .buttonStyle(LCGoldButton())
+            } else {
+                // Challenge in progress — no action needed yet
+                EmptyView()
+            }
+
+        case .awaitingProof:
+            Button {
+                onAction(.submitProof)
+            } label: {
+                Label("Submit Proof", systemImage: "arrow.up.doc.fill")
+            }
+            .buttonStyle(LCGoldButton())
+
+        case .awaitingVerdict:
+            // No action — awaiting AI verification
+            EmptyView()
+
+        case .completed:
+            Button {
+                onAction(.claimReward)
+            } label: {
+                Label("Claim Reward", systemImage: "gift.fill")
+            }
+            .buttonStyle(LCGoldButton())
+
+        case .failed:
+            Button {
+                onAction(.viewResults)
+            } label: {
+                Text("View Results")
+            }
+            .buttonStyle(LCSecondaryButton())
+
+        case .ended:
+            Button {
+                onAction(.viewResults)
+            } label: {
+                Text("View Details")
+            }
+            .buttonStyle(LCSecondaryButton())
         }
     }
 
@@ -324,18 +642,14 @@ struct ChallengeProgressHero: View {
 
         goalValue = goal
 
-        // Determine the date range: challenge start → min(now, challengeEnd)
         let start = detail.startDate ?? detail.endsDate?.addingTimeInterval(-7 * 86400) ?? Date().addingTimeInterval(-7 * 86400)
         let end = min(Date(), detail.endsDate ?? Date())
-
         guard end > start else { return }
 
-        // 1. Try HealthKit first (on-device data)
         var hkValue: Double = 0
         await healthService.ensureAuthorization()
         await healthService.collectEvidence(from: start, to: end)
 
-        // Capture HealthKit arrays immediately (avoid race with other views)
         let steps = healthService.stepDays
         let distances = healthService.distanceDays
         let cycling = healthService.cyclingDays
@@ -354,16 +668,13 @@ struct ChallengeProgressHero: View {
         case "swimming_km":
             hkValue = swimming.reduce(0) { $0 + $1.distanceMeters } / 1000.0
         case "hiking_km":
-            // Hiking uses walking distance as proxy (HealthKit doesn't separate hiking)
             hkValue = distances.reduce(0) { $0 + $1.distanceMeters } / 1000.0
         case "strength_sessions":
-            // HealthKit doesn't track strength sessions directly — rely on server progress
             hkValue = 0
         default:
             hkValue = Double(steps.reduce(0) { $0 + $1.steps })
         }
 
-        // 2. Fetch server-side progress (from submitted evidence)
         var serverValue: Double = 0
         if appState.hasWallet {
             if let sp = try? await APIClient.shared.fetchMyProgress(
@@ -372,26 +683,29 @@ struct ChallengeProgressHero: View {
                 subject: appState.walletAddress
             ) {
                 serverValue = sp.currentValue ?? 0
-                // Update goal from server if available (may be more accurate)
                 if let sg = sp.goalValue, sg > 0 { goalValue = sg }
             }
         }
 
-        // 3. Use whichever is higher — HealthKit is real-time, server is submitted evidence
         let value = max(hkValue, serverValue)
         currentValue = value
         animatedProgress = min(1.0, value / goalValue)
     }
 
     private func formatValue(_ value: Double) -> String {
-        if value >= 10000 {
-            return String(format: "%.0f", value)
-        } else if value >= 100 {
-            return String(format: "%.0f", value)
-        } else if value >= 1 {
-            return String(format: "%.1f", value)
-        } else {
-            return String(format: "%.2f", value)
-        }
+        if value >= 10000 { return String(format: "%.0f", value) }
+        if value >= 100 { return String(format: "%.0f", value) }
+        if value >= 1 { return String(format: "%.1f", value) }
+        return String(format: "%.2f", value)
     }
+}
+
+// MARK: - Hero Action
+
+enum HeroAction {
+    case join
+    case submitProof
+    case claimReward
+    case viewResults
+    case share
 }
