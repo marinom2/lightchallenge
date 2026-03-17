@@ -421,6 +421,9 @@ struct ChallengeDetailView: View {
                                 .foregroundStyle(LC.textSecondary(scheme))
                                 .multilineTextAlignment(.center)
                         }
+
+                        // Data source tips
+                        garminHealthKitTip
                     } else if proofDeadlinePassed {
                         // Proof window closed
                         Image(systemName: "clock.badge.xmark")
@@ -899,5 +902,34 @@ struct ChallengeDetailView: View {
             baseURL: appState.serverURL,
             address: appState.walletAddress
         )
+    }
+
+    // MARK: - Garmin HealthKit Tip
+
+    /// Onboarding tip for Garmin users: data flows automatically via Apple Health.
+    @ViewBuilder
+    private var garminHealthKitTip: some View {
+        if !healthService.isAuthorized {
+            // Don't show tip if HealthKit not authorized — the main prompt will handle that
+            EmptyView()
+        } else {
+            HStack(spacing: LC.space8) {
+                Image(systemName: "applewatch.and.arrow.forward")
+                    .font(.system(size: 14))
+                    .foregroundStyle(LC.info)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Using a Garmin, Fitbit, or other wearable?")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(LC.textPrimary(scheme))
+                    Text("Your data syncs automatically via Apple Health. Just ensure HealthKit sync is enabled in your wearable's companion app.")
+                        .font(.caption2)
+                        .foregroundStyle(LC.textSecondary(scheme))
+                }
+            }
+            .padding(LC.space12)
+            .background(LC.info.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: LC.radius12))
+            .padding(.top, LC.space4)
+        }
     }
 }

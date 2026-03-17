@@ -68,70 +68,60 @@ enum FitnessType: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    /// The modelId segment that uniquely identifies this fitness type.
-    /// e.g. fitness.running@1 → "running", fitness.steps@1 → "steps"
-    private var modelIdSegment: String {
+    /// modelId segments that identify this fitness type in the DB.
+    /// Challenges always have modelId set at creation (user selects the type).
+    /// e.g. fitness.steps@1 → walking, fitness.distance@1 → running
+    private var modelIdSegments: [String] {
         switch self {
-        case .walking: return "steps"
-        case .running: return "running"
-        case .cycling: return "cycling"
-        case .swimming: return "swimming"
-        case .strength: return "strength"
-        case .hiking: return "hiking"
+        case .walking:  return ["steps"]
+        case .running:  return ["running", "distance"]  // distance_km models are running
+        case .cycling:  return ["cycling"]
+        case .swimming: return ["swimming"]
+        case .strength: return ["strength"]
+        case .hiking:   return ["hiking"]
         }
     }
 
-    /// Match a challenge to this fitness type.
-    /// Priority 1: modelId (most reliable — set from DB)
-    /// Priority 2: tags array (explicit metadata)
-    /// Priority 3: title/description keywords (fallback)
-    func matches(_ challenge: ChallengeMeta) -> Bool {
-        // Priority 1: modelId — e.g. "fitness.running@1" contains "running"
-        if let mid = challenge.modelId?.lowercased(), mid.contains("fitness.") {
-            return mid.contains("fitness.\(modelIdSegment)")
-        }
-
-        // Priority 2: exact tag match (avoids partial substring issues)
-        if let tags = challenge.tags?.map({ $0.lowercased() }) {
-            let tagMatches: [String]
-            switch self {
-            case .walking: tagMatches = ["walking", "steps"]
-            case .running: tagMatches = ["running", "marathon", "jogging"]
-            case .cycling: tagMatches = ["cycling", "biking"]
-            case .swimming: tagMatches = ["swimming"]
-            case .strength: tagMatches = ["strength", "weightlifting", "gym"]
-            case .hiking: tagMatches = ["hiking", "mountaineering"]
-            }
-            if tagMatches.contains(where: { tags.contains($0) }) { return true }
-        }
-
-        // Priority 3: title + description keywords (only if no modelId)
-        let title = challenge.displayTitle.lowercased()
-        let desc = challenge.displayDescription.lowercased()
-        let text = "\(title) \(desc)"
-
-        // Use word-boundary-aware matching to avoid "sprint" matching cycling,
-        // "trail" matching running, "10k" matching both walking and running, etc.
+    /// Tag values that identify this fitness type.
+    /// Tags are set at challenge creation from the selected template.
+    private var tagValues: [String] {
         switch self {
-        case .walking:
-            return text.contains("walk") || text.contains("steps") || text.contains("10,000 step")
-        case .running:
-            // Avoid matching "cycling sprint", "trail" (hiking), etc.
-            return text.contains("run ") || text.contains("running") || text.contains("marathon")
-                || text.contains("jogging") || title.hasPrefix("run")
-                || (text.contains("5k") && !text.contains("cycl"))
-        case .cycling:
-            return text.contains("cycl") || text.contains("bike") || text.contains("biking")
-                || text.contains("ride") || text.contains("century ride")
-        case .swimming:
-            return text.contains("swim") || text.contains("pool") || text.contains("lap")
-        case .strength:
-            return text.contains("strength") || text.contains("lift") || text.contains("weight")
-                || text.contains("gym") || text.contains("pushup") || text.contains("push-up")
-        case .hiking:
-            return text.contains("hik") || text.contains("mountain") || text.contains("summit")
-                || (text.contains("trail") && !text.contains("run"))
+        case .walking:  return ["walking", "steps"]
+        case .running:  return ["running"]
+        case .cycling:  return ["cycling"]
+        case .swimming: return ["swimming"]
+        case .strength: return ["strength"]
+        case .hiking:   return ["hiking"]
         }
+    }
+
+    /// Match a challenge to this fitness type using DB-set fields only.
+    /// Every challenge has a type selected at creation — no keyword guessing needed.
+    ///
+    /// Priority 1: modelId (e.g. "fitness.cycling@1") — always set for new challenges
+    /// Priority 2: tags array (e.g. ["cycling", "test"]) — set from template at creation
+    /// No title/description keyword matching — that's unreliable and causes cross-contamination.
+    func matches(_ challenge: ChallengeMeta) -> Bool {
+        // Priority 1: modelId — most reliable, always set at creation
+        if let mid = challenge.modelId?.lowercased() {
+            // Provider-agnostic: fitness.steps@1, fitness.cycling@1, etc.
+            if mid.hasPrefix("fitness.") {
+                return modelIdSegments.contains { mid.hasPrefix("fitness.\($0)") }
+            }
+            // Legacy provider-specific: strava.distance_in_window@1, apple_health.steps@1
+            // Map by the metric segment after the provider prefix
+            let afterDot = mid.components(separatedBy: ".").dropFirst().joined(separator: ".")
+            if !afterDot.isEmpty {
+                return modelIdSegments.contains { afterDot.hasPrefix($0) }
+            }
+        }
+
+        // Priority 2: tags — set from template at challenge creation
+        if let tags = challenge.tags?.map({ $0.lowercased() }), !tags.isEmpty {
+            return tagValues.contains { tags.contains($0) }
+        }
+
+        return false
     }
 }
 

@@ -254,6 +254,27 @@ triggerAutoProof(challengeId, challenge, appState, healthService)
 | Heart Rate | `heartRate` | bpm | `DailyHeartRate.avgBpm / minBpm / maxBpm` |
 | Flights Climbed | `flightsClimbed` | count | `DailyFlightsClimbed` |
 
+### Wearable Integration via HealthKit
+
+Many fitness wearables sync their data to Apple Health automatically via their companion iOS app:
+
+| Wearable | Companion App | HealthKit Sync |
+|----------|--------------|----------------|
+| **Garmin** | Garmin Connect | Enable in Garmin Connect → Settings → Health → Apple Health |
+| **Fitbit** | Fitbit app | Enable in Fitbit → Account → Connected Apps → Apple Health |
+| **Whoop** | Whoop app | Enable in Whoop → Settings → Health → Apple Health |
+| **Samsung Galaxy Watch** | Samsung Health | Enable in Samsung Health → Settings → Apple Health |
+| **Polar** | Polar Flow | Enable in Polar Flow → Settings → Apple Health |
+
+Once HealthKit sync is enabled, the data flows automatically:
+
+```
+Wearable → Companion App → Apple Health → AutoProofService → LightChallenge Server
+```
+
+No manual export needed. The app shows an onboarding tip on the challenge detail view reminding
+users to enable HealthKit sync in their wearable's companion app.
+
 ### Access Model
 
 - **Read-only** -- no write permissions are requested.
