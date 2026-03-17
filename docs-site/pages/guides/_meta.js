@@ -5,5 +5,6 @@ export default {
   "database": "Database",
   "scripts": "Scripts",
   "security": "Security",
+  "mainnet-migration": "Mainnet Migration",
   "contributing": "Contributing"
 }

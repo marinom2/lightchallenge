@@ -383,7 +383,8 @@ struct ChallengeDetail: Codable {
             endsAt: endsAt ?? (endTs.flatMap { Double($0) }),
             proofDeadline: proofDeadline,
             proof: proof,
-            funds: FundsConfig(stake: money?.stakeWei)
+            funds: FundsConfig(stake: money?.stakeWei),
+            params: params
         )
     }
 }

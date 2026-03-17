@@ -1,0 +1,193 @@
+# Mainnet Migration: Lightchain AIVM Transition
+
+This guide documents exactly what LightChallenge needs from the Lightchain team and what must change in our codebase when Lightchain deploys production AIVM infrastructure.
+
+## Current State (Testnet)
+
+On testnet, we deployed Lightchain's contract source code ourselves:
+
+| Contract | Current Address | Deployer | Issue |
+|----------|----------------|----------|-------|
+| AIVMInferenceV2 | `0x2d499C52312ca8F0AD3B7A53248113941650bA7E` | Our wallet `0x95A4...A217` | We are owner, sole validator, poiQuorum=1 |
+| LCAIValidatorRegistry | `0xB4024725f6B4Fb6C069EfdA842E05CFb2dDaEC0D` | Our wallet `0x95A4...A217` | Single validator = self-attestation |
+
+**This means all PoI attestations on testnet are self-signed.** There is no independent verification yet. This is acceptable for development but must be replaced for production.
+
+---
+
+## What We Need From Lightchain
+
+### Required (blocking for mainnet)
+
+| # | Item | What it is | Why we need it |
+|---|------|-----------|----------------|
+| 1 | **AIVMInferenceV2 address** | Their officially deployed inference contract on mainnet | We call `requestInferenceV2()` to anchor challenge results on-chain |
+| 2 | **LCAIValidatorRegistry address** | Their validator registry that the AIVM contract references | Our verifier reads `poiQuorum` and `poiAttestationCount` from this |
+| 3 | **Active workers** | Workers that pick up `InferenceRequestedV2` events and commit/reveal | Without workers, our requests expire at `commitDeadline` |
+| 4 | **Active validators** | Validators registered in the registry who submit PoI attestations | Without validators, requests cannot finalize (stuck at Revealed) |
+| 5 | **poiQuorum value** | The number of validator attestations required for finalization | Our verifier checks `poiAttestationCount >= poiQuorum` |
+| 6 | **Chain ID** | Mainnet chain ID (testnet is 504) | RPC config, Hardhat config, wallet config |
+| 7 | **RPC endpoint** | Mainnet RPC URL | All on-chain interactions |
+| 8 | **minRequestFeeWei** | Minimum fee per inference request | We must send at least this amount with `requestInferenceV2()` |
+
+### Optional (may be required depending on mainnet design)
+
+| # | Item | What it is | When needed |
+|---|------|-----------|-------------|
+| 9 | **Model registration** | Register our models (`fitness.steps@1`, etc.) via AIVMModelRegistry | Only if mainnet enforces model validation on `requestInferenceV2()` |
+| 10 | **Worker model support** | Ensure workers accept our model strings | Only if workers filter by model (testnet accepts all) |
+| 11 | **AIVMModelRegistry address** | Model governance contract | Only if model registration is required |
+
+---
+
+## Code Changes Required
+
+### Step 1: Update Environment Variables
+
+These env vars must be updated in `.env`, `webapp/.env.local`, and Vercel:
+
+```bash
+# Replace with Lightchain's official addresses
+AIVM_INFERENCE_V2_ADDRESS=0x<lightchain-mainnet-aivm>
+AIVM_VALIDATOR_REGISTRY_ADDRESS=0x<lightchain-mainnet-registry>
+
+# Replace with mainnet values
+NEXT_PUBLIC_RPC_URL=https://<mainnet-rpc-url>
+LCAI_RPC=https://<mainnet-rpc-url>
+NEXT_PUBLIC_CHAIN_ID=<mainnet-chain-id>
+
+# Update fee if different from testnet
+AIVM_REQUEST_FEE_WEI=<mainnet-min-fee>
+
+# Worker wallet must be funded on mainnet
+LCAI_WORKER_PK=0x<funded-mainnet-key>
+```
+
+### Step 2: Redeploy Our Contracts
+
+Our contracts reference the AIVM address at deploy time (immutable in verifier). Must redeploy:
+
+```bash
+# 1. Deploy ChallengeTaskRegistry (no AIVM dependency)
+npx hardhat deploy --tags ChallengeTaskRegistry --network lightchain-mainnet
+
+# 2. Deploy ChallengePayAivmPoiVerifier (references AIVM + registry)
+#    Constructor args: (owner, aivmAddress, taskRegistryAddress)
+npx hardhat deploy --tags AivmPoiVerifier --network lightchain-mainnet
+
+# 3. Deploy ChallengePay (references verifier)
+npx hardhat deploy --tags ChallengePay --network lightchain-mainnet
+
+# 4. Post-deploy: set dispatcher on ChallengeTaskRegistry
+npx tsx scripts/ops/setDispatcher.ts
+```
+
+**Key:** `ChallengePayAivmPoiVerifier` has `aivm` and `taskRegistry` as **immutable** constructor args. You cannot update the AIVM address after deployment — you must redeploy the verifier.
+
+### Step 3: Update Webapp Deployment Config
+
+```bash
+# Update webapp/public/deployments/lightchain.json with new addresses
+# Update Vercel env vars for production domain
+```
+
+### Step 4: Update Hardhat Config
+
+Add mainnet network config in `hardhat.config.ts`:
+
+```typescript
+"lightchain-mainnet": {
+  url: process.env.MAINNET_RPC_URL,
+  chainId: <mainnet-chain-id>,
+  accounts: [process.env.DEPLOYER_PRIVATE_KEY],
+}
+```
+
+### Step 5: Verify Indexer Config
+
+The `aivmIndexer` watches events from the AIVM contract. Ensure:
+- `AIVM_INFERENCE_V2_ADDRESS` points to Lightchain's mainnet contract
+- `LCAI_RPC` points to mainnet RPC
+- Confirmation buffer is appropriate for mainnet block times
+
+### Step 6: Verify Worker Compatibility
+
+Before going live, submit a test inference request and verify:
+1. A Lightchain worker picks up the request (InferenceCommitted event)
+2. The worker reveals a result (InferenceRevealed event)
+3. Validators attest (PoIAttested events, count >= quorum)
+4. The contract finalizes (InferenceFinalized event)
+5. Our verifier can read the finalized state correctly
+
+---
+
+## Automated Migration Script
+
+When the Lightchain team provides mainnet addresses, run:
+
+```bash
+# Set the new values
+export LIGHTCHAIN_MAINNET_AIVM=0x<address>
+export LIGHTCHAIN_MAINNET_REGISTRY=0x<address>
+export LIGHTCHAIN_MAINNET_RPC=https://<rpc-url>
+export LIGHTCHAIN_MAINNET_CHAIN_ID=<chain-id>
+export LIGHTCHAIN_MAINNET_FEE_WEI=<fee>
+
+# Update .env
+sed -i '' "s|AIVM_INFERENCE_V2_ADDRESS=.*|AIVM_INFERENCE_V2_ADDRESS=$LIGHTCHAIN_MAINNET_AIVM|" .env
+sed -i '' "s|AIVM_VALIDATOR_REGISTRY_ADDRESS=.*|AIVM_VALIDATOR_REGISTRY_ADDRESS=$LIGHTCHAIN_MAINNET_REGISTRY|" .env
+
+# Redeploy our contracts
+npx hardhat deploy --tags ChallengeTaskRegistry,AivmPoiVerifier,ChallengePay --network lightchain-mainnet
+
+# Run E2E test
+npx tsx scripts/_e2e_simulate_aivm.ts --rpc=$LIGHTCHAIN_MAINNET_RPC
+```
+
+---
+
+## Verification Checklist
+
+After migration, verify each layer:
+
+- [ ] `requestInferenceV2()` succeeds on mainnet AIVM contract
+- [ ] `InferenceRequestedV2` event is emitted
+- [ ] A Lightchain worker commits within `commitDeadline`
+- [ ] Worker reveals within `revealDeadline`
+- [ ] Validators attest (check `poiAttestationCount`)
+- [ ] `InferenceFinalized` event is emitted
+- [ ] `aivmIndexer` catches the event and processes it
+- [ ] `submitProofFor()` succeeds on our ChallengePay
+- [ ] `ChallengePayAivmPoiVerifier.verify()` returns true
+- [ ] `finalize()` succeeds and status = Finalized
+- [ ] Claims work correctly via Treasury
+
+---
+
+## Files That Reference AIVM Addresses
+
+These files contain AIVM-related addresses and must be reviewed during migration:
+
+| File | What to update |
+|------|---------------|
+| `.env` | `AIVM_INFERENCE_V2_ADDRESS`, `AIVM_VALIDATOR_REGISTRY_ADDRESS` |
+| `webapp/.env.local` | Same as above (webapp reads from here) |
+| `webapp/public/deployments/lightchain.json` | All contract addresses |
+| `docs-site/pages/aivm.mdx` | Smart contracts table |
+| `DEPLOY.md` | Lightchain AIVM contracts table |
+| `OPERATIONS.md` | Deployed addresses table |
+| Vercel environment variables | Production env vars |
+
+---
+
+## Timeline Estimate
+
+| Phase | What | Blocked on |
+|-------|------|-----------|
+| Phase 1 | Get addresses from Lightchain team | Lightchain mainnet launch |
+| Phase 2 | Update env vars, redeploy our contracts | Phase 1 |
+| Phase 3 | Run E2E test on mainnet | Phase 2 |
+| Phase 4 | Verify full pipeline works | Phase 3 |
+| Phase 5 | Switch production traffic | Phase 4 passing |
+
+The actual code changes are minimal (env vars + redeploy). The critical dependency is Lightchain having active workers and validators on mainnet.
