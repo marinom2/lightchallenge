@@ -867,7 +867,13 @@ struct ChallengeDetailView: View {
             if detail == nil, let meta = await metaTask.value {
                 detail = ChallengeDetail.fromMeta(meta)
             }
-            if detail == nil {
+            if detail != nil {
+                // Still load progress/participant/reputation even in fallback path
+                async let progressTask: () = loadProgress()
+                async let participantTask: () = loadParticipantStatus()
+                async let reputationTask: () = loadReputation()
+                _ = await (progressTask, participantTask, reputationTask)
+            } else {
                 self.error = error.localizedDescription
             }
         }

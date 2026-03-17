@@ -244,7 +244,7 @@ struct ProfileView: View {
                 }
             ))
             .labelsHidden()
-            .tint(LC.danger)
+            .tint(LC.accent)
         }
     }
 
@@ -271,10 +271,10 @@ struct ProfileView: View {
             VStack(alignment: .leading, spacing: LC.space2) {
                 Text(name)
                     .font(.subheadline)
-                if let account {
-                    Text(account.displayName)
+                if isLinked {
+                    Text(providerSubtitle(provider))
                         .font(.caption)
-                        .foregroundStyle(LC.success)
+                        .foregroundStyle(.tertiary)
                 } else if !appState.hasWallet {
                     Text("Connect wallet first")
                         .font(.caption)
@@ -319,7 +319,7 @@ struct ProfileView: View {
                 }
             ))
             .labelsHidden()
-            .tint(brandColor)
+            .tint(LC.accent)
             .opacity(appState.hasWallet ? 1 : 0.4)
         }
     }
@@ -417,5 +417,14 @@ struct ProfileView: View {
 
     private var currentEnvironmentLabel: String {
         appState.serverURL == ServerConfig.productionBaseURL ? "Production" : "LightChain Testnet"
+    }
+
+    private func providerSubtitle(_ provider: String) -> String {
+        switch provider {
+        case "strava":  return "Running, cycling, activities"
+        case "fitbit":  return "Steps, heart rate, activities"
+        case "garmin":  return "Syncs via Apple Health"
+        default:        return "Connected"
+        }
     }
 }

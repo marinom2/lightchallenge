@@ -66,11 +66,13 @@ struct ChallengeMeta: Identifiable, Codable {
     // Proof config (optional nested object)
     let proof: ProofConfig?
     let funds: FundsConfig?
+    /// Challenge params from DB — contains rules (metric, threshold, period)
+    let params: ChallengeParams?
 
     enum CodingKeys: String, CodingKey {
         case id, title, description, category, game, mode, tags, status
         case modelId, modelKind, modelHash, createdAt, startsAt, endsAt, proofDeadline
-        case proof, funds
+        case proof, funds, params
     }
 
     /// Resolved category: explicit field, or inferred from game/modelId.
@@ -240,7 +242,7 @@ struct ChallengeDetail: Codable {
 
     let money: MoneyInfo?
     let pool: PoolInfo?
-    let params: ChallengeParams?
+    var params: ChallengeParams?
 
     let timeline: [TimelineEvent]?
 
@@ -267,6 +269,7 @@ struct ChallengeDetail: Codable {
         if tags == nil || tags?.isEmpty == true { tags = meta.tags }
         if modelId == nil { modelId = meta.modelId }
         if modelHash == nil { modelHash = meta.modelHash }
+        if params == nil { params = meta.params }
         // Merge timestamps: prefer chain Ts, then meta At
         if startsAt == nil && startTs == nil, let ts = meta.startsAt, ts > 0 { startsAt = ts }
         if endsAt == nil && endTs == nil, let ts = meta.endsAt, ts > 0 { endsAt = ts }
@@ -348,7 +351,7 @@ struct ChallengeDetail: Codable {
             proof: meta.proof,
             money: nil,
             pool: nil,
-            params: nil,
+            params: meta.params,
             timeline: nil,
             startsAt: meta.startsAt,
             endsAt: meta.endsAt,
