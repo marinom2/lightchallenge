@@ -68,26 +68,70 @@ enum FitnessType: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    /// Match a challenge to this fitness type by keywords in title, tags, description, modelId.
-    func matches(_ challenge: ChallengeMeta) -> Bool {
-        let keywords: [String]
+    /// The modelId segment that uniquely identifies this fitness type.
+    /// e.g. fitness.running@1 → "running", fitness.steps@1 → "steps"
+    private var modelIdSegment: String {
         switch self {
-        case .walking: keywords = ["walk", "steps", "step", "10k", "10,000"]
-        case .running: keywords = ["run", "marathon", "jog", "5k", "10k run", "sprint"]
-        case .cycling: keywords = ["cycl", "bike", "ride", "century"]
-        case .swimming: keywords = ["swim", "pool", "lap"]
-        case .strength: keywords = ["strength", "lift", "weight", "gym", "pushup", "push-up", "pullup"]
-        case .hiking: keywords = ["hik", "trail", "climb", "mountain", "summit"]
+        case .walking: return "steps"
+        case .running: return "running"
+        case .cycling: return "cycling"
+        case .swimming: return "swimming"
+        case .strength: return "strength"
+        case .hiking: return "hiking"
+        }
+    }
+
+    /// Match a challenge to this fitness type.
+    /// Priority 1: modelId (most reliable — set from DB)
+    /// Priority 2: tags array (explicit metadata)
+    /// Priority 3: title/description keywords (fallback)
+    func matches(_ challenge: ChallengeMeta) -> Bool {
+        // Priority 1: modelId — e.g. "fitness.running@1" contains "running"
+        if let mid = challenge.modelId?.lowercased(), mid.contains("fitness.") {
+            return mid.contains("fitness.\(modelIdSegment)")
         }
 
-        let searchable = [
-            challenge.displayTitle.lowercased(),
-            challenge.displayDescription.lowercased(),
-            (challenge.tags ?? []).joined(separator: " ").lowercased(),
-            (challenge.modelId ?? "").lowercased()
-        ].joined(separator: " ")
+        // Priority 2: exact tag match (avoids partial substring issues)
+        if let tags = challenge.tags?.map({ $0.lowercased() }) {
+            let tagMatches: [String]
+            switch self {
+            case .walking: tagMatches = ["walking", "steps"]
+            case .running: tagMatches = ["running", "marathon", "jogging"]
+            case .cycling: tagMatches = ["cycling", "biking"]
+            case .swimming: tagMatches = ["swimming"]
+            case .strength: tagMatches = ["strength", "weightlifting", "gym"]
+            case .hiking: tagMatches = ["hiking", "mountaineering"]
+            }
+            if tagMatches.contains(where: { tags.contains($0) }) { return true }
+        }
 
-        return keywords.contains { searchable.contains($0) }
+        // Priority 3: title + description keywords (only if no modelId)
+        let title = challenge.displayTitle.lowercased()
+        let desc = challenge.displayDescription.lowercased()
+        let text = "\(title) \(desc)"
+
+        // Use word-boundary-aware matching to avoid "sprint" matching cycling,
+        // "trail" matching running, "10k" matching both walking and running, etc.
+        switch self {
+        case .walking:
+            return text.contains("walk") || text.contains("steps") || text.contains("10,000 step")
+        case .running:
+            // Avoid matching "cycling sprint", "trail" (hiking), etc.
+            return text.contains("run ") || text.contains("running") || text.contains("marathon")
+                || text.contains("jogging") || title.hasPrefix("run")
+                || (text.contains("5k") && !text.contains("cycl"))
+        case .cycling:
+            return text.contains("cycl") || text.contains("bike") || text.contains("biking")
+                || text.contains("ride") || text.contains("century ride")
+        case .swimming:
+            return text.contains("swim") || text.contains("pool") || text.contains("lap")
+        case .strength:
+            return text.contains("strength") || text.contains("lift") || text.contains("weight")
+                || text.contains("gym") || text.contains("pushup") || text.contains("push-up")
+        case .hiking:
+            return text.contains("hik") || text.contains("mountain") || text.contains("summit")
+                || (text.contains("trail") && !text.contains("run"))
+        }
     }
 }
 
