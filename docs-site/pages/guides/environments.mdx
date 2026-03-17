@@ -48,7 +48,7 @@ Single Vercel project (`lightchallenge`) with environment-scoped variables:
 - Framework: Next.js
 - GitHub auto-deploy: `main` branch
 
-## iOS App
+## iOS Collector
 
 | Environment | Server URL | Default |
 |-------------|-----------|---------|
@@ -56,34 +56,7 @@ Single Vercel project (`lightchallenge`) with environment-scoped variables:
 | UAT | `https://uat.lightchallenge.app` | Yes (testnet phase) |
 | Production | `https://app.lightchallenge.app` | Yes (mainnet phase) |
 
-The iOS app defaults to UAT during the testnet phase. Users can switch environments in **Profile → Settings**.
-
-### iOS Domain References
-
-The following must be updated when switching from UAT to production:
-
-| File | What to change |
-|------|----------------|
-| `Sources/Models/Models.swift` | `ServerConfig.defaultBaseURL` |
-| `Sources/LightChallengeApp.swift` | Universal link comment |
-| `Sources/LightChallengeApp.entitlements` | Associated domains (`applinks:`) |
-| `Sources/Views/Explore/ExploreView.swift` | Desktop handoff text |
-
-### TestFlight Distribution
-
-The iOS app is ready for TestFlight beta distribution:
-
-1. **Archive**: In Xcode, select **Product → Archive** (requires a physical device or "Any iOS Device" target)
-2. **Upload**: In the Organizer window, click **Distribute App → App Store Connect → Upload**
-3. **TestFlight portal**: Go to [App Store Connect](https://appstoreconnect.apple.com) → My Apps → LightChallenge → TestFlight
-4. **Add testers**: Create an internal or external testing group, add tester emails
-5. **External testing**: Requires a brief App Review (~24-48 hours for first build)
-
-**Notes:**
-- Bundle ID: `io.lightchallenge.app`
-- Requires Apple Developer Program membership (already active)
-- Each build must increment `CFBundleVersion` (currently `2` in Info.plist)
-- HealthKit usage description in Info.plist is required for review approval
+The iOS app defaults to UAT during the testnet phase. Users can switch environments in the app UI.
 
 ## Local Development Setup
 
@@ -122,58 +95,3 @@ npx tsx offchain/indexers/aivmIndexer.ts
 | TrustedForwarder | `0xedF522094Ce3F497BEAA9f730d15a7dd554CaB4d` |
 | ChallengeTaskRegistry | `0x0e079C693Bd177Fa31baab70EfCD5b9D625c355E` |
 | ChallengePayAivmPoiVerifier | `0x44c750aA01Ec2465CB3E7354EF1c16cc83D45123` |
-
----
-
-## UAT → Production Migration Checklist
-
-When testing is complete and the project is ready for production:
-
-### 1. Domain Switch
-
-| Component | UAT | Production |
-|-----------|-----|------------|
-| Webapp | `uat.lightchallenge.app` | `lightchallenge.app` or `app.lightchallenge.app` |
-| Docs | `uat.docs.lightchallenge.app` | `docs.lightchallenge.app` |
-| iOS default URL | `https://uat.lightchallenge.app` | `https://app.lightchallenge.app` |
-| Universal links | `applinks:uat.lightchallenge.app` | `applinks:lightchallenge.app` |
-| AASA file | Served from UAT domain | Must be served from production domain |
-
-### 2. Vercel
-
-- Update production domain in Vercel project settings
-- Set production environment variables (`DATABASE_URL`, `LCAI_WORKER_PK`, `LCAI_FINALIZE_PK`, `NEXT_PUBLIC_BASE_URL`)
-- Verify `webapp/public/.well-known/apple-app-site-association` is served correctly on the production domain
-
-### 3. Smart Contracts
-
-- Deploy fresh contracts to mainnet (new chain ID, new RPC)
-- Update `webapp/lib/contracts.ts` and `deployments/` for mainnet addresses
-- Update iOS `Sources/Models/Contracts.swift` with mainnet addresses and chain config
-
-### 4. iOS App
-
-- Update `ServerConfig.defaultBaseURL` in `Models.swift` → production URL
-- Update associated domains in entitlements → `applinks:lightchallenge.app`
-- Update `Contracts.swift` → mainnet chain ID, RPC, contract addresses
-- Increment `CFBundleVersion` and `CFBundleShortVersionString`
-- Archive and upload new build to App Store Connect
-- Submit for App Store review (if going public) or distribute via TestFlight
-
-### 5. Database
-
-- Create production Neon database (separate project from UAT)
-- Run all migrations: `DATABASE_URL=<prod_url> npx tsx db/migrate.ts`
-- Do NOT copy UAT data — production starts fresh
-
-### 6. Workers
-
-- Deploy workers pointing to production DB and mainnet RPC
-- Update `ecosystem.config.cjs` if using PM2
-- Verify all indexers are tracking mainnet contract events
-
-### 7. DNS
-
-- Point production domains to Vercel
-- Ensure HTTPS certificates are provisioned
-- Verify AASA file is accessible at `https://lightchallenge.app/.well-known/apple-app-site-association`

@@ -96,14 +96,24 @@ PostgreSQL (Neon) with tables for challenges, participants, evidence, verdicts, 
 
 ## Lightchain AIVM Integration
 
-LightChallenge is a **client** of the Lightchain AIVM network:
+LightChallenge is a **client** of the Lightchain AIVM network. We deploy Lightchain's contract code (`AIVMInferenceV2`, `LCAIValidatorRegistry`) on the Lightchain chain (ID 504) and interact with them to anchor challenge results on-chain.
 
-1. **Request** — Our `challengeWorker` submits an inference request via `requestInferenceV2()`
-2. **Process** — Lightchain native workers commit, reveal, and attest results
-3. **Finalize** — The network emits `InferenceFinalized` when quorum is reached
-4. **Bridge** — Our `aivmIndexer` catches the event and calls `submitProofFor()` + `finalize()` on ChallengePay
+### Request Lifecycle
 
-We do NOT run AIVM workers or validators — the Lightchain network handles verification independently.
+1. **Request** — Our `challengeWorker` submits an inference request via `requestInferenceV2()` on AIVMInferenceV2
+2. **Bind** — Our orchestrator records the challenge↔task link in `ChallengeTaskRegistry`
+3. **Process** — Lightchain workers commit and reveal results (commit-reveal scheme)
+4. **Attest** — Lightchain validators submit EIP-712 PoI attestations
+5. **Finalize** — When `poiAttestationCount >= poiQuorum`, the contract auto-finalizes and emits `InferenceFinalized`
+6. **Bridge** — Our `aivmIndexer` catches the event, calls `submitProofFor()` on ChallengePay
+7. **Verify** — `ChallengePayAivmPoiVerifier.verify()` checks 20+ conditions against on-chain AIVM state
+8. **Payout** — Winners can claim via Treasury pull-based grants
+
+### Testnet Note
+
+On the current testnet, the AIVMInferenceV2 and LCAIValidatorRegistry contracts were deployed using Lightchain's source code but from our deployer wallet. The validator registry has a single registered validator with `poiQuorum = 1`. For mainnet, the plan is to use Lightchain's officially operated infrastructure with their multi-validator set.
+
+See [AI Verification](/aivm) for the complete pipeline documentation.
 
 ## Webapp
 

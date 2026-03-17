@@ -18,13 +18,15 @@ Full step-by-step guide for deploying LightChallenge on the Lightchain testnet (
 | `ChallengeAchievement` | `11_deploy_achievement.ts` | Soulbound ERC-721 + ERC-5192 achievement NFTs (read-only ChallengePay dependency) |
 | `TrustedForwarder` | `10_deployTrustedForwarder.ts` | EIP-2771 gasless relay (dormant — deployed but not activated; relay disabled by default) |
 
-### Contracts we reference (do NOT deploy)
+### Lightchain AIVM contracts (deployed from Lightchain source code)
 
-| Contract | Address (testnet) | Owned by |
-|---|---|---|
-| `AIVMInferenceV2` | `0x2d499C52312ca8F0AD3B7A53248113941650bA7E` | Lightchain |
-| `LCAIValidatorRegistry` | See `.env` | Lightchain |
+| Contract | Address (testnet) | Deployed by | Notes |
+|---|---|---|---|
+| `AIVMInferenceV2` | `0x2d499C52312ca8F0AD3B7A53248113941650bA7E` | Our wallet (`0x95A4...A217`) | Lightchain's contract code, deployed by us on testnet |
+| `LCAIValidatorRegistry` | `0xB4024725f6B4Fb6C069EfdA842E05CFb2dDaEC0D` | Our wallet (`0x95A4...A217`) | Single validator registered (our wallet), poiQuorum=1 |
 
+> **Testnet note:** These contracts use Lightchain's source code from `lightchain_references/lcai-smart-contract/` but were deployed by us because Lightchain has not yet deployed production AIVM infrastructure on testnet. For mainnet, we should use Lightchain's officially deployed contracts with their multi-validator set. The contract interfaces are identical — only the addresses will change.
+>
 > Lightchain workers and validators handle `commitInference`, `revealInference`, and `submitPoIAttestation`. Our app submits the AIVM request and then indexes finalization events.
 
 ---
@@ -303,6 +305,7 @@ npx tsx offchain/dispatchers/challengeDispatcher.ts
 npx tsx offchain/workers/challengeWorker.ts
 npx tsx offchain/indexers/aivmIndexer.ts
 npx tsx offchain/indexers/claimsIndexer.ts
+npx tsx offchain/indexers/statusIndexer.ts
 
 # Webapp
 cd webapp && npm run build && npm start

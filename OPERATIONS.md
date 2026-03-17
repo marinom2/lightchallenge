@@ -407,7 +407,8 @@ cd webapp && npm run dev
 | `ChallengePayAivmPoiVerifier` | `0x44c750aA01Ec2465CB3E7354EF1c16cc83D45123` |
 | `ChallengeAchievement` | `0xFD6344e9f0d88C6E72563027503734270094e0cF` |
 | `TrustedForwarder` | `0xedF522094Ce3F497BEAA9f730d15a7dd554CaB4d` |
-| `AIVMInferenceV2` (Lightchain) | `0x2d499C52312ca8F0AD3B7A53248113941650bA7E` |
+| `AIVMInferenceV2` (Lightchain source, our deploy) | `0x2d499C52312ca8F0AD3B7A53248113941650bA7E` |
+| `LCAIValidatorRegistry` (Lightchain source, our deploy) | `0xB4024725f6B4Fb6C069EfdA842E05CFb2dDaEC0D` |
 
 > All addresses also stored in `webapp/public/deployments/lightchain.json`.
 

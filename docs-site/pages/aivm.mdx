@@ -1,52 +1,200 @@
-# AI Verification
+# AI Verification (AIVM + Proof-of-Intelligence)
 
-LightChallenge uses the **Lightchain AIVM** (AI Virtual Machine) network for trustless verification of challenge evidence.
+LightChallenge uses the **Lightchain AIVM** (AI Virtual Machine) network for trustless, on-chain verification of challenge evidence.
 
 ## What is Lightchain AIVM?
 
-Lightchain AIVM is a decentralized AI inference network that uses **Proof-of-Intelligence (PoI)** consensus. Instead of a single server checking your evidence, multiple independent validators on the Lightchain network process the request and reach consensus on the result.
+Lightchain AIVM is a decentralized AI inference network built on **Proof-of-Intelligence (PoI)** consensus. Instead of a single server deciding outcomes, inference requests are anchored on-chain, processed by independent workers, and attested by validators who reach quorum before results are finalized.
 
-## How Verification Works
+LightChallenge is a **client** of this network — we submit requests and read results, but we do not operate workers or validators.
 
-### For Users
+## For Non-Technical Users
 
-1. You complete your challenge goal (run the miles, win the matches, hit the steps)
-2. You submit evidence through the app (Apple Health data, gaming stats, etc.)
-3. The system evaluates your evidence and sends it to the Lightchain AI network
-4. Multiple validators independently verify your claim
-5. If they agree you passed, the smart contract releases your reward
+Think of the AI verification like a panel of independent judges:
 
-You don't need to trust any single party — the network reaches consensus independently.
+1. You make a claim ("I walked 10,000 steps today")
+2. You provide evidence (your Apple Health data)
+3. Multiple AI judges independently review your evidence
+4. If they all agree you did it, your reward is released on-chain
+5. No one can cheat — the judges don't know each other and can't collude
 
-### Technical Flow
+The entire process is transparent and recorded on the blockchain.
+
+---
+
+## Full Pipeline: Evidence to Payout
 
 ```
-Evidence → Evaluator → Verdict → AIVM Request → Lightchain Network
-                                                        ↓
-                                              Commit → Reveal → PoI Attest
-                                                        ↓
-                                              InferenceFinalized event
-                                                        ↓
-                                              ChallengePay.finalize()
+┌─────────────────── YOUR EVIDENCE ─────────────────┐
+│                                                     │
+│  iOS App / Web → POST /api/aivm/intake → evidence   │
+│                    ↓                                │
+│  evidenceEvaluator → verdicts (pass/fail + reasons) │
+│                    ↓                                │
+│  challengeDispatcher → aivm_jobs (queued)           │
+│                    ↓                                │
+│  challengeWorker → builds deterministic prompt      │
+│                    ↓                                │
+│  orchestrator → TX1: requestInferenceV2() ──────────┼──→ LIGHTCHAIN
+│              → TX2: recordBinding()                 │    AIVMInferenceV2
+│                                                     │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────── LIGHTCHAIN NETWORK ────────────────┐
+│                                                     │
+│  Worker sees InferenceRequestedV2 event             │
+│       ↓                                            │
+│  Worker: commitInference() → status=Committed       │
+│       ↓                                            │
+│  Worker: revealInference()  → status=Revealed       │
+│       ↓                                            │
+│  Validators: submitPoIAttestation() (EIP-712)       │
+│       ↓                                            │
+│  Quorum met → _tryFinalize() → status=Finalized    │
+│       ↓                                            │
+│  Event: InferenceFinalized ─────────────────────────┼──→ OUR INDEXER
+│                                                     │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────── FINALIZATION BRIDGE ───────────────┐
+│                                                     │
+│  aivmIndexer catches InferenceFinalized             │
+│       ↓                                            │
+│  Builds AivmPoiProofV1 struct                       │
+│       ↓                                            │
+│  Calls submitProofFor() on ChallengePay             │
+│       ↓                                            │
+│  ChallengePayAivmPoiVerifier.verify()               │
+│  → checks 20 conditions against ON-CHAIN state     │
+│       ↓                                            │
+│  If valid → proof accepted → finalize() → payouts  │
+│                                                     │
+└─────────────────────────────────────────────────────┘
 ```
 
-1. **Evidence Evaluation** — Off-chain workers check the raw evidence against challenge rules
-2. **Verdict** — A pass/fail verdict with reasons is stored in the database
-3. **AIVM Request** — The verdict is submitted as an inference request to `AIVMInferenceV2.requestInferenceV2()`
-4. **Network Processing** — Lightchain workers commit their results, then reveal them
-5. **PoI Attestation** — Validators attest to the result using EIP-712 signed proofs
-6. **Finalization** — When quorum is reached, `InferenceFinalized` is emitted
-7. **Bridge** — Our indexer catches the event and calls the smart contract to finalize the challenge
+### Phase 1: Evidence Collection
 
-## Key Properties
+Users submit fitness or gaming data through the iOS app, web app, or API:
+- **Apple Health** — Steps, distance, workouts (pushed by iOS `AutoProofService`)
+- **Strava** — Running, cycling, swimming activities (auto-synced via OAuth)
+- **Fitbit** — Steps, heart rate, activities (auto-synced via OAuth)
+- **Garmin** — Syncs via Apple Health on iOS (Garmin Connect → HealthKit → our app)
+- **Gaming** — OpenDota, Riot, FACEIT stats pulled server-side
 
-| Property | Value |
-|----------|-------|
-| Consensus | Proof-of-Intelligence (PoI) |
-| Quorum | 1 (testnet), configurable for mainnet |
-| Finality | ~1 minute after submission (testnet) |
-| Trust model | No single point of trust — network consensus |
-| Request fee | 0.001 LCAI per inference request |
+Evidence is stored in `public.evidence` via `POST /api/aivm/intake`.
+
+### Phase 2: Evidence Evaluation
+
+The `evidenceEvaluator` worker polls for evidence rows without verdicts. It runs the appropriate evaluator (fitness or gaming) and checks the data against challenge rules (e.g., "did they achieve 10,000 steps?"). The result is a **verdict** (pass/fail with reasons and score) stored in `public.verdicts`.
+
+### Phase 3: Challenge Dispatch
+
+The `challengeDispatcher` polls for challenges with passing verdicts that are ready for AIVM submission. It enqueues an AIVM job in `public.aivm_jobs`.
+
+**Two dispatch modes:**
+- **Threshold** — Dispatch immediately when the challenge subject has a passing verdict
+- **Competitive** — Wait until proof deadline, rank all participants, mark top-N as winners
+
+### Phase 4: AIVM Job Execution
+
+The `challengeWorker` claims queued jobs and calls `runChallengePayAivmJob`:
+
+1. Loads the verdict from the database (mandatory — no verdict = hard fail)
+2. Builds a **deterministic prompt**:
+   - `promptId` = `keccak256(challengeId, subject)` — unique per challenge + participant
+   - `promptHash` = `keccak256(JSON payload with verdict data)`
+   - Canonical result string: `{"challengeId":"N","verified":true}`
+
+### Phase 5: Submit to Lightchain AIVM
+
+The orchestrator performs **exactly two on-chain transactions** and then stops:
+
+**TX 1** — `requestInferenceV2()` on AIVMInferenceV2:
+```
+requestInferenceV2(
+    model: "fitness.steps@1",      // model identifier
+    promptHash: 0xabc...,          // hash of verdict payload
+    promptId: 0xdef...,            // keccak256(challengeId, subject)
+    modelDigest: 0x123...,         // hash identifying the model
+    detConfigHash: 0x456...        // challenge paramsHash
+) → returns (requestId, taskId)
+```
+
+This creates an on-chain request with status = `Requested (1)`.
+
+**TX 2** — `recordBinding()` on ChallengeTaskRegistry:
+```
+recordBinding(challengeId, subject, requestId, taskId, modelDigest, paramsHash, benchmarkHash, schemaVersion)
+```
+
+This links the challenge to the AIVM task on-chain. The orchestrator stops here — everything after is handled by the Lightchain network.
+
+### Phase 6: Lightchain Network Processing
+
+This happens on the Lightchain network infrastructure, NOT on our servers:
+
+| Step | Actor | On-chain Call | Result |
+|------|-------|--------------|--------|
+| **Commit** | Lightchain worker | `commitInference(requestId, commitment)` | Status → Committed (2) |
+| **Reveal** | Lightchain worker | `revealInference(requestId, secret, response)` | Status → Revealed (3) |
+| **PoI Attest** | Lightchain validators | `submitPoIAttestation(taskId, resultHash, transcriptHash, slot)` | EIP-712 signed attestation |
+| **Finalize** | AIVMInferenceV2 contract | `_tryFinalize()` (auto when quorum met) | Status → Finalized (4) |
+
+**Commit-reveal scheme:** The worker first commits a hash of their result (`keccak256(secret, responseHash)`), then reveals the actual response. This prevents front-running.
+
+**PoI attestation:** Validators independently verify the worker's computation and sign EIP-712 typed data:
+```
+PoIAttestation {
+    bytes32 taskId,
+    bytes32 resultHash,
+    bytes32 transcriptHash,
+    uint64 slot
+}
+```
+
+When `poiAttestationCount >= poiQuorum`, the contract auto-finalizes and emits `InferenceFinalized`.
+
+### Phase 7: Finalization Bridge
+
+Our `aivmIndexer` watches AIVMInferenceV2 for events:
+
+| Event | Our Action |
+|-------|------------|
+| `InferenceCommitted` | Update DB: job → committed |
+| `InferenceRevealed` | Update DB: job → revealed |
+| `PoIAttested` | Update DB metadata |
+| **`InferenceFinalized`** | **Trigger finalization bridge** |
+
+The finalization bridge:
+1. Builds an `AivmPoiProofV1` struct with all on-chain data
+2. ABI-encodes it
+3. Calls `submitProofFor(challengeId, subject, encodedProof)` on ChallengePay
+4. Calls `finalize()` when all proofs are in
+
+### Phase 8: On-Chain Proof Verification
+
+ChallengePay delegates to `ChallengePayAivmPoiVerifier.verify()`, which checks **20 conditions** against on-chain state:
+
+| # | Check | Source |
+|---|-------|--------|
+| 1 | Schema version = 1 | Proof struct |
+| 2 | challengeId matches | Proof struct |
+| 3 | subject matches | Proof struct |
+| 4 | passed = true | Proof struct |
+| 5 | Binding exists | ChallengeTaskRegistry |
+| 6-11 | Binding fields match (requestId, taskId, modelDigest, paramsHash, benchmarkHash, schemaVersion) | ChallengeTaskRegistry |
+| 12 | AIVM request status = Finalized (4) | AIVMInferenceV2.requests() |
+| 13 | Worker address ≠ zero | AIVMInferenceV2.requests() |
+| 14 | finalizedAt ≠ 0 | AIVMInferenceV2.requests() |
+| 15-17 | AIVM taskId, modelDigest, detConfigHash match | AIVMInferenceV2.requests() |
+| 18 | requestIdByTaskId matches | AIVMInferenceV2 reverse lookup |
+| 19 | poiResultHash matches responseHash | AIVMInferenceV2.poiResultHashByTask() |
+| 20 | poiAttestationCount ≥ poiQuorum | AIVMInferenceV2 quorum check |
+| 21 | responseHash = keccak256(canonical result string) | Computed on-chain |
+
+If **any** check fails, the proof is rejected. No payout.
+
+---
 
 ## AIVM Request States
 
@@ -65,18 +213,65 @@ Evidence → Evaluator → Verdict → AIVM Request → Lightchain Network
 
 | Contract | Address (Testnet) | Purpose |
 |----------|-------------------|---------|
-| AIVMInferenceV2 | `0x2d499C52312ca8F0AD3B7A53248113941650bA7E` | Lightchain AIVM inference contract |
-| ChallengeTaskRegistry | `0x0e079C693Bd177Fa31baab70EfCD5b9D625c355E` | Binds challenges to AIVM tasks |
+| AIVMInferenceV2 | `0x2d499C52312ca8F0AD3B7A53248113941650bA7E` | Lightchain AIVM request anchoring + PoI finalization |
+| LCAIValidatorRegistry | `0xB4024725f6B4Fb6C069EfdA842E05CFb2dDaEC0D` | Validator registry for PoI quorum |
+| ChallengeTaskRegistry | `0x0e079C693Bd177Fa31baab70EfCD5b9D625c355E` | Binds challenges ↔ AIVM tasks |
 | ChallengePayAivmPoiVerifier | `0x44c750aA01Ec2465CB3E7354EF1c16cc83D45123` | Verifies PoI results for ChallengePay |
 
-## For Non-Technical Users
+## Key Properties
 
-Think of the AI verification like a panel of independent judges:
+| Property | Value |
+|----------|-------|
+| Consensus | Proof-of-Intelligence (PoI) |
+| Quorum | 1 (testnet), configurable for mainnet |
+| Finality | ~1 minute after submission (testnet) |
+| Trust model | No single point of trust — network consensus |
+| Request fee | Configurable (`AIVM_REQUEST_FEE_WEI` env var) |
+| Commit-reveal | Yes — prevents worker front-running |
+| EIP-712 attestation | Yes — typed, verifiable validator signatures |
 
-1. You make a claim ("I walked 10,000 steps today")
-2. You provide evidence (your Apple Health data)
-3. Multiple AI judges independently review your evidence
-4. If they all agree you did it, you get your reward
-5. No one can cheat — the judges don't know each other and can't collude
+---
 
-The entire process is transparent and recorded on the blockchain.
+## Testnet Architecture Note
+
+On the current testnet deployment:
+
+- **AIVMInferenceV2** and **LCAIValidatorRegistry** were deployed using Lightchain's contract source code (from `lightchain_references/`) on the Lightchain testnet (chain ID 504)
+- The validator registry has a single registered validator (our test wallet) with `poiQuorum = 1`
+- Lightchain has not yet deployed production AIVM infrastructure on testnet
+
+**For mainnet**, the plan is to use Lightchain's officially deployed AIVMInferenceV2 with their validator set, providing true independent multi-validator PoI attestation. The contract interfaces are identical — only the addresses change.
+
+## Models
+
+Our challenge models (e.g., `fitness.steps@1`, `fitness.distance@1`, `fitness.cycling@1`) are **not registered** in Lightchain's AIVMModelRegistry (which is not deployed on testnet yet).
+
+The `requestInferenceV2()` function accepts any non-empty model string — it does not validate against a model registry. Model governance (the "Propose a New Model" workflow in Lightchain's docs) is a separate governance layer for model quality/approval, not a gatekeeper for inference requests.
+
+**For mainnet**, if Lightchain deploys AIVMModelRegistry and enforces model validation, we will register our models through their governance process.
+
+---
+
+## Security: Can Proofs Be Faked?
+
+| Layer | Who controls it | Can it be faked? |
+|-------|----------------|-----------------|
+| Evidence (DB) | Our server | Yes — for testing only |
+| Verdicts (DB) | Our evaluator worker | Yes — DB access could modify |
+| AIVM Request (on-chain) | Our orchestrator | No — needs private key |
+| Commit/Reveal (on-chain) | Network workers | No — cryptographic commitment |
+| PoI Attestation (on-chain) | Network validators | No — EIP-712 signatures + quorum |
+| Proof Verification (on-chain) | ChallengePayAivmPoiVerifier | No — reads directly from AIVM contract |
+| Payouts (on-chain) | ChallengePay + Treasury | No — only after verified proof |
+
+**The database is a staging area.** Everything that controls money (proofs, finalization, payouts) is verified against on-chain state, not the database. Even if the DB is compromised, on-chain proofs require valid AIVM finalization with PoI quorum attestation.
+
+See [Security](/guides/security) for more details.
+
+---
+
+## Lightchain Network References
+
+- [Worker Explorer](https://docs.lightchain.ai/docs/worker-and-model/worker-explorer) — View active workers, stake, job history, and slash events
+- [Worker API](https://docs.lightchain.ai/docs/worker-and-model/worker-api) — Event-driven indexer for worker and job data
+- [Model Governance](https://docs.lightchain.ai/docs/worker-and-model/model-governance) — Community-driven model proposal and management
