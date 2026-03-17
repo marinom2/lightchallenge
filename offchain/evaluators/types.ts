@@ -34,8 +34,8 @@ export type { EvidenceRow, ChallengeConfig };
  */
 export type FitnessRules = {
   type: "fitness";
-  /** Metric to evaluate: steps, distance_km, active_minutes, cycling_km, swimming_km */
-  metric: "steps" | "distance_km" | "active_minutes" | "cycling_km" | "swimming_km";
+  /** Metric to evaluate */
+  metric: "steps" | "distance_km" | "active_minutes" | "cycling_km" | "swimming_km" | "hiking_km" | "strength_sessions";
   /** Minimum value per period unit (e.g., per day for daily period) */
   threshold: number;
   /** Aggregation period: daily (per-day threshold), total (sum all), average (mean per day) */

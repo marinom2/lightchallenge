@@ -2,6 +2,7 @@ import unzipper from "unzipper";
 import sax from "sax";
 import { Adapter, AdapterContext, AdapterResult, CanonicalRecord } from "./types";
 import { computeBind } from "@/lib/aivm/bind";
+import { isFitnessModel } from "./fitnessModels";
 
 // —— Types / helpers ————————————————————————————————————————
 
@@ -55,22 +56,44 @@ async function parseExportXml(zipBuf: Buffer, userIdHash: `0x${string}`): Promis
       const attrs = node.attributes as AppleRecordAttrs;
       const t = String(attrs.type || "");
 
-      if (
-        t === "HKQuantityTypeIdentifierStepCount" ||
-        t === "HKQuantityTypeIdentifierDistanceWalkingRunning"
-      ) {
+      // Record types we care about from Apple Health export.xml
+      const SUPPORTED_TYPES = new Set([
+        "HKQuantityTypeIdentifierStepCount",
+        "HKQuantityTypeIdentifierDistanceWalkingRunning",
+        "HKQuantityTypeIdentifierDistanceCycling",
+        "HKQuantityTypeIdentifierDistanceSwimming",
+        "HKQuantityTypeIdentifierActiveEnergyBurned",
+      ]);
+
+      if (SUPPORTED_TYPES.has(t)) {
         const s = toUnix(attrs.startDate);
         const e = toUnix(attrs.endDate);
         const valNum = Number(attrs.value ?? 0);
         const unit = String(attrs.unit || "").toLowerCase();
 
-        let type: "steps" | "distance" = "steps";
+        let type: string = "steps";
         let steps: number | null = null;
         let distance_m: number | null = null;
 
         if (t.endsWith("StepCount")) {
           type = "steps";
           steps = Math.round(valNum);
+        } else if (t.endsWith("DistanceCycling")) {
+          type = "cycle";
+          distance_m =
+            unit.startsWith("km") ? valNum * 1000 :
+            unit.startsWith("mi") ? valNum * 1609.34 :
+            valNum;
+        } else if (t.endsWith("DistanceSwimming")) {
+          type = "swim";
+          distance_m =
+            unit.startsWith("km") ? valNum * 1000 :
+            unit.startsWith("mi") ? valNum * 1609.34 :
+            valNum;
+        } else if (t.endsWith("ActiveEnergyBurned")) {
+          // Active energy can represent strength/workout sessions
+          type = "active_energy";
+          // Store calories as distance_m field (reused for metric extraction)
         } else {
           type = "distance";
           distance_m =
@@ -95,6 +118,38 @@ async function parseExportXml(zipBuf: Buffer, userIdHash: `0x${string}`): Promis
           checksum,
         });
       }
+
+      // Also parse Workout records for strength/hiking
+      if (node.name === "Workout") {
+        const wt = String(attrs.type || "");
+        const s = toUnix(attrs.startDate);
+        const e = toUnix(attrs.endDate);
+
+        let type: string | null = null;
+        if (wt === "HKWorkoutActivityTypeTraditionalStrengthTraining"
+            || wt === "HKWorkoutActivityTypeFunctionalStrengthTraining"
+            || wt === "HKWorkoutActivityTypeCrossTraining") {
+          type = "strength";
+        } else if (wt === "HKWorkoutActivityTypeHiking") {
+          type = "hike";
+        }
+
+        if (type) {
+          out.push({
+            provider: "apple_health",
+            user_id: userIdHash,
+            activity_id: `workout:${wt}:${s}:${e}`,
+            type,
+            start_ts: s,
+            end_ts: e || s,
+            duration_s: e ? e - s : 0,
+            distance_m: null,
+            steps: null,
+            source_device: attrs.sourceName || null,
+            checksum: sha256hex(JSON.stringify({ wt, s, e })),
+          });
+        }
+      }
     });
 
     parser.on("end", () => resolve());
@@ -118,7 +173,8 @@ export const appleAdapter: Adapter = {
   name: "apple_health.steps_on_day",
   category: "fitness",
   supports(modelHash: string) {
-    return modelHash.toLowerCase() === APPLE_STEPS_MODEL.toLowerCase();
+    return modelHash.toLowerCase() === APPLE_STEPS_MODEL.toLowerCase()
+        || isFitnessModel(modelHash);
   },
   async ingest(input: { file?: Buffer; json?: any; context: AdapterContext }): Promise<AdapterResult> {
     if (!input.file) throw new Error("Apple adapter requires ZIP file upload");

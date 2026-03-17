@@ -52,12 +52,22 @@ type RefreshResponse = {
   error?: string;
 };
 
+/**
+ * Map Strava sport_type / type strings to canonical activity types.
+ *
+ * Strava sport_type values include: Run, TrailRun, Walk, Hike,
+ * Ride, MountainBikeRide, GravelRide, VirtualRide, EBikeRide,
+ * Swim, WeightTraining, Crossfit, Workout, Yoga, etc.
+ */
 function normalizeType(type: string): string {
   const t = type.toLowerCase();
   if (t.includes("run")) return "run";
-  if (t.includes("walk") || t.includes("hik")) return "walk";
-  if (t.includes("ride") || t.includes("cycl")) return "cycle";
+  if (t === "hike" || t === "hiking") return "hike";
+  if (t.includes("walk")) return "walk";
+  if (t.includes("ride") || t.includes("cycl") || t === "mountainbikeride" || t === "gravelride") return "cycle";
   if (t.includes("swim")) return "swim";
+  if (t === "weighttraining" || t === "crossfit" || t === "workout"
+      || t === "strength" || t === "weight_training") return "strength";
   return t;
 }
 
@@ -161,6 +171,7 @@ export const stravaApiConnector: Connector & { _db?: Pool } = {
         start: a.start_date,
         distance_m: Math.round(a.distance),
         distance_km: a.distance / 1000,
+        duration_s: a.moving_time,
         duration_min: Math.round(a.moving_time / 60),
         elev_gain_m: Math.round(a.total_elevation_gain),
         avg_hr_bpm: a.average_heartrate ?? null,

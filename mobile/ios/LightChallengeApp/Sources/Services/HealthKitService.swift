@@ -399,6 +399,7 @@ class HealthKitService: ObservableObject {
         appendField("modelHash", modelHash)
         appendField("challengeId", challengeId)
         appendField("subject", subject)
+        appendField("provider", "apple")
 
         if !pendingToken.isEmpty && !pendingExpires.isEmpty {
             appendField("evidenceToken", pendingToken)

@@ -76,6 +76,17 @@ struct ServerConfig {
     /// Default for testnet phase
     static let defaultBaseURL = uatBaseURL
 
-    /// Apple Health steps model hash (matches models.json)
+    /// Legacy: Apple Health steps model hash (backward compat)
     static let appleStepsModelHash = "0x2e3f88a0496e6650c192355be471a62cae0bda1aece751eb2b30affd0f010c9e"
+
+    // Provider-agnostic fitness model hashes
+    static let fitnessStepsHash     = "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60001"
+    static let fitnessDistanceHash  = "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60002"
+    static let fitnessCyclingHash   = "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60003"
+    static let fitnessHikingHash    = "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60004"
+    static let fitnessSwimmingHash  = "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60005"
+    static let fitnessStrengthHash  = "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60006"
+
+    /// Default model hash for fitness challenges (steps is most common)
+    static let defaultFitnessModelHash = fitnessStepsHash
 }

@@ -1,5 +1,6 @@
 import { Adapter, AdapterContext, AdapterResult, CanonicalRecord } from "./types";
 import { computeBind } from "@/lib/aivm/bind";
+import { isFitnessModel } from "./fitnessModels";
 
 const FITBIT_STEPS_DAY_MODEL       = "0xef89f75d3f5b1bb04ee42748a51dc8410c79cfdea474356ed5edb0b08e451ee9" as const;
 const FITBIT_DISTANCE_WINDOW_MODEL = "0x3a7a7b773abcce8dd5619d63eff68bb14d12b873ca5d2fb395aee7a5c5d89fd6" as const;
@@ -46,12 +47,23 @@ function normalizeFitbit(json: any, userIdHash: string): CanonicalRecord[] {
         const val = Number(a.distance);
         dist_m = unit.startsWith("km") ? val * 1000 : unit.startsWith("mi") ? val * 1609.34 : val;
       }
+
+      // Normalize activity type from activityName or type field
+      let type = "distance";
+      const actName = String(a.activityName || a.type || "").toLowerCase();
+      if (actName.includes("run") || actName.includes("treadmill") || actName.includes("jog")) type = "run";
+      else if (actName === "hike" || actName === "hiking") type = "hike";
+      else if (actName.includes("walk")) type = "walk";
+      else if (actName.includes("bike") || actName.includes("cycl") || actName.includes("spinning") || actName.includes("ride")) type = "cycle";
+      else if (actName.includes("swim") || actName.includes("pool") || actName.includes("lap")) type = "swim";
+      else if (actName.includes("weight") || actName.includes("strength") || actName.includes("crossfit") || actName.includes("workout") || actName.includes("circuit")) type = "strength";
+
       if (start_ts > 0 && dist_m >= 0) {
         out.push({
           provider: "fitbit",
           user_id: userIdHash,
           activity_id: `act:${start_ts}:${i}`,
-          type: "distance",
+          type,
           start_ts, end_ts, duration_s: dur_s,
           distance_m: dist_m, steps: null,
           avg_hr_bpm: null, source_device: "fitbit",
@@ -76,7 +88,9 @@ export const fitbitAdapter: Adapter = {
   category: "fitness",
   supports(modelHash: string) {
     const h = modelHash.toLowerCase();
-    return h === FITBIT_STEPS_DAY_MODEL.toLowerCase() || h === FITBIT_DISTANCE_WINDOW_MODEL.toLowerCase();
+    return h === FITBIT_STEPS_DAY_MODEL.toLowerCase()
+        || h === FITBIT_DISTANCE_WINDOW_MODEL.toLowerCase()
+        || isFitnessModel(h);
   },
   async ingest(input: { file?: Buffer; json?: any; context: AdapterContext }): Promise<AdapterResult> {
     const { context } = input;

@@ -82,7 +82,32 @@ type FitbitActivityRecord = {
   distanceUnit: "Kilometer" | "Mile";
   steps: number;
   activityName: string;
+  type: string;
+  duration_s: number;
+  duration_min: number;
+  distance_km: number;
 };
+
+// ─── Activity type normalization ──────────────────────────────────────────────
+
+/**
+ * Map Fitbit activityName strings to canonical activity types.
+ *
+ * Fitbit activityName values include: "Walk", "Run", "Outdoor Bike",
+ * "Swim", "Treadmill", "Weights", "Sport", "Elliptical", "Hike",
+ * "Strength Training", "Spinning", etc.
+ */
+function normalizeActivityType(activityName: string): string {
+  const n = activityName.toLowerCase();
+  if (n.includes("run") || n.includes("treadmill") || n.includes("jog")) return "run";
+  if (n === "hike" || n === "hiking") return "hike";
+  if (n.includes("walk")) return "walk";
+  if (n.includes("bike") || n.includes("cycl") || n.includes("spinning") || n.includes("ride")) return "cycle";
+  if (n.includes("swim") || n.includes("pool") || n.includes("lap")) return "swim";
+  if (n.includes("weight") || n.includes("strength") || n.includes("crossfit")
+      || n.includes("workout") || n.includes("circuit")) return "strength";
+  return n;
+}
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -275,6 +300,12 @@ async function fetchActivities(
     distanceUnit: a.distanceUnit === "Mile" ? "Mile" : "Kilometer",
     steps: a.steps ?? 0,
     activityName: a.activityName,
+    type: normalizeActivityType(a.activityName),
+    duration_s: Math.round(a.duration / 1000),
+    duration_min: Math.round(a.duration / 60000),
+    distance_km: a.distanceUnit === "Mile"
+      ? (a.distance ?? 0) * 1.60934
+      : (a.distance ?? 0),
   }));
 
   return { records, token: currentToken };

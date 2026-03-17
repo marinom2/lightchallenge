@@ -33,7 +33,7 @@ struct ChallengeTemplate: Identifiable {
     let id: String
     let name: String
     let hint: String?
-    let fitnessKind: String           // "steps", "running", "cycling", "hiking", "swimming"
+    let fitnessKind: String           // "steps", "running", "cycling", "hiking", "swimming", "strength"
     let kindId: ChallengeKindId
     let modelId: String
     let modelHash: String
@@ -51,18 +51,20 @@ enum FitnessTemplates {
         cyclingDistanceTemplate,
         hikingElevationTemplate,
         swimmingLapsTemplate,
+        strengthWorkoutTemplate,
         stepsCompetitiveTemplate,
         durationThresholdTemplate,
     ]
 
-    /// Templates safe for initial iOS release (Apple Health compatible).
-    static let appleHealthCompatible: [ChallengeTemplate] = [
+    /// Templates that primarily use step counting (works best with Apple Health, Fitbit, Google Fit).
+    static let stepBasedTemplates: [ChallengeTemplate] = [
         stepsDailyTemplate,
+        strengthWorkoutTemplate,
         stepsCompetitiveTemplate,
     ]
 
-    /// All templates that work with Strava.
-    static let stravaCompatible: [ChallengeTemplate] = [
+    /// Templates that primarily use distance/GPS (works with all providers).
+    static let distanceBasedTemplates: [ChallengeTemplate] = [
         runningDistanceTemplate,
         cyclingDistanceTemplate,
         hikingElevationTemplate,
@@ -82,8 +84,8 @@ enum FitnessTemplates {
         hint: "Hit a daily step target for a number of consecutive days",
         fitnessKind: "steps",
         kindId: .steps,
-        modelId: "apple_health.steps@1",
-        modelHash: ServerConfig.appleStepsModelHash,
+        modelId: "fitness.steps@1",
+        modelHash: ServerConfig.fitnessStepsHash,
         fields: [
             TemplateField(key: "minSteps", label: "Minimum Steps per Day", kind: .number(min: 100, max: nil, step: 500, defaultValue: 8000)),
             TemplateField(key: "days", label: "Consecutive Days", kind: .number(min: 1, max: 90, step: 1, defaultValue: 7)),
@@ -118,8 +120,8 @@ enum FitnessTemplates {
         hint: "Compete for the highest step count. Top finishers win.",
         fitnessKind: "steps",
         kindId: .steps,
-        modelId: "apple_health.steps@1",
-        modelHash: ServerConfig.appleStepsModelHash,
+        modelId: "fitness.steps@1",
+        modelHash: ServerConfig.fitnessStepsHash,
         fields: [
             TemplateField(key: "topN", label: "Top N Winners", kind: .number(min: 1, max: 100, step: 1, defaultValue: 3)),
         ],
@@ -152,8 +154,8 @@ enum FitnessTemplates {
         hint: "Accumulate running distance within the challenge window",
         fitnessKind: "running",
         kindId: .running,
-        modelId: "strava.distance_in_window@1",
-        modelHash: "0xd3a933d7c65286991ffe453223bf2a153111795364835762b04dc6703e84211e",
+        modelId: "fitness.distance@1",
+        modelHash: ServerConfig.fitnessDistanceHash,
         fields: [
             TemplateField(key: "distanceKm", label: "Target Distance (km)", kind: .number(min: 1, max: nil, step: 0.5, defaultValue: 5)),
         ],
@@ -191,8 +193,8 @@ enum FitnessTemplates {
         hint: "Accumulate cycling distance within the challenge window",
         fitnessKind: "cycling",
         kindId: .cycling,
-        modelId: "strava.cycling_distance_in_window@1",
-        modelHash: "0xd3a933d7c65286991ffe453223bf2a153111795364835762b04dc6703e84211e",
+        modelId: "fitness.cycling@1",
+        modelHash: ServerConfig.fitnessCyclingHash,
         fields: [
             TemplateField(key: "distanceKm", label: "Target Distance (km)", kind: .number(min: 1, max: nil, step: 1, defaultValue: 20)),
         ],
@@ -226,8 +228,8 @@ enum FitnessTemplates {
         hint: "Accumulate elevation gain from hiking activities",
         fitnessKind: "hiking",
         kindId: .hiking,
-        modelId: "strava.elevation_gain_window@1",
-        modelHash: "0xd3a933d7c65286991ffe453223bf2a153111795364835762b04dc6703e84211e",
+        modelId: "fitness.hiking@1",
+        modelHash: ServerConfig.fitnessHikingHash,
         fields: [
             TemplateField(key: "elevGainM", label: "Target Elevation (meters)", kind: .number(min: 50, max: nil, step: 50, defaultValue: 500)),
         ],
@@ -260,8 +262,8 @@ enum FitnessTemplates {
         hint: "Accumulate swimming distance within the challenge window",
         fitnessKind: "swimming",
         kindId: .swimming,
-        modelId: "strava.swimming_laps_window@1",
-        modelHash: "0xd3a933d7c65286991ffe453223bf2a153111795364835762b04dc6703e84211e",
+        modelId: "fitness.swimming@1",
+        modelHash: ServerConfig.fitnessSwimmingHash,
         fields: [
             TemplateField(key: "distanceKm", label: "Target Distance (km)", kind: .number(min: 0.1, max: nil, step: 0.1, defaultValue: 1)),
         ],
@@ -287,6 +289,40 @@ enum FitnessTemplates {
         }
     )
 
+    // MARK: - Strength
+
+    private static let strengthWorkoutTemplate = ChallengeTemplate(
+        id: "strength_workouts",
+        name: "Strength — Workout Sessions",
+        hint: "Complete X strength training sessions in the challenge window",
+        fitnessKind: "strength",
+        kindId: .fitnessGeneral,
+        modelId: "fitness.strength@1",
+        modelHash: ServerConfig.fitnessStrengthHash,
+        fields: [
+            TemplateField(key: "sessions", label: "Sessions", kind: .number(min: 1, max: nil, step: 1, defaultValue: 5)),
+        ],
+        paramsBuilder: { args in
+            [
+                "minSessions": args["sessions"] ?? 5,
+                "types": "strength",
+            ]
+        },
+        ruleBuilder: { args, start, end in
+            let sessions = args["sessions"] as? Double ?? 5.0
+            return [
+                "challengeType": "strength",
+                "period": [
+                    "start": ISO8601DateFormatter().string(from: start),
+                    "end": ISO8601DateFormatter().string(from: end),
+                ],
+                "conditions": [
+                    ["metric": "active_minutes", "op": ">=", "value": sessions * 45]
+                ],
+            ]
+        }
+    )
+
     // MARK: - Duration
 
     private static let durationThresholdTemplate = ChallengeTemplate(
@@ -295,8 +331,8 @@ enum FitnessTemplates {
         hint: "Accumulate active minutes from any fitness activity",
         fitnessKind: "running",
         kindId: .fitnessGeneral,
-        modelId: "strava.distance_in_window@1",
-        modelHash: "0xd3a933d7c65286991ffe453223bf2a153111795364835762b04dc6703e84211e",
+        modelId: "fitness.distance@1",
+        modelHash: ServerConfig.fitnessDistanceHash,
         fields: [
             TemplateField(key: "durationMin", label: "Target Minutes", kind: .number(min: 10, max: nil, step: 10, defaultValue: 150)),
             TemplateField(key: "activityType", label: "Activity", kind: .select(

@@ -45,18 +45,22 @@ const FITNESS_PROVIDERS = ["apple", "strava", "garmin", "fitbit", "googlefit"] a
 
 // ─── Activity type mapping ─────────────────────────────────────────────────
 
-const ACTIVITY_TYPES = new Set<string>(["run", "walk", "cycle", "swim", "steps"]);
+const ACTIVITY_TYPES = new Set<string>(["run", "walk", "cycle", "swim", "steps", "strength", "hike"]);
 
 /**
  * Map provider-specific type strings to canonical Activity["type"].
  * Covers AIVM adapter types ("ride", "distance", "other", "virtualrun", etc.)
+ * and provider-specific names (Strava sport_type, Fitbit activityName, etc.)
  */
 function canonicalType(raw: string): Activity["type"] | null {
   const t = raw.toLowerCase();
-  if (t === "run" || t === "virtualrun" || t === "trail_run") return "run";
-  if (t === "walk" || t === "hike" || t === "hiking" || t === "distance") return "walk";
-  if (t === "cycle" || t === "ride" || t === "virtualride" || t === "ebikeride" || t === "cycling") return "cycle";
-  if (t === "swim" || t === "swimming") return "swim";
+  if (t === "run" || t === "virtualrun" || t === "trail_run" || t === "trailrun") return "run";
+  if (t === "walk" || t === "distance") return "walk";
+  if (t === "hike" || t === "hiking" || t === "trail" || t === "mountaineering") return "hike";
+  if (t === "cycle" || t === "ride" || t === "virtualride" || t === "ebikeride" || t === "cycling" || t === "bike") return "cycle";
+  if (t === "swim" || t === "swimming" || t === "openwater" || t === "openwatersw") return "swim";
+  if (t === "strength" || t === "weighttraining" || t === "weight_training" || t === "crossfit"
+      || t === "weights" || t === "workout" || t === "strength_training" || t === "functional_training") return "strength";
   if (t === "steps") return "steps";
   if (ACTIVITY_TYPES.has(t)) return t as Activity["type"];
   return null;
@@ -281,7 +285,7 @@ function computeFitnessScore(
 
 // ─── Simplified rules (challenges.params.rules) ──────────────────────────────
 
-const SIMPLE_FITNESS_METRICS = new Set(["steps", "distance_km", "active_minutes", "cycling_km", "swimming_km"]);
+const SIMPLE_FITNESS_METRICS = new Set(["steps", "distance_km", "active_minutes", "cycling_km", "swimming_km", "hiking_km", "strength_sessions"]);
 
 /**
  * Detect whether an object matches the simplified FitnessRules shape
@@ -324,21 +328,25 @@ function extractSimpleFitnessRules(cfg: ChallengeConfig | null | undefined): Fit
  */
 function simpleMetricValue(a: Activity, metric: FitnessRules["metric"]): number {
   switch (metric) {
-    case "steps":          return a.steps_count ?? 0;
-    case "distance_km":    return a.distance_km ?? 0;
-    case "active_minutes": return a.duration_min ?? 0;
-    case "cycling_km":     return a.type === "cycle" ? (a.distance_km ?? 0) : 0;
-    case "swimming_km":    return a.type === "swim" ? (a.distance_km ?? 0) : 0;
+    case "steps":              return a.steps_count ?? 0;
+    case "distance_km":        return a.distance_km ?? 0;
+    case "active_minutes":     return a.duration_min ?? 0;
+    case "cycling_km":         return a.type === "cycle" ? (a.distance_km ?? 0) : 0;
+    case "swimming_km":        return a.type === "swim" ? (a.distance_km ?? 0) : 0;
+    case "hiking_km":          return a.type === "hike" ? (a.distance_km ?? 0) : 0;
+    case "strength_sessions":  return a.type === "strength" ? 1 : 0;  // each activity = 1 session
   }
 }
 
 /**
- * Activity type filter for cycling_km and swimming_km metrics.
+ * Activity type filter for type-specific metrics.
  * Other metrics accept all activity types.
  */
 function activityMatchesSimpleMetric(a: Activity, metric: FitnessRules["metric"]): boolean {
   if (metric === "cycling_km") return a.type === "cycle";
   if (metric === "swimming_km") return a.type === "swim";
+  if (metric === "hiking_km") return a.type === "hike";
+  if (metric === "strength_sessions") return a.type === "strength";
   return true;
 }
 

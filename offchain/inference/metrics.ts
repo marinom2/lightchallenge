@@ -1,7 +1,7 @@
 import { differenceInMinutes, parseISO, startOfDay, addDays, isBefore, isAfter, formatISO } from "date-fns";
 
 export type Activity = {
-  type: "run" | "walk" | "cycle" | "swim" | "steps";
+  type: "run" | "walk" | "cycle" | "swim" | "steps" | "strength" | "hike";
   start: string; // ISO
   end: string;   // ISO
   distance_km?: number;

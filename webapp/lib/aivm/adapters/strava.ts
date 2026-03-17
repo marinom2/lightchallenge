@@ -1,7 +1,8 @@
 import { Adapter, AdapterContext, AdapterResult, CanonicalRecord } from "./types";
 import { computeBind } from "@/lib/aivm/bind";
+import { isFitnessModel } from "./fitnessModels";
 
-/** Matches strava.distance_in_window@1 in models.json. */
+/** Legacy model hash — kept for backward compat. */
 const STRAVA_DISTANCE_MODEL =
   "0xd3a933d7c65286991ffe453223bf2a153111795364835762b04dc6703e84211e" as const;
 
@@ -18,13 +19,21 @@ function sha256hex(buf: Buffer | string): `0x${string}` {
 /**
  * Map Strava activity type strings to canonical Activity["type"] values.
  * Evaluators and metrics.evaluate() require these exact strings.
+ *
+ * Strava sport_type values: Run, TrailRun, Walk, Hike, Ride,
+ * MountainBikeRide, GravelRide, VirtualRide, EBikeRide, Swim,
+ * WeightTraining, Crossfit, Workout, Yoga, etc.
  */
-function mapStravaType(t: string): "run" | "walk" | "cycle" | "swim" | "steps" {
+function mapStravaType(t: string): string {
   const x = t.toLowerCase();
   if (x.includes("run") || x === "virtualrun") return "run";
-  if (x.includes("ride") || x.includes("cycl") || x === "virtualride" || x === "ebikeride") return "cycle";
+  if (x === "hike" || x === "hiking") return "hike";
+  if (x.includes("ride") || x.includes("cycl") || x === "virtualride" || x === "ebikeride"
+      || x === "mountainbikeride" || x === "gravelride") return "cycle";
   if (x.includes("swim")) return "swim";
-  if (x.includes("walk") || x.includes("hik")) return "walk";
+  if (x === "weighttraining" || x === "crossfit" || x === "workout"
+      || x === "strength" || x === "weight_training") return "strength";
+  if (x.includes("walk")) return "walk";
   return "walk"; // safe default for unknown types
 }
 
@@ -129,7 +138,8 @@ export const stravaAdapter: Adapter = {
   name: "strava.distance_in_window",
   category: "fitness",
   supports(modelHash: string) {
-    return modelHash.toLowerCase() === STRAVA_DISTANCE_MODEL.toLowerCase();
+    return modelHash.toLowerCase() === STRAVA_DISTANCE_MODEL.toLowerCase()
+        || isFitnessModel(modelHash);
   },
   async ingest(input: { file?: Buffer; json?: any; context: AdapterContext }): Promise<AdapterResult> {
     const { context } = input;

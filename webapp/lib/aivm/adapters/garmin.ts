@@ -1,7 +1,8 @@
 import { Adapter, AdapterContext, AdapterResult, CanonicalRecord } from "./types";
 import { computeBind } from "@/lib/aivm/bind";
+import { isFitnessModel } from "./fitnessModels";
 
-/** Matches garmin.steps@1 in models.json. */
+/** Legacy model hashes — kept for backward compat. */
 const GARMIN_STEPS_DAY_MODEL = "0x7abfc322e4b015bd06ff99afe644c44868506d0ef39ae80a17b21813a389a1f2" as const;
 const GARMIN_DISTANCE_WINDOW_MODEL = "0x1f0529367f707855129caa7af76a01c8ed88b22602f06433aaa7fc0a50cd1b90" as const;
 
@@ -10,8 +11,28 @@ function sha256hex(buf: Buffer | string): `0x${string}` {
   return ("0x" + createHash("sha256").update(buf).digest("hex")) as `0x${string}`;
 }
 
+/**
+ * Map TCX <Activity Sport="..."> values to canonical types.
+ * Garmin TCX Sport values: Running, Biking, Swimming, Other.
+ * For "Other", we try to detect from the activity name if present.
+ */
+function mapTcxSport(sport: string): string {
+  const s = sport.toLowerCase();
+  if (s.includes("run")) return "run";
+  if (s.includes("bik") || s.includes("cycl") || s.includes("rid")) return "cycle";
+  if (s.includes("swim")) return "swim";
+  if (s.includes("hik") || s.includes("trail")) return "hike";
+  if (s.includes("strength") || s.includes("weight")) return "strength";
+  return "distance";
+}
+
 function parseTCX(text: string, userIdHash: string): CanonicalRecord[] {
   const recs: CanonicalRecord[] = [];
+
+  // Extract sport type from <Activity Sport="Running">
+  const activitySport = (text.match(/<Activity\s+Sport="([^"]*)"/) || [])[1] || "Other";
+  const actType = mapTcxSport(activitySport);
+
   const lapRe = /<Lap[^>]*?>([\s\S]*?)<\/Lap>/g;
   let m;
   while ((m = lapRe.exec(text))) {
@@ -27,7 +48,7 @@ function parseTCX(text: string, userIdHash: string): CanonicalRecord[] {
         provider: "garmin",
         user_id: userIdHash,
         activity_id: `tcx:${ts}`,
-        type: "distance",
+        type: actType,
         start_ts: ts, end_ts: ts, duration_s: 0,
         distance_m: dist || 0, steps: null,
         avg_hr_bpm: null,
@@ -90,7 +111,8 @@ export const garminAdapter: Adapter = {
   supports(modelHash: string) {
     const h = modelHash.toLowerCase();
     return h === GARMIN_STEPS_DAY_MODEL.toLowerCase() ||
-           h === GARMIN_DISTANCE_WINDOW_MODEL.toLowerCase();
+           h === GARMIN_DISTANCE_WINDOW_MODEL.toLowerCase() ||
+           isFitnessModel(h);
   },
   async ingest(input: { file?: Buffer; json?: any; context: AdapterContext }): Promise<AdapterResult> {
     const { context } = input;

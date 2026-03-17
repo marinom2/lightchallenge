@@ -76,7 +76,7 @@ struct ChallengeDetailView: View {
             NavigationStack {
                 FitnessProofView(
                     challengeId: challengeId,
-                    modelHash: detail?.proof?.modelHash ?? detail?.modelHash ?? ServerConfig.appleStepsModelHash,
+                    modelHash: detail?.proof?.modelHash ?? detail?.modelHash ?? ServerConfig.defaultFitnessModelHash,
                     deepLinkToken: appState.deepLinkToken,
                     deepLinkExpires: appState.deepLinkExpires
                 )
@@ -752,7 +752,7 @@ struct ChallengeDetailView: View {
 
             // Upload
             fileUploadStatus = .uploading
-            let modelHash = detail?.proof?.modelHash ?? detail?.modelHash ?? ServerConfig.appleStepsModelHash
+            let modelHash = detail?.proof?.modelHash ?? detail?.modelHash ?? ServerConfig.defaultFitnessModelHash
 
             do {
                 let result = try await APIClient.shared.uploadEvidenceFile(

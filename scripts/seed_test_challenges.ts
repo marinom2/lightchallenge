@@ -94,9 +94,9 @@ const challenges: ChallengeSpec[] = [
   },
   {
     id: BASE_ID + 3,
-    title: "Yoga Flexibility Sprint",
-    description: "Complete 7 yoga sessions in 7 days",
-    category: "yoga",
+    title: "Mountain Trail Hike 25K",
+    description: "Hike 25km of trails in 7 days — explore nature, earn rewards",
+    category: "hiking",
     stakeWei: "250000000000000000", // 0.25 LCAI
     creator: WALLET_A,
     status: "Finalized",
@@ -169,7 +169,7 @@ const challenges: ChallengeSpec[] = [
     daysAgo: 3,
   },
 
-  // Active — evidence submitted, no verdict yet (1)
+  // Active challenges — WALLET_A has joined, with progress goals (6)
   {
     id: BASE_ID + 9,
     title: "Spring Running Challenge",
@@ -182,7 +182,213 @@ const challenges: ChallengeSpec[] = [
     verdictB: null,
     daysAgo: 1,
   },
+  {
+    id: BASE_ID + 10,
+    title: "100K Steps Weekly Blitz",
+    description: "Hit 100,000 steps this week. Walk, run, hike — any steps count!",
+    category: "walking",
+    stakeWei: "2000000000000000000", // 2 LCAI
+    creator: WALLET_B,
+    status: "Active",
+    verdictA: null,
+    verdictB: null,
+    daysAgo: 3,
+  },
+  {
+    id: BASE_ID + 11,
+    title: "Open Water Swim 5K",
+    description: "Swim a total of 5km this week — pool or open water",
+    category: "swimming",
+    stakeWei: "1500000000000000000", // 1.5 LCAI
+    creator: WALLET_A,
+    status: "Active",
+    verdictA: null,
+    verdictB: null,
+    daysAgo: 2,
+  },
+  {
+    id: BASE_ID + 12,
+    title: "Summit Trail Challenge",
+    description: "Hike 30km of trails in 7 days — elevation gain counts double",
+    category: "hiking",
+    stakeWei: "1000000000000000000", // 1 LCAI
+    creator: WALLET_B,
+    status: "Active",
+    verdictA: null,
+    verdictB: null,
+    daysAgo: 2,
+  },
+  {
+    id: BASE_ID + 13,
+    title: "Century Cycling Sprint",
+    description: "Ride 100km on your bike this week — road or mountain",
+    category: "cycling",
+    stakeWei: "3000000000000000000", // 3 LCAI
+    creator: WALLET_A,
+    status: "Active",
+    verdictA: null,
+    verdictB: null,
+    daysAgo: 1,
+  },
+  {
+    id: BASE_ID + 14,
+    title: "Iron Strength Week",
+    description: "Complete 6 strength training sessions with logged weights",
+    category: "strength",
+    stakeWei: "750000000000000000", // 0.75 LCAI
+    creator: WALLET_B,
+    status: "Active",
+    verdictA: null,
+    verdictB: null,
+    daysAgo: 4,
+  },
 ];
+
+/**
+ * Generate realistic daily evidence records for a fitness category.
+ * @param category - fitness type
+ * @param daysAgo - when challenge started (records span daysAgo → today)
+ * @param progressPct - how much of the goal to fill (0.0 → 1.5)
+ */
+function generateEvidenceRecords(category: string, daysAgo: number, progressPct: number) {
+  const rules = rulesForCategory(category);
+  const goal = rules.threshold;
+  const targetTotal = goal * progressPct;
+  const numDays = Math.max(1, daysAgo);
+  const records = [];
+
+  for (let d = 0; d < numDays; d++) {
+    const date = new Date(Date.now() - (numDays - d) * 86400000);
+    const dateStr = date.toISOString().split("T")[0];
+    // Distribute total with some daily variance (±30%)
+    const dailyBase = targetTotal / numDays;
+    const dailyValue = dailyBase * (0.7 + Math.random() * 0.6);
+
+    switch (category) {
+      case "walking":
+        records.push({
+          date: dateStr,
+          type: "steps",
+          steps: Math.round(dailyValue),
+          distance_m: Math.round(dailyValue * 0.75), // ~0.75m per step
+          active_minutes: Math.round(dailyValue / 120),
+          source: "apple_health",
+        });
+        break;
+      case "running":
+        records.push({
+          date: dateStr,
+          type: "run",
+          distance_km: Math.round(dailyValue * 100) / 100,
+          distance_m: Math.round(dailyValue * 1000),
+          duration_s: Math.round(dailyValue * 360), // ~6 min/km pace
+          steps: Math.round(dailyValue * 1200),
+          active_minutes: Math.round(dailyValue * 6),
+          source: "apple_health",
+        });
+        break;
+      case "cycling":
+        records.push({
+          date: dateStr,
+          type: "cycle",
+          distance_km: Math.round(dailyValue * 100) / 100,
+          distance_m: Math.round(dailyValue * 1000),
+          duration_s: Math.round(dailyValue * 150), // ~24 km/h avg
+          active_minutes: Math.round(dailyValue * 2.5),
+          source: "apple_health",
+        });
+        break;
+      case "swimming":
+        records.push({
+          date: dateStr,
+          type: "swim",
+          distance_km: Math.round(dailyValue * 1000) / 1000,
+          distance_m: Math.round(dailyValue * 1000),
+          duration_s: Math.round(dailyValue * 1200), // ~3 km/h
+          laps: Math.round(dailyValue * 20), // ~50m per lap
+          active_minutes: Math.round(dailyValue * 20),
+          source: "apple_health",
+        });
+        break;
+      case "hiking":
+        records.push({
+          date: dateStr,
+          type: "walk",
+          distance_km: Math.round(dailyValue * 100) / 100,
+          distance_m: Math.round(dailyValue * 1000),
+          elev_gain_m: Math.round(dailyValue * 40), // ~40m gain per km
+          duration_s: Math.round(dailyValue * 600), // ~10 min/km hiking pace
+          steps: Math.round(dailyValue * 1400),
+          active_minutes: Math.round(dailyValue * 10),
+          source: "apple_health",
+        });
+        break;
+      case "strength":
+        records.push({
+          date: dateStr,
+          type: "strength",
+          active_minutes: Math.round(dailyValue),
+          duration_s: Math.round(dailyValue * 60),
+          calories: Math.round(dailyValue * 6),
+          source: "apple_health",
+        });
+        break;
+      default:
+        records.push({
+          date: dateStr,
+          type: "steps",
+          steps: Math.round(dailyValue),
+          source: "apple_health",
+        });
+    }
+  }
+  return records;
+}
+
+/** Map fitness category to provider-agnostic model ID. */
+function modelIdForCategory(category: string): string {
+  switch (category) {
+    case "walking":  return "fitness.steps@1";
+    case "running":  return "fitness.distance@1";
+    case "cycling":  return "fitness.cycling@1";
+    case "swimming": return "fitness.swimming@1";
+    case "hiking":   return "fitness.hiking@1";
+    case "strength": return "fitness.strength@1";
+    default:         return "fitness.steps@1";
+  }
+}
+
+/** Map fitness category to provider-agnostic model hash. */
+function modelHashForCategory(category: string): string {
+  switch (category) {
+    case "walking":  return "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60001";
+    case "running":  return "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60002";
+    case "cycling":  return "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60003";
+    case "hiking":   return "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60004";
+    case "swimming": return "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60005";
+    case "strength": return "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60006";
+    default:         return "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60001";
+  }
+}
+
+function rulesForCategory(category: string) {
+  switch (category) {
+    case "walking":
+      return { type: "fitness", period: "total", metric: "steps", threshold: 100000 };
+    case "running":
+      return { type: "fitness", period: "total", metric: "distance_km", threshold: 50 };
+    case "cycling":
+      return { type: "fitness", period: "total", metric: "cycling_km", threshold: 100 };
+    case "swimming":
+      return { type: "fitness", period: "total", metric: "swimming_km", threshold: 5 };
+    case "hiking":
+      return { type: "fitness", period: "total", metric: "hiking_km", threshold: 30 };
+    case "strength":
+      return { type: "fitness", period: "total", metric: "strength_sessions", threshold: 6 };
+    default:
+      return { type: "fitness", period: "total", metric: "steps", threshold: 50000 };
+  }
+}
 
 async function main() {
   const pool = getPool();
@@ -191,9 +397,10 @@ async function main() {
 
   for (const c of challenges) {
     const createdAt = new Date(Date.now() - c.daysAgo * 86400000);
-    const endAt = new Date(createdAt.getTime() + 7 * 86400000);
-    const startTs = Math.floor(createdAt.getTime() / 1000);
-    const endTs = Math.floor(endAt.getTime() / 1000);
+    // Active challenges end in the future; finalized ones ended in the past
+    const endAt = c.status === "Active"
+      ? new Date(Date.now() + (7 - c.daysAgo) * 86400000)
+      : new Date(createdAt.getTime() + 7 * 86400000);
 
     // 1. Upsert challenge
     await pool.query(
@@ -214,26 +421,23 @@ async function main() {
         c.description,
         c.creator.toLowerCase(),
         c.status,
-        `lc-fitness-${c.category}`,
-        "0xabcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234",
+        modelIdForCategory(c.category),
+        modelHashForCategory(c.category),
         JSON.stringify({
-          rules: {
-            period: "daily",
-            metric: c.category === "walking" ? "steps" : c.category === "running" ? "distance" : "active_minutes",
-            threshold: c.category === "walking" ? 10000 : c.category === "running" ? 5 : 30,
-          },
+          rules: rulesForCategory(c.category),
         }),
         JSON.stringify({
           backend: "aivm_poi",
           verifier: "ChallengePayAivmPoiVerifier",
-          modelHash: "0xabcd1234",
+          modelHash: modelHashForCategory(c.category),
         }),
         JSON.stringify({
-          startAt: startTs,
-          endAt: endTs,
-          deadline: endTs + 3600,
+          startsAt: createdAt.toISOString(),
+          endsAt: endAt.toISOString(),
+          proofDeadline: new Date(endAt.getTime() + 3600000).toISOString(),
         }),
         JSON.stringify({
+          stake: c.stakeWei,
           stakeWei: c.stakeWei,
           budgetWei: (BigInt(c.stakeWei) * 2n).toString(),
           currency: "LCAI",
@@ -260,15 +464,15 @@ async function main() {
 
     // 3. Insert evidence for both wallets
     for (const wallet of [WALLET_A, WALLET_B]) {
-      const sampleData = JSON.stringify([
-        {
-          date: createdAt.toISOString().split("T")[0],
-          steps: 12500,
-          distance_km: 8.3,
-          active_minutes: 45,
-          source: "apple_health",
-        },
-      ]);
+      // Generate realistic evidence based on fitness type and progress level
+      const isWalletA = wallet === WALLET_A;
+      const progressPct = c.status === "Active"
+        ? (isWalletA ? 0.35 + Math.random() * 0.40 : 0.15 + Math.random() * 0.30) // 35-75% for A, 15-45% for B
+        : (isWalletA ? (c.verdictA ? 1.1 : 0.4) : (c.verdictB ? 1.05 : 0.3)); // >100% for winners, <50% for losers
+
+      const sampleData = JSON.stringify(
+        generateEvidenceRecords(c.category, c.daysAgo, progressPct),
+      );
       await pool.query(
         `INSERT INTO public.evidence (challenge_id, subject, provider, data, evidence_hash)
          VALUES ($1, $2, $3, $4::jsonb, $5)

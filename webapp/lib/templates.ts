@@ -40,7 +40,7 @@ export type TemplateField =
     };
 
 /** Supported kinds across Fitness & Gaming */
-export type FitnessKind = "steps" | "running" | "cycling" | "hiking" | "swimming";
+export type FitnessKind = "steps" | "running" | "cycling" | "hiking" | "swimming" | "strength";
 export type GameId = "dota" | "lol" | "cs";
 
 /** A template line item used by the renderer */
@@ -93,7 +93,7 @@ const FITNESS_STEPS: Template = {
   kind: "steps",
   name: "Steps • Every day",
   hint: "Complete X steps each day for N days.",
-  modelId: "apple_health.steps@1",
+  modelId: "fitness.steps@1",
   fields: [
     { kind: "number", key: "minSteps", label: "Min steps/day", min: 100, step: 100, default: 8000 },
     { kind: "number", key: "days", label: "Days", min: 1, step: 1, default: 7 },
@@ -123,7 +123,7 @@ const FITNESS_RUNNING_DISTANCE_WINDOW: Template = {
   kind: "running",
   name: "Running • Distance in window",
   hint: "Run at least X km between Start and End.",
-  modelId: "strava.distance_in_window@1",
+  modelId: "fitness.distance@1",
   fields: [{ kind: "number", key: "distanceKm", label: "Distance (km)", min: 1, step: 0.5, default: 5 }],
   paramsBuilder: ({ state }) => ({
     start_ts: ts(state.timeline.starts),
@@ -149,7 +149,7 @@ const FITNESS_CYCLING_DISTANCE_WINDOW: Template = {
   kind: "cycling",
   name: "Cycling • Distance in window",
   hint: "Ride at least X km between Start and End.",
-  modelId: "strava.cycling_distance_in_window@1",
+  modelId: "fitness.cycling@1",
   fields: [{ kind: "number", key: "distanceKm", label: "Distance (km)", min: 5, step: 1, default: 20 }],
   paramsBuilder: ({ state }) => ({
     start_ts: ts(state.timeline.starts),
@@ -175,7 +175,7 @@ const FITNESS_HIKING_ELEVATION_WINDOW: Template = {
   kind: "hiking",
   name: "Hiking • Elevation gain",
   hint: "Accumulate at least X meters of elevation between Start and End.",
-  modelId: "strava.elevation_gain_window@1",
+  modelId: "fitness.hiking@1",
   fields: [{ kind: "number", key: "elevGainM", label: "Elevation gain (m)", min: 100, step: 50, default: 1000 }],
   paramsBuilder: ({ state }) => ({
     start_ts: ts(state.timeline.starts),
@@ -200,7 +200,7 @@ const FITNESS_SWIMMING_LAPS_WINDOW: Template = {
   kind: "swimming",
   name: "Swimming • Laps in window",
   hint: "Swim at least X laps between Start and End.",
-  modelId: "strava.swimming_laps_window@1",
+  modelId: "fitness.swimming@1",
   fields: [{ kind: "number", key: "laps", label: "Laps", min: 10, step: 5, default: 40 }],
   paramsBuilder: ({ state }) => ({
     start_ts: ts(state.timeline.starts),
@@ -219,12 +219,41 @@ const FITNESS_SWIMMING_LAPS_WINDOW: Template = {
   }),
 };
 
+const FITNESS_STRENGTH_WORKOUTS: Template = {
+  id: "strength_workouts",
+  kind: "strength",
+  name: "Strength — Workout Sessions",
+  hint: "Complete X strength training sessions in the challenge window.",
+  modelId: "fitness.strength@1",
+  fields: [
+    { kind: "number", key: "sessions", label: "Sessions", min: 1, step: 1, default: 5 },
+  ],
+  paramsBuilder: ({ state }) => ({
+    minSessions: Number(aivm(state).sessions ?? 5),
+    types: "strength",
+  }),
+  ruleBuilder: ({ state }) => {
+    const sessions = Number(aivm(state).sessions ?? 5);
+    return {
+      challengeType: "strength",
+      period: {
+        start: isoOrNow(state.timeline.starts),
+        end: isoOrNow(state.timeline.ends),
+        timezone: localTz(),
+      },
+      conditions: [
+        { metric: "active_minutes", op: ">=", value: sessions * 45 },
+      ],
+    };
+  },
+};
+
 const FITNESS_STEPS_COMPETITIVE: Template = {
   id: "steps_competitive",
   kind: "steps",
   name: "Steps Competition",
   hint: "Compete: whoever accumulates the most steps wins.",
-  modelId: "apple_health.steps@1",
+  modelId: "fitness.steps@1",
   fields: [
     { kind: "number", key: "topN", label: "Number of winners", min: 1, step: 1, default: 1 },
   ],
@@ -251,7 +280,7 @@ const FITNESS_DISTANCE_COMPETITIVE: Template = {
   kind: "running",
   name: "Distance Competition",
   hint: "Compete: whoever covers the most distance wins.",
-  modelId: "strava.distance_in_window@1",
+  modelId: "fitness.distance@1",
   fields: [
     {
       kind: "select",
@@ -292,7 +321,7 @@ const FITNESS_DURATION_THRESHOLD: Template = {
   kind: "running",
   name: "Active Minutes Threshold",
   hint: "Accumulate at least X active minutes between Start and End.",
-  modelId: "strava.distance_in_window@1",
+  modelId: "fitness.distance@1",
   fields: [
     { kind: "number", key: "durationMin", label: "Target minutes", min: 10, step: 5, default: 60 },
     {
@@ -337,6 +366,7 @@ const FITNESS: Template[] = [
   FITNESS_CYCLING_DISTANCE_WINDOW,
   FITNESS_HIKING_ELEVATION_WINDOW,
   FITNESS_SWIMMING_LAPS_WINDOW,
+  FITNESS_STRENGTH_WORKOUTS,
   FITNESS_STEPS_COMPETITIVE,
   FITNESS_DISTANCE_COMPETITIVE,
   FITNESS_DURATION_THRESHOLD,

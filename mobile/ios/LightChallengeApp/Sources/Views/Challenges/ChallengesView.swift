@@ -604,7 +604,7 @@ struct EvidenceHubView: View {
             Button {
                 selectedProof = ProofTarget(
                     challengeId: activity.challengeId,
-                    modelHash: meta?.proof?.modelHash ?? meta?.modelHash ?? ServerConfig.appleStepsModelHash
+                    modelHash: meta?.proof?.modelHash ?? meta?.modelHash ?? ServerConfig.defaultFitnessModelHash
                 )
             } label: {
                 HStack(spacing: LC.space8) {

@@ -114,6 +114,22 @@ actor APIClient {
         return try decoder.decode(ParticipantStatus.self, from: data)
     }
 
+    // MARK: - My Progress
+
+    /// Fetch server-side progress for a participant in a challenge.
+    /// Used as fallback when HealthKit data is unavailable (e.g. cycling, swimming without device).
+    func fetchMyProgress(baseURL: String, challengeId: String, subject: String) async throws -> ServerProgress {
+        guard let url = URL(string: "\(baseURL)/api/challenge/\(challengeId)/my-progress?subject=\(subject)") else {
+            throw APIError.invalidURL
+        }
+        let (data, response) = try await session.data(from: url)
+        let httpResponse = response as? HTTPURLResponse
+        guard let status = httpResponse?.statusCode, status >= 200, status < 300 else {
+            throw APIError.httpError(httpResponse?.statusCode ?? 0, "")
+        }
+        return try decoder.decode(ServerProgress.self, from: data)
+    }
+
     // MARK: - My Activity
 
     /// Fetch the user's challenge participation list.
@@ -239,7 +255,8 @@ actor APIClient {
         fileName: String,
         mimeType: String,
         evidenceToken: String? = nil,
-        evidenceExpires: String? = nil
+        evidenceExpires: String? = nil,
+        provider: String? = nil
     ) async throws -> SubmissionResult {
         guard let url = URL(string: "\(baseURL)/api/aivm/intake") else {
             throw APIError.invalidURL
@@ -262,6 +279,9 @@ actor APIClient {
         appendField("modelHash", modelHash)
         appendField("challengeId", challengeId)
         appendField("subject", subject)
+        if let provider, !provider.isEmpty {
+            appendField("provider", provider)
+        }
 
         if let token = evidenceToken, !token.isEmpty,
            let expires = evidenceExpires, !expires.isEmpty {

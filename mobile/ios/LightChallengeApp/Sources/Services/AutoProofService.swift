@@ -201,7 +201,7 @@ class AutoProofService: ObservableObject {
     ) async {
         let subject = appState.walletAddress
         let baseURL = appState.serverURL
-        let modelHash = challenge?.proof?.modelHash ?? challenge?.modelHash ?? ServerConfig.appleStepsModelHash
+        let modelHash = challenge?.proof?.modelHash ?? challenge?.modelHash ?? ServerConfig.defaultFitnessModelHash
 
         // Strategy 1: Try server-side auto-proof first (Strava/Fitbit)
         // The server enforces proof window and uses challenge dates
