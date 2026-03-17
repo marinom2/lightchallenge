@@ -9,7 +9,7 @@ Reference guide for running the LightChallenge off-chain pipeline in development
 ```
 Provider APIs (Strava, Fitbit, FACEIT, OpenDota, Riot) + Manual uploads (Apple Health, Garmin, Google Fit)
         │
-        ▼ evidenceCollector (proof-window scoped) + auto-proof API (on-demand)
+        ▼ progressSyncWorker (active-period, every 15min) + evidenceCollector (proof-window, final reconciliation)
 public.evidence
         │
         ▼ evidenceEvaluator
@@ -127,6 +127,37 @@ as a complement to the background evidence collector.
 - **iOS AutoProofService**: called when the iOS app detects a challenge has entered its proof window (allows the app to either upload local health data or trigger server-side fetching)
 
 **Authentication:** Requires standard `x-lc-address` / `x-lc-signature` / `x-lc-timestamp` headers (see section 16).
+
+---
+
+## 3b. Progress Sync Worker
+
+Runs during **active challenges** (not just the proof window) to keep real-time progress
+updated from connected fitness providers. Periodically fetches from Strava/Fitbit and upserts
+evidence, so `/api/challenge/{id}/my-progress` reflects the latest activity data.
+
+When a challenge enters the proof window, the worker performs a **final reconciliation fetch**
+to ensure evidence is complete before the evaluator generates a verdict.
+
+```bash
+npx tsx offchain/workers/progressSyncWorker.ts
+```
+
+| Env var | Default | Purpose |
+|---|---|---|
+| `PROGRESS_SYNC_POLL_MS` | `900000` | Milliseconds between polls (15 min) |
+| `PROGRESS_SYNC_BATCH` | `50` | Max challenges per tick |
+
+**How it works:**
+1. Finds active challenges where `startsAt <= now < proofDeadline`
+2. For each, finds participants with linked Strava/Fitbit accounts
+3. Fetches activity data for the challenge period (start → now for active, start → end for proof window)
+4. Upserts evidence row per (challenge, subject, provider) — replaces stale data
+5. Progress is automatically visible via `GET /api/challenge/{id}/my-progress`
+
+**Requires:** Migration 025 (`evidence_challenge_subject_provider_uq` unique index).
+
+**Writes to:** `public.evidence` (upsert)
 
 ---
 

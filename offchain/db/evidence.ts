@@ -141,6 +141,66 @@ export async function insertEvidence(
 }
 
 /**
+ * Upsert evidence for a (challenge, subject, provider) triple.
+ * Used by the progress sync worker to periodically refresh activity data
+ * without creating duplicate rows.
+ *
+ * Requires the unique index on (challenge_id, lower(subject), provider)
+ * from migration 025.
+ */
+export async function upsertEvidence(
+  input: InsertEvidenceInput,
+  db?: Pool | PoolClient
+): Promise<EvidenceRow> {
+  if (input.data.length > MAX_EVIDENCE_RECORDS) {
+    throw new Error(
+      `Evidence data contains ${input.data.length} records, exceeding the limit of ${MAX_EVIDENCE_RECORDS}.`
+    );
+  }
+
+  const serialized = JSON.stringify(input.data);
+  const byteLength = Buffer.byteLength(serialized, "utf8");
+  if (byteLength > MAX_EVIDENCE_BYTES) {
+    throw new Error(
+      `Serialized evidence data is ${byteLength} bytes, exceeding the limit of ${MAX_EVIDENCE_BYTES} bytes (5 MB).`
+    );
+  }
+
+  const client = db ?? getPool();
+
+  const res = await client.query<EvidenceRow>(
+    `
+    INSERT INTO public.evidence (
+      challenge_id, subject, provider,
+      data, evidence_hash, raw_ref,
+      created_at, updated_at
+    )
+    VALUES (
+      $1::bigint, $2::text, $3::text,
+      $4::jsonb, $5::text, $6,
+      now(), now()
+    )
+    ON CONFLICT (challenge_id, lower(subject), provider) DO UPDATE SET
+      data = EXCLUDED.data,
+      evidence_hash = EXCLUDED.evidence_hash,
+      raw_ref = COALESCE(EXCLUDED.raw_ref, evidence.raw_ref),
+      updated_at = now()
+    RETURNING *
+    `,
+    [
+      String(input.challengeId),
+      input.subject,
+      input.provider,
+      serialized,
+      input.evidenceHash,
+      input.rawRef ?? null,
+    ]
+  );
+
+  return res.rows[0];
+}
+
+/**
  * Return all evidence rows for a challenge (all subjects).
  * Ordered by created_at ascending.
  */

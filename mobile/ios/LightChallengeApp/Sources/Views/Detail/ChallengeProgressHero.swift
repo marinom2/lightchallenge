@@ -22,75 +22,61 @@ struct ActivityTheme {
     let barBackground: Color
 
     static func from(detail: ChallengeDetail) -> ActivityTheme {
-        let title = (detail.title ?? "").lowercased()
-        let desc = (detail.description ?? "").lowercased()
-        let metric = detail.rules?.metric ?? ""
-        let modelId = (detail.modelId ?? "").lowercased()
-        let tags = (detail.tags ?? []).map { $0.lowercased() }
-        let all = [title, desc, metric, modelId, tags.joined(separator: " ")].joined(separator: " ")
-
-        if all.contains("swim") || all.contains("pool") || all.contains("lap") || metric == "swimming_km" {
-            return ActivityTheme(
-                icon: "figure.pool.swim",
-                label: "Swimming",
-                barColors: [Color(hex: 0x06B6D4), Color(hex: 0x0891B2)],
-                figureTint: Color(hex: 0x06B6D4),
-                barBackground: Color(hex: 0x06B6D4).opacity(0.15)
-            )
-        }
-        if all.contains("cycl") || all.contains("bike") || all.contains("ride") || metric == "cycling_km" {
-            return ActivityTheme(
-                icon: "figure.outdoor.cycle",
-                label: "Cycling",
-                barColors: [Color(hex: 0xF97316), Color(hex: 0xEA580C)],
-                figureTint: Color(hex: 0xF97316),
-                barBackground: Color(hex: 0xF97316).opacity(0.15)
-            )
-        }
-        if all.contains("run") || all.contains("marathon") || all.contains("jog") || all.contains("sprint") || all.contains("5k") {
-            return ActivityTheme(
-                icon: "figure.run",
-                label: "Running",
-                barColors: [Color(hex: 0x2563EB), Color(hex: 0x3B82F6)],
-                figureTint: Color(hex: 0x3B82F6),
-                barBackground: Color(hex: 0x2563EB).opacity(0.15)
-            )
-        }
-        if all.contains("yoga") || all.contains("stretch") || all.contains("flex") || all.contains("pilates") {
-            return ActivityTheme(
-                icon: "figure.yoga",
-                label: "Yoga",
-                barColors: [Color(hex: 0xA855F7), Color(hex: 0x7C3AED)],
-                figureTint: Color(hex: 0xA855F7),
-                barBackground: Color(hex: 0xA855F7).opacity(0.15)
-            )
-        }
-        if all.contains("strength") || all.contains("lift") || all.contains("weight") || all.contains("gym") || all.contains("push") {
-            return ActivityTheme(
-                icon: "figure.strengthtraining.traditional",
-                label: "Strength",
-                barColors: [Color(hex: 0xEF4444), Color(hex: 0xDC2626)],
-                figureTint: Color(hex: 0xEF4444),
-                barBackground: Color(hex: 0xEF4444).opacity(0.15)
-            )
-        }
-        if all.contains("hik") || all.contains("trail") || all.contains("climb") {
-            return ActivityTheme(
-                icon: "figure.hiking",
-                label: "Hiking",
-                barColors: [Color(hex: 0x22C55E), Color(hex: 0x15803D)],
-                figureTint: Color(hex: 0x22C55E),
-                barBackground: Color(hex: 0x22C55E).opacity(0.15)
-            )
-        }
-        // Default: walking
-        return ActivityTheme(
-            icon: "figure.walk",
-            label: "Walking",
+        let swimTheme = ActivityTheme(icon: "figure.pool.swim", label: "Swimming",
+            barColors: [Color(hex: 0x06B6D4), Color(hex: 0x0891B2)],
+            figureTint: Color(hex: 0x06B6D4), barBackground: Color(hex: 0x06B6D4).opacity(0.15))
+        let cycleTheme = ActivityTheme(icon: "figure.outdoor.cycle", label: "Cycling",
+            barColors: [Color(hex: 0xF97316), Color(hex: 0xEA580C)],
+            figureTint: Color(hex: 0xF97316), barBackground: Color(hex: 0xF97316).opacity(0.15))
+        let runTheme = ActivityTheme(icon: "figure.run", label: "Running",
+            barColors: [Color(hex: 0x2563EB), Color(hex: 0x3B82F6)],
+            figureTint: Color(hex: 0x3B82F6), barBackground: Color(hex: 0x2563EB).opacity(0.15))
+        let strTheme = ActivityTheme(icon: "figure.strengthtraining.traditional", label: "Strength",
+            barColors: [Color(hex: 0xEF4444), Color(hex: 0xDC2626)],
+            figureTint: Color(hex: 0xEF4444), barBackground: Color(hex: 0xEF4444).opacity(0.15))
+        let hikeTheme = ActivityTheme(icon: "figure.hiking", label: "Hiking",
+            barColors: [Color(hex: 0x22C55E), Color(hex: 0x15803D)],
+            figureTint: Color(hex: 0x22C55E), barBackground: Color(hex: 0x22C55E).opacity(0.15))
+        let walkTheme = ActivityTheme(icon: "figure.walk", label: "Walking",
             barColors: [Color(hex: 0x22C55E), Color(hex: 0x16A34A)],
-            figureTint: Color(hex: 0x22C55E),
-            barBackground: Color(hex: 0x22C55E).opacity(0.15)
-        )
+            figureTint: Color(hex: 0x22C55E), barBackground: Color(hex: 0x22C55E).opacity(0.15))
+
+        // 1. Match from modelId (most reliable — e.g. "fitness.cycling@1")
+        let modelId = (detail.modelId ?? "").lowercased()
+        if modelId.contains("swimming")  { return swimTheme }
+        if modelId.contains("cycling")   { return cycleTheme }
+        if modelId.contains("distance")  { return runTheme }
+        if modelId.contains("strength")  { return strTheme }
+        if modelId.contains("hiking")    { return hikeTheme }
+        if modelId.contains("steps")     { return walkTheme }
+
+        // 2. Match from metric (rules-based)
+        let metric = detail.rules?.metric ?? ""
+        if metric == "swimming_km"       { return swimTheme }
+        if metric == "cycling_km"        { return cycleTheme }
+        if metric == "distance" || metric == "distance_km" { return runTheme }
+        if metric == "strength_sessions" { return strTheme }
+        if metric == "hiking_km"         { return hikeTheme }
+        if metric == "steps"             { return walkTheme }
+
+        // 3. Match from tags
+        let tags = (detail.tags ?? []).joined(separator: " ").lowercased()
+        if tags.contains("swimming")  { return swimTheme }
+        if tags.contains("cycling")   { return cycleTheme }
+        if tags.contains("running")   { return runTheme }
+        if tags.contains("strength")  { return strTheme }
+        if tags.contains("hiking")    { return hikeTheme }
+        if tags.contains("walking")   { return walkTheme }
+
+        // 4. Fallback: keyword search in title + description
+        let text = [(detail.title ?? ""), (detail.description ?? "")].joined(separator: " ").lowercased()
+        if text.contains("swim") || text.contains("pool")  { return swimTheme }
+        if text.contains("cycl") || text.contains("bike") || text.contains("ride") { return cycleTheme }
+        if text.contains("run")  || text.contains("marathon") || text.contains("jog") { return runTheme }
+        if text.contains("strength") || text.contains("lift") || text.contains("weight") { return strTheme }
+        if text.contains("hik")  || text.contains("trail") || text.contains("climb") { return hikeTheme }
+
+        return walkTheme
     }
 }
 
@@ -200,6 +186,7 @@ struct ChallengeProgressHero: View {
     let participantStatus: ParticipantStatus?
     let healthService: HealthKitService
 
+    @EnvironmentObject private var appState: AppState
     @State private var animatedProgress: Double = 0
     @State private var currentValue: Double = 0
     @State private var goalValue: Double = 0
@@ -219,12 +206,13 @@ struct ChallengeProgressHero: View {
             // Phase timer pill
             phasePill
 
-            // Activity figure
-            activityFigure
+            // Progress ring with SF Symbol
+            progressRing
+                .scaleEffect(figureAppeared ? 1.0 : 0.3)
+                .opacity(figureAppeared ? 1.0 : 0.0)
 
-            // Progress bar — only when we have a goal
+            // Numeric progress below ring
             if goalValue > 0 {
-                progressBar
                 progressLabel
             }
 
@@ -241,7 +229,7 @@ struct ChallengeProgressHero: View {
                     .lineLimit(3)
             }
 
-            // Activity type label when no progress bar
+            // Activity type label when no progress data
             if goalValue == 0 {
                 Text(theme.label)
                     .font(.caption.weight(.semibold))
@@ -261,7 +249,6 @@ struct ChallengeProgressHero: View {
         )
         .task { await loadProgress() }
         .onAppear {
-            // Trigger figure entrance animation
             withAnimation(.spring(response: 0.6, dampingFraction: 0.6).delay(0.2)) {
                 figureAppeared = true
             }
@@ -284,42 +271,29 @@ struct ChallengeProgressHero: View {
         .clipShape(Capsule())
     }
 
-    // MARK: - Activity Figure
+    // MARK: - Progress Ring
 
-    private var activityFigure: some View {
-        ActivityFigureView(theme: theme, isActive: phase.isActive)
-            .scaleEffect(figureAppeared ? 1.0 : 0.3)
-            .opacity(figureAppeared ? 1.0 : 0.0)
-            .padding(.vertical, LC.space4)
+    private var ringState: RingState {
+        // Completed challenge
+        if case .finalized(let passed) = phase, passed == true {
+            return .complete
+        }
+        // Has real progress data
+        if animatedProgress > 0 {
+            return .progress(animatedProgress)
+        }
+        // Active but no data yet — show empty
+        return .empty
     }
 
-    // MARK: - Themed Progress Bar
-
-    private var progressBar: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                // Track background
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(theme.barBackground)
-                    .frame(height: 12)
-
-                // Filled portion with gradient
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: theme.barColors,
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(
-                        width: max(0, min(geo.size.width, geo.size.width * animatedProgress)),
-                        height: 12
-                    )
-            }
-        }
-        .frame(height: 12)
-        .padding(.horizontal, LC.space8)
+    private var progressRing: some View {
+        ChallengeProgressRing(
+            state: ringState,
+            symbol: theme.icon,
+            color: theme.barColors.first ?? theme.figureTint,
+            diameter: 180,
+            lineWidth: 20
+        )
     }
 
     // MARK: - Numeric Progress
@@ -356,34 +330,57 @@ struct ChallengeProgressHero: View {
 
         guard end > start else { return }
 
-        // Collect HealthKit data for the challenge window
+        // 1. Try HealthKit first (on-device data)
+        var hkValue: Double = 0
         await healthService.ensureAuthorization()
         await healthService.collectEvidence(from: start, to: end)
 
-        // Compute current value based on metric
-        let value: Double
+        // Capture HealthKit arrays immediately (avoid race with other views)
+        let steps = healthService.stepDays
+        let distances = healthService.distanceDays
+        let cycling = healthService.cyclingDays
+        let swimming = healthService.swimmingDays
+        let energy = healthService.activeEnergyDays
+
         switch rules.metric {
         case "steps":
-            value = Double(healthService.stepDays.reduce(0) { $0 + $1.steps })
-        case "distance":
-            value = healthService.distanceDays.reduce(0) { $0 + $1.distanceMeters } / 1000.0
+            hkValue = Double(steps.reduce(0) { $0 + $1.steps })
+        case "distance", "distance_km":
+            hkValue = distances.reduce(0) { $0 + $1.distanceMeters } / 1000.0
         case "active_minutes":
-            value = healthService.activeEnergyDays.reduce(0) { $0 + $1.kilocalories } / 5.0
+            hkValue = energy.reduce(0) { $0 + $1.kilocalories } / 5.0
         case "cycling_km":
-            value = healthService.cyclingDays.reduce(0) { $0 + $1.distanceMeters } / 1000.0
+            hkValue = cycling.reduce(0) { $0 + $1.distanceMeters } / 1000.0
         case "swimming_km":
-            value = healthService.swimmingDays.reduce(0) { $0 + $1.distanceMeters } / 1000.0
+            hkValue = swimming.reduce(0) { $0 + $1.distanceMeters } / 1000.0
+        case "hiking_km":
+            // Hiking uses walking distance as proxy (HealthKit doesn't separate hiking)
+            hkValue = distances.reduce(0) { $0 + $1.distanceMeters } / 1000.0
+        case "strength_sessions":
+            // HealthKit doesn't track strength sessions directly — rely on server progress
+            hkValue = 0
         default:
-            value = Double(healthService.stepDays.reduce(0) { $0 + $1.steps })
+            hkValue = Double(steps.reduce(0) { $0 + $1.steps })
         }
 
+        // 2. Fetch server-side progress (from submitted evidence)
+        var serverValue: Double = 0
+        if appState.hasWallet {
+            if let sp = try? await APIClient.shared.fetchMyProgress(
+                baseURL: appState.serverURL,
+                challengeId: detail.id,
+                subject: appState.walletAddress
+            ) {
+                serverValue = sp.currentValue ?? 0
+                // Update goal from server if available (may be more accurate)
+                if let sg = sp.goalValue, sg > 0 { goalValue = sg }
+            }
+        }
+
+        // 3. Use whichever is higher — HealthKit is real-time, server is submitted evidence
+        let value = max(hkValue, serverValue)
         currentValue = value
-        let progress = min(1.0, value / goal)
-
-        // Spring animation — overshoot then settle, like Apple Fitness
-        withAnimation(.spring(response: 0.8, dampingFraction: 0.7, blendDuration: 0.3)) {
-            animatedProgress = progress
-        }
+        animatedProgress = min(1.0, value / goalValue)
     }
 
     private func formatValue(_ value: Double) -> String {

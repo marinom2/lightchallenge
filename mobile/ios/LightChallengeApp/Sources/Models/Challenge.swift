@@ -80,6 +80,9 @@ struct ChallengeMeta: Identifiable, Codable {
         if let mid = modelId?.lowercased() {
             let gamePrefixes = ["dota", "lol", "cs2"]
             if gamePrefixes.contains(where: { mid.hasPrefix($0) }) { return .gaming }
+            // Provider-agnostic fitness models (fitness.steps@1, fitness.cycling@1, etc.)
+            if mid.hasPrefix("fitness.") { return .fitness }
+            // Legacy provider-specific models
             let fitPrefixes = ["apple", "strava", "garmin", "fitbit", "googlefit"]
             if fitPrefixes.contains(where: { mid.hasPrefix($0) }) { return .fitness }
         }
@@ -185,10 +188,12 @@ struct ChallengeRules: Codable {
     var metricLabel: String {
         switch metric {
         case "steps": return "steps"
-        case "distance": return "km"
+        case "distance", "distance_km": return "km"
         case "active_minutes": return "min"
         case "cycling_km": return "km"
         case "swimming_km": return "km"
+        case "hiking_km": return "km"
+        case "strength_sessions": return "sessions"
         default: return metric ?? ""
         }
     }
@@ -196,10 +201,12 @@ struct ChallengeRules: Codable {
     var metricName: String {
         switch metric {
         case "steps": return "Steps"
-        case "distance": return "Distance"
+        case "distance", "distance_km": return "Distance"
         case "active_minutes": return "Active Minutes"
         case "cycling_km": return "Cycling"
         case "swimming_km": return "Swimming"
+        case "hiking_km": return "Hiking"
+        case "strength_sessions": return "Strength"
         default: return metric?.capitalized ?? "Activity"
         }
     }
@@ -445,6 +452,17 @@ struct TimelineEvent: Codable, Identifiable {
         guard let ts = timestamp, ts > 0 else { return nil }
         return Date(timeIntervalSince1970: ts)
     }
+}
+
+// MARK: - Server Progress (from GET /api/challenge/[id]/my-progress)
+
+struct ServerProgress: Codable {
+    let metric: String?
+    let metricLabel: String?
+    let currentValue: Double?
+    let goalValue: Double?
+    let progress: Double?
+    let updatedAt: String?
 }
 
 // MARK: - Participant Status (from GET /api/challenge/[id]/participant)

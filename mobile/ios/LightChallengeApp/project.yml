@@ -15,9 +15,6 @@ packages:
   reown-swift:
     url: https://github.com/reown-com/reown-swift
     from: "1.0.0"
-  lottie-spm:
-    url: https://github.com/airbnb/lottie-spm
-    from: "4.4.0"
 
 targets:
   LightChallengeApp:
@@ -49,8 +46,6 @@ targets:
     dependencies:
       - package: reown-swift
         product: ReownAppKit
-      - package: lottie-spm
-        product: Lottie
       # Widget extension temporarily disabled — needs provisioning profile setup
       # - target: LightChallengeWidgetExtension
 

@@ -14,10 +14,7 @@ struct CategoryDetailView: View {
     @Environment(\.colorScheme) private var scheme
 
     private var categoryChallenges: [ChallengeMeta] {
-        if fitnessType == .all {
-            return challenges
-        }
-        return challenges.filter { fitnessType.matches($0) }
+        challenges.filter { fitnessType.matches($0) }
     }
 
     private var activeChallenges: [ChallengeMeta] {

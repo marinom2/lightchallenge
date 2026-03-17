@@ -17,6 +17,7 @@ struct LightChallengeApp: App {
     @StateObject private var notificationService = NotificationService.shared
     @StateObject private var avatarService = AvatarService.shared
     @State private var showSplash = true
+    @State private var showOnboarding = true
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
@@ -115,11 +116,16 @@ struct LightChallengeApp: App {
                     showSplash = false
                 }
             }
-        } else if appState.hasCompletedOnboarding {
-            MainTabView()
-                .transition(.opacity)
+        } else if showOnboarding {
+            OnboardingView(dismiss: {
+                withAnimation(.easeInOut(duration: 0.4)) {
+                    showOnboarding = false
+                }
+                appState.hasCompletedOnboarding = true
+            })
+            .transition(.opacity)
         } else {
-            OnboardingView()
+            MainTabView()
                 .transition(.opacity)
         }
     }

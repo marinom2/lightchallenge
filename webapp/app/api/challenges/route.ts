@@ -47,6 +47,11 @@ export type ChallengeMeta = {
     [key: string]: any;
   } | null;
 
+  // Flattened timeline dates (unix seconds) for mobile
+  startsAt?: number | null;
+  endsAt?: number | null;
+  proofDeadline?: number | null;
+
   timeline?: {
     joinClosesAt?: string | null;
     startsAt?: string | null;
@@ -271,7 +276,21 @@ function rowToMeta(row: ChallengeRow): ChallengeMeta {
     timeline: row.timeline ?? undefined,
     funds: row.funds ?? undefined,
     options: row.options ?? undefined,
+
+    // Flatten timeline dates as unix seconds for mobile clients
+    startsAt: isoToSec((row.timeline as any)?.startsAt),
+    endsAt: isoToSec((row.timeline as any)?.endsAt),
+    proofDeadline: isoToSec((row.timeline as any)?.proofDeadline),
   };
+}
+
+/** Convert ISO-8601 string to unix seconds, or null. */
+function isoToSec(v: unknown): number | null {
+  if (v == null) return null;
+  if (typeof v === "number") return v > 1e12 ? Math.floor(v / 1000) : v;
+  if (typeof v !== "string") return null;
+  const ms = new Date(v).getTime();
+  return Number.isFinite(ms) ? Math.floor(ms / 1000) : null;
 }
 
 async function getAllRows(filters?: {

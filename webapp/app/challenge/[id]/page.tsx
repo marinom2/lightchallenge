@@ -39,6 +39,7 @@ import { SkeletonLine, HeroSummarySkeleton, PrimaryActionSkeleton } from "./comp
 import { StatusCapsule, HeroProgress } from "./components/HeroSection";
 import { PrimaryActionCard, JoinCard } from "./components/ActionCards";
 import { CollapsiblePanel, ActionRow, TabBar, DLGrid, ChainTimeline } from "./components/DetailPanels";
+import { ActivityFigure, detectActivity } from "./components/ActivityFigure";
 
 
 type LI = Lucide.LucideIcon;
@@ -1576,6 +1577,17 @@ const primaryAction = React.useMemo(() => {
         <StatusCapsule label={publicStatus.label} note={publicStatus.note} />
         <span className="cd-id">#{id ?? "—"}</span>
       </div>
+
+      {/* Activity figure */}
+      {data?.category === "Fitness" && (
+        <div className="flex justify-center py-2">
+          <ActivityFigure
+            activity={detectActivity({ title: metaTitle, description: metaDesc, modelId: data?.modelId, game: data?.game, tags: data?.tags })}
+            size={120}
+            isActive={effectiveStatus === "Active"}
+          />
+        </div>
+      )}
 
       {isInitialLoading ? (
         <div className="cd-title-skeleton">
