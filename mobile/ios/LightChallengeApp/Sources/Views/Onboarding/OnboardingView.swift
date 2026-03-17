@@ -1,39 +1,34 @@
 // OnboardingView.swift
-// 4-page onboarding: Welcome → Browse Challenges → Apple Health → Connect Wallet.
-// Shows every launch. "Skip to app" always visible.
+// 3-page onboarding: Intro → Value → Connect Activity.
+// "Skip for now" always visible. No wallet page, no auto-permission prompts.
 
 import SwiftUI
 
 struct OnboardingView: View {
     let dismiss: () -> Void
     @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var walletManager: WalletManager
     @EnvironmentObject private var healthService: HealthKitService
     @State private var currentPage = 0
-    @State private var showWalletSheet = false
-    @State private var challenges: [ChallengeMeta] = []
+    @State private var selectedProvider: ActivityProvider?
     @State private var logoVisible = false
     @State private var logoGlow = false
-    @State private var healthConnected = false
-    @State private var todaySteps: Int = 0
     @Environment(\.colorScheme) private var scheme
 
-    private let pageCount = 4
+    private let pageCount = 3
 
     var body: some View {
         ZStack {
             ambientBackground
 
             VStack(spacing: 0) {
-                // Progress bar (thin, top)
+                // Progress bar
                 progressBar
                     .padding(.top, LC.space8)
 
                 TabView(selection: $currentPage) {
-                    welcomePage.tag(0)
-                    browsePage.tag(1)
-                    healthPage.tag(2)
-                    walletPage.tag(3)
+                    introPage.tag(0)
+                    valuePage.tag(1)
+                    connectPage.tag(2)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.spring(response: 0.4, dampingFraction: 0.9), value: currentPage)
@@ -44,25 +39,8 @@ struct OnboardingView: View {
                     .padding(.bottom, LC.space32)
             }
         }
-        .sheet(isPresented: $showWalletSheet) {
-            WalletSheet()
-                .interactiveDismissDisabled(walletManager.isConnecting)
-                .onDisappear {
-                    if walletManager.isConnected {
-                        dismiss()
-                    }
-                }
-        }
         .onChange(of: currentPage) { _, _ in
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        }
-        .task {
-            // Prefetch challenges for page 2
-            if let fetched = try? await APIClient.shared.fetchChallenges(baseURL: appState.serverURL) {
-                challenges = fetched
-                    .filter { $0.isActive && $0.resolvedCategory.isFitness }
-                    .sorted { ($0.createdAt ?? 0) > ($1.createdAt ?? 0) }
-            }
         }
     }
 
@@ -86,72 +64,52 @@ struct OnboardingView: View {
     // MARK: - Bottom Controls
 
     private var bottomControls: some View {
-        VStack(spacing: LC.space12) {
-            // Primary action
-            switch currentPage {
-            case 0, 1:
+        VStack(spacing: LC.space16) {
+            // Primary CTA
+            if currentPage < 2 {
                 Button {
                     withAnimation { currentPage += 1 }
                 } label: {
                     Text("Continue")
                 }
                 .buttonStyle(LCGoldButton())
-
-            case 2:
-                if healthConnected {
-                    Button {
-                        withAnimation { currentPage += 1 }
-                    } label: {
-                        Label("Continue", systemImage: "checkmark.circle.fill")
-                    }
-                    .buttonStyle(LCGoldButton())
-                } else {
-                    Button {
-                        Task { await connectHealth() }
-                    } label: {
-                        Label("Connect Apple Health", systemImage: "heart.fill")
-                    }
-                    .buttonStyle(LCGoldButton())
-
-                    Button {
-                        withAnimation { currentPage += 1 }
-                    } label: {
-                        Text("Not now")
-                    }
-                    .font(.subheadline)
-                    .foregroundStyle(LC.textSecondary(scheme))
-                }
-
-            case 3:
+            } else {
+                // Page 3: Connect
                 Button {
-                    showWalletSheet = true
+                    Task { await handleConnect() }
                 } label: {
-                    Label("Connect Wallet", systemImage: "wallet.bifold")
+                    Text("Continue")
                 }
                 .buttonStyle(LCGoldButton())
-
-                Button("Explore Without Wallet") {
-                    dismiss()
-                }
-                .font(.subheadline)
-                .foregroundStyle(LC.textSecondary(scheme))
-
-            default:
-                EmptyView()
             }
 
-            // Persistent "Skip to app" — bottom-left, always visible
-            if currentPage < 3 {
-                HStack {
-                    Button("Skip to app") {
-                        dismiss()
-                    }
-                    .font(.footnote)
+            // "Skip for now" — centered, 44pt tap area
+            Button {
+                dismiss()
+            } label: {
+                Text("Skip for now")
+                    .font(.subheadline)
                     .foregroundStyle(LC.textTertiary(scheme))
-                    Spacer()
-                }
+                    .frame(height: 44)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Connect Handler
+
+    private func handleConnect() async {
+        if let provider = selectedProvider {
+            switch provider {
+            case .appleHealth:
+                await healthService.requestAuthorization()
+            case .strava, .fitbit, .garmin:
+                // Third-party providers connect via Settings after onboarding
+                break
             }
         }
+        dismiss()
     }
 
     // MARK: - Ambient Background
@@ -188,9 +146,9 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Page 1: Welcome (minimal)
+    // MARK: - Page 1: Intro — "Do the work."
 
-    private var welcomePage: some View {
+    private var introPage: some View {
         VStack(spacing: LC.space24) {
             Spacer()
 
@@ -198,7 +156,7 @@ struct OnboardingView: View {
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [LC.gold.opacity(logoGlow ? 0.18 : 0.06), .clear],
+                            colors: [LC.accent.opacity(logoGlow ? 0.18 : 0.06), .clear],
                             center: .center,
                             startRadius: 40,
                             endRadius: 90
@@ -226,18 +184,13 @@ struct OnboardingView: View {
             }
 
             VStack(spacing: LC.space12) {
-                Text("LightChallenge")
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                Text("Do the work.")
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundStyle(LC.textPrimary(scheme))
 
-                Text("Stake. Prove. Earn.")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(LC.gold)
-
-                Text("Compete in fitness challenges with real stakes. Prove your activity, win the pool.")
-                    .font(.subheadline)
+                Text("We count the rest.")
+                    .font(.title3.weight(.medium))
                     .foregroundStyle(LC.textSecondary(scheme))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, LC.space16)
             }
 
             Spacer()
@@ -246,259 +199,188 @@ struct OnboardingView: View {
         .padding(.horizontal, LC.space24)
     }
 
-    // MARK: - Page 2: Browse Live Challenges (the hook)
+    // MARK: - Page 2: Value — "Activity is your proof"
 
-    private var browsePage: some View {
-        VStack(spacing: LC.space20) {
+    private var valuePage: some View {
+        VStack(spacing: LC.space32) {
             Spacer()
 
-            Text("Live Challenges")
-                .font(.title2.weight(.bold))
-
-            Text("Real people, real stakes. Pick one that fits your lifestyle.")
-                .font(.subheadline)
-                .foregroundStyle(LC.textSecondary(scheme))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, LC.space16)
-
-            if challenges.isEmpty {
-                // Shimmer placeholders
-                VStack(spacing: LC.space12) {
-                    ForEach(0..<3) { _ in
-                        ShimmerView()
-                            .frame(height: 80)
-                            .clipShape(RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous))
-                    }
-                }
-                .padding(.horizontal, LC.space8)
-            } else {
-                VStack(spacing: LC.space12) {
-                    ForEach(challenges.prefix(3)) { challenge in
-                        challengePreviewCard(challenge)
-                    }
-                }
-                .padding(.horizontal, LC.space8)
-            }
-
-            if challenges.count > 3 {
-                Text("+ \(challenges.count - 3) more active")
-                    .font(.caption)
-                    .foregroundStyle(LC.textTertiary(scheme))
-            }
-
-            Spacer()
-        }
-        .padding(.horizontal, LC.space24)
-    }
-
-    private func challengePreviewCard(_ c: ChallengeMeta) -> some View {
-        let theme = fitnessTheme(for: c)
-        return HStack(spacing: LC.space12) {
-            // Activity icon
-            Image(systemName: theme.icon)
-                .font(.system(size: 22, weight: .medium))
-                .foregroundStyle(theme.color)
-                .frame(width: 44, height: 44)
-                .background(theme.color.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous))
-
-            VStack(alignment: .leading, spacing: LC.space2) {
-                Text(c.displayTitle)
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
-
-                HStack(spacing: LC.space6) {
-                    if let stake = c.stakeDisplay {
-                        Text(stake)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(LC.accent)
-                    }
-                    if let end = c.endsDate {
-                        let days = max(0, Int(end.timeIntervalSinceNow / 86400))
-                        Text("\(days)d left")
-                            .font(.caption)
-                            .foregroundStyle(LC.textTertiary(scheme))
-                    }
-                }
-            }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(LC.textTertiary(scheme))
-        }
-        .padding(LC.space12)
-        .background(
-            RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
-                .fill(LC.cardBg(scheme))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
-                .stroke(LC.cardBorder(scheme), lineWidth: 0.5)
-        )
-    }
-
-    /// Quick theme lookup for a ChallengeMeta (lightweight, no ChallengeDetail needed).
-    private func fitnessTheme(for c: ChallengeMeta) -> (icon: String, color: Color) {
-        let all = [c.displayTitle, c.displayDescription, c.modelId ?? "", (c.tags ?? []).joined(separator: " ")].joined(separator: " ").lowercased()
-        if all.contains("swim") || all.contains("pool") { return ("figure.pool.swim", Color(hex: 0x06B6D4)) }
-        if all.contains("cycl") || all.contains("bike") { return ("figure.outdoor.cycle", Color(hex: 0xF97316)) }
-        if all.contains("run") || all.contains("marathon") || all.contains("jog") { return ("figure.run", Color(hex: 0x2563EB)) }
-        if all.contains("strength") || all.contains("lift") || all.contains("weight") { return ("figure.strengthtraining.traditional", Color(hex: 0xEF4444)) }
-        if all.contains("hik") || all.contains("trail") { return ("figure.hiking", Color(hex: 0x22C55E)) }
-        return ("figure.walk", Color(hex: 0x22C55E))
-    }
-
-    // MARK: - Page 3: Connect Apple Health
-
-    private var healthPage: some View {
-        VStack(spacing: LC.space24) {
-            Spacer()
-
-            ZStack {
-                Circle()
-                    .fill(LC.danger.opacity(0.12))
-                    .frame(width: 88, height: 88)
-                Image(systemName: "heart.fill")
-                    .font(.system(size: 36, weight: .semibold))
-                    .foregroundStyle(LC.danger)
-            }
-
-            VStack(spacing: LC.space12) {
-                Text("Connect Apple Health")
-                    .font(.title2.weight(.bold))
-
-                Text("Your activity is your proof. We read steps, distance, and workouts — nothing else.")
-                    .font(.subheadline)
-                    .foregroundStyle(LC.textSecondary(scheme))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, LC.space16)
-            }
-
-            // After connection: show today's steps
-            if healthConnected {
-                VStack(spacing: LC.space8) {
-                    HStack(spacing: LC.space8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(LC.success)
-                        Text("Connected")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(LC.success)
-                    }
-
-                    if todaySteps > 0 {
-                        HStack(spacing: LC.space4) {
-                            Image(systemName: "figure.walk")
-                                .font(.system(size: 14))
-                                .foregroundStyle(Color(hex: 0x22C55E))
-                            Text("Today: \(todaySteps.formatted()) steps")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(LC.textPrimary(scheme))
-                        }
-                        .padding(.horizontal, LC.space16)
-                        .padding(.vertical, LC.space8)
-                        .background(
-                            Capsule().fill(Color(hex: 0x22C55E).opacity(0.08))
-                        )
-                    }
-                }
-                .transition(.scale.combined(with: .opacity))
-            }
-
-            // Privacy note
-            HStack(spacing: LC.space8) {
-                Image(systemName: "lock.shield.fill")
-                    .font(.caption)
-                    .foregroundStyle(LC.textTertiary(scheme))
-                Text("Data stays on your device until you submit proof")
-                    .font(.caption)
-                    .foregroundStyle(LC.textTertiary(scheme))
-            }
-            .padding(.top, LC.space4)
-
-            Spacer()
-            Spacer()
-        }
-        .padding(.horizontal, LC.space24)
-    }
-
-    // MARK: - Page 4: Connect Wallet
-
-    private var walletPage: some View {
-        VStack(spacing: LC.space24) {
-            Spacer()
-
-            ZStack {
-                Circle()
-                    .fill(LC.gradBlue.opacity(0.12))
-                    .frame(width: 88, height: 88)
-                Image(systemName: "wallet.bifold.fill")
-                    .font(.system(size: 36, weight: .semibold))
-                    .foregroundStyle(LC.gradBlue)
-            }
-
-            VStack(spacing: LC.space12) {
-                Text("Connect Your Wallet")
-                    .font(.title2.weight(.bold))
-
-                Text("Stake to join challenges and claim rewards on LightChain.")
-                    .font(.subheadline)
-                    .foregroundStyle(LC.textSecondary(scheme))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, LC.space16)
-            }
-
-            // Wallet logos
             VStack(spacing: LC.space8) {
-                Text("Supports 300+ wallets")
-                    .font(.caption)
-                    .foregroundStyle(LC.textTertiary(scheme))
+                Text("Activity is your proof.")
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .foregroundStyle(LC.textPrimary(scheme))
+                    .multilineTextAlignment(.center)
 
-                HStack(spacing: LC.space16) {
-                    walletLogo(wallet: KnownWallet.metaMask)
-                    walletLogo(wallet: KnownWallet.phantom)
-                    walletLogo(wallet: KnownWallet.trust)
-                    walletLogo(wallet: KnownWallet.rainbow)
-                }
+                Text("Only real results count.")
+                    .font(.title3.weight(.medium))
+                    .foregroundStyle(LC.success)
+                    .multilineTextAlignment(.center)
             }
-            .padding(LC.space16)
+
+            // Value propositions
+            VStack(alignment: .leading, spacing: LC.space24) {
+                valueRow(icon: "figure.run", title: "Move your way", subtitle: "Walk, run, cycle — any activity counts")
+                valueRow(icon: "checkmark.shield.fill", title: "Verified by data", subtitle: "Your fitness tracker proves completion")
+                valueRow(icon: "trophy.fill", title: "Earn rewards", subtitle: "Hit the goal, claim what you've won")
+            }
+            .padding(.horizontal, LC.space4)
+
+            Spacer()
+            Spacer()
+        }
+        .padding(.horizontal, LC.space24)
+    }
+
+    private func valueRow(icon: String, title: String, subtitle: String) -> some View {
+        HStack(spacing: LC.space16) {
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(LC.accent)
+                .frame(width: 48, height: 48)
+                .background(LC.accent.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(LC.textPrimary(scheme))
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(LC.textSecondary(scheme))
+            }
+
+            Spacer()
+        }
+    }
+
+    // MARK: - Page 3: Connect Activity
+
+    private var connectPage: some View {
+        VStack(spacing: LC.space24) {
+            Spacer()
+
+            VStack(spacing: LC.space12) {
+                Text("Connect Your Activity")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(LC.textPrimary(scheme))
+                    .multilineTextAlignment(.center)
+
+                Text("Choose how to connect.")
+                    .font(.title3.weight(.medium))
+                    .foregroundStyle(LC.textSecondary(scheme))
+                    .multilineTextAlignment(.center)
+            }
+
+            // Provider cards
+            VStack(spacing: LC.space12) {
+                providerCard(.appleHealth, recommended: true)
+                providerCard(.strava, recommended: false)
+                providerCard(.fitbit, recommended: false)
+                providerCard(.garmin, recommended: false)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, LC.space24)
+    }
+
+    private func providerCard(_ provider: ActivityProvider, recommended: Bool) -> some View {
+        let isSelected = selectedProvider == provider
+
+        return Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                selectedProvider = isSelected ? nil : provider
+            }
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } label: {
+            HStack(spacing: LC.space12) {
+                Image(systemName: provider.icon)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(provider.color)
+                    .frame(width: 44, height: 44)
+                    .background(provider.color.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous))
+
+                VStack(alignment: .leading, spacing: LC.space2) {
+                    HStack(spacing: LC.space6) {
+                        Text(provider.label)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(LC.textPrimary(scheme))
+
+                        if recommended {
+                            Text("Recommended")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(LC.accent)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(LC.accent.opacity(0.1))
+                                .clipShape(Capsule())
+                        }
+                    }
+
+                    Text(provider.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(LC.textTertiary(scheme))
+                }
+
+                Spacer()
+
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 22))
+                    .foregroundStyle(isSelected ? LC.accent : LC.textTertiary(scheme).opacity(0.4))
+            }
+            .padding(LC.space12)
             .background(
-                RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
+                RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
                     .fill(LC.cardBg(scheme))
             )
-
-            Spacer()
-            Spacer()
+            .overlay(
+                RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
+                    .stroke(isSelected ? LC.accent : LC.cardBorder(scheme), lineWidth: isSelected ? 1.5 : 0.5)
+            )
         }
-        .padding(.horizontal, LC.space24)
+        .buttonStyle(.plain)
     }
+}
 
-    // MARK: - Helpers
+// MARK: - Activity Provider
 
-    private func connectHealth() async {
-        await healthService.requestAuthorization()
-        if healthService.isAuthorized {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                healthConnected = true
-            }
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
+private enum ActivityProvider: Hashable {
+    case appleHealth, strava, fitbit, garmin
 
-            // Fetch today's steps for instant personalization
-            let start = Calendar.current.startOfDay(for: Date())
-            await healthService.collectEvidence(from: start, to: Date())
-            let steps = healthService.stepDays.reduce(0) { $0 + $1.steps }
-            withAnimation { todaySteps = steps }
+    var label: String {
+        switch self {
+        case .appleHealth: "Apple Health"
+        case .strava: "Strava"
+        case .fitbit: "Fitbit"
+        case .garmin: "Garmin"
         }
     }
 
-    private func walletLogo(wallet: (id: String, name: String, color: Color)) -> some View {
-        VStack(spacing: LC.space6) {
-            RemoteWalletIcon(walletId: wallet.id, name: wallet.name, brandColor: wallet.color, size: 48)
+    var subtitle: String {
+        switch self {
+        case .appleHealth: "Steps, workouts, and more"
+        case .strava: "Runs, rides, and activities"
+        case .fitbit: "Steps and daily activity"
+        case .garmin: "Workouts and fitness data"
+        }
+    }
 
-            Text(wallet.name)
-                .font(.system(size: 10))
-                .foregroundStyle(LC.textSecondary(scheme))
+    var icon: String {
+        switch self {
+        case .appleHealth: "heart.fill"
+        case .strava: "figure.run"
+        case .fitbit: "waveform.path.ecg"
+        case .garmin: "applewatch"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .appleHealth: LC.danger
+        case .strava: Color(hex: 0xFC4C02)
+        case .fitbit: Color(hex: 0x00B0B9)
+        case .garmin: Color(hex: 0x007CC3)
         }
     }
 }

@@ -72,12 +72,60 @@ struct ProfileView: View {
                     Label("Notifications", systemImage: "bell.fill")
                 }
 
+                // Wallet Security
+                if walletManager.isConnected {
+                    Section {
+                        HStack(spacing: LC.space12) {
+                            Image(systemName: "key.fill")
+                                .foregroundStyle(LC.warning)
+                                .frame(width: 28)
+                            VStack(alignment: .leading, spacing: LC.space2) {
+                                Text("Backup Wallet")
+                                    .font(.subheadline)
+                                Text("Make sure your seed phrase is stored safely")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+
+                        Button {
+                            if let url = URL(string: "https://testnet.lightchain.ai/address/\(appState.walletAddress)") {
+                                UIApplication.shared.open(url)
+                            }
+                        } label: {
+                            HStack(spacing: LC.space12) {
+                                Image(systemName: "arrow.left.arrow.right")
+                                    .foregroundStyle(LC.accent)
+                                    .frame(width: 28)
+                                VStack(alignment: .leading, spacing: LC.space2) {
+                                    Text("Transactions")
+                                        .font(.subheadline)
+                                        .foregroundStyle(LC.textPrimary(scheme))
+                                    Text("View on LightChain Explorer")
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
+                                }
+                                Spacer()
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                    } header: {
+                        Label("Wallet", systemImage: "shield.fill")
+                    }
+                }
+
                 // About
                 Section {
                     HStack {
                         Text("Version")
                         Spacer()
-                        Text("1.2.0 (3)")
+                        Text(Bundle.main.appVersionString)
                             .font(.caption.monospaced())
                             .foregroundStyle(.tertiary)
                     }
@@ -98,15 +146,24 @@ struct ProfileView: View {
                         }
                     }
 
-                    Button {
-                        Task { await CacheService.shared.clearAll() }
-                    } label: {
+                    Link(destination: URL(string: "https://lightchallenge.app")!) {
                         HStack {
-                            Text("Clear Cache")
+                            Text("Website")
                                 .foregroundStyle(LC.textPrimary(scheme))
                             Spacer()
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 12))
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+
+                    Link(destination: URL(string: "https://lightchallenge.app/learn")!) {
+                        HStack {
+                            Text("How It Works")
+                                .foregroundStyle(LC.textPrimary(scheme))
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(.tertiary)
                         }
                     }
@@ -426,5 +483,15 @@ struct ProfileView: View {
         case "garmin":  return "Syncs via Apple Health"
         default:        return "Connected"
         }
+    }
+}
+
+// MARK: - Bundle Version Helper
+
+extension Bundle {
+    var appVersionString: String {
+        let version = infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = infoDictionary?["CFBundleVersion"] as? String ?? "?"
+        return "\(version) (\(build))"
     }
 }

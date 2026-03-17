@@ -421,25 +421,6 @@ struct SettingsView: View {
                 .padding(.vertical, LC.space12)
             }
             .buttonStyle(.plain)
-
-            Divider().padding(.leading, LC.space16)
-
-            Button {
-                Task { await CacheService.shared.clearAll() }
-            } label: {
-                HStack {
-                    Text("Clear Cache")
-                        .font(.subheadline)
-                        .foregroundStyle(LC.textSecondary(scheme))
-                    Spacer()
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 12))
-                        .foregroundStyle(LC.textTertiary(scheme))
-                }
-                .padding(.horizontal, LC.space16)
-                .padding(.vertical, LC.space12)
-            }
-            .buttonStyle(.plain)
         }
         .background(
             RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
