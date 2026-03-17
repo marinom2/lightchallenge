@@ -138,11 +138,19 @@ stakes LCAI tokens via `ContractService.joinChallengeNative()`.
 Gaming challenges appear with a **"Desktop Only"** badge. Tapping opens `GamingHandoffView` with
 instructions to complete the challenge on the web app.
 
-### 2. Challenge Period
+### 2. Challenge Period (Active Progress Sync)
 
 After joining, the detail view shows **"Challenge In Progress"** with a countdown timer to the end date.
 The user completes the fitness activity (steps, running, cycling, etc.) during this period.
 The `Challenges` tab (`ChallengesView`) lists all joined/created challenges with live status.
+
+**Apple Health progress is pushed automatically** every ~15 minutes while the app is open.
+`AutoProofService.syncActiveProgress()` collects HealthKit data from the challenge start to the current time
+and uploads it to `/api/aivm/intake`. This keeps the progress ring on the challenge detail view up to date
+without waiting for the proof window.
+
+Server-side providers (Strava, Fitbit, OpenDota, Riot, FACEIT) are synced by the backend `progressSyncWorker`
+every 15 minutes — the iOS app does not need to take any action for these.
 
 ### 3. Proof Window
 
@@ -165,7 +173,7 @@ A `VictoryCelebrationView` animation plays on successful claims.
 
 ## Auto-Proof System
 
-`AutoProofService` is a `@MainActor` singleton that manages automatic proof collection and submission.
+`AutoProofService` is a `@MainActor` singleton that manages both **active-period progress sync** and **proof window auto-submission**.
 
 ### ProofStatus Enum
 
@@ -173,6 +181,8 @@ The service tracks per-challenge status via `@Published var status: [String: Pro
 
 | Status | Description | UI Icon |
 |--------|-------------|---------|
+| `syncing` | Active-period progress sync in progress | Rotating arrows |
+| `synced` | Progress pushed to server | Cloud checkmark |
 | `pending` | Queued for auto-submission | Rotating arrows |
 | `collectingHealth` | Reading Apple Health data | Rotating arrows |
 | `submitting` | Uploading evidence to server | Rotating arrows |
@@ -183,10 +193,21 @@ The service tracks per-challenge status via `@Published var status: [String: Pro
 | `waitingForWindow` | Challenge period has not ended yet | Clock badge |
 | `error(String)` | Submission failed with message | Warning triangle |
 
-### Trigger Conditions
+### Two Modes of Operation
 
-- `triggerAutoProof()` is called when the user views a challenge in the proof window.
-- `checkPendingChallenges()` batch-checks all joined challenges on app launch / foreground.
+**1. Active-Period Progress Sync** (during challenge: `startTs <= now < endTs`)
+
+- `syncActiveProgress()` pushes Apple Health data every ~15 minutes per challenge
+- `syncActiveChallenges()` batch-syncs all joined active challenges on app launch / foreground
+- Collects HealthKit data from challenge start to NOW (partial period)
+- Uploads to `/api/aivm/intake` — server upserts evidence for the `(challenge, subject, apple)` triple
+- Throttled to once per 15 minutes per challenge to avoid excessive uploads
+- Non-critical: failures silently fall back to `waitingForWindow`
+
+**2. Proof Window Auto-Submission** (after challenge ends: `endTs <= now < proofDeadlineTs`)
+
+- `triggerAutoProof()` is called when the user views a challenge in the proof window
+- `checkPendingChallenges()` batch-checks all joined challenges on app launch / foreground
 - Only triggers for fitness challenges (or unknown category). Gaming challenges are skipped.
 - Skips challenges that already have evidence or a verdict.
 - Allows retry from `error` or `waitingForWindow` states.
@@ -196,7 +217,10 @@ The service tracks per-challenge status via `@Published var status: [String: Pro
 ```
 triggerAutoProof(challengeId, challenge, appState, healthService)
   │
-  ├─ isInProofWindow? (endTs < now < proofDeadlineTs)
+  ├─ isInActivePeriod? (startTs <= now < endTs)
+  │   └─ Yes → syncActiveProgress() → push HealthKit data (start → now)
+  │
+  ├─ isInProofWindow? (endTs <= now < proofDeadlineTs)
   │   └─ No → status = .waitingForWindow
   │
   └─ Yes → autoSubmit()

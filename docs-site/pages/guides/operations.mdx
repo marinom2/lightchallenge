@@ -9,7 +9,7 @@ Reference guide for running the LightChallenge off-chain pipeline in development
 ```
 Provider APIs (Strava, Fitbit, FACEIT, OpenDota, Riot) + Manual uploads (Apple Health, Garmin, Google Fit)
         │
-        ▼ evidenceCollector (polls linked_accounts)
+        ▼ progressSyncWorker (active-period, every 15min) + evidenceCollector (proof-window, final reconciliation)
 public.evidence
         │
         ▼ evidenceEvaluator
@@ -78,8 +78,8 @@ Safe to re-run (upsert on conflict). Only needed if migrating from a pre-DB vers
 
 ## 3. Evidence Collector
 
-Polls `public.linked_accounts` for registered provider connections, fetches recent activity or
-match data from provider APIs, and stores normalized records in `public.evidence`.
+Finds challenges in their **proof submission window** and performs final reconciliation
+evidence collection. See the root `OPERATIONS.md` for full details.
 
 ```bash
 npx tsx offchain/workers/evidenceCollector.ts
@@ -88,24 +88,40 @@ npx tsx offchain/workers/evidenceCollector.ts
 | Env var | Default | Purpose |
 |---|---|---|
 | `EVIDENCE_COLLECTOR_POLL_MS` | `300000` | Milliseconds between polls (5 min) |
-| `EVIDENCE_COLLECTOR_LOOKBACK_DAYS` | `90` | Days of history to fetch per provider |
-
-**Auto-collection providers (polled by evidence collector):**
-- `strava` — OAuth, token auto-refresh, fetches activities (running, cycling, etc.)
-- `fitbit` — OAuth, token auto-refresh, fetches daily steps + activity logs
-- `opendota` — free API, fetches Dota 2 matches by Steam32 ID
-- `riot` — API key required, fetches LoL matches by PUUID
-- `faceit` — API key required, fetches CS2 matches by Steam64→FACEIT player ID
-
-**Upload-only providers (skipped by evidence collector — evidence via file upload):**
-- `apple` — no API; users upload Apple Health ZIP export
-- `garmin` — no public API (enterprise-only); users upload TCX/GPX/JSON export
-- `googlefit` — API deprecated by Google in 2025; users upload Google Takeout JSON
 
 **Writes to:** `public.evidence`
 
-**Note:** The collector skips insertion when the incoming `evidence_hash` matches the
-previous row for the same `(challenge_id, subject, provider)` — no duplicate rows.
+---
+
+## 3b. Progress Sync Worker
+
+Runs during **active challenges** to keep real-time progress updated. Syncs from ALL
+API-based providers every 15 minutes and performs a final reconciliation fetch during the proof window.
+
+```bash
+npx tsx offchain/workers/progressSyncWorker.ts
+```
+
+| Env var | Default | Purpose |
+|---|---|---|
+| `PROGRESS_SYNC_POLL_MS` | `900000` | Milliseconds between polls (15 min) |
+| `PROGRESS_SYNC_BATCH` | `50` | Max challenges per tick |
+
+**API-based providers synced automatically:**
+- `strava` — OAuth, token auto-refresh (fitness: running, cycling, swimming, etc.)
+- `fitbit` — OAuth, token auto-refresh (fitness: steps, activities)
+- `opendota` — free public API (gaming: Dota 2 matches)
+- `riot` — API key required (gaming: League of Legends matches)
+- `faceit` — API key required (gaming: CS2 matches)
+
+**Upload-only providers (NOT synced — no server-side API):**
+- `apple` — data pushed from iOS AutoProofService (HealthKit) every ~15 min during active period
+- `garmin` — users upload TCX/GPX/JSON export files
+- `googlefit` — API deprecated by Google in 2025; users upload Google Takeout JSON
+
+**Writes to:** `public.evidence` (upsert)
+
+**Production:** Included in `ecosystem.config.cjs` as `progress-sync`. Auto-starts with `pm2 start ecosystem.config.cjs`.
 
 ---
 
@@ -290,7 +306,8 @@ Run each in a separate terminal or process manager (e.g. PM2):
 npx tsx db/migrate.ts
 
 # Step 2 — Workers and indexers (run persistently)
-npx tsx offchain/workers/evidenceCollector.ts       # provider APIs → public.evidence
+npx tsx offchain/workers/progressSyncWorker.ts      # active-period progress sync (every 15min)
+npx tsx offchain/workers/evidenceCollector.ts       # proof-window final reconciliation
 npx tsx offchain/workers/evidenceEvaluator.ts       # public.evidence → public.verdicts
 npx tsx offchain/dispatchers/challengeDispatcher.ts # verdicts → public.aivm_jobs queue
 npx tsx offchain/workers/challengeWorker.ts         # aivm_jobs → requestInferenceV2 on-chain
@@ -298,12 +315,15 @@ npx tsx offchain/indexers/aivmIndexer.ts            # Lightchain AIVM events →
 npx tsx offchain/indexers/claimsIndexer.ts          # ChallengePay claim events → public.claims
 npx tsx offchain/indexers/statusIndexer.ts         # ChallengePay status events → challenges.status
 
+# OR start all workers via PM2 (production):
+pm2 start ecosystem.config.cjs
+
 # Webapp (can run at any time independently)
 cd webapp && npm run dev
 ```
 
 > **Dependency ordering:** `evidenceEvaluator` must be running before `challengeDispatcher`,
-> which must be running before `challengeWorker`. The indexers are independent.
+> which must be running before `challengeWorker`. The indexers and `progressSyncWorker` are independent.
 
 ---
 

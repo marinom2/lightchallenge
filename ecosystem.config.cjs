@@ -114,5 +114,20 @@ module.exports = {
         NODE_ENV: "production",
       },
     },
+    {
+      name: "progress-sync",
+      script: "npx",
+      args: "tsx offchain/workers/progressSyncWorker.ts",
+      cwd: __dirname,
+      restart_delay: 5000,
+      max_restarts: 50,
+      autorestart: true,
+      watch: false,
+      env: {
+        NODE_ENV: "production",
+        PROGRESS_SYNC_POLL_MS: "900000",
+        PROGRESS_SYNC_BATCH: "50",
+      },
+    },
   ],
 };

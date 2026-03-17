@@ -1,24 +1,29 @@
 /**
  * offchain/workers/progressSyncWorker.ts
  *
- * Background worker that periodically syncs progress from connected fitness
- * providers (Strava, Fitbit) during ACTIVE challenges.
+ * Background worker that periodically syncs progress from ALL connected
+ * API-based providers during ACTIVE challenges.
  *
- * Unlike the evidenceCollector (which runs only in the proof window after a
- * challenge ends), this worker runs throughout the challenge period to keep
- * real-time progress up to date.
+ * Supported providers:
+ *   Fitness: Strava (OAuth), Fitbit (OAuth)
+ *   Gaming:  OpenDota (public API), Riot (API key), FaceIT (API key)
+ *
+ * Upload-only providers (Apple Health, Garmin, Google Fit) are NOT synced
+ * by this worker — they have no server-side API. Instead:
+ *   - Apple Health: iOS AutoProofService pushes data from the device
+ *   - Garmin: Users upload TCX/GPX/JSON exports manually
+ *   - Google Fit: Users upload Google Takeout JSON manually
  *
  * Flow per tick:
- *   1. Find active challenges: startsAt <= now < endsAt
+ *   1. Find active challenges: startsAt <= now < proofDeadline
  *   2. For each, find participants with linked API-provider accounts
- *   3. Fetch latest activity data from the provider for the challenge period
+ *   3. Fetch latest activity data for the challenge period
  *   4. Upsert evidence row (replaces previous data from same provider)
  *   5. Progress is automatically visible via GET /api/challenge/{id}/my-progress
  *
  * When a challenge enters the proof window (challenge period ended, proof
  * deadline not yet passed), this worker performs a FINAL reconciliation
- * fetch to ensure the evidence is complete and accurate before the
- * evidenceEvaluator generates a verdict.
+ * fetch to ensure the evidence is complete and accurate.
  *
  * Env:
  *   DATABASE_URL              — required
@@ -43,8 +48,20 @@ import type { Pool } from "pg";
 const POLL_MS = Number(process.env.PROGRESS_SYNC_POLL_MS ?? 900_000); // 15 min
 const BATCH_SIZE = Number(process.env.PROGRESS_SYNC_BATCH ?? 50);
 
-// Providers with server-side API access (stored OAuth tokens)
-const FITNESS_API_PROVIDERS = new Set(["strava", "fitbit"]);
+/**
+ * All providers that support server-side data fetching.
+ * Fitness: OAuth tokens stored in linked_accounts
+ * Gaming: API key or public API — identity from identity_bindings or linked_accounts
+ *
+ * Excluded (upload-only, no server API):
+ *   apple, garmin, googlefit — data comes from device/manual upload
+ */
+const API_PROVIDERS = new Set([
+  // Fitness
+  "strava", "fitbit",
+  // Gaming
+  "opendota", "riot", "faceit",
+]);
 
 type ActiveChallenge = {
   challenge_id: string;
@@ -52,6 +69,7 @@ type ActiveChallenge = {
   end_ts: number;
   proof_deadline_ts: number;
   in_proof_window: boolean;
+  category: string | null;
 };
 
 type Participant = {
@@ -74,8 +92,6 @@ async function boot() {
  * Find challenges where progress sync is needed:
  *   - Active challenges: startsAt <= now < endsAt
  *   - Proof window challenges: endsAt <= now < proofDeadline (final reconciliation)
- *
- * Timeline timestamps are stored as ISO strings in the challenges.timeline JSONB.
  */
 async function getActiveChallenges(pool: Pool): Promise<ActiveChallenge[]> {
   const res = await pool.query<ActiveChallenge>(
@@ -90,7 +106,8 @@ async function getActiveChallenges(pool: Pool): Promise<ActiveChallenge[]> {
          AND EXTRACT(EPOCH FROM (c.timeline->>'proofDeadline')::timestamptz) > EXTRACT(EPOCH FROM now())
         THEN true
         ELSE false
-      END AS in_proof_window
+      END AS in_proof_window,
+      c.options->>'category' AS category
     FROM public.challenges c
     WHERE lower(coalesce(c.status, '')) NOT IN ('finalized', 'canceled', 'rejected')
       AND c.timeline->>'startsAt' IS NOT NULL
@@ -106,17 +123,29 @@ async function getActiveChallenges(pool: Pool): Promise<ActiveChallenge[]> {
 }
 
 /**
- * Get all participants for a challenge who have linked fitness API accounts.
+ * Get all participants for a challenge who have linked API-provider accounts.
+ * Includes both fitness (strava, fitbit) and gaming (opendota, riot, faceit) providers.
  */
 async function getParticipants(challengeId: string, pool: Pool): Promise<Participant[]> {
   const res = await pool.query<Participant>(
     `
     SELECT DISTINCT p.subject
     FROM public.participants p
-    INNER JOIN public.linked_accounts la
-      ON lower(la.subject) = lower(p.subject)
-      AND la.provider IN ('strava', 'fitbit')
     WHERE p.challenge_id = $1::bigint
+      AND (
+        -- Has linked API-provider account
+        EXISTS (
+          SELECT 1 FROM public.linked_accounts la
+          WHERE lower(la.subject) = lower(p.subject)
+            AND la.provider IN ('strava', 'fitbit', 'opendota', 'riot', 'faceit')
+        )
+        OR
+        -- Has gaming identity binding (steam, riot, etc.)
+        EXISTS (
+          SELECT 1 FROM public.identity_bindings ib
+          WHERE lower(ib.wallet) = lower(p.subject)
+        )
+      )
     `,
     [challengeId]
   );
@@ -146,7 +175,7 @@ async function syncParticipantProgress(
   let synced = false;
 
   for (const account of accounts) {
-    if (!FITNESS_API_PROVIDERS.has(account.provider)) continue;
+    if (!API_PROVIDERS.has(account.provider)) continue;
 
     const connector = getConnector(account.provider);
     if (!connector) continue;
@@ -154,10 +183,7 @@ async function syncParticipantProgress(
     try {
       const result = await connector.fetchEvidence(subject, account, opts);
 
-      if (result.records.length === 0) {
-        // No data from this provider for the period — skip
-        continue;
-      }
+      if (result.records.length === 0) continue;
 
       // Upsert evidence — replaces previous data from same provider
       await upsertEvidence(
@@ -175,7 +201,7 @@ async function syncParticipantProgress(
       await upsertParticipant(
         { challengeId: challenge.challenge_id, subject: subject.toLowerCase() },
         pool
-      ).catch(() => {}); // Non-critical
+      ).catch(() => {});
 
       const periodLabel = challenge.in_proof_window ? "FINAL" : "sync";
       console.log(
@@ -184,7 +210,7 @@ async function syncParticipantProgress(
       );
 
       synced = true;
-      // Don't break — sync ALL providers (Strava + Fitbit may have different activities)
+      // Don't break — sync ALL available providers (different providers track different data)
     } catch (e: any) {
       console.warn(
         `[progress-sync] ${account.provider}/${subject.slice(0, 8)} ` +
@@ -228,7 +254,8 @@ async function runOnce(pool: Pool): Promise<void> {
 
 async function main() {
   console.log(
-    `[progress-sync] starting — poll every ${POLL_MS / 1000}s, batch ${BATCH_SIZE}`
+    `[progress-sync] starting — poll every ${POLL_MS / 1000}s, ` +
+      `batch ${BATCH_SIZE}, providers: ${[...API_PROVIDERS].join(", ")}`
   );
 
   const pool = await boot();

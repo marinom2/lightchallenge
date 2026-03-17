@@ -62,10 +62,25 @@ The active verification path uses **ChallengePayAivmPoiVerifier**, which:
 
 | Worker | Purpose | Poll Interval |
 |--------|---------|--------------|
-| **evidenceCollector** | Polls provider APIs for activity data | 5 min |
+| **progressSyncWorker** | Syncs real-time progress from API providers during active challenges | 15 min |
+| **evidenceCollector** | Final reconciliation fetch during proof window | 5 min |
 | **evidenceEvaluator** | Evaluates evidence → verdicts | 15s |
 | **challengeDispatcher** | Queues verdicts as AIVM jobs | 10s |
 | **challengeWorker** | Submits AIVM inference requests | 5s |
+
+### Data Providers
+
+**Server-side (auto-synced by progressSyncWorker + evidenceCollector):**
+- **Strava** — OAuth, token auto-refresh (fitness: running, cycling, swimming, etc.)
+- **Fitbit** — OAuth, token auto-refresh (fitness: steps, activities)
+- **OpenDota** — Public API (gaming: Dota 2 matches)
+- **Riot** — API key (gaming: League of Legends matches)
+- **FACEIT** — API key (gaming: CS2 matches)
+
+**Upload-only (no server-side API — data from device or manual upload):**
+- **Apple Health** — iOS `AutoProofService` pushes HealthKit data during active period + proof window
+- **Garmin** — Users upload TCX/GPX/JSON export files
+- **Google Fit** — API deprecated by Google in 2025; users upload Google Takeout JSON
 
 ### Indexers
 

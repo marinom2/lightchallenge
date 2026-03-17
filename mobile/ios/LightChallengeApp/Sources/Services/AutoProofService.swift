@@ -1,13 +1,20 @@
 // AutoProofService.swift
-// Automatically submits fitness proof during the PROOF SUBMISSION WINDOW.
+// Automatically submits fitness proof during the PROOF SUBMISSION WINDOW
+// AND pushes periodic Apple Health progress during ACTIVE challenges.
 //
 // Lifecycle:
 //   1. Join window → user joins (no evidence collection)
-//   2. Challenge period (startTs → endTs) → user does the activity
-//   3. Proof window (after endTs → proofDeadlineTs) → auto-collect + submit
+//   2. Challenge period (startTs → endTs) → periodic progress sync (Apple Health → server)
+//   3. Proof window (after endTs → proofDeadlineTs) → final auto-collect + submit
 //
-// Apple Health: collects HealthKit data for the challenge period → submits to /api/aivm/intake.
-// Strava/Fitbit: triggers server-side collection via /api/challenge/{id}/auto-proof.
+// Active-period progress:
+//   - Apple Health data is pushed to /api/aivm/intake every ~15 minutes while the app is open
+//   - Server-side providers (Strava/Fitbit/gaming) are synced by progressSyncWorker (no iOS action needed)
+//   - Progress is visible via GET /api/challenge/{id}/my-progress
+//
+// Proof window:
+//   - Apple Health: collects HealthKit data for the FULL challenge period → submits to /api/aivm/intake
+//   - Strava/Fitbit: triggers server-side collection via /api/challenge/{id}/auto-proof
 
 import Foundation
 import SwiftUI
@@ -28,6 +35,8 @@ class AutoProofService: ObservableObject {
         case passed            // Verdict: passed
         case failed            // Verdict: failed
         case waitingForWindow  // Challenge period hasn't ended yet
+        case syncing           // Active-period progress sync in progress
+        case synced            // Active-period progress pushed to server
         case error(String)     // Submission failed
 
         var label: String {
@@ -40,26 +49,29 @@ class AutoProofService: ObservableObject {
             case .passed: return "Passed"
             case .failed: return "Failed"
             case .waitingForWindow: return "Waiting for challenge to end"
+            case .syncing: return "Syncing progress..."
+            case .synced: return "Progress synced"
             case .error(let msg): return "Error: \(msg)"
             }
         }
 
         var icon: String {
             switch self {
-            case .pending, .collectingHealth, .submitting: return "arrow.triangle.2.circlepath"
+            case .pending, .collectingHealth, .submitting, .syncing: return "arrow.triangle.2.circlepath"
             case .submitted, .evaluating: return "hourglass"
             case .passed: return "checkmark.seal.fill"
             case .failed: return "xmark.seal.fill"
             case .waitingForWindow: return "clock.badge.checkmark"
+            case .synced: return "checkmark.icloud"
             case .error: return "exclamationmark.triangle.fill"
             }
         }
 
         var color: Color {
             switch self {
-            case .pending, .collectingHealth, .submitting: return LC.accent
+            case .pending, .collectingHealth, .submitting, .syncing: return LC.accent
             case .submitted, .evaluating: return LC.warning
-            case .passed: return LC.success
+            case .passed, .synced: return LC.success
             case .failed: return LC.danger
             case .waitingForWindow: return LC.info
             case .error: return LC.danger
@@ -75,7 +87,9 @@ class AutoProofService: ObservableObject {
                  (.evaluating, .evaluating),
                  (.passed, .passed),
                  (.failed, .failed),
-                 (.waitingForWindow, .waitingForWindow):
+                 (.waitingForWindow, .waitingForWindow),
+                 (.syncing, .syncing),
+                 (.synced, .synced):
                 return true
             case (.error(let a), .error(let b)):
                 return a == b
@@ -85,7 +99,14 @@ class AutoProofService: ObservableObject {
         }
     }
 
-    // MARK: - Proof Window Check
+    // MARK: - Progress Sync Interval
+
+    /// Minimum interval between active-period progress syncs (15 minutes).
+    private static let progressSyncInterval: TimeInterval = 15 * 60
+    /// Tracks last sync time per challenge to avoid over-syncing.
+    private var lastSyncTime: [String: Date] = [:]
+
+    // MARK: - Period Checks
 
     /// Returns true if the challenge is currently in the proof submission window:
     /// challenge period has ended AND proof deadline hasn't passed.
@@ -102,12 +123,130 @@ class AutoProofService: ObservableObject {
         return true
     }
 
+    /// Returns true if the challenge is currently in the active period:
+    /// startTs <= now < endTs
+    private func isInActivePeriod(_ challenge: ChallengeMeta?) -> Bool {
+        guard let challenge else { return false }
+        let now = Date()
+        guard let startDate = challenge.startDate, startDate <= now else { return false }
+        guard let endDate = challenge.endsDate, now < endDate else { return false }
+        return true
+    }
+
     /// Returns the challenge start and end dates for evidence collection.
     private func challengePeriod(_ challenge: ChallengeMeta?) -> (start: Date, end: Date)? {
         guard let challenge else { return nil }
         guard let startDate = challenge.startDate else { return nil }
         guard let endDate = challenge.endsDate else { return nil }
         return (startDate, endDate)
+    }
+
+    // MARK: - Active-Period Progress Sync
+
+    /// Push Apple Health progress to the server during active challenges.
+    /// Called periodically (every ~15 min) or when the user views an active challenge.
+    /// Server-side providers (Strava/Fitbit/gaming) are synced by progressSyncWorker — no iOS action needed.
+    func syncActiveProgress(
+        challengeId: String,
+        challenge: ChallengeMeta?,
+        appState: AppState,
+        healthService: HealthKitService
+    ) {
+        guard isInActivePeriod(challenge) else { return }
+        guard challenge?.resolvedCategory.isFitness == true || challenge?.resolvedCategory == .unknown else { return }
+
+        // Throttle: don't sync more often than every 15 min per challenge
+        if let lastSync = lastSyncTime[challengeId],
+           Date().timeIntervalSince(lastSync) < Self.progressSyncInterval {
+            return
+        }
+
+        // Don't interrupt proof submission or final states
+        if let existing = status[challengeId] {
+            switch existing {
+            case .pending, .collectingHealth, .submitting, .submitted, .evaluating, .passed, .failed:
+                return
+            case .syncing:
+                return
+            default:
+                break
+            }
+        }
+
+        status[challengeId] = .syncing
+        lastSyncTime[challengeId] = Date()
+
+        Task {
+            await pushHealthProgress(
+                challengeId: challengeId,
+                challenge: challenge,
+                appState: appState,
+                healthService: healthService
+            )
+        }
+    }
+
+    /// Batch-sync all joined active challenges.
+    func syncActiveChallenges(
+        challenges: [ChallengeMeta],
+        activities: [String: MyChallenge],
+        appState: AppState,
+        healthService: HealthKitService
+    ) {
+        guard healthService.isAuthorized else { return }
+
+        for (challengeId, _) in activities {
+            let challenge = challenges.first { $0.id == challengeId }
+            syncActiveProgress(
+                challengeId: challengeId,
+                challenge: challenge,
+                appState: appState,
+                healthService: healthService
+            )
+        }
+    }
+
+    /// Push Apple Health data for the active challenge period (start → now).
+    private func pushHealthProgress(
+        challengeId: String,
+        challenge: ChallengeMeta?,
+        appState: AppState,
+        healthService: HealthKitService
+    ) async {
+        let subject = appState.walletAddress
+        let baseURL = appState.serverURL
+        let modelHash = challenge?.proof?.modelHash ?? challenge?.modelHash ?? ServerConfig.defaultFitnessModelHash
+
+        guard healthService.isAuthorized else {
+            status[challengeId] = .waitingForWindow
+            return
+        }
+
+        // Collect from challenge start to NOW (not end — challenge is still active)
+        if let startDate = challenge?.startDate {
+            await healthService.collectEvidence(from: startDate, to: Date())
+        } else {
+            await healthService.collectEvidence(days: 30)
+        }
+
+        if healthService.error != nil {
+            status[challengeId] = .error("Progress sync failed")
+            return
+        }
+
+        await healthService.submitEvidence(
+            baseURL: baseURL,
+            challengeId: challengeId,
+            subject: subject,
+            modelHash: modelHash
+        )
+
+        if healthService.lastSubmission?.ok == true {
+            status[challengeId] = .synced
+        } else {
+            // Don't show error for progress sync — it's non-critical
+            status[challengeId] = .waitingForWindow
+        }
     }
 
     // MARK: - Trigger Auto-Proof
@@ -131,8 +270,15 @@ class AutoProofService: ObservableObject {
 
         // Check if we're in the proof window
         guard isInProofWindow(challenge) else {
-            // Challenge period hasn't ended yet — mark as waiting
-            if let endDate = challenge?.endsDate, endDate > Date() {
+            // If in active period, push Apple Health progress instead
+            if isInActivePeriod(challenge) {
+                syncActiveProgress(
+                    challengeId: challengeId,
+                    challenge: challenge,
+                    appState: appState,
+                    healthService: healthService
+                )
+            } else if let endDate = challenge?.endsDate, endDate > Date() {
                 status[challengeId] = .waitingForWindow
             }
             return
@@ -174,20 +320,25 @@ class AutoProofService: ObservableObject {
             let challenge = challenges.first { $0.id == challengeId }
             guard challenge?.resolvedCategory.isFitness == true || challenge?.resolvedCategory == .unknown else { continue }
 
-            // Only trigger if in proof window
-            guard isInProofWindow(challenge) else {
-                if let endDate = challenge?.endsDate, endDate > Date() {
-                    status[challengeId] = .waitingForWindow
-                }
-                continue
+            // Proof window: trigger full auto-proof
+            if isInProofWindow(challenge) {
+                triggerAutoProof(
+                    challengeId: challengeId,
+                    challenge: challenge,
+                    appState: appState,
+                    healthService: healthService
+                )
+            } else if isInActivePeriod(challenge) {
+                // Active period: push Apple Health progress
+                syncActiveProgress(
+                    challengeId: challengeId,
+                    challenge: challenge,
+                    appState: appState,
+                    healthService: healthService
+                )
+            } else if let endDate = challenge?.endsDate, endDate > Date() {
+                status[challengeId] = .waitingForWindow
             }
-
-            triggerAutoProof(
-                challengeId: challengeId,
-                challenge: challenge,
-                appState: appState,
-                healthService: healthService
-            )
         }
     }
 
