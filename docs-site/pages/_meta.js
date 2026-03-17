@@ -8,5 +8,6 @@ export default {
   "ios": "iOS App",
   "api-reference": "API Reference",
   "competition-api": "Competition API",
+  "business": "Business Plan",
   "faq": "FAQ"
 }

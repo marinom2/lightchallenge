@@ -1,0 +1,232 @@
+# Business Plan
+
+## Executive Summary
+
+LightChallenge is a decentralized challenge platform where real activity earns real rewards. Users join challenges, stake tokens, and earn rewards when they hit their goals — verified autonomously by AI models running on Lightchain's AIVM infrastructure.
+
+The platform captures revenue from protocol fees on every challenge resolution, creating a transaction-fee business model that scales linearly with platform activity. Smart contracts ensure trustless settlement, while the AI verification layer eliminates the need for manual judging or centralized arbitration.
+
+| Metric | Value |
+|--------|-------|
+| User Acquisition Cost | **$0** (organic Web3 + referral loops) |
+| Protocol Take Rate | **~5%** of forfeited stakes |
+| Typical Loss Rate | **60%+** (fitness challenge benchmarks) |
+| Human Judges Needed | **0** (fully autonomous verification) |
+
+---
+
+## Problem & Opportunity
+
+### The Problem
+
+- 92% of people fail their New Year fitness resolutions
+- Accountability apps have no real financial consequence
+- Traditional betting platforms are centralized and extractive (15–25% take rates)
+- Existing Web3 fitness apps (STEPN) collapsed due to speculative tokenomics
+- No trustless way to verify real-world activity completion
+
+### Our Solution
+
+- Stake-backed challenges create real skin in the game
+- AI verification via Lightchain AIVM — no human judges, no disputes
+- Fair fee structure (5% vs. industry 15–25%) — users keep more
+- Real utility, not speculation — value comes from activity, not token price
+- Multi-source data: Apple Health, Strava, Fitbit, Garmin, Steam, Riot
+
+---
+
+## How It Works
+
+| Step | Action | Description |
+|------|--------|-------------|
+| **01** | Create or Join | Anyone can create a challenge with custom rules, deadlines, and stake amounts. Others join by staking tokens. |
+| **02** | Do the Work | Complete the fitness or gaming goal. Activity data flows from connected platforms (Strava, Apple Health, Steam, etc.). |
+| **03** | AI Verification | Evidence is submitted to Lightchain's AIVM. Decentralized AI models verify completion against challenge rules. |
+| **04** | On-Chain Settlement | Smart contracts automatically distribute rewards to winners. Losers forfeit their stake (minus cashback). Protocol earns fees. |
+
+---
+
+## Revenue Model
+
+LightChallenge operates a **transaction-fee model** that captures value from every challenge resolution. Revenue is protocol-level, enforced by smart contracts, and requires zero manual intervention.
+
+### Fee Architecture (ChallengePay V1)
+
+When a challenge finalizes, the losers' forfeited pool is distributed through a deterministic pipeline:
+
+```
+Losers' Pool (100%)
+    ↓
+Cashback to Losers (10%) — retention incentive
+    ↓
+Remaining (90%)
+    ↓
+Protocol Fee (5%) — LightChallenge revenue ← enforced on-chain
+    ↓
+Creator Fee (5%) — incentive for challenge creators
+    ↓
+Winner Rewards (80%) — distributed pro-rata by contribution
+```
+
+### Revenue Streams
+
+| Stream | Description | Status |
+|--------|-------------|--------|
+| **Protocol Fees** | 5% of every losers' pool. Enforced by smart contract. No human needed. | Active |
+| **No-Winner Windfall** | If all participants fail, the entire distributable pool routes to protocol. | Active |
+| **Sponsored Challenges** | Brands fund prize pools for marketing campaigns. 15–20% sourcing fee. | Planned |
+| **Premium Tiers** | Higher-stakes challenges, custom rules, private groups. Enhanced creator fees. | Planned |
+| **API & White-Label** | Embedded challenges for fitness apps, corporate wellness, esports platforms. | Planned |
+| **Challenge Creation Fee** | Small flat fee to create challenges. Predictable baseline regardless of outcome. | Planned |
+
+---
+
+## Financial Projections
+
+Projections based on 5% protocol fee, 10% cashback, ~50% loss rate, and $25 average stake per participant. Conservative estimates — excludes sponsored challenges and premium features.
+
+| Stage | Monthly Challenges | Avg. Participants | Monthly GMV | Monthly Protocol Revenue | Annual Revenue |
+|-------|-------------------|-------------------|-------------|-------------------------|----------------|
+| Seed | 50 | 20 | $25,000 | $562 | $6,750 |
+| Early | 200 | 30 | $150,000 | $3,375 | $40,500 |
+| Growth | 1,000 | 50 | $1,250,000 | $28,125 | $337,500 |
+| **Scale** | **5,000** | **60** | **$7,500,000** | **$168,750** | **$2,025,000** |
+| Mature | 10,000 | 80 | $20,000,000 | $450,000 | $5,400,000 |
+
+> **Upside scenario:** With sponsored challenges (est. 15–20% of volume at growth stage) and no-winner windfalls (~5% of challenges), annual revenue at the Scale stage reaches **$2.5M+**.
+
+---
+
+## Market Analysis
+
+LightChallenge sits at the intersection of three massive and growing markets: fitness accountability ($10B+), prediction markets ($50B+), and Web3 gaming ($25B+).
+
+### Competitive Landscape
+
+| Platform | Model | Peak Revenue | Take Rate | Status |
+|----------|-------|-------------|-----------|--------|
+| **STEPN** | Move-to-earn NFTs | $122.5M / quarter | 8–10% | Collapsed 90%+ |
+| **Sweatcoin** | Brand partnerships | $20–33M / year | N/A | Active |
+| **Polymarket** | Prediction market fees | $23.5B volume (2024) | 0.10% | Active |
+| **Azuro** | DeFi betting protocol | $6.3M revenue | ~2% | Active |
+| **StepBet** | Fitness staking (CeFi) | $5–10M / year | 15% | Active |
+| **LightChallenge** | AI-verified stake challenges | Pre-revenue | ~5% | Building |
+
+### Our Competitive Advantages
+
+- **Trustless Verification** — No centralized judge. AI models on Lightchain AIVM verify activity data autonomously — disputes are eliminated by design.
+- **Fair Economics** — 5% take rate vs. industry 15–25%. Winners keep more. Losers get 10% cashback. Everyone has a reason to come back.
+- **Flexible Staking** — No minimum buy-in barrier. Participants can stake any amount. Distribution is pro-rata — fair regardless of stake size.
+- **Multi-Category Platform** — Fitness (Strava, Apple Health, Garmin, Fitbit) and gaming (Steam, Riot) on one platform. More use cases = more volume.
+
+---
+
+## Sustainable by Design
+
+STEPN generated $122.5M in a single quarter — then lost 90%+ of users within months. The collapse taught the industry a hard lesson: **speculative tokenomics are not a business model.**
+
+| | STEPN (Failed) | LightChallenge (Sustainable) |
+|---|---|---|
+| Revenue source | NFT minting and marketplace fees | Protocol fees on real activity |
+| Entry barrier | $500–2,000 NFT shoes required | Stake any amount |
+| Economic model | Ponzi-adjacent: new money funded payouts | Zero-sum pool: losers fund winners |
+| Verification | No real verification — spoofing rampant | AI verification on decentralized infrastructure |
+| Value driver | Token speculation | Activity completion |
+
+---
+
+## Technology Stack
+
+### Smart Contracts
+- ChallengePay V1 — Solidity 0.8.24
+- Treasury with bucketed custody
+- EIP-2771 gasless transactions
+- 2-step admin, role-based access
+
+### AI Verification (AIVM)
+- Lightchain AIVM infrastructure
+- Proof-of-Intelligence consensus
+- 5 adapter models (fitness + gaming)
+- Decentralized validator network
+
+### Full-Stack Platform
+- Next.js 14 web app
+- Native iOS app (SwiftUI)
+- Multi-source data integrations
+- PostgreSQL + on-chain hybrid
+
+---
+
+## Go-to-Market Strategy
+
+### Phase 1: Foundation (Q1–Q2 2026) — *Current*
+- Launch on Lightchain testnet (complete)
+- iOS app on TestFlight
+- Fitness challenges: steps, running, cycling
+- Core integrations: Apple Health, Strava, Garmin
+- Seed community of 500+ active users
+
+### Phase 2: Growth (Q3–Q4 2026)
+- Mainnet launch on Lightchain
+- Android app release
+- Gaming challenges: Steam, Riot Games
+- Creator tools: custom rules, branding
+- Referral system with on-chain rewards
+- First sponsored challenge partnerships
+
+### Phase 3: Scale (2027)
+- Corporate wellness partnerships (B2B)
+- White-label API for fitness apps
+- Tournament/competition engine
+- Cross-chain deployment (Ethereum L2s)
+- Premium features and subscription tiers
+- Target: 5,000+ monthly challenges
+
+---
+
+## Unit Economics
+
+Each challenge is a self-contained economic unit. Here's the math for a typical challenge:
+
+### Example: "Run 50km in 2 weeks"
+
+| Metric | Value |
+|--------|-------|
+| Participants | 40 users |
+| Average Stake | $30 |
+| Total Pool | $1,200 |
+| Completion Rate | 45% (18 winners) |
+| Losers' Pool | $660 |
+| Cashback (10%) | $66 to losers |
+| **Protocol Revenue (5%)** | **$29.70** |
+| Creator Revenue (5%) | $29.70 |
+| Winner Bonus Pool | $534.60 |
+| Avg. Winner Payout | $30 + $29.70 = $59.70 |
+
+Winners nearly double their stake. Losers get 10% back. The creator earns $29.70 for setting up the challenge. Protocol earns $29.70 with zero operational cost.
+
+| Metric | Value |
+|--------|-------|
+| Marginal Cost per Challenge | **$0** — smart contracts handle all settlement |
+| Gross Margin | **99%+** — no COGS, protocol fees are pure margin |
+| Effective Take Rate | **~2.5%** of total GMV (5% of losers pool) |
+| LTV:CAC Ratio | **Infinite** — $0 CAC with organic Web3 distribution |
+
+---
+
+## Risk Factors & Mitigations
+
+| Risk | Description | Mitigation |
+|------|-------------|------------|
+| **All-Winner Problem** | Easy challenges where everyone wins = $0 protocol revenue | Challenge difficulty calibration tools. Creator incentives to set 40–60% difficulty. Minimum stake thresholds. |
+| **Token Price Volatility** | LCAI price drops reduce dollar-denominated pool sizes | Stablecoin (USDC) support planned. Multi-currency challenges. Revenue diversification via sponsorships. |
+| **Data Spoofing** | Users fabricating fitness data to win challenges | Multi-source cross-validation. GPS verification. AIVM Proof-of-Intelligence consensus. Historical anomaly detection. |
+| **Regulatory Uncertainty** | Stake-based challenges may face gambling classification in some jurisdictions | Skill-based challenges (not chance). User-controlled outcomes. Legal review per jurisdiction. Configurable fee caps. |
+
+---
+
+## Vision
+
+We believe accountability should be *trustless*, rewards should be *fair*, and verification should be *autonomous*. LightChallenge is building the infrastructure layer where real-world achievement meets on-chain settlement.
+
+Our goal is to become the default protocol for verified, stake-backed challenges — starting with fitness and gaming, expanding to education, productivity, and any domain where commitment can be measured and verified.
