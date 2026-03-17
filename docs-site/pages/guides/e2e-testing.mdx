@@ -1,0 +1,250 @@
+# E2E Pipeline Testing
+
+This page documents the full end-to-end testing of the LightChallenge pipeline — from challenge creation through AIVM proof verification to on-chain finalization.
+
+## Test Script
+
+**Location:** `scripts/e2e-full-pipeline.ts`
+
+**Run:**
+```bash
+npx tsx scripts/e2e-full-pipeline.ts
+```
+
+**Requires:** `.env` with `PRIVATE_KEY`, `DATABASE_URL`, `AIVM_INFERENCE_V2_ADDRESS`, `CHALLENGE_TASK_REGISTRY_ADDRESS`, `CHALLENGEPAY_AIVM_POI_VERIFIER_ADDRESS`
+
+---
+
+## What It Tests (8 Phases)
+
+| Phase | Layer | What Happens | Real or Simulated |
+|-------|-------|-------------|-------------------|
+| **1** | On-chain | `createChallenge(CreateParams)` on ChallengePay | **Real** — actual Lightchain testnet tx |
+| **1b** | On-chain | Verify creator auto-joined as participant | **Real** — reads on-chain state |
+| **2** | Database | Seed challenge, participant, evidence records | **Real** — PostgreSQL writes |
+| **3** | Evaluation | Evaluate evidence → write verdict | **Real** — same logic as `evidenceEvaluator` worker |
+| **4** | AIVM | `requestInferenceV2()` + `recordBinding()` | **Real** — actual Lightchain testnet txs |
+| **5** | Network | Commit → Reveal → PoI Attest → Finalize | **Simulated** — we play worker/validator roles (same contract calls) |
+| **6** | Verification | `ChallengePayAivmPoiVerifier.verify()` | **Real** — on-chain view call |
+| **7** | Settlement | `submitProofFor()` on ChallengePay | **Real** — actual testnet tx |
+| **8** | DB Verify | Confirm all records consistent | **Real** — PostgreSQL reads |
+
+---
+
+## Latest Test Run Results
+
+**Date:** 2026-03-17
+**Network:** Lightchain testnet (chain ID 504)
+**Challenge:** #15 (on-chain)
+**AIVM Request:** #38
+
+```
+╔══════════════════════════════════════════════════════════════════╗
+║  E2E PIPELINE TEST RESULTS                                       ║
+╠══════════════════════════════════════════════════════════════════╣
+║ ✅ Phase 1      Challenge #15 created on-chain                     ║
+║ ✅ Phase 1b     Creator auto-joined (participantsCount=1)          ║
+║ ✅ Phase 2      Challenge record created in DB                     ║
+║ ✅ Phase 2      Participant record created in DB                   ║
+║ ✅ Phase 2      Evidence record created (7500 steps, Apple Health) ║
+║ ✅ Phase 3      Verdict: PASS (score=100, steps=7500 >= 5000)      ║
+║ ✅ Phase 4      AIVM request #38 submitted                         ║
+║ ✅ Phase 4      Binding recorded: challenge #15 ↔ AIVM request #38 ║
+║ ✅ Phase 5      Worker committed result hash                       ║
+║ ✅ Phase 5      Worker revealed canonical result string             ║
+║ ✅ Phase 5      Validator attested (PoI quorum met)                ║
+║ ✅ Phase 5      AIVM request FINALIZED (status=4)                  ║
+║ ✅ Phase 6      ChallengePayAivmPoiVerifier.verify() → TRUE        ║
+║ ✅ Phase 7      Proof submitted for challenge #15                  ║
+║ ⏳ Phase 7      Finalize skipped (proof deadline not reached)      ║
+║ ✅ Phase 8      DB challenge confirmed                             ║
+║ ✅ Phase 8      DB evidence confirmed (apple_health)               ║
+║ ✅ Phase 8      DB verdict confirmed (pass=true, score=100)        ║
+║ ✅ Phase 8      DB participant confirmed                           ║
+╠══════════════════════════════════════════════════════════════════╣
+║  PASS: 18   FAIL: 0    SKIP: 1                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+```
+
+### Finalize Skip (Expected)
+
+The `finalize()` call is skipped because the challenge's proof deadline hasn't been reached yet (challenge was just created with a 2-hour duration + 1-hour proof window). This is expected behavior — in production, finalization happens after the proof deadline passes.
+
+Previous E2E runs (challenges 42, 43 in Phase 13) have verified that finalize works correctly when the deadline is reached.
+
+---
+
+## Phase Details
+
+### Phase 1: On-Chain Challenge Creation
+
+Creates a challenge via `ChallengePay.createChallenge(CreateParams)` with:
+- `kind: 0` (Solo)
+- `currency: 0` (Native LCAI)
+- `stakeAmount: 0.001 LCAI` (tiny test stake)
+- `startTs: now + 90s` (minimum lead time is 60s)
+- `duration: 7200s` (2 hours)
+- `proofDeadlineTs: endTs + 3600s`
+- `verifier: ChallengePayAivmPoiVerifier`
+
+The creator's stake is deposited into the Treasury bucket and the creator is auto-marked as a participant.
+
+### Phase 2: Database Seeding
+
+Inserts records matching what the webapp API routes would create:
+- `challenges` row with model ID, params, status
+- `participants` row linking wallet to challenge
+- `evidence` row with Apple Health fitness data (7500 steps)
+
+### Phase 3: Evidence Evaluation
+
+Replicates what `evidenceEvaluator` worker does:
+1. Read evidence from DB
+2. Extract metrics (steps = 7500)
+3. Compare against threshold (5000)
+4. Write verdict: `pass=true, score=100`
+
+### Phase 4: AIVM Request Submission
+
+This is what `challengePayAivmJob.ts` orchestrator does:
+1. Call `AIVMInferenceV2.requestInferenceV2()` with model string `fitness.steps@1`
+2. Call `ChallengeTaskRegistry.recordBinding()` to link challenge ↔ AIVM request
+
+**Key hashes computed:**
+- `modelDigest = keccak256("fitness.steps@1")`
+- `promptId = keccak256(abi.encodePacked(challengeId, walletAddr))`
+- `paramsHash = keccak256(JSON.stringify({metric:"steps",threshold:5000}))`
+- `detConfigHash = paramsHash` (must be non-zero)
+
+### Phase 5: Lightchain Network Simulation
+
+On testnet, we are the sole validator (`poiQuorum=1`) so we simulate what Lightchain workers/validators will do in production:
+
+**5a: Commit**
+```
+commitment = keccak256(abi.encodePacked(requestId, worker, secret, responseHash))
+```
+
+**5b: Reveal**
+```
+canonical result: {"challengeId":"15","verified":true}
+```
+
+**5c: PoI Attestation (EIP-712)**
+```
+domain: { name: "LCAI-PoI-Attestation", version: "1", chainId: 504, verifyingContract: AIVM_ADDR }
+types: PoIAttestation(bytes32 taskId, bytes32 resultHash, bytes32 transcriptHash, uint64 slot)
+```
+
+After attestation, the contract auto-finalizes since `poiAttestationCount >= poiQuorum`.
+
+### Phase 6: Proof Verification
+
+The `ChallengePayAivmPoiVerifier.verify()` checks 20+ conditions:
+- Schema version matches
+- AIVM request exists and is finalized (status=4)
+- Task binding matches in ChallengeTaskRegistry
+- Model digest matches
+- Canonical result string hash matches revealed response hash
+- PoI attestation count >= quorum
+- Result hash matches PoI consensus hash
+- Challenge ID and subject match proof struct
+
+All 20+ checks pass → returns `true`.
+
+### Phase 7: Proof Submission to ChallengePay
+
+Calls `submitProofFor(challengeId, participant, encodedProof)` which:
+1. Validates challenge is Active and within proof window
+2. Calls `verifier.verify()` → `true`
+3. Marks participant as winner
+4. Adds their contribution to winners pool
+
+The `finalize()` is correctly blocked by `BeforeDeadline` since the challenge hasn't ended yet.
+
+### Phase 8: Database State Verification
+
+Confirms all DB records are consistent:
+- Challenge exists with correct title and status
+- Evidence row present with apple_health provider
+- Verdict row present with pass=true, score=100
+- Participant row present
+
+---
+
+## Transaction Log
+
+All transactions from the latest run (challenge #15):
+
+| Phase | Action | Tx Hash | Block |
+|-------|--------|---------|-------|
+| 1 | createChallenge | `0xc02b36bd...` | 1748279 |
+| 4 | requestInferenceV2 | `0xc064452b...` | 1748280 |
+| 4 | recordBinding | `0x110d9ae5...` | 1748281 |
+| 5 | commitInference | `0x076bde43...` | 1748282 |
+| 5 | revealInference | `0xe78cd744...` | 1748283 |
+| 5 | submitPoIAttestation | `0x59be4583...` | 1748284 |
+| 7 | submitProofFor | `0xdb4176c3...` | 1748287 |
+
+Total gas used: ~0.12 LCAI across 7 transactions.
+
+---
+
+## What Is Real vs Simulated
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Lightchain testnet | **Real chain** | Chain ID 504, real gas, real blocks |
+| ChallengePay contract | **Real deployment** | `0xBeA3...5cb` |
+| ChallengeTaskRegistry | **Real deployment** | `0x0e07...55E` |
+| ChallengePayAivmPoiVerifier | **Real deployment** | `0x44c7...123` |
+| AIVMInferenceV2 | **Real deployment** | `0x2d49...7E` (deployed by us using Lightchain source) |
+| Treasury | **Real deployment** | `0xe84c...961` |
+| Worker commit/reveal | **Simulated** | Same contract calls that Lightchain workers will make |
+| Validator PoI attestation | **Simulated** | Same EIP-712 signing that Lightchain validators will do |
+| PostgreSQL database | **Real** | Production-identical schema |
+| Evidence evaluation | **Real logic** | Same evaluator code path |
+
+### Why Phase 5 Is Simulated
+
+On testnet, we deployed Lightchain's `AIVMInferenceV2` contract ourselves (we are owner, sole validator, `poiQuorum=1`). Lightchain's native workers ARE active and have processed our requests (requests 1, 2, 31-33), but for deterministic testing we simulate the worker/validator roles.
+
+The simulation uses **identical contract calls and cryptographic operations** as the real Lightchain network:
+- Same `commitInference()` call
+- Same `revealInference()` call
+- Same EIP-712 typed data for PoI attestation
+- Same `submitPoIAttestation()` call
+
+When Lightchain deploys production AIVM infrastructure, these phases will be handled by their network. See the [Mainnet Migration](/guides/mainnet-migration) guide for the transition plan.
+
+---
+
+## Historical E2E Results
+
+| Date | Challenge | AIVM Req | Result | Notes |
+|------|-----------|----------|--------|-------|
+| 2026-03-17 | #15 | #38 | **18 PASS / 0 FAIL** | Full pipeline, all green |
+| 2026-03-17 | #14 | #37 | 17 PASS / 1 FAIL | ProofNotOpen (timing fix needed) |
+| 2026-03-17 | #13 | #36 | 16 PASS / 1 FAIL | DB schema fix needed |
+| Phase 13 | #42 | #33 | Full pipeline | Native workers finalized, indexer + finalize worked |
+| Phase 13 | #43 | — | Fail path | AIVM skipped, challenge finalized via timeout |
+| Phase 12 | #26 | #32 | Full pipeline | First complete E2E with fresh request |
+
+---
+
+## Running the Test
+
+```bash
+# Prerequisites
+# 1. .env with all required vars (see .env.example)
+# 2. Funded wallet on Lightchain testnet (needs ~0.15 LCAI per run)
+# 3. PostgreSQL accessible via DATABASE_URL
+
+# Run
+npx tsx scripts/e2e-full-pipeline.ts
+
+# Expected: 18 PASS, 0 FAIL, 1 SKIP (finalize)
+# Runtime: ~90 seconds (mostly waiting for startTs)
+```
+
+The script exits with code 0 on all-pass and code 1 if any phase fails.
