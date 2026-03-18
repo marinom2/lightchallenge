@@ -477,8 +477,14 @@ struct ChallengesView: View {
         isLoading = true
         error = nil
 
-        if activities.isEmpty, let cached = await CacheService.shared.loadCachedActivity(wallet: appState.walletAddress) {
-            activities = cached
+        // Load cached activities + metas together to avoid title flash
+        if activities.isEmpty {
+            if let cached = await CacheService.shared.loadCachedActivity(wallet: appState.walletAddress) {
+                activities = cached
+            }
+            if let cachedMetas = await CacheService.shared.loadCachedMetas(wallet: appState.walletAddress) {
+                challengeMetas.merge(cachedMetas) { _, new in new }
+            }
         }
 
         do {
@@ -498,6 +504,9 @@ struct ChallengesView: View {
                     }
                 }
             }
+
+            // Cache metas for next launch
+            await CacheService.shared.cacheChallengeMetas(challengeMetas, wallet: appState.walletAddress)
         } catch {
             if activities.isEmpty { self.error = error.localizedDescription }
         }

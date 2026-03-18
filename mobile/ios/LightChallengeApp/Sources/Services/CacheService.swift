@@ -53,6 +53,21 @@ actor CacheService {
         return try? JSONDecoder().decode([MyChallenge].self, from: data)
     }
 
+    // MARK: - Challenge Metas Cache
+
+    func cacheChallengeMetas(_ metas: [String: ChallengeMeta], wallet: String) {
+        // Convert dict to array of pairs for Codable
+        let pairs = metas.map { MetaPair(id: $0.key, meta: $0.value) }
+        guard let data = try? JSONEncoder().encode(pairs) else { return }
+        write(data, key: "metas_\(wallet.prefix(10))")
+    }
+
+    func loadCachedMetas(wallet: String) -> [String: ChallengeMeta]? {
+        guard let data = read(key: "metas_\(wallet.prefix(10))") else { return nil }
+        guard let pairs = try? JSONDecoder().decode([MetaPair].self, from: data) else { return nil }
+        return Dictionary(uniqueKeysWithValues: pairs.map { ($0.id, $0.meta) })
+    }
+
     // MARK: - Evidence Queue (offline submission)
 
     func queueEvidence(_ submission: PendingSubmission) {
@@ -114,6 +129,13 @@ private struct CacheEntry: Codable {
     let data: Data
     let timestamp: Date
     let ttl: TimeInterval
+}
+
+// MARK: - Meta Cache Pair
+
+private struct MetaPair: Codable {
+    let id: String
+    let meta: ChallengeMeta
 }
 
 // MARK: - Pending Submission (Offline Queue)
