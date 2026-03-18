@@ -122,6 +122,7 @@ function ModelsTab({ adminKey }: { adminKey: string }) {
   const [mKind, setMKind] = useState<ModelKind>("aivm");
   const [mHash, setMHash] = useState("");
   const [mHashOverride, setMHashOverride] = useState(false); // true = custom hash (not auto-computed)
+  const [mHashConfirmText, setMHashConfirmText] = useState(""); // typed confirmation for enabling override
   const [mVerifier, setMVerifier] = useState("");
   const [mBinding, setMBinding] = useState(true);
   const [mActive, setMActive] = useState(true);
@@ -203,7 +204,7 @@ function ModelsTab({ adminKey }: { adminKey: string }) {
 
   const clearForm = () => {
     setEditId(""); setMId(""); setMLabel(""); setMKind("aivm");
-    setMHash(""); setMHashOverride(false); setMVerifier(""); setMBinding(true); setMActive(true);
+    setMHash(""); setMHashOverride(false); setMHashConfirmText(""); setMVerifier(""); setMBinding(true); setMActive(true);
     setMSignals("bind, success"); setMSources(""); setMFileAccept("");
     setMNotes(""); setMParams([]);
   };
@@ -212,6 +213,12 @@ function ModelsTab({ adminKey }: { adminKey: string }) {
     if (!mId.trim() || !mLabel.trim()) return setMStatus({ text: "Enter id & label", kind: "bad" });
     if (mKind !== "aivm" && !bytes32Regex.test(mHash)) return setMStatus({ text: "Custom models require a valid modelHash (0x, 64 hex chars)", kind: "bad" });
     if (mKind !== "aivm" && !addrRegex.test(mVerifier)) return setMStatus({ text: "Custom models require a valid verifier address", kind: "bad" });
+    if (mKind === "aivm" && mHashOverride) {
+      if (!bytes32Regex.test(mHash)) return setMStatus({ text: "Custom hash must be a valid 32-byte 0x hex string (66 chars)", kind: "bad" });
+      if (mHash.toLowerCase() === aivmHashFromId(mId.trim()).toLowerCase()) {
+        return setMStatus({ text: "Custom hash is the same as auto-computed — disable override instead", kind: "bad" });
+      }
+    }
 
     const signals = mSignals.split(",").map(s => s.trim()).filter(Boolean);
     const sources = mSources.split(",").map(s => s.trim()).filter(Boolean);
@@ -249,6 +256,25 @@ function ModelsTab({ adminKey }: { adminKey: string }) {
 
   const saveModels = async () => {
     if (mValid !== "OK") return setMStatus({ text: "Fix validation errors before saving", kind: "bad" });
+
+    // Defensive: warn about custom-hash models before saving
+    const parsed = parseJSON<{ models: ModelRow[] }>(mText);
+    const customHashModels = (parsed?.models ?? []).filter(m =>
+      m.kind === "aivm" && m.id.trim() &&
+      m.modelHash.toLowerCase() !== aivmHashFromId(m.id.trim()).toLowerCase()
+    );
+    if (customHashModels.length > 0) {
+      const names = customHashModels.map(m => m.id).join(", ");
+      const confirmed = window.confirm(
+        `WARNING: ${customHashModels.length} model(s) have custom hash overrides:\n\n` +
+        `${names}\n\n` +
+        `Custom hashes should ONLY be used when Lightchain has assigned different identifiers ` +
+        `during mainnet model registration. This will affect all future challenges using these models.\n\n` +
+        `Are you sure you want to save?`
+      );
+      if (!confirmed) return setMStatus({ text: "Save cancelled", kind: "info" });
+    }
+
     setMStatus({ text: "Saving…", kind: "info" });
     try {
       const res = await fetch("/api/admin/models", {
@@ -285,11 +311,15 @@ function ModelsTab({ adminKey }: { adminKey: string }) {
           <Field label="Select a model to edit">
             <select className="input" value={editId} onChange={(e) => loadModelIntoForm(e.target.value)}>
               <option value="">— new model —</option>
-              {existingModels.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.id} ({m.kind}{m.active === false ? ", inactive" : ""})
-                </option>
-              ))}
+              {existingModels.map((m) => {
+                const isCustomHash = m.kind === "aivm" && m.id.trim() &&
+                  m.modelHash.toLowerCase() !== aivmHashFromId(m.id.trim()).toLowerCase();
+                return (
+                  <option key={m.id} value={m.id}>
+                    {m.id} ({m.kind}{m.active === false ? ", inactive" : ""}{isCustomHash ? ", CUSTOM HASH" : ""})
+                  </option>
+                );
+              })}
             </select>
           </Field>
           <div className="flex items-end gap-2">
@@ -343,35 +373,73 @@ function ModelsTab({ adminKey }: { adminKey: string }) {
           </Field>
         </div>
 
-        <SectionHeader title="AIVM Configuration" description={mKind === "aivm" ? (mHashOverride ? "Custom hash override active" : "Auto-configured from model ID") : "Manual configuration required"} />
-        {mKind === "aivm" && (
-          <div className="p-3 rounded-lg border border-white/10 mb-3">
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={mHashOverride} onChange={(e) => {
-                  setMHashOverride(e.target.checked);
-                  if (!e.target.checked && mId.trim()) setMHash(aivmHashFromId(mId.trim()));
-                }} />
-                <span className="text-sm font-medium">Custom Model Hash</span>
-              </label>
-              <span className="text-xs opacity-50">Enable if Lightchain assigns a different identifier than keccak256(modelId)</span>
-            </div>
-            {mHashOverride && (
-              <div className="text-xs mt-2 p-2 rounded bg-yellow-500/10 border border-yellow-500/20 text-yellow-300">
-                Custom hash mode: the hash field is now editable. Update it with the identifier assigned by Lightchain.
-                All adapters and verification routing will automatically use the new hash after saving.
+        <SectionHeader title="AIVM Configuration" description={mKind === "aivm" ? (mHashOverride ? "CUSTOM HASH OVERRIDE ACTIVE" : "Auto-configured from model ID") : "Manual configuration required"} />
+        {mKind === "aivm" && !mHashOverride && (
+          <details className="p-3 rounded-lg border border-white/10 mb-3">
+            <summary className="text-xs opacity-50 cursor-pointer select-none">
+              Override model hash (only if Lightchain assigned a different identifier)
+            </summary>
+            <div className="mt-3 p-3 rounded border border-red-500/20 bg-red-500/5">
+              <div className="text-xs text-red-300 font-semibold mb-2">
+                WARNING: Changing the model hash affects all future challenges using this model.
+                Existing active challenges will continue to use the hash they were created with.
+                Only do this if Lightchain has assigned a different identifier during mainnet model registration.
               </div>
-            )}
+              <Field label={`To confirm, type the model ID: ${mId || "(enter model ID first)"}`}>
+                <input
+                  className="input text-sm"
+                  value={mHashConfirmText}
+                  onChange={(e) => setMHashConfirmText(e.target.value)}
+                  placeholder={mId || "model.id@version"}
+                  disabled={!mId.trim()}
+                />
+              </Field>
+              <button
+                className="btn btn-warn mt-2"
+                disabled={!mId.trim() || mHashConfirmText.trim() !== mId.trim()}
+                onClick={() => { setMHashOverride(true); setMHashConfirmText(""); }}
+              >
+                Enable Custom Hash
+              </button>
+              {mId.trim() && mHashConfirmText.trim().length > 0 && mHashConfirmText.trim() !== mId.trim() && (
+                <span className="text-xs text-red-400 ml-2">Model ID does not match</span>
+              )}
+            </div>
+          </details>
+        )}
+        {mKind === "aivm" && mHashOverride && (
+          <div className="p-3 rounded-lg border border-yellow-500/30 bg-yellow-500/5 mb-3">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="chip chip--bad">Custom Hash Active</span>
+              <button className="btn btn-ghost text-xs" onClick={() => {
+                setMHashOverride(false);
+                setMHashConfirmText("");
+                if (mId.trim()) setMHash(aivmHashFromId(mId.trim()));
+              }}>
+                Revert to auto-computed hash
+              </button>
+            </div>
+            <div className="text-xs text-yellow-300">
+              This model uses a custom hash instead of keccak256(modelId). This should only be set
+              when Lightchain&apos;s mainnet model registration assigns a different identifier.
+              The auto-computed hash would be: <code className="text-xs opacity-70">{mId.trim() ? aivmHashFromId(mId.trim()).slice(0, 18) + "…" : "—"}</code>
+            </div>
           </div>
         )}
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Model Hash">
-            <input className="input font-mono text-xs" value={mHash} onChange={(e) => setMHash(e.target.value)} placeholder="0x…" readOnly={mKind === "aivm" && !mHashOverride} />
+          <Field label={mHashOverride ? "Model Hash (CUSTOM)" : "Model Hash"}>
+            <input
+              className={cn("input font-mono text-xs", mHashOverride && "border-yellow-500/40")}
+              value={mHash}
+              onChange={(e) => setMHash(e.target.value)}
+              placeholder="0x…"
+              readOnly={mKind === "aivm" && !mHashOverride}
+            />
             <HelpText>
               {mKind === "aivm" && !mHashOverride
                 ? <span className="chip chip--info">Auto: keccak256(modelId)</span>
                 : mKind === "aivm" && mHashOverride
-                ? "Enter the hash assigned by Lightchain for this model."
+                ? "Enter the 0x hash assigned by Lightchain. Must be 32-byte hex (66 chars)."
                 : "32-byte hex digest identifying this model on-chain."}
             </HelpText>
           </Field>

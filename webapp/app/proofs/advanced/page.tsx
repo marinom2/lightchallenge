@@ -102,7 +102,7 @@ function AdvancedInner() {
         }
       } catch (e: any) {
         if (!stop) {
-          setErrorModels(e?.message || "Could not load models.json");
+          setErrorModels(e?.message || "Could not load models from registry");
           setLoadingModels(false);
         }
       }
