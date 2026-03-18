@@ -2,6 +2,7 @@
 // Unified hero card: ring + title + status + prize + insight + action.
 // Communicates in 2 seconds: what, state, stakes, next step.
 
+import Combine
 import SwiftUI
 
 // MARK: - Activity Theme
@@ -222,7 +223,6 @@ enum UserChallengeState {
     var secondaryLabel: String? {
         switch self {
         case .awaitingProof: return "Submit your proof"
-        case .awaitingVerdict: return "Awaiting verdict"
         default: return nil
         }
     }
@@ -260,6 +260,7 @@ struct ChallengeProgressHero: View {
     let participantStatus: ParticipantStatus?
     let healthService: HealthKitService
     let progress: ChallengeProgress?
+    let tokenPrice: Double?
     let onAction: (HeroAction) -> Void
 
     @EnvironmentObject private var appState: AppState
@@ -391,6 +392,10 @@ struct ChallengeProgressHero: View {
     // MARK: - Progress Ring
 
     private var ringState: RingState {
+        // User passed their verdict → always show complete ring
+        if userState == .completed {
+            return .complete
+        }
         if case .finalized(let passed) = phase, passed == true {
             return .complete
         }
@@ -435,6 +440,9 @@ struct ChallengeProgressHero: View {
         .onAppear {
             if phase.isActive { isPulsing = true }
         }
+        .onChange(of: phase.isActive) { _, isActive in
+            if !isActive { isPulsing = false }
+        }
     }
 
     // MARK: - Numeric Progress
@@ -455,7 +463,7 @@ struct ChallengeProgressHero: View {
     private var prizeSection: some View {
         HStack(spacing: LC.space16) {
             // Prize pool
-            if let pool = detail.poolDisplay {
+            if let pool = detail.poolDisplayUSD(tokenPrice: tokenPrice) {
                 VStack(alignment: .leading, spacing: LC.space2) {
                     Text("Prize Pool")
                         .font(.caption2.weight(.medium))
@@ -464,7 +472,7 @@ struct ChallengeProgressHero: View {
                         .font(.title3.weight(.bold))
                         .foregroundStyle(LC.accent)
                 }
-            } else if let stake = detail.stakeDisplay {
+            } else if let stake = detail.stakeDisplayUSD(tokenPrice: tokenPrice) {
                 VStack(alignment: .leading, spacing: LC.space2) {
                     Text("Stake")
                         .font(.caption2.weight(.medium))
@@ -508,9 +516,6 @@ struct ChallengeProgressHero: View {
         }
 
         // 2. Status-related
-        if userState == .awaitingVerdict {
-            lines.append("Your proof is being verified")
-        }
         if userState == .completed {
             lines.append("You completed this challenge")
         }
@@ -550,20 +555,14 @@ struct ChallengeProgressHero: View {
                 removal: .move(edge: .top).combined(with: .opacity)
             ))
             .frame(maxWidth: .infinity, alignment: .leading)
-            .onAppear { startInsightRotation() }
-    }
-
-    private func startInsightRotation() {
-        guard insights.count > 1 else { return }
-        // Don't rotate if urgent
-        if case .proofWindow(let remaining) = phase, remaining > 0 && remaining < 86400 {
-            return
-        }
-        Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { _ in
-            withAnimation(.easeInOut(duration: 0.3)) {
-                insightIndex += 1
+            .onReceive(Timer.publish(every: 5, on: .main, in: .common).autoconnect()) { _ in
+                guard insights.count > 1 else { return }
+                // Don't rotate if urgent
+                if case .proofWindow(let remaining) = phase, remaining > 0 && remaining < 86400 { return }
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    insightIndex += 1
+                }
             }
-        }
     }
 
     // MARK: - Action Button

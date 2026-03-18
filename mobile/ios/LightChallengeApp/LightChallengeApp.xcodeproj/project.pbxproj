@@ -16,6 +16,7 @@
 		22A79E34A0431F1DE2454FD0 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEB4377B08B897795FF6447F /* DesignTokens.swift */; };
 		22C7BD51A23BA1663439FA74 /* NotificationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 585BC1959D4139EB7E5DF876 /* NotificationsView.swift */; };
 		2D0FCA3E5F088B4D5B1A30B1 /* ClaimsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CED0C0C6160E432CAB20B6DC /* ClaimsView.swift */; };
+		360DDF3AFCCAFBDAB38400AC /* TokenPriceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DF25EB93B383D73BB3DCF4D /* TokenPriceService.swift */; };
 		4229DDC4AB359F338A1BE4BB /* ReownAppKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1541795F8BBD0D69D53472F0 /* ReownAppKit */; };
 		43D74F474BAE2BA81DAD7ECF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64FC4B6EF61438B2E4A3AE31 /* SettingsView.swift */; };
 		45458B7E79F43A785CE99693 /* HomeView.swift.bak in Resources */ = {isa = PBXBuildFile; fileRef = 2995120A1E682FCFF13A7F79 /* HomeView.swift.bak */; };
@@ -28,6 +29,7 @@
 		508CD9610C708386D8669B17 /* AvatarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E342EDE01313A06DD13943 /* AvatarService.swift */; };
 		54F145E38FD99962111F5ED5 /* Contracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2B368DB02FABEB0FE873AF1 /* Contracts.swift */; };
 		550797D0D12E07537CE166AB /* MyActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48C119618E8F45A5DC431D0D /* MyActivityView.swift */; };
+		5CA03EA8EC7B3568759E1ADE /* ActivitySourceNudgeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80C6CAAC08D862ACAA26049C /* ActivitySourceNudgeSheet.swift */; };
 		60E3802C318601DD043D4F1E /* AvatarPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0248C14F16C23664FB00C648 /* AvatarPickerView.swift */; };
 		6922B4D114C1719A5917FF0D /* ChallengeShareCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C0F25C8AF902669420DDED /* ChallengeShareCard.swift */; };
 		6B4E5569D04D48C05EF068BF /* FitnessProofView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 956AFB8941781516AFD70596 /* FitnessProofView.swift */; };
@@ -64,6 +66,7 @@
 		056B46502BB7A0127704ABD6 /* OAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthService.swift; sourceTree = "<group>"; };
 		05D4352BB8C482916116273A /* ChallengesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengesView.swift; sourceTree = "<group>"; };
 		07B4E3038A54D8DA0F3B3329 /* AchievementsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementsView.swift; sourceTree = "<group>"; };
+		0DF25EB93B383D73BB3DCF4D /* TokenPriceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenPriceService.swift; sourceTree = "<group>"; };
 		204B2D7C9B26D8265BDA995C /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		2386C28BB1920D7EE693D754 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		262C604C08756AF00CE8B815 /* GamingHandoffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamingHandoffView.swift; sourceTree = "<group>"; };
@@ -86,6 +89,7 @@
 		6C9F9B4D909FEAE5EC4A1D5B /* LightChallengeApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = LightChallengeApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6F96382A6786E825D5D51804 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		7CC47CBD7AC0CC24C0ED5661 /* Templates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Templates.swift; sourceTree = "<group>"; };
+		80C6CAAC08D862ACAA26049C /* ActivitySourceNudgeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivitySourceNudgeSheet.swift; sourceTree = "<group>"; };
 		82F0C2BA1499A50D05A49354 /* CreateChallengeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateChallengeView.swift; sourceTree = "<group>"; };
 		8600C50E8158C81C2EA3E6A3 /* LeaderboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeaderboardView.swift; sourceTree = "<group>"; };
 		87C8F03B75271A197ACEF743 /* VictoryCelebrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VictoryCelebrationView.swift; sourceTree = "<group>"; };
@@ -297,6 +301,7 @@
 				C854B2A77F15DDCCB5856BAC /* HealthKitService.swift */,
 				6F96382A6786E825D5D51804 /* NotificationService.swift */,
 				056B46502BB7A0127704ABD6 /* OAuthService.swift */,
+				0DF25EB93B383D73BB3DCF4D /* TokenPriceService.swift */,
 				A6ABAF1BACDB42FA19D56FC3 /* WalletManager.swift */,
 			);
 			path = Services;
@@ -340,6 +345,7 @@
 			isa = PBXGroup;
 			children = (
 				5D7522CBD0A9E92B4165DB8E /* ActivityFigureView.swift */,
+				80C6CAAC08D862ACAA26049C /* ActivitySourceNudgeSheet.swift */,
 				AEE7B27C2A3DF0F5E387AD12 /* ChallengeDetailView.swift */,
 				64ACBB01A8D1FBE7224AECC3 /* ChallengeProgressHero.swift */,
 				956AFB8941781516AFD70596 /* FitnessProofView.swift */,
@@ -432,6 +438,7 @@
 				B9CCD6D0708DFFC22FAF4F3C /* AchievementShareCard.swift in Sources */,
 				E8DA5005C7B7D20CEA1B862C /* AchievementsView.swift in Sources */,
 				BD50E3316C1B92770332DB70 /* ActivityFigureView.swift in Sources */,
+				5CA03EA8EC7B3568759E1ADE /* ActivitySourceNudgeSheet.swift in Sources */,
 				CF3E4B50FF79FA9FE4F9A8F3 /* AppState.swift in Sources */,
 				0CF75325BF09048735805AD1 /* AutoProofService.swift in Sources */,
 				60E3802C318601DD043D4F1E /* AvatarPickerView.swift in Sources */,
@@ -469,6 +476,7 @@
 				43D74F474BAE2BA81DAD7ECF /* SettingsView.swift in Sources */,
 				F23286C4F4D1FBA4A08BAC95 /* SplashPortal.swift in Sources */,
 				AE34E10980EB1777EF9B796A /* Templates.swift in Sources */,
+				360DDF3AFCCAFBDAB38400AC /* TokenPriceService.swift in Sources */,
 				455FD904AC0EA8F33266E202 /* VictoryCelebrationView.swift in Sources */,
 				1D5FFD1F3DA74E90F1820F1D /* WalletManager.swift in Sources */,
 				F2019051977E76405C534A6E /* WalletSheet.swift in Sources */,

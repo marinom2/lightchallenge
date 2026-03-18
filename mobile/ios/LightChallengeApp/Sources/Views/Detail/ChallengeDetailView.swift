@@ -42,9 +42,11 @@ struct ChallengeDetailView: View {
     @State private var showingShareCard = false
     @State private var isJoining = false
     @State private var joinError: String?
+    @State private var showingTrackerNudge = false
     @State private var showingFileImporter = false
     @State private var fileUploadStatus: FileUploadStatus = .idle
     @State private var _reputation: Reputation?
+    @State private var tokenPrice: Double?
     @Environment(\.colorScheme) private var scheme
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -69,7 +71,11 @@ struct ChallengeDetailView: View {
         .background(LC.pageBg(scheme))
         .navigationTitle(detail?.displayTitle ?? "Challenge #\(challengeId)")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await loadData() }
+        .task {
+            async let priceTask: () = loadTokenPrice()
+            async let dataTask: () = loadData()
+            _ = await (priceTask, dataTask)
+        }
         .refreshable { await loadData() }
         .sheet(isPresented: $showingProofFlow) {
             NavigationStack {
@@ -96,6 +102,7 @@ struct ChallengeDetailView: View {
                 challengeId: challengeId,
                 title: detail?.displayTitle ?? "",
                 earnings: detail?.poolDisplay,
+                earningsUSD: detail?.poolDisplayUSD(tokenPrice: tokenPrice),
                 achievementType: "victory"
             )
         }
@@ -117,6 +124,11 @@ struct ChallengeDetailView: View {
         ) { result in
             Task { await handleFileImport(result) }
         }
+        .sheet(isPresented: $showingTrackerNudge) {
+            ActivitySourceNudgeSheet()
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
     }
 
     // MARK: - Detail Content
@@ -130,6 +142,7 @@ struct ChallengeDetailView: View {
                 participantStatus: participantStatus,
                 healthService: healthService,
                 progress: progress,
+                tokenPrice: tokenPrice,
                 onAction: { handleHeroAction($0, detail: detail) }
             )
 
@@ -181,7 +194,7 @@ struct ChallengeDetailView: View {
                 joinErrorCard(joinError)
             } else if isJoining {
                 joiningCard
-            } else if let stake = detail.stakeDisplay {
+            } else if let stake = detail.stakeDisplayUSD(tokenPrice: tokenPrice) {
                 stakeInfoCard(stake)
             }
 
@@ -625,6 +638,11 @@ struct ChallengeDetailView: View {
                 baseURL: appState.serverURL
             )
             await loadData()
+
+            // Nudge user to connect an activity source if none are active
+            if !appState.healthEnabled {
+                showingTrackerNudge = true
+            }
         } catch {
             joinError = error.localizedDescription
         }
@@ -804,6 +822,10 @@ struct ChallengeDetailView: View {
     }
 
     // MARK: - Data Loading
+
+    private func loadTokenPrice() async {
+        tokenPrice = await TokenPriceService.shared.getUSDPrice()
+    }
 
     private func loadData() async {
         isLoading = true

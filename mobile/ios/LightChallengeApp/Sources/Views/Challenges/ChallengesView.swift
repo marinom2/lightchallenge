@@ -40,7 +40,7 @@ struct ChallengesView: View {
 
     private var claimableCount: Int {
         activities.filter { a in
-            a.verdictPass == true && (eligibility[a.challengeId]?.hasAnyClaim == true)
+            a.verdictPass != nil && (eligibility[a.challengeId]?.hasAnyClaim == true)
         }.count
     }
 
@@ -108,7 +108,7 @@ struct ChallengesView: View {
                     )
                 case .claim:
                     ClaimHubView(
-                        activities: activities.filter { $0.verdictPass == true && eligibility[$0.challengeId]?.hasAnyClaim == true },
+                        activities: activities.filter { $0.verdictPass != nil && eligibility[$0.challengeId]?.hasAnyClaim == true },
                         challengeMetas: challengeMetas,
                         eligibility: eligibility,
                         claimingId: $claimingId,
@@ -227,12 +227,12 @@ struct ChallengesView: View {
                         )
                     )
 
-                // Decorative icon (bottom-right)
+                // Decorative icon (vertically centered, right side)
                 Image(systemName: icon)
-                    .font(.system(size: 80, weight: .ultraLight))
+                    .font(.system(size: 70, weight: .ultraLight))
                     .foregroundStyle(.white.opacity(0.15))
-                    .offset(x: 40, y: 20)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .offset(x: 40)
 
                 // Content
                 VStack(alignment: .leading, spacing: LC.space4) {
@@ -475,7 +475,7 @@ struct ChallengesView: View {
                 for activity in activities {
                     let cid = activity.challengeId
                     group.addTask { await fetchMeta(cid) }
-                    if activity.verdictPass == true {
+                    if activity.verdictPass != nil {
                         group.addTask { await fetchEligibility(cid) }
                     }
                 }
@@ -651,7 +651,7 @@ struct EvidenceHubView: View {
     }
 }
 
-// MARK: - My Challenges List View
+// MARK: - My Challenges List View (Apple Fitness-style)
 
 struct MyChallengesListView: View {
     let activities: [MyChallenge]
@@ -660,69 +660,124 @@ struct MyChallengesListView: View {
     @Binding var selectedProof: ProofTarget?
     @Binding var claimingId: String?
     var onClaim: (MyChallenge, ContractService.ClaimEligibility) async -> Void
-    @State private var selectedCategory: ChallengeCategory? = nil
+    @State private var selectedFilter: FitnessType? = nil
     @Environment(\.colorScheme) private var scheme
 
+    // MARK: - Filtering
+
+    /// Activity types user actually participates in.
+    private var availableFilters: [FitnessType] {
+        FitnessType.allCases.filter { type in
+            activities.contains { a in
+                guard let meta = challengeMetas[a.challengeId] else { return false }
+                return type.matches(meta)
+            }
+        }
+    }
+
     private var filtered: [MyChallenge] {
-        guard let cat = selectedCategory else { return activities }
-        return activities.filter { challengeMetas[$0.challengeId]?.resolvedCategory == cat }
+        guard let type = selectedFilter else { return activities }
+        return activities.filter { a in
+            guard let meta = challengeMetas[a.challengeId] else { return false }
+            return type.matches(meta)
+        }
     }
 
+    // MARK: - Status Groups
+
+    /// Needs Action: no evidence submitted yet, OR has a claimable reward.
     private var needsAction: [MyChallenge] {
-        filtered.filter { $0.hasEvidence != true || ($0.verdictPass == true && eligibility[$0.challengeId]?.hasAnyClaim == true) }
+        filtered.filter { a in
+            if a.hasEvidence != true && a.verdictPass == nil { return true }
+            if a.verdictPass != nil && eligibility[a.challengeId]?.hasAnyClaim == true { return true }
+            return false
+        }
     }
 
+    /// Active: evidence submitted, awaiting verdict.
     private var active: [MyChallenge] {
-        filtered.filter { $0.verdictPass == nil && !needsAction.map(\.id).contains($0.id) }
+        filtered.filter { a in
+            a.verdictPass == nil && a.hasEvidence == true && !needsActionIds.contains(a.id)
+        }
     }
 
-    private var completed: [MyChallenge] {
-        filtered.filter { $0.verdictPass != nil && !needsAction.map(\.id).contains($0.id) }
+    /// Passed: verdict is pass, no pending claim.
+    private var passed: [MyChallenge] {
+        filtered.filter { a in
+            a.verdictPass == true && !needsActionIds.contains(a.id)
+        }
     }
+
+    /// Failed: verdict is fail, no pending claim.
+    private var failed: [MyChallenge] {
+        filtered.filter { a in
+            a.verdictPass == false && !needsActionIds.contains(a.id)
+        }
+    }
+
+    private var needsActionIds: Set<String> {
+        Set(needsAction.map(\.id))
+    }
+
+    // MARK: - Body
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: LC.space20) {
-                // Category filter
-                categoryFilterPills
+        List {
+            // Activity type filters
+            if !availableFilters.isEmpty {
+                Section {
+                    filterChips
+                }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+            }
 
-                if !needsAction.isEmpty {
-                    challengeSection("Needs Action", icon: "exclamationmark.circle.fill", color: LC.warning, challenges: needsAction)
-                }
-                if !active.isEmpty {
-                    challengeSection("In Progress", icon: "flame.fill", color: LC.accent, challenges: active)
-                }
-                if !completed.isEmpty {
-                    challengeSection("Completed", icon: "checkmark.circle.fill", color: LC.success, challenges: completed)
-                }
+            // Status sections (Apple Fitness style)
+            if !needsAction.isEmpty {
+                statusSection("Needs Action", icon: "exclamationmark.circle.fill", color: LC.warning, items: needsAction)
+            }
+            if !active.isEmpty {
+                statusSection("Active", icon: "figure.run", color: LC.accent, items: active)
+            }
+            if !passed.isEmpty {
+                statusSection("Passed", icon: "checkmark.circle.fill", color: LC.success, items: passed)
+            }
+            if !failed.isEmpty {
+                statusSection("Failed", icon: "xmark.circle.fill", color: LC.danger, items: failed)
+            }
 
-                if filtered.isEmpty {
+            if filtered.isEmpty {
+                Section {
                     emptyState
                 }
+                .listRowBackground(Color.clear)
             }
-            .padding(.horizontal, LC.space16)
-            .padding(.bottom, LC.space32)
         }
-        .background(Color(.systemGroupedBackground))
+        .listStyle(.insetGrouped)
         .navigationTitle("My Challenges")
         .navigationBarTitleDisplayMode(.large)
     }
 
-    private var categoryFilterPills: some View {
+    // MARK: - Filter Chips
+
+    private var filterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: LC.space8) {
-                filterPill("All", icon: "square.grid.2x2", category: nil)
-                filterPill("Fitness", icon: "figure.run", category: .fitness)
-                filterPill("Gaming", icon: "gamecontroller.fill", category: .gaming)
+                filterPill("All", icon: "square.grid.2x2", type: nil)
+                ForEach(availableFilters) { type in
+                    filterPill(type.label, icon: type.icon, type: type)
+                }
             }
+            .padding(.horizontal, LC.space16)
+            .padding(.vertical, LC.space4)
         }
     }
 
-    private func filterPill(_ title: String, icon: String, category: ChallengeCategory?) -> some View {
-        let selected = selectedCategory == category
+    private func filterPill(_ title: String, icon: String, type: FitnessType?) -> some View {
+        let selected = selectedFilter == type
         return Button {
             withAnimation(.spring(response: 0.3)) {
-                selectedCategory = selected ? nil : category
+                selectedFilter = selected ? nil : type
             }
         } label: {
             HStack(spacing: LC.space4) {
@@ -737,63 +792,72 @@ struct MyChallengesListView: View {
         .buttonStyle(.plain)
     }
 
-    private func challengeSection(_ title: String, icon: String, color: Color, challenges: [MyChallenge]) -> some View {
-        VStack(alignment: .leading, spacing: LC.space12) {
-            HStack(spacing: LC.space8) {
+    // MARK: - Status Section
+
+    private func statusSection(_ title: String, icon: String, color: Color, items: [MyChallenge]) -> some View {
+        Section {
+            ForEach(items) { activity in
+                NavigationLink(value: activity.challengeId) {
+                    challengeRow(activity, sectionColor: color)
+                }
+            }
+        } header: {
+            HStack(spacing: LC.space6) {
                 Image(systemName: icon)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(color)
-                Text(title).font(.headline)
-                Text("\(challenges.count)")
-                    .font(.caption.weight(.bold))
+                Text(title)
+                Spacer()
+                Text("\(items.count)")
+                    .font(.caption2.weight(.bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(Capsule().fill(color))
             }
+        }
+    }
 
-            ForEach(challenges) { activity in
-                NavigationLink(value: activity.challengeId) {
-                    challengeRow(activity)
-                }
-                .buttonStyle(.plain)
+    // MARK: - Challenge Row (Apple Fitness style)
+
+    private func challengeRow(_ activity: MyChallenge, sectionColor: Color) -> some View {
+        let meta = challengeMetas[activity.challengeId]
+        let fitnessIcon = activityIcon(for: meta)
+
+        return HStack(spacing: LC.space12) {
+            // Activity type icon (green like Apple Fitness)
+            Image(systemName: fitnessIcon)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(sectionColor)
+                .frame(width: 32)
+
+            VStack(alignment: .leading, spacing: LC.space2) {
+                Text(meta?.displayTitle ?? "Challenge #\(activity.challengeId)")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(LC.textPrimary(scheme))
+                    .lineLimit(1)
+
+                Text(activity.statusLabel)
+                    .font(.caption)
+                    .foregroundStyle(statusColor(activity))
             }
         }
     }
 
-    private func challengeRow(_ activity: MyChallenge) -> some View {
-        let meta = challengeMetas[activity.challengeId]
-        return HStack(spacing: LC.space12) {
-            Image(systemName: meta?.resolvedCategory.icon ?? "flame.fill")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 36, height: 36)
-                .background(
-                    RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous)
-                        .fill(LC.fitnessGradient)
-                )
+    // MARK: - Helpers
 
-            VStack(alignment: .leading, spacing: LC.space2) {
-                Text(meta?.displayTitle ?? "Challenge #\(activity.challengeId)")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(LC.textPrimary(scheme))
-                    .lineLimit(1)
-                Text(activity.statusLabel)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(activity.verdictPass == true ? LC.success : activity.verdictPass == false ? LC.danger : .secondary)
-            }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(LC.textTertiary(scheme))
+    private func activityIcon(for meta: ChallengeMeta?) -> String {
+        guard let meta else { return "figure.run" }
+        for type in FitnessType.allCases {
+            if type.matches(meta) { return type.icon }
         }
-        .padding(LC.space12)
-        .background(
-            RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
+        return meta.resolvedCategory.icon
+    }
+
+    private func statusColor(_ activity: MyChallenge) -> Color {
+        if let pass = activity.verdictPass { return pass ? LC.success : LC.danger }
+        if activity.hasEvidence == true { return LC.warning }
+        return .secondary
     }
 
     private var emptyState: some View {
@@ -866,7 +930,11 @@ struct ClaimHubView: View {
                         .foregroundStyle(LC.textPrimary(scheme))
                         .lineLimit(1)
 
-                    LCStatusBadge(text: "Passed", color: LC.success)
+                    if activity.verdictPass == true {
+                        LCStatusBadge(text: "Winner", color: LC.success)
+                    } else {
+                        LCStatusBadge(text: "Cashback", color: LC.warning)
+                    }
                 }
 
                 Spacer()

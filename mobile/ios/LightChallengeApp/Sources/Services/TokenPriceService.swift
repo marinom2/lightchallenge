@@ -143,36 +143,38 @@ actor TokenPriceService {
 // MARK: - LCFormatter USD Extension
 
 extension LCFormatter {
-    /// Format a USDC value with appropriate precision.
-    private static func fmtUSDC(_ usd: Double) -> String {
+    /// Format a USD value with appropriate precision.
+    private static func fmtUSD(_ usd: Double) -> String {
         if usd >= 1000 {
-            return String(format: "%.0f USDC", usd)
+            return String(format: "$%.0f", usd)
         } else if usd >= 1 {
-            return String(format: "%.2f USDC", usd)
+            return String(format: "$%.2f", usd)
         } else if usd >= 0.01 {
-            return String(format: "%.3f USDC", usd)
+            return String(format: "$%.2f", usd)
+        } else if usd > 0 {
+            return "< $0.01"
         } else {
-            return String(format: "%.4f USDC", usd)
+            return "$0"
         }
     }
 
-    /// Format a wei amount as USDC using the live token price.
+    /// Format a wei amount as USD using the live token price.
     /// Falls back to LCAI display if price is unavailable.
     static func formatUSD(wei: Double, tokenPrice: Double?) -> String {
         let lcai = wei / 1e18
         guard let price = tokenPrice, price > 0 else {
             return format(wei: wei)
         }
-        return fmtUSDC(lcai * price)
+        return fmtUSD(lcai * price)
     }
 
-    /// Format a wei string as USDC.
+    /// Format a wei string as USD.
     static func formatUSD(weiString: String, tokenPrice: Double?) -> String {
-        guard let amount = Double(weiString), amount > 0 else { return "0 USDC" }
+        guard let amount = Double(weiString), amount > 0 else { return "$0" }
         return formatUSD(wei: amount, tokenPrice: tokenPrice)
     }
 
-    /// Format LCAI amount (not wei) as USDC.
+    /// Format LCAI amount (not wei) as USD.
     static func formatLCAIasUSD(lcai: Double, tokenPrice: Double?) -> String {
         guard let price = tokenPrice, price > 0 else {
             if lcai >= 1000 {
@@ -180,6 +182,6 @@ extension LCFormatter {
             }
             return String(format: "%.2f LCAI", lcai)
         }
-        return fmtUSDC(lcai * price)
+        return fmtUSD(lcai * price)
     }
 }

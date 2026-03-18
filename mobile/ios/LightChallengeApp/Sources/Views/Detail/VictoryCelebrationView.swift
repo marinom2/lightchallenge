@@ -8,6 +8,7 @@ struct VictoryCelebrationView: View {
     let challengeId: String
     let title: String
     let earnings: String?         // e.g. "0.05 LCAI"
+    let earningsUSD: String?      // e.g. "$0.012"
     let achievementType: String?  // e.g. "victory"
 
     @EnvironmentObject private var appState: AppState
@@ -100,9 +101,17 @@ struct VictoryCelebrationView: View {
                             .font(.caption.weight(.medium))
                             .foregroundStyle(.white.opacity(0.6))
 
+                        // USD amount (primary)
+                        if let usd = earningsUSD {
+                            Text(usd)
+                                .font(.system(size: 36, weight: .bold, design: .rounded))
+                                .foregroundStyle(LC.accent)
+                        }
+
+                        // LCAI amount (secondary)
                         Text(earnings)
-                            .font(.system(size: 32, weight: .bold, design: .monospaced))
-                            .foregroundStyle(LC.accent)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.5))
 
                         Text("Claimable from Treasury")
                             .font(.caption2)

@@ -62,6 +62,7 @@ struct LightChallengeApp: App {
                 .onChange(of: walletManager.isConnected) { _, connected in
                     if connected {
                         appState.walletAddress = walletManager.connectedAddress
+                        connectPendingOnboardingProvider()
                     }
                 }
                 .task {
@@ -69,8 +70,8 @@ struct LightChallengeApp: App {
                     walletManager.configure()
                     oauthService.detectInstalledApps()
 
-                    // Auto-prompt HealthKit authorization
-                    if !healthService.isAuthorized {
+                    // Restore HealthKit auth state if previously enabled
+                    if appState.healthEnabled {
                         await healthService.requestAuthorization()
                     }
 
@@ -116,7 +117,7 @@ struct LightChallengeApp: App {
                     showSplash = false
                 }
             }
-        } else if showOnboarding {
+        } else if showOnboarding && !appState.hasCompletedOnboarding {
             OnboardingView(dismiss: {
                 withAnimation(.easeInOut(duration: 0.4)) {
                     showOnboarding = false
@@ -161,6 +162,26 @@ struct LightChallengeApp: App {
             // Silently fail — auto-proof is best-effort on foreground
             print("[AutoProof] foreground check failed: \(error.localizedDescription)")
         }
+    }
+
+    /// Auto-connect an activity provider that was selected during onboarding
+    /// but required a wallet (Strava, Fitbit, Garmin).
+    private func connectPendingOnboardingProvider() {
+        let provider = appState.onboardingActivityProvider
+        guard !provider.isEmpty, appState.hasWallet else { return }
+
+        switch provider {
+        case "strava":
+            oauthService.connectStrava(baseURL: appState.serverURL, wallet: appState.walletAddress)
+        case "fitbit":
+            oauthService.connectFitbit(baseURL: appState.serverURL, wallet: appState.walletAddress)
+        case "garmin":
+            oauthService.connectGarmin(baseURL: appState.serverURL, wallet: appState.walletAddress)
+        default:
+            break
+        }
+
+        appState.onboardingActivityProvider = ""
     }
 
     private func propagateToHealthService(_ url: URL) {

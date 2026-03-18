@@ -104,9 +104,13 @@ struct OnboardingView: View {
             switch provider {
             case .appleHealth:
                 await healthService.requestAuthorization()
-            case .strava, .fitbit, .garmin:
-                // Third-party providers connect via Settings after onboarding
-                break
+                appState.healthEnabled = healthService.isAuthorized
+            case .strava:
+                appState.onboardingActivityProvider = "strava"
+            case .fitbit:
+                appState.onboardingActivityProvider = "fitbit"
+            case .garmin:
+                appState.onboardingActivityProvider = "garmin"
             }
         }
         dismiss()
@@ -265,9 +269,14 @@ struct OnboardingView: View {
                     .foregroundStyle(LC.textPrimary(scheme))
                     .multilineTextAlignment(.center)
 
-                Text("Choose how to connect.")
+                Text("Choose your activity source.")
                     .font(.title3.weight(.medium))
                     .foregroundStyle(LC.textSecondary(scheme))
+                    .multilineTextAlignment(.center)
+
+                Text("You can always change this in Profile.")
+                    .font(.caption)
+                    .foregroundStyle(LC.textTertiary(scheme))
                     .multilineTextAlignment(.center)
             }
 
@@ -285,7 +294,8 @@ struct OnboardingView: View {
     }
 
     private func providerCard(_ provider: ActivityProvider, recommended: Bool) -> some View {
-        let isSelected = selectedProvider == provider
+        let isAlreadyConnected = provider == .appleHealth && healthService.isAuthorized
+        let isSelected = selectedProvider == provider || isAlreadyConnected
 
         return Button {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
@@ -325,9 +335,15 @@ struct OnboardingView: View {
 
                 Spacer()
 
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22))
-                    .foregroundStyle(isSelected ? LC.accent : LC.textTertiary(scheme).opacity(0.4))
+                if isAlreadyConnected {
+                    Text("Connected")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(LC.success)
+                } else {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 22))
+                        .foregroundStyle(isSelected ? LC.accent : LC.textTertiary(scheme).opacity(0.4))
+                }
             }
             .padding(LC.space12)
             .background(

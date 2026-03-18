@@ -68,11 +68,13 @@ struct ChallengeMeta: Identifiable, Codable {
     let funds: FundsConfig?
     /// Challenge params from DB — contains rules (metric, threshold, period)
     let params: ChallengeParams?
+    /// Participant count (optional — included when the list endpoint provides it)
+    let participantCount: Int?
 
     enum CodingKeys: String, CodingKey {
         case id, title, description, category, game, mode, tags, status
         case modelId, modelKind, modelHash, createdAt, startsAt, endsAt, proofDeadline
-        case proof, funds, params
+        case proof, funds, params, participantCount
     }
 
     /// Resolved category: explicit field, or inferred from game/modelId.
@@ -121,6 +123,12 @@ struct ChallengeMeta: Identifiable, Codable {
         guard let wei = funds?.stake, let amount = Double(wei), amount > 0 else { return nil }
         return LCFormatter.format(wei: amount)
     }
+
+    /// Stake formatted as USD (or LCAI fallback if no token price).
+    func stakeDisplayUSD(tokenPrice: Double?) -> String? {
+        guard let wei = funds?.stake, let amount = Double(wei), amount > 0 else { return nil }
+        return LCFormatter.formatUSD(wei: amount, tokenPrice: tokenPrice)
+    }
 }
 
 // MARK: - Protocol Stats (for welcome screen)
@@ -140,23 +148,19 @@ struct ProtocolStats {
 
 enum LCFormatter {
     /// Format a wei amount as a human-readable LCAI string.
-    /// Shows the most natural unit: LCAI for >= 0.01, mLCAI for small, or gwei for tiny.
+    /// Always shows LCAI — no mLCAI/gwei subunits.
     static func format(wei: Double) -> String {
         let lcai = wei / 1e18
         if lcai >= 1000 {
             return String(format: "%.0f LCAI", lcai)
         } else if lcai >= 1 {
             return String(format: "%.2f LCAI", lcai)
-        } else if lcai >= 0.01 {
+        } else if lcai >= 0.001 {
             return String(format: "%.3f LCAI", lcai)
-        } else if lcai >= 0.0001 {
-            // Show as mLCAI (milli-LCAI)
-            let mlcai = lcai * 1000
-            return String(format: "%.2f mLCAI", mlcai)
+        } else if lcai > 0 {
+            return String(format: "%.6f LCAI", lcai)
         } else {
-            // Show as gwei for very small amounts
-            let gwei = wei / 1e9
-            return String(format: "%.0f gwei", gwei)
+            return "0 LCAI"
         }
     }
 
@@ -215,7 +219,29 @@ struct ChallengeRules: Codable {
 }
 
 struct ChallengeParams: Codable {
-    let rules: ChallengeRules?
+    /// Rules can come as an array `[{...}]` or a single object `{...}` from the API.
+    let rules: [ChallengeRules]?
+
+    /// Convenience: first rule (challenges typically have one rule).
+    var firstRule: ChallengeRules? { rules?.first }
+
+    init(rules: [ChallengeRules]?) { self.rules = rules }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        // Try array first, then single object
+        if let arr = try? container.decode([ChallengeRules].self, forKey: .rules) {
+            rules = arr
+        } else if let single = try? container.decode(ChallengeRules.self, forKey: .rules) {
+            rules = [single]
+        } else {
+            rules = nil
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case rules
+    }
 }
 
 // MARK: - Challenge Detail (from GET /api/challenge/[id])
@@ -308,7 +334,7 @@ struct ChallengeDetail: Codable {
 
     /// Challenge rules: from params.rules first, then from form fields.
     var rules: ChallengeRules? {
-        if let r = params?.rules { return r }
+        if let r = params?.firstRule { return r }
         // Build rules from the API's form dict (parsed params string)
         if let form {
             let metric = form["metric"]?.stringValue
@@ -326,9 +352,19 @@ struct ChallengeDetail: Codable {
         return LCFormatter.format(wei: amount)
     }
 
+    func stakeDisplayUSD(tokenPrice: Double?) -> String? {
+        guard let wei = money?.stakeWei, let amount = Double(wei), amount > 0 else { return nil }
+        return LCFormatter.formatUSD(wei: amount, tokenPrice: tokenPrice)
+    }
+
     var poolDisplay: String? {
         guard let wei = pool?.committedWei, let amount = Double(wei), amount > 0 else { return nil }
         return LCFormatter.format(wei: amount)
+    }
+
+    func poolDisplayUSD(tokenPrice: Double?) -> String? {
+        guard let wei = pool?.committedWei, let amount = Double(wei), amount > 0 else { return nil }
+        return LCFormatter.formatUSD(wei: amount, tokenPrice: tokenPrice)
     }
 
     /// Create a ChallengeDetail from ChallengeMeta (fallback when chain fetch fails).
@@ -384,7 +420,8 @@ struct ChallengeDetail: Codable {
             proofDeadline: proofDeadline,
             proof: proof,
             funds: FundsConfig(stake: money?.stakeWei),
-            params: params
+            params: params,
+            participantCount: participantsCount
         )
     }
 }

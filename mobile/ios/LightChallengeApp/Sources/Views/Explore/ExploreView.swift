@@ -33,25 +33,18 @@ enum FitnessType: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    /// Optical centering offset for the decorative card icon.
-    var iconOpticalOffset: CGSize {
-        switch self {
-        case .walking:   CGSize(width: 4, height: -4)
-        case .running:   CGSize(width: 6, height: -4)
-        case .cycling:   CGSize(width: 2, height: 2)
-        case .swimming:  CGSize(width: 0, height: 4)
-        case .strength:  CGSize(width: 0, height: -2)
-        case .hiking:    CGSize(width: 2, height: -2)
-        }
-    }
+    /// Uniform icon size for all cards — consistent visual weight.
+    static let cardIconSize: CGFloat = 74
 
-    /// Scale factor to normalize visual weight across different symbols.
-    var iconScale: CGFloat {
+    /// Richer three-stop gradient for premium depth.
+    var premiumGradient: [Color] {
         switch self {
-        case .strength:  0.85
-        case .cycling:   0.90
-        case .swimming:  0.90
-        default:         1.0
+        case .walking:  [Color(hex: 0x22C55E), Color(hex: 0x1AAD52), Color(hex: 0x148F43)]
+        case .running:  [Color(hex: 0x3B82F6), Color(hex: 0x2563EB), Color(hex: 0x1D4FD8)]
+        case .cycling:  [Color(hex: 0xFB923C), Color(hex: 0xF97316), Color(hex: 0xE05E0A)]
+        case .swimming: [Color(hex: 0x22D3EE), Color(hex: 0x06B6D4), Color(hex: 0x0891B2)]
+        case .strength: [Color(hex: 0xF87171), Color(hex: 0xEF4444), Color(hex: 0xDC2626)]
+        case .hiking:   [Color(hex: 0xA78BFA), Color(hex: 0x8B5CF6), Color(hex: 0x7C3AED)]
         }
     }
 
@@ -131,11 +124,13 @@ struct ExploreView: View {
     @State private var searchText = ""
     @State private var tokenPrice: Double?
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     // MARK: - Grid
 
     private var gridColumns: [GridItem] {
-        [GridItem(.flexible(), spacing: LC.space12), GridItem(.flexible(), spacing: LC.space12)]
+        let count = sizeClass == .regular ? 3 : 2
+        return Array(repeating: GridItem(.flexible(), spacing: LC.space12), count: count)
     }
 
     // MARK: - Computed
@@ -218,9 +213,8 @@ struct ExploreView: View {
                 }
             }
             .background(LC.pageBg(scheme))
-            .navigationTitle("Explore")
-            .navigationBarTitleDisplayMode(.large)
-            .searchable(text: $searchText, prompt: "Search challenges")
+            .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $searchText, prompt: "Find a challenge")
             .navigationDestination(for: String.self) { challengeId in
                 ChallengeDetailView(challengeId: challengeId)
             }
@@ -284,58 +278,131 @@ struct ExploreView: View {
 
     // MARK: - Featured Hero (single static card, entire card tappable)
 
+    // MARK: - Editorial Palettes
+
+    /// Curated editorial palettes — each featured challenge gets its own bold identity.
+    private struct HeroPalette {
+        let colors: [Color]
+        let direction: (UnitPoint, UnitPoint)
+    }
+
+    private let heroPalettes: [HeroPalette] = [
+        // Warm amber/gold — like Pluribus
+        HeroPalette(colors: [Color(hex: 0xF59E0B), Color(hex: 0xD97706), Color(hex: 0xB45309)],
+                    direction: (.topLeading, .bottomTrailing)),
+        // Deep ocean teal
+        HeroPalette(colors: [Color(hex: 0x0D9488), Color(hex: 0x0F766E), Color(hex: 0x115E59)],
+                    direction: (.top, .bottom)),
+        // Rich coral
+        HeroPalette(colors: [Color(hex: 0xFB7185), Color(hex: 0xF43F5E), Color(hex: 0xE11D48)],
+                    direction: (.topLeading, .bottomTrailing)),
+        // Bold indigo
+        HeroPalette(colors: [Color(hex: 0x818CF8), Color(hex: 0x6366F1), Color(hex: 0x4F46E5)],
+                    direction: (.topTrailing, .bottomLeading)),
+        // Forest emerald
+        HeroPalette(colors: [Color(hex: 0x34D399), Color(hex: 0x10B981), Color(hex: 0x059669)],
+                    direction: (.top, .bottomTrailing)),
+        // Warm rose
+        HeroPalette(colors: [Color(hex: 0xF472B6), Color(hex: 0xEC4899), Color(hex: 0xDB2777)],
+                    direction: (.topLeading, .bottom)),
+        // Midnight navy
+        HeroPalette(colors: [Color(hex: 0x60A5FA), Color(hex: 0x3B82F6), Color(hex: 0x1D4ED8)],
+                    direction: (.topTrailing, .bottomLeading)),
+        // Burnt sienna
+        HeroPalette(colors: [Color(hex: 0xFB923C), Color(hex: 0xF97316), Color(hex: 0xC2410C)],
+                    direction: (.top, .bottom)),
+    ]
+
+    /// Deterministic palette selection based on challenge ID.
+    private func heroPalette(for challenge: ChallengeMeta) -> HeroPalette {
+        let hash = challenge.id.unicodeScalars.reduce(0) { $0 &+ Int($1.value) }
+        return heroPalettes[abs(hash) % heroPalettes.count]
+    }
+
     private func featuredHero(_ challenge: ChallengeMeta) -> some View {
         let theme = featuredTheme(for: challenge)
+        let palette = heroPalette(for: challenge)
 
         return Button {
             navigationPath.append(challenge.id)
         } label: {
-            ZStack(alignment: .bottomLeading) {
-                // Gradient background
+            ZStack {
+                // Editorial gradient — unique per challenge
                 RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
                     .fill(
                         LinearGradient(
-                            colors: theme.gradient.map { $0.opacity(0.9) },
+                            colors: palette.colors,
+                            startPoint: palette.direction.0,
+                            endPoint: palette.direction.1
+                        )
+                    )
+
+                // Top-left light wash for depth
+                RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [.white.opacity(0.16), .clear, .black.opacity(0.06)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
 
-                // Content
-                VStack(alignment: .leading, spacing: LC.space12) {
-                    // Featured badge
+                // Hero icon — large, bold, owns the right half
+                Image(systemName: theme.icon)
+                    .font(.system(size: 160, weight: .ultraLight))
+                    .foregroundStyle(.white.opacity(0.16))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                    .padding(.trailing, 16)
+                    .offset(y: -4)
+
+                // Bottom vignette for text legibility
+                VStack {
+                    Spacer()
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.18)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 80)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous))
+
+                // Content — editorial layout
+                VStack(alignment: .leading, spacing: 0) {
+                    // FEATURED label
                     Text("FEATURED")
                         .font(.caption2.weight(.bold))
-                        .tracking(0.5)
-                        .foregroundStyle(.white.opacity(0.7))
+                        .tracking(1.2)
+                        .foregroundStyle(.white.opacity(0.6))
 
                     Spacer()
 
-                    // Title
+                    // Title — large, editorial
                     Text(challenge.displayTitle)
-                        .font(.title3.weight(.bold))
+                        .font(.title.weight(.bold))
                         .foregroundStyle(.white)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
-                    // Stats row: count left, amount right
+                    // Stats bar
                     HStack {
                         if let count = challenge.participantCount, count > 0 {
                             Text("\(count) joined")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.white.opacity(0.9))
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(.white.opacity(0.75))
                         }
                         Spacer()
-                        if let stake = challenge.stakeDisplay {
-                            Text(stake)
-                                .font(.subheadline.weight(.semibold))
+                        if let wei = challenge.funds?.stake, let amount = Double(wei), amount > 0 {
+                            Text(LCFormatter.formatUSD(wei: amount, tokenPrice: tokenPrice))
+                                .font(.footnote.weight(.semibold))
                                 .foregroundStyle(.white.opacity(0.9))
                         }
                     }
+                    .padding(.top, 8)
                 }
                 .padding(LC.space20)
             }
-            .frame(height: 200)
+            .frame(height: 220)
             .clipShape(RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -370,48 +437,62 @@ struct ExploreView: View {
             navigationPath.append(type)
         } label: {
             ZStack {
-                // Gradient background
+                // Premium three-stop gradient background
                 RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
                     .fill(
                         LinearGradient(
-                            colors: type.gradient,
+                            colors: type.premiumGradient,
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
 
-                // Content overlay
-                VStack(spacing: 0) {
-                    // Title centered
-                    Spacer()
+                // Subtle inner highlight — top-left light source
+                RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [.white.opacity(0.10), .clear, .black.opacity(0.05)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
 
+                // Watermark icon — right side, vertically centered, same position for all
+                Image(systemName: type.icon)
+                    .font(.system(size: FitnessType.cardIconSize, weight: .thin))
+                    .foregroundStyle(.white.opacity(0.13))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .offset(x: 36, y: 6)
+
+                // Content — title pinned top-left, metrics pinned bottom-left
+                VStack(alignment: .leading, spacing: 0) {
+                    // Title — firmly top-left
                     Text(type.label)
                         .font(.title3.weight(.bold))
                         .foregroundStyle(.white)
 
                     Spacer()
 
-                    // Bottom row: count badge left, amount right
+                    // Bottom metrics
                     if count > 0 || stake != nil {
-                        HStack {
+                        HStack(spacing: 6) {
                             if count > 0 {
-                                Text("\(count)")
-                                    .font(.caption2.weight(.bold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 3)
-                                    .background(Capsule().fill(.white.opacity(0.25)))
+                                Text("\(count) active")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(.white.opacity(0.55))
                             }
-                            Spacer()
                             if let stake {
                                 Text(stake)
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.white.opacity(0.85))
+                                    .font(.caption2.weight(.medium))
+                                    .foregroundStyle(.white.opacity(0.55))
                             }
                         }
                     }
                 }
-                .padding(LC.space16)
+                .padding(.horizontal, 14)
+                .padding(.top, 14)
+                .padding(.bottom, 14)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             }
             .frame(height: 160)
             .clipShape(RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous))
@@ -505,7 +586,7 @@ struct ExploreView: View {
                     Text(challenge.resolvedCategory.label)
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(LC.textSecondary(scheme))
-                    if let stake = challenge.stakeDisplay {
+                    if let stake = challenge.stakeDisplayUSD(tokenPrice: tokenPrice) {
                         Text(stake)
                             .font(.caption2.weight(.medium))
                             .foregroundStyle(LC.textTertiary(scheme))
@@ -537,9 +618,14 @@ struct ExploreView: View {
     // MARK: - Loading / Empty / Error
 
     private var loadingView: some View {
-        VStack(spacing: LC.space16) {
-            ShimmerView().frame(height: 200)
+        VStack(spacing: LC.space24) {
+            ShimmerView().frame(height: 220)
                 .clipShape(RoundedRectangle(cornerRadius: LC.radiusXL))
+                .padding(.horizontal, LC.space16)
+
+            // Placeholder for live signals
+            ShimmerView().frame(height: 16)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
                 .padding(.horizontal, LC.space16)
 
             LazyVGrid(columns: gridColumns, spacing: LC.space12) {

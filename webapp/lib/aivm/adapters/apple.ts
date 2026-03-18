@@ -177,15 +177,21 @@ export const appleAdapter: Adapter = {
         || isFitnessModel(modelHash);
   },
   async ingest(input: { file?: Buffer; json?: any; context: AdapterContext }): Promise<AdapterResult> {
-    if (!input.file) throw new Error("Apple adapter requires ZIP file upload");
     const { context } = input;
     const { challengeId, subject, params } = context;
-
-    // Stable id for the user across records (your original behavior)
     const userIdHash = sha256hex(Buffer.from(String(subject)));
 
-    // Parse Health export
-    const records = await parseExportXml(input.file, userIdHash);
+    let records: CanonicalRecord[];
+
+    if (input.json && Array.isArray(input.json)) {
+      // iOS HealthKit path: pre-parsed JSON records from HealthKit API
+      records = input.json as CanonicalRecord[];
+    } else if (input.file) {
+      // Web/export path: ZIP file from Apple Health export
+      records = await parseExportXml(input.file, userIdHash);
+    } else {
+      throw new Error("Apple adapter requires either JSON records or ZIP file upload");
+    }
 
     // Business rules from params
     const targetDayUtc = String(params?.targetDayUtc || "").slice(0, 10);
@@ -198,7 +204,6 @@ export const appleAdapter: Adapter = {
     const bind = computeBind(challengeId, subject);
     const publicSignals = [bind, success, BigInt(stepsTotal)];
 
-    // Ensure `dataHash` is typed as 0x-hex (no TS error)
     const dataHash = sha256hex(
       Buffer.from(JSON.stringify({ targetDayUtc, minSteps, stepsTotal }))
     );

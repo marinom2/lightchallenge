@@ -14,6 +14,7 @@ class AppState: ObservableObject {
     @AppStorage("has_completed_onboarding") var hasCompletedOnboarding: Bool = false
     @AppStorage("notifications_enabled") var notificationsEnabled: Bool = false
     @AppStorage("health_enabled") var healthEnabled: Bool = false
+    @AppStorage("onboarding_activity_provider") var onboardingActivityProvider: String = ""
 
     // MARK: - Navigation state (transient)
 
@@ -33,7 +34,7 @@ class AppState: ObservableObject {
 
         var label: String {
             switch self {
-            case .explore: "Explore"
+            case .explore: "Arena"
             case .challenges: "Challenges"
             case .achievements: "Achievements"
             case .profile: "Profile"
@@ -42,7 +43,7 @@ class AppState: ObservableObject {
 
         var icon: String {
             switch self {
-            case .explore: "magnifyingglass"
+            case .explore: "circle.hexagongrid.fill"
             case .challenges: "flame.fill"
             case .achievements: "trophy.fill"
             case .profile: "person.circle.fill"

@@ -10,6 +10,7 @@ struct CategoryDetailView: View {
     let myActivities: [String: MyChallenge]
     let eligibility: [String: ContractService.ClaimEligibility]
     @EnvironmentObject private var appState: AppState
+    @State private var tokenPrice: Double?
 
     @Environment(\.colorScheme) private var scheme
 
@@ -46,6 +47,7 @@ struct CategoryDetailView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle(fitnessType.label)
         .navigationBarTitleDisplayMode(.large)
+        .task { tokenPrice = await TokenPriceService.shared.getUSDPrice() }
     }
 
     // MARK: - Hero
@@ -64,11 +66,12 @@ struct CategoryDetailView: View {
                     )
                     .frame(height: 200)
 
-                // Decorative icon
+                // Decorative icon (centered right)
                 Image(systemName: fitnessType.icon)
                     .font(.system(size: 120, weight: .ultraLight))
                     .foregroundStyle(.white.opacity(0.15))
-                    .offset(x: 140, y: 10)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .offset(x: 60)
 
                 // Content
                 VStack(alignment: .leading, spacing: LC.space8) {
@@ -139,7 +142,8 @@ struct CategoryDetailView: View {
                 Image(systemName: fitnessType.icon)
                     .font(.system(size: 40, weight: .ultraLight))
                     .foregroundStyle(.white.opacity(0.3))
-                    .offset(x: 130, y: 5)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .offset(x: 50)
             }
 
             VStack(alignment: .leading, spacing: LC.space4) {
@@ -148,7 +152,7 @@ struct CategoryDetailView: View {
                     .foregroundStyle(LC.textPrimary(scheme))
                     .lineLimit(2)
 
-                if let stake = challenge.stakeDisplay {
+                if let stake = challenge.stakeDisplayUSD(tokenPrice: tokenPrice) {
                     HStack(spacing: LC.space4) {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 9))
@@ -215,7 +219,7 @@ struct CategoryDetailView: View {
                     .lineLimit(1)
 
                 HStack(spacing: LC.space8) {
-                    if let stake = challenge.stakeDisplay {
+                    if let stake = challenge.stakeDisplayUSD(tokenPrice: tokenPrice) {
                         Text(stake)
                             .font(.caption2.weight(.medium))
                             .foregroundStyle(LC.textSecondary(scheme))
