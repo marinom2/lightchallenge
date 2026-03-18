@@ -232,7 +232,7 @@ enum FitnessTemplates {
         ruleBuilder: { args, start, end in
             let gain = args["elevGainM"] as? Double ?? 500.0
             return [
-                "challengeType": "walk",
+                "challengeType": "hike",
                 "period": [
                     "start": ISO8601DateFormatter().string(from: start),
                     "end": ISO8601DateFormatter().string(from: end),
@@ -342,7 +342,7 @@ enum FitnessTemplates {
                     "end": ISO8601DateFormatter().string(from: end),
                 ],
                 "conditions": [
-                    ["metric": "active_minutes", "op": ">=", "value": sessions * 45]
+                    ["metric": "strength_sessions", "op": ">=", "value": sessions]
                 ],
             ]
         }
@@ -507,7 +507,7 @@ enum FitnessTemplates {
         ruleBuilder: { args, start, end in
             let minutes = args["minutes"] as? Double ?? 150.0
             return [
-                "challengeType": "exercise",
+                "challengeType": "exercise_time",
                 "period": [
                     "start": ISO8601DateFormatter().string(from: start),
                     "end": ISO8601DateFormatter().string(from: end),

@@ -242,7 +242,7 @@ const FITNESS_STRENGTH_WORKOUTS: Template = {
         timezone: localTz(),
       },
       conditions: [
-        { metric: "active_minutes", op: ">=", value: sessions * 45 },
+        { metric: "strength_sessions", op: ">=", value: sessions },
       ],
     };
   },

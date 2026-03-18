@@ -154,6 +154,14 @@ function normalizeToActivity(r: unknown): Activity | null {
     ? (obj.gps_path as [number, number][])
     : undefined;
 
+  // sessions: workout session count (strength, yoga, hiit, etc.)
+  const sessions: number | undefined =
+    typeof obj.sessions === "number" ? obj.sessions : undefined;
+
+  // exercise_minutes: Apple Exercise ring minutes (exercise_time type)
+  const exercise_minutes: number | undefined =
+    typeof obj.exercise_minutes === "number" ? obj.exercise_minutes : undefined;
+
   const activity: Activity = {
     type: activityType,
     start,
@@ -166,6 +174,8 @@ function normalizeToActivity(r: unknown): Activity | null {
     ...(steps_count !== undefined && { steps_count }),
     ...(calories !== undefined && { calories }),
     ...(gps_path !== undefined && { gps_path }),
+    ...(sessions !== undefined && { sessions }),
+    ...(exercise_minutes !== undefined && { exercise_minutes }),
   };
 
   return activity;
@@ -285,7 +295,7 @@ function computeFitnessScore(
       case "elev_gain_m":  total += a.elev_gain_m ?? 0; break;
       case "calories":     total += a.calories ?? 0; break;
       case "active_minutes": total += a.duration_min ?? 0; break;
-      case "exercise_time": total += (a as any).exercise_minutes ?? a.duration_min ?? 0; break;
+      case "exercise_time": total += a.exercise_minutes ?? a.duration_min ?? 0; break;
       default:             total += a.steps_count ?? 0; break;
     }
   }
@@ -345,10 +355,10 @@ function simpleMetricValue(a: Activity, metric: FitnessRules["metric"]): number 
     case "swimming_km":        return a.type === "swim" ? (a.distance_km ?? 0) : 0;
     case "hiking_km":          return a.type === "hike" ? (a.distance_km ?? 0) : 0;
     case "rowing_km":          return a.type === "rowing" ? (a.distance_km ?? 0) : 0;
-    case "strength_sessions":  return a.type === "strength" ? ((a as any).sessions ?? 1) : 0;
+    case "strength_sessions":  return a.type === "strength" ? (a.sessions ?? 1) : 0;
     case "yoga_min":           return a.type === "yoga" ? (a.duration_min ?? 0) : 0;
     case "hiit_min":           return a.type === "hiit" ? (a.duration_min ?? 0) : 0;
-    case "exercise_time":      return (a as any).exercise_minutes ?? a.duration_min ?? 0;
+    case "exercise_time":      return a.exercise_minutes ?? a.duration_min ?? 0;
     case "calories":           return (a as any).calories ?? 0;
     default:                   return 0;
   }
