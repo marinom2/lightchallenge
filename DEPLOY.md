@@ -395,3 +395,43 @@ For the webapp only (no contract change), point `NEXT_PUBLIC_CHALLENGEPAY_ADDR` 
 contract address and re-run `npm run build`.
 
 Database schema changes (migrations) are forward-only. Rollback requires a database restore from backup.
+
+---
+
+## Step 7 — Off-chain Workers (PM2)
+
+All off-chain workers (evidence collection, evaluation, AIVM dispatch, indexing) run via PM2.
+
+### First-time setup
+
+```bash
+# Install PM2 globally if not already installed
+npm install -g pm2
+
+# Start all workers
+pm2 start ecosystem.config.cjs
+
+# Save process list for auto-restart
+pm2 save
+```
+
+### Auto-start on boot (macOS)
+
+```bash
+# Install launchd startup hook (requires sudo)
+sudo env PATH=$PATH:/opt/homebrew/bin \
+  $(which pm2) startup launchd -u $(whoami) --hp $HOME
+
+# Save current processes so PM2 restores them on boot
+pm2 save
+```
+
+### After contract redeployment
+
+When contract addresses change, update `webapp/.env.local` and restart workers:
+
+```bash
+pm2 restart all --update-env && pm2 save
+```
+
+See `OPERATIONS.md` §24 for full PM2 reference (worker list, troubleshooting, logs).

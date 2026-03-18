@@ -1117,3 +1117,100 @@ FROM   public.verdicts
 WHERE  challenge_id = <ID>
 ORDER  BY score DESC NULLS LAST, created_at ASC;
 ```
+
+---
+
+## 24. PM2 Worker Management
+
+All off-chain workers are managed via [PM2](https://pm2.keymetrics.io/) using `ecosystem.config.cjs` at the project root.
+
+### Workers
+
+| # | Name | Script | Poll Interval | Purpose |
+|---|------|--------|--------------|---------|
+| 0 | evidence-collector | `offchain/workers/evidenceCollector.ts` | 5 min | Fetches evidence from API providers (Strava, Fitbit) for challenges in proof window |
+| 1 | evidence-evaluator | `offchain/workers/evidenceEvaluator.ts` | 15 sec | Evaluates evidence against challenge rules, writes verdicts |
+| 2 | challenge-dispatcher | `offchain/dispatchers/challengeDispatcher.ts` | 10 sec | Dispatches challenges with verdicts to AIVM jobs queue |
+| 3 | challenge-worker | `offchain/workers/challengeWorker.ts` | 5 sec | Submits AIVM inference requests on-chain |
+| 4 | aivm-indexer | `offchain/indexers/aivmIndexer.ts` | 6 sec | Watches AIVM events, bridges finalization to ChallengePay |
+| 5 | status-indexer | `offchain/indexers/statusIndexer.ts` | 6 sec | Watches ChallengePay status events, syncs to DB |
+| 6 | claims-indexer | `offchain/indexers/claimsIndexer.ts` | 6 sec | Watches ChallengePay claim events, syncs to DB |
+| 7 | progress-sync | `offchain/workers/progressSyncWorker.ts` | 15 min | Syncs live progress from API providers during active challenges |
+
+### Starting Workers
+
+```bash
+# Start all workers
+pm2 start ecosystem.config.cjs
+
+# Start a specific worker
+pm2 start ecosystem.config.cjs --only evidence-evaluator
+
+# Restart all (picks up code changes)
+pm2 restart all --update-env
+
+# Check status
+pm2 status
+
+# Tail logs (all workers)
+pm2 logs
+
+# Tail logs (specific worker)
+pm2 logs evidence-evaluator --lines 50
+
+# Save current process list (for auto-restart)
+pm2 save
+```
+
+### Auto-Start on Boot (macOS)
+
+PM2 uses `launchd` on macOS to auto-start workers on system boot:
+
+```bash
+# Generate and install launchd startup script (requires sudo)
+sudo env PATH=$PATH:/opt/homebrew/bin \
+  $(which pm2) startup launchd -u $(whoami) --hp $HOME
+
+# Save the current process list so PM2 knows what to start
+pm2 save
+```
+
+After running these commands, PM2 will automatically restore saved workers on reboot.
+
+To remove auto-start:
+```bash
+pm2 unstartup launchd
+```
+
+### Troubleshooting
+
+```bash
+# Check for crashed workers
+pm2 status  # look for "errored" or high restart count (↺)
+
+# View recent errors for a specific worker
+pm2 logs evidence-evaluator --err --lines 100
+
+# Flush all logs (if disk fills up)
+pm2 flush
+
+# Kill all PM2 processes and daemon
+pm2 kill
+
+# Restart from scratch
+pm2 start ecosystem.config.cjs && pm2 save
+```
+
+### Environment
+
+All workers load environment variables from `webapp/.env.local` via `dotenv`. Key variables:
+
+- `DATABASE_URL` — PostgreSQL connection string (required)
+- `NEXT_PUBLIC_RPC_URL` — LightChain RPC endpoint (required for indexers)
+- `NEXT_PUBLIC_CHALLENGEPAY_ADDR` — ChallengePay contract address (required for indexers)
+- `KEEPER_PRIVKEY` — Private key for on-chain transactions (required for challengeWorker, aivmIndexer)
+
+When contract addresses change (e.g. after redeployment), update `webapp/.env.local` and restart all workers:
+```bash
+pm2 restart all --update-env && pm2 save
+```

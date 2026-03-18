@@ -174,10 +174,13 @@ class HealthKitService: ObservableObject {
                     return
                 }
                 var days: [(String, Double)] = []
+                let dateFmt = DateFormatter()
+                dateFmt.dateFormat = "yyyy-MM-dd"
+                dateFmt.timeZone = .current  // Match HealthKit's local calendar day bucketing
                 results?.enumerateStatistics(from: start, to: end) { stats, _ in
                     let val = stats.sumQuantity()?.doubleValue(for: unit) ?? 0
-                    let dateStr = ISO8601DateFormatter().string(from: stats.startDate).prefix(10)
-                    days.append((String(dateStr), val))
+                    let dateStr = dateFmt.string(from: stats.startDate)
+                    days.append((dateStr, val))
                 }
                 continuation.resume(returning: days)
             }
@@ -258,11 +261,13 @@ class HealthKitService: ObservableObject {
                     return
                 }
                 let workouts = (samples as? [HKWorkout]) ?? []
-                // Group by date
+                // Group by date (local timezone to match HealthKit calendar day)
                 var byDate: [String: (count: Int, minutes: Double, distanceM: Double, calories: Double, elevM: Double)] = [:]
-                let fmt = ISO8601DateFormatter()
+                let fmt = DateFormatter()
+                fmt.dateFormat = "yyyy-MM-dd"
+                fmt.timeZone = .current
                 for w in workouts {
-                    let dateStr = String(fmt.string(from: w.startDate).prefix(10))
+                    let dateStr = fmt.string(from: w.startDate)
                     let minutes = w.duration / 60.0
                     let dist = w.totalDistance?.doubleValue(for: .meter()) ?? 0
                     let cals = w.totalEnergyBurned?.doubleValue(for: .kilocalorie()) ?? 0
@@ -324,9 +329,12 @@ class HealthKitService: ObservableObject {
                     guard let avg = stats.averageQuantity()?.doubleValue(for: bpmUnit) else { return }
                     let minVal = stats.minimumQuantity()?.doubleValue(for: bpmUnit) ?? avg
                     let maxVal = stats.maximumQuantity()?.doubleValue(for: bpmUnit) ?? avg
-                    let dateStr = ISO8601DateFormatter().string(from: stats.startDate).prefix(10)
+                    let hrFmt = DateFormatter()
+                    hrFmt.dateFormat = "yyyy-MM-dd"
+                    hrFmt.timeZone = .current
+                    let dateStr = hrFmt.string(from: stats.startDate)
                     days.append(DailyHeartRate(
-                        date: String(dateStr),
+                        date: dateStr,
                         avgBpm: avg,
                         minBpm: minVal,
                         maxBpm: maxVal
@@ -666,6 +674,16 @@ class HealthKitService: ObservableObject {
     // MARK: - Helpers
 
     private func dayTimestamps(_ dateStr: String) -> (Int, Int) {
+        // HealthKit buckets data by local calendar day, so use the device's
+        // timezone to derive start-of-day — NOT UTC midnight.
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = .current
+        if let localDay = formatter.date(from: dateStr) {
+            let startTs = Int(localDay.timeIntervalSince1970)
+            return (startTs, startTs + 86399)
+        }
+        // Fallback: UTC midnight (shouldn't normally be reached)
         let startTs = ISO8601DateFormatter().date(from: "\(dateStr)T00:00:00Z")?.timeIntervalSince1970 ?? 0
         return (Int(startTs), Int(startTs) + 86399)
     }

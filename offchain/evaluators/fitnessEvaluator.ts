@@ -41,7 +41,7 @@ import { evaluate as metricsEvaluate, inPeriod } from "../inference/metrics";
 import type { Activity, Rule } from "../inference/metrics";
 import type { Evaluator, EvaluationResult, EvidenceRow, ChallengeConfig, FitnessRules } from "./types";
 
-const FITNESS_PROVIDERS = ["apple", "strava", "garmin", "fitbit", "googlefit"] as const;
+const FITNESS_PROVIDERS = ["apple", "apple_health", "strava", "garmin", "fitbit", "googlefit"] as const;
 
 // ─── Activity type mapping ─────────────────────────────────────────────────
 
@@ -102,6 +102,9 @@ function normalizeToActivity(r: unknown): Activity | null {
     start = obj.start;
   } else if (typeof obj.start_ts === "number" && obj.start_ts > 0) {
     start = new Date(obj.start_ts * 1000).toISOString();
+  } else if (typeof obj.date === "string") {
+    // Seed data / simplified records use "date" (YYYY-MM-DD) instead of start
+    start = obj.date.includes("T") ? obj.date : `${obj.date}T00:00:00.000Z`;
   }
 
   if (typeof obj.end === "string") {

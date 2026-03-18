@@ -116,7 +116,8 @@ let ADAPTER_HASHES: Record<string, SourceType> = {
   // ── Dota 2 ──
   "0xe8fe0f3dccfa30d73e362ae12070b18b4ce623d836a7bca392429212ecb14def": "dota",       // dota.private_match_1v1@1
   "0xa36667f7fba0e008bfca236bcec118fef4f7177046cbc57f093b557b41ca95e6": "dota",       // dota.private_match_5v5@1
-  "0x0de4617234d3fed82c42a35ff8de9aeb1e3ed5aba0e6f4e8c0aba71cc4dff2f5": "dota",       // dota.hero_kills_window@1
+  "0x0de4617204f86e47e89b88696ce2d323fa053589dce9152a523741429a83ddb1": "dota",       // dota.hero_kills_window@1
+  "0x39abeb3664e21ae78cd0ae1b2393ac5e3d3fa3fa5a2f290474c323cce59d93c6": "dota",       // dota.winrate_next_n@1
   // ── League of Legends ──
   "0x6a68a575fa50ebbc7c0404ebe2078f7a79cfa95b4c2efd9c869b0744137456c3": "lol",        // lol.winrate_next_n@1
   // ── CS2 / FACEIT ──

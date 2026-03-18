@@ -76,14 +76,39 @@ async function getChallengesInProofWindow(pool: Pool): Promise<ProofWindowChalle
     `
     SELECT
       c.id::text AS challenge_id,
-      COALESCE((c.timeline->>'startsAt')::bigint, 0) AS start_ts,
-      COALESCE((c.timeline->>'endsAt')::bigint, 0) AS end_ts,
-      COALESCE((c.timeline->>'proofDeadline')::bigint, 0) AS proof_deadline_ts
+      COALESCE(
+        CASE WHEN c.timeline->>'startsAt' ~ '^\d+$'
+             THEN (c.timeline->>'startsAt')::bigint
+             ELSE EXTRACT(EPOCH FROM (c.timeline->>'startsAt')::timestamptz)::bigint
+        END, 0
+      ) AS start_ts,
+      COALESCE(
+        CASE WHEN c.timeline->>'endsAt' ~ '^\d+$'
+             THEN (c.timeline->>'endsAt')::bigint
+             ELSE EXTRACT(EPOCH FROM (c.timeline->>'endsAt')::timestamptz)::bigint
+        END, 0
+      ) AS end_ts,
+      COALESCE(
+        CASE WHEN c.timeline->>'proofDeadline' ~ '^\d+$'
+             THEN (c.timeline->>'proofDeadline')::bigint
+             ELSE EXTRACT(EPOCH FROM (c.timeline->>'proofDeadline')::timestamptz)::bigint
+        END, 0
+      ) AS proof_deadline_ts
     FROM public.challenges c
     WHERE lower(coalesce(c.status, '')) NOT IN ('finalized', 'canceled', 'rejected')
-      AND COALESCE((c.timeline->>'endsAt')::bigint, 0) > 0
-      AND COALESCE((c.timeline->>'endsAt')::bigint, 0) <= $1
-      AND COALESCE((c.timeline->>'proofDeadline')::bigint, 0) > $1
+      AND c.timeline->>'endsAt' IS NOT NULL
+      AND COALESCE(
+        CASE WHEN c.timeline->>'endsAt' ~ '^\d+$'
+             THEN (c.timeline->>'endsAt')::bigint
+             ELSE EXTRACT(EPOCH FROM (c.timeline->>'endsAt')::timestamptz)::bigint
+        END, 0
+      ) <= $1
+      AND COALESCE(
+        CASE WHEN c.timeline->>'proofDeadline' ~ '^\d+$'
+             THEN (c.timeline->>'proofDeadline')::bigint
+             ELSE EXTRACT(EPOCH FROM (c.timeline->>'proofDeadline')::timestamptz)::bigint
+        END, 0
+      ) > $1
     `,
     [nowSec]
   );

@@ -1,8 +1,13 @@
 import { type Adapter, type AdapterContext, type AdapterResult, type CanonicalRecord } from "./types";
 import { computeBind } from "@/lib/aivm/bind";
 
-/** Matches dota.private_match_1v1@1 in models.json. */
-const DOTA_MATCH_MODEL = "0xe8fe0f3dccfa30d73e362ae12070b18b4ce623d836a7bca392429212ecb14def" as const;
+/** All supported Dota 2 model hashes (DB models table). */
+const DOTA_MODELS = new Set([
+  "0xe8fe0f3dccfa30d73e362ae12070b18b4ce623d836a7bca392429212ecb14def", // dota.private_match_1v1@1
+  "0xa36667f7fba0e008bfca236bcec118fef4f7177046cbc57f093b557b41ca95e6", // dota.private_match_5v5@1
+  "0x0de4617204f86e47e89b88696ce2d323fa053589dce9152a523741429a83ddb1", // dota.hero_kills_window@1
+  "0x39abeb3664e21ae78cd0ae1b2393ac5e3d3fa3fa5a2f290474c323cce59d93c6", // dota.winrate_next_n@1
+]);
 
 // helpers
 function sha256hex(buf: Buffer | string): `0x${string}` {
@@ -38,7 +43,7 @@ export const dotaAdapter: Adapter = {
   name: "dota.opendota_match",
   category: "gaming",
   supports(modelHash: string) {
-    return modelHash.toLowerCase() === DOTA_MATCH_MODEL.toLowerCase();
+    return DOTA_MODELS.has(modelHash.toLowerCase());
   },
   async ingest(input: { file?: Buffer; json?: any; context: AdapterContext }): Promise<AdapterResult> {
     const { context } = input;

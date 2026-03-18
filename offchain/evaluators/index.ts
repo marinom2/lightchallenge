@@ -30,8 +30,9 @@ import { gamingEvaluator } from "./gamingEvaluator";
 // Both the intake route and the evaluator worker derive provider from here.
 
 const ADAPTER_SEGMENT_TO_PROVIDER: Record<string, string> = {
-  apple:     "apple",
-  strava:    "strava",
+  apple:        "apple",
+  apple_health: "apple",
+  strava:       "strava",
   garmin:    "garmin",
   fitbit:    "fitbit",
   googlefit: "googlefit",
