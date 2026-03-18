@@ -450,15 +450,36 @@ struct ChallengeProgressHero: View {
 
     // MARK: - Top Row (Status)
 
+    /// The badge label: prefer user state when it overrides the phase.
+    private var badgeLabel: String {
+        switch userState {
+        case .awaitingVerdict, .submitted, .completed, .failed:
+            return userState.label
+        default:
+            return phase.statusLabel
+        }
+    }
+
+    /// The badge color: match the user state when overriding.
+    private var badgeColor: Color {
+        switch userState {
+        case .awaitingVerdict: return LC.warning
+        case .submitted: return LC.info
+        case .completed: return LC.success
+        case .failed: return LC.danger
+        default: return phase.color
+        }
+    }
+
     private var topRow: some View {
         HStack {
-            // Phase pill
-            Text(phase.statusLabel)
+            // Status pill — reflects user state when evidence is in play
+            Text(badgeLabel)
                 .font(.caption2.weight(.bold))
-                .foregroundStyle(phase.color)
+                .foregroundStyle(badgeColor)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(phase.color.opacity(0.1))
+            .background(badgeColor.opacity(0.1))
             .clipShape(Capsule())
 
             // Secondary status (user state)
