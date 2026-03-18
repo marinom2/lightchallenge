@@ -450,8 +450,11 @@ struct ChallengeProgressHero: View {
 
     // MARK: - Top Row (Status)
 
-    /// The badge label: prefer user state when it overrides the phase.
-    private var badgeLabel: String {
+    /// Resolved status: prefer user state when evidence is in play.
+    private var resolvedStatusLabel: String {
+        // Don't show state-dependent labels until participant data has loaded,
+        // to avoid a "Awaiting Proof" flash before auto-proof status arrives.
+        guard participantLoaded else { return phase.statusLabel }
         switch userState {
         case .awaitingVerdict, .submitted, .completed, .failed:
             return userState.label
@@ -460,10 +463,10 @@ struct ChallengeProgressHero: View {
         }
     }
 
-    /// The badge color: match the user state when overriding.
-    private var badgeColor: Color {
+    private var resolvedStatusColor: Color {
+        guard participantLoaded else { return phase.color }
         switch userState {
-        case .awaitingVerdict: return LC.warning
+        case .awaitingVerdict: return LC.accent
         case .submitted: return LC.info
         case .completed: return LC.success
         case .failed: return LC.danger
@@ -471,33 +474,49 @@ struct ChallengeProgressHero: View {
         }
     }
 
-    private var topRow: some View {
-        HStack {
-            // Status pill — reflects user state when evidence is in play
-            Text(badgeLabel)
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(badgeColor)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(badgeColor.opacity(0.1))
-            .clipShape(Capsule())
+    private var resolvedStatusIcon: String {
+        guard participantLoaded else { return "circle" }
+        switch userState {
+        case .active: return "bolt.fill"
+        case .awaitingProof: return "doc.text.magnifyingglass"
+        case .awaitingVerdict: return "gearshape.2.fill"
+        case .submitted: return "paperplane.fill"
+        case .completed: return "checkmark.seal.fill"
+        case .failed: return "xmark.circle.fill"
+        default: return "circle"
+        }
+    }
 
-            // Secondary status (user state)
-            if let secondary = userState.secondaryLabel {
+    private var topRow: some View {
+        HStack(spacing: LC.space8) {
+            // Status icon + label (clean inline, no bubble)
+            Image(systemName: resolvedStatusIcon)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(resolvedStatusColor)
+
+            Text(resolvedStatusLabel)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(resolvedStatusColor)
+
+            // Subtle secondary context
+            if let secondary = userState.secondaryLabel, participantLoaded {
+                Text("·")
+                    .font(.caption)
+                    .foregroundStyle(LC.textTertiary(scheme))
                 Text(secondary)
-                    .font(.caption2.weight(.medium))
+                    .font(.caption2)
                     .foregroundStyle(LC.textTertiary(scheme))
             }
 
             Spacer()
 
-            // Time remaining (compact)
+            // Time remaining — only show during active phase or proof window when no evidence yet
             if case .active(let remaining) = phase, remaining > 0 {
-                Text(phase.label)
+                Label(phase.label, systemImage: "clock")
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(LC.textSecondary(scheme))
-            } else if case .proofWindow(let remaining) = phase, remaining > 0 {
-                Text(phase.label)
+            } else if case .proofWindow(let remaining) = phase, remaining > 0, userState == .awaitingProof {
+                Label(phase.label, systemImage: "clock.badge.exclamationmark")
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(LC.warning)
             }
