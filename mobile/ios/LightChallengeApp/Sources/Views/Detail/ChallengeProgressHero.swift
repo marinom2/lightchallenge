@@ -272,7 +272,7 @@ enum UserChallengeState {
         }
     }
 
-    static func from(detail: ChallengeDetail, participantStatus: ParticipantStatus?, phase: ChallengePhase) -> UserChallengeState {
+    static func from(detail: ChallengeDetail, participantStatus: ParticipantStatus?, phase: ChallengePhase, autoProofSubmitted: Bool = false) -> UserChallengeState {
         // Use youJoined from the API (based on on-chain Joined events) as the
         // authoritative join signal. participantStatus alone doesn't mean the
         // user explicitly joined — the creator has a DB record but hasn't joined.
@@ -284,8 +284,11 @@ enum UserChallengeState {
             return pass ? .completed : .failed
         }
 
+        // Evidence is submitted if either the DB says so OR auto-proof service confirms it.
+        let hasEvidence = participantStatus?.hasEvidence == true || autoProofSubmitted
+
         if joined {
-            if participantStatus?.hasEvidence == true {
+            if hasEvidence {
                 // Evidence submitted but no verdict yet.
                 // Show phase-aware status instead of permanent "Under Review":
                 switch phase {
@@ -329,6 +332,7 @@ struct ChallengeProgressHero: View {
     let healthService: HealthKitService
     let progress: ChallengeProgress?
     let tokenPrice: Double?
+    var autoProofSubmitted: Bool = false
     let onAction: (HeroAction) -> Void
 
     @EnvironmentObject private var appState: AppState
@@ -346,7 +350,7 @@ struct ChallengeProgressHero: View {
         ChallengePhase.from(detail: detail, verdictPass: participantStatus?.verdictPass)
     }
     private var userState: UserChallengeState {
-        UserChallengeState.from(detail: detail, participantStatus: participantStatus, phase: phase)
+        UserChallengeState.from(detail: detail, participantStatus: participantStatus, phase: phase, autoProofSubmitted: autoProofSubmitted)
     }
     private var rules: ChallengeRules? { detail.rules }
     private var metricLabel: String { rules?.metricLabel ?? "" }

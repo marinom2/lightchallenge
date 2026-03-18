@@ -54,6 +54,18 @@ struct ChallengesView: View {
         deduplicatedActivities.filter { $0.verdictPass == true }.count
     }
 
+    /// Recent challenges sorted by creation date (newest first), then by stake amount.
+    private var recentSorted: [MyChallenge] {
+        deduplicatedActivities.sorted { a, b in
+            let aCreated = challengeMetas[a.challengeId]?.createdDate ?? .distantPast
+            let bCreated = challengeMetas[b.challengeId]?.createdDate ?? .distantPast
+            if abs(aCreated.timeIntervalSince(bCreated)) > 60 { return aCreated > bCreated }
+            let aStake = Double(challengeMetas[a.challengeId]?.funds?.stake ?? "0") ?? 0
+            let bStake = Double(challengeMetas[b.challengeId]?.funds?.stake ?? "0") ?? 0
+            return aStake > bStake
+        }
+    }
+
     private var gridColumns: [GridItem] {
         [GridItem(.flexible(), spacing: LC.space12), GridItem(.flexible(), spacing: LC.space12)]
     }
@@ -325,7 +337,7 @@ struct ChallengesView: View {
             }
             .padding(.horizontal, LC.space16)
 
-            ForEach(deduplicatedActivities.prefix(3)) { activity in
+            ForEach(recentSorted.prefix(3)) { activity in
                 Button {
                     navigationPath.append(activity.challengeId)
                 } label: {

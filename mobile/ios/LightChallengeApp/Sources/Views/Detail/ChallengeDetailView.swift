@@ -86,6 +86,11 @@ struct ChallengeDetailView: View {
             _ = await (priceTask, dataTask)
         }
         .refreshable { await loadData() }
+        .onChange(of: isAutoProofSubmitted) { _, submitted in
+            if submitted {
+                Task { await loadParticipantStatus() }
+            }
+        }
         .sheet(isPresented: $showingProofFlow) {
             NavigationStack {
                 FitnessProofView(
@@ -179,6 +184,7 @@ struct ChallengeDetailView: View {
                 healthService: healthService,
                 progress: progress,
                 tokenPrice: tokenPrice,
+                autoProofSubmitted: isAutoProofSubmitted,
                 onAction: { handleHeroAction($0, detail: detail) }
             )
 
@@ -222,7 +228,7 @@ struct ChallengeDetailView: View {
     @ViewBuilder
     private func secondaryContent(_ detail: ChallengeDetail) -> some View {
         let phase = ChallengePhase.from(detail: detail, verdictPass: participantStatus?.verdictPass)
-        let userState = UserChallengeState.from(detail: detail, participantStatus: participantStatus, phase: phase)
+        let userState = UserChallengeState.from(detail: detail, participantStatus: participantStatus, phase: phase, autoProofSubmitted: isAutoProofSubmitted)
 
         switch userState {
         case .notJoined:
@@ -330,6 +336,17 @@ struct ChallengeDetailView: View {
         }
         .padding(LC.space16)
         .lcCard()
+    }
+
+    /// Whether the auto-proof service has submitted evidence for this challenge.
+    private var isAutoProofSubmitted: Bool {
+        guard let status = autoProofService.status[challengeId] else { return false }
+        switch status {
+        case .submitted, .evaluating, .passed, .failed:
+            return true
+        default:
+            return false
+        }
     }
 
     /// Whether the join window is still open for this challenge.
