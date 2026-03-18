@@ -1,7 +1,8 @@
 import { differenceInMinutes, parseISO, startOfDay, addDays, isBefore, isAfter, formatISO } from "date-fns";
 
 export type Activity = {
-  type: "run" | "walk" | "cycle" | "swim" | "steps" | "strength" | "hike";
+  type: "run" | "walk" | "cycle" | "swim" | "steps" | "strength" | "hike"
+      | "yoga" | "hiit" | "rowing" | "exercise_time" | "calories";
   start: string; // ISO
   end: string;   // ISO
   distance_km?: number;
@@ -11,6 +12,8 @@ export type Activity = {
   elev_gain_m?: number;
   steps_count?: number;
   calories?: number;
+  exercise_minutes?: number;
+  sessions?: number;
   gps_path?: [number, number][]; // [lat, lon]
 };
 
@@ -93,7 +96,15 @@ export function meetsCondition(a: Activity, c: Condition): boolean {
 function metricValue(a: Activity, m: string): number | null {
   switch (m) {
     case "distance_km": return a.distance_km ?? null;
+    case "walking_km": return a.type === "walk" ? (a.distance_km ?? 0) : 0;
+    case "rowing_km": return a.type === "rowing" ? (a.distance_km ?? 0) : 0;
+    case "cycling_km": return a.type === "cycle" ? (a.distance_km ?? 0) : 0;
+    case "swimming_km": return a.type === "swim" ? (a.distance_km ?? 0) : 0;
     case "duration_min": return a.duration_min ?? (a.start && a.end ? differenceInMinutes(parseISO(a.end), parseISO(a.start)) : null);
+    case "yoga_min": return a.type === "yoga" ? (a.duration_min ?? 0) : 0;
+    case "hiit_min": return a.type === "hiit" ? (a.duration_min ?? 0) : 0;
+    case "active_minutes": return a.duration_min ?? 0;
+    case "exercise_time": return (a as any).exercise_minutes ?? a.duration_min ?? 0;
     case "avg_pace_min_per_km": return avgPaceMinPerKm(a.distance_km, a.duration_min);
     case "avg_speed_kmh": return avgSpeedKmh(a.distance_km, a.duration_min);
     case "elev_gain_m": return a.elev_gain_m ?? 0;
@@ -104,6 +115,7 @@ function metricValue(a: Activity, m: string): number | null {
     case "hr_activity_consistency": return hrActivityConsistency(a.avg_hr_bpm, a.duration_min, a.type);
     case "swim_distance_km": return a.type === "swim" ? (a.distance_km ?? 0) : 0;
     case "calories": return a.calories ?? null;
+    case "strength_sessions": return a.type === "strength" ? ((a as any).sessions ?? 1) : 0;
     default: return null;
   }
 }

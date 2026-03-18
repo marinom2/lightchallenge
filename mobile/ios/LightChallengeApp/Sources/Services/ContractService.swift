@@ -31,13 +31,22 @@ class ContractService: ObservableObject {
         // 3. Wait for receipt and extract challenge ID
         let challengeId = try await waitForChallengeCreated(txHash: txHash)
 
-        // 4. Save metadata to backend
+        // 4. Save metadata to backend (with retry)
         try await saveChallengeMeta(
             baseURL: baseURL,
             challengeId: challengeId,
             txHash: txHash,
             params: params,
             meta: meta
+        )
+
+        // 5. Record creator as participant (createChallenge auto-joins on-chain
+        //    but does NOT emit a Joined event, so the DB needs a manual record)
+        try? await recordParticipation(
+            baseURL: baseURL,
+            challengeId: challengeId,
+            subject: wallet.connectedAddress,
+            txHash: txHash
         )
 
         return CreateChallengeResult(challengeId: challengeId, txHash: txHash)
@@ -269,7 +278,9 @@ class ContractService: ObservableObject {
         params: CreateChallengeParams,
         meta: CreateChallengeMeta
     ) async throws {
-        guard let url = URL(string: "\(baseURL)/api/challenges") else { return }
+        guard let url = URL(string: "\(baseURL)/api/challenges") else {
+            throw WalletError.transactionFailed("Invalid server URL")
+        }
 
         let body: [String: Any] = [
             "id": challengeId,
@@ -289,37 +300,63 @@ class ContractService: ObservableObject {
                 "params": meta.aivmParams,
                 "paramsHash": meta.paramsHash,
                 "verifierUsed": ContractAddresses.poiVerifier,
-            ],
+            ] as [String: Any],
             "timeline": [
                 "joinClosesAt": ISO8601DateFormatter().string(from: meta.joinCloses),
                 "startsAt": ISO8601DateFormatter().string(from: meta.starts),
                 "endsAt": ISO8601DateFormatter().string(from: meta.ends),
                 "proofDeadline": ISO8601DateFormatter().string(from: meta.proofDeadline),
-            ],
+            ] as [String: Any],
             "funds": [
                 "stake": params.stakeAmount,
                 "currency": ["type": "NATIVE", "symbol": "LCAI"],
-            ],
+            ] as [String: Any],
             "params": meta.rule,
         ]
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
 
-        // Add wallet auth headers
-        let timestamp = String(Int(Date().timeIntervalSince1970 * 1000))
-        request.setValue(WalletManager.shared.connectedAddress, forHTTPHeaderField: "x-lc-address")
-        request.setValue(timestamp, forHTTPHeaderField: "x-lc-timestamp")
+        // Retry up to 5 times with increasing delay — the server-side RPC node
+        // may need time to propagate the receipt for tx-receipt auth verification.
+        var lastStatusCode = 0
+        var lastBody = ""
+        let delays: [UInt64] = [0, 3, 6, 10, 15] // seconds before each attempt
+        for attempt in 0..<delays.count {
+            if delays[attempt] > 0 {
+                try await Task.sleep(nanoseconds: delays[attempt] * 1_000_000_000)
+            }
 
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.timeoutInterval = 30
 
-        let (_, response) = try await URLSession.shared.data(for: request)
-        let httpResponse = response as? HTTPURLResponse
-        guard let status = httpResponse?.statusCode, status >= 200, status < 300 else {
-            // Non-fatal: on-chain creation succeeded, metadata save is best-effort
-            return
+            let timestamp = String(Int(Date().timeIntervalSince1970 * 1000))
+            request.setValue(WalletManager.shared.connectedAddress, forHTTPHeaderField: "x-lc-address")
+            request.setValue(timestamp, forHTTPHeaderField: "x-lc-timestamp")
+            request.httpBody = jsonData
+
+            let (responseData, response) = try await URLSession.shared.data(for: request)
+            let httpResponse = response as? HTTPURLResponse
+            let statusCode = httpResponse?.statusCode ?? -1
+
+            if statusCode >= 200 && statusCode < 300 {
+                return // Success
+            }
+
+            lastStatusCode = statusCode
+            lastBody = String(data: responseData, encoding: .utf8) ?? ""
+            print("[ContractService] saveChallengeMeta attempt \(attempt + 1) failed: HTTP \(statusCode) — \(lastBody)")
+
+            // Only retry on 401 (auth race) or 5xx (server error). 4xx other than 401 won't improve.
+            if statusCode != 401 && statusCode < 500 {
+                break
+            }
         }
+
+        throw WalletError.transactionFailed(
+            "Challenge created on-chain (#\(challengeId)) but metadata save failed (HTTP \(lastStatusCode)). Pull to refresh later — the challenge exists on the blockchain."
+        )
     }
 
     private func recordParticipation(
@@ -338,13 +375,21 @@ class ContractService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30
 
         let timestamp = String(Int(Date().timeIntervalSince1970 * 1000))
         request.setValue(subject, forHTTPHeaderField: "x-lc-address")
         request.setValue(timestamp, forHTTPHeaderField: "x-lc-timestamp")
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        _ = try await URLSession.shared.data(for: request)
+
+        let (responseData, response) = try await URLSession.shared.data(for: request)
+        let httpResponse = response as? HTTPURLResponse
+        let statusCode = httpResponse?.statusCode ?? -1
+        if statusCode < 200 || statusCode >= 300 {
+            let errBody = String(data: responseData, encoding: .utf8) ?? ""
+            print("[ContractService] recordParticipation failed: HTTP \(statusCode) — \(errBody)")
+        }
     }
 }
 

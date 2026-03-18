@@ -15,13 +15,14 @@ struct ProgressMetricsView: View {
     @State private var goalValue: Double = 0
     @State private var animatedProgress: Double = 0
     @State private var dailyValues: [(date: String, value: Double)] = []
+    @State private var activityMetrics: [(label: String, icon: String, value: Double, unit: String, daily: [(date: String, value: Double)])] = []
     @State private var hasLoaded = false
     @Environment(\.colorScheme) private var scheme
     @Environment(\.dismiss) private var dismiss
 
     private var theme: ActivityTheme { ActivityTheme.from(detail: detail) }
     private var rules: ChallengeRules? { detail.rules }
-    private var metricLabel: String { rules?.metricLabel ?? "km" }
+    private var metricLabel: String { rules?.metricLabel ?? "" }
 
     private var phase: ChallengePhase {
         ChallengePhase.from(detail: detail, verdictPass: participantStatus?.verdictPass)
@@ -49,17 +50,22 @@ struct ProgressMetricsView: View {
                     // Large progress ring
                     ringSection
 
-                    // Goal status card (only when we have meaningful data)
-                    if goalValue > 0 {
-                        goalCard
-                    }
-
-                    // Requirements
-                    requirementsCard
-
-                    // Daily breakdown
-                    if !dailyValues.isEmpty {
-                        dailyBreakdown
+                    if rules != nil {
+                        // Focused mode: known goal
+                        if goalValue > 0 {
+                            goalCard
+                        }
+                        requirementsCard
+                        if !dailyValues.isEmpty {
+                            dailyBreakdown
+                        }
+                    } else {
+                        // Discovery mode: show all activity
+                        if !activityMetrics.isEmpty {
+                            activityOverviewCard
+                        } else if hasLoaded {
+                            noActivityCard
+                        }
                     }
                 }
                 .padding(.horizontal, LC.space16)
@@ -247,6 +253,9 @@ struct ProgressMetricsView: View {
         case "distance", "distance_km":
             activityVerb = "Cover"
             unit = "km"
+        case "walking_km":
+            activityVerb = "Walk"
+            unit = "km"
         case "active_minutes":
             activityVerb = "Log"
             unit = "active minutes"
@@ -259,9 +268,27 @@ struct ProgressMetricsView: View {
         case "hiking_km":
             activityVerb = "Hike"
             unit = "km"
+        case "elev_gain_m":
+            activityVerb = "Climb"
+            unit = "m elevation"
+        case "rowing_km":
+            activityVerb = "Row"
+            unit = "km"
         case "strength_sessions":
             activityVerb = "Complete"
             unit = "strength sessions"
+        case "yoga_min":
+            activityVerb = "Practice"
+            unit = "minutes of yoga"
+        case "hiit_min":
+            activityVerb = "Train"
+            unit = "minutes of HIIT"
+        case "exercise_time":
+            activityVerb = "Exercise"
+            unit = "minutes"
+        case "calories":
+            activityVerb = "Burn"
+            unit = "kcal"
         default:
             activityVerb = "Achieve"
             unit = metricLabel
@@ -411,16 +438,120 @@ struct ProgressMetricsView: View {
         }
     }
 
+    // MARK: - Activity Overview (Discovery Mode)
+
+    private var activityOverviewCard: some View {
+        VStack(alignment: .leading, spacing: LC.space16) {
+            HStack(spacing: LC.space8) {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(theme.figureTint)
+                Text("Your Activity")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(LC.textPrimary(scheme))
+            }
+
+            ForEach(Array(activityMetrics.enumerated()), id: \.offset) { _, metric in
+                VStack(alignment: .leading, spacing: LC.space8) {
+                    HStack(spacing: LC.space8) {
+                        Image(systemName: metric.icon)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(theme.figureTint)
+                            .frame(width: 24)
+                        Text(metric.label)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(LC.textTertiary(scheme))
+                        Spacer()
+                        Text("\(formatValue(metric.value)) \(metric.unit)")
+                            .font(.subheadline.weight(.bold).monospacedDigit())
+                            .foregroundStyle(LC.textPrimary(scheme))
+                    }
+
+                    // Mini daily bar chart
+                    if !metric.daily.isEmpty {
+                        let maxVal = metric.daily.map(\.value).max() ?? 1
+                        HStack(alignment: .bottom, spacing: 2) {
+                            ForEach(metric.daily.suffix(14), id: \.date) { day in
+                                let fraction = maxVal > 0 ? day.value / maxVal : 0
+                                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: theme.barColors,
+                                            startPoint: .bottom,
+                                            endPoint: .top
+                                        )
+                                    )
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: max(2, 40 * fraction))
+                            }
+                        }
+                        .frame(height: 40)
+                    }
+                }
+                .padding(LC.space12)
+                .background(
+                    RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
+                        .fill(LC.cardBgElevated(scheme))
+                )
+            }
+
+            // Time window
+            if let tw = timeWindowDescription {
+                HStack(spacing: LC.space8) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.orange)
+                        .frame(width: 24)
+                    Text("Window")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(LC.textTertiary(scheme))
+                    Text(tw)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(LC.textPrimary(scheme))
+                }
+            }
+        }
+        .padding(LC.space16)
+        .background(
+            RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
+                .fill(LC.cardBg(scheme))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
+                .stroke(LC.cardBorder(scheme), lineWidth: 1)
+        )
+    }
+
+    private var noActivityCard: some View {
+        VStack(spacing: LC.space12) {
+            Image(systemName: "figure.walk")
+                .font(.system(size: 36))
+                .foregroundStyle(LC.textTertiary(scheme))
+            Text("No activity recorded yet")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(LC.textSecondary(scheme))
+            Text("Start moving — your HealthKit data will appear here")
+                .font(.caption)
+                .foregroundStyle(LC.textTertiary(scheme))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(LC.space24)
+        .background(
+            RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
+                .fill(LC.cardBg(scheme))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
+                .stroke(LC.cardBorder(scheme), lineWidth: 1)
+        )
+    }
+
     // MARK: - Data Loading
 
     private func loadMetrics() async {
         guard !hasLoaded else { return }
         hasLoaded = true
-
-        guard let rules else { return }
-        let goal = rules.goalValue
-        guard goal > 0 else { return }
-        goalValue = goal
 
         let start = detail.startDate ?? detail.endsDate?.addingTimeInterval(-7 * 86400) ?? Date().addingTimeInterval(-7 * 86400)
         let end = min(Date(), detail.endsDate ?? Date())
@@ -429,49 +560,120 @@ struct ProgressMetricsView: View {
         await healthService.ensureAuthorization()
         await healthService.collectEvidence(from: start, to: end)
 
-        // Build daily values based on metric
-        var daily: [(date: String, value: Double)] = []
+        if let r = rules, r.goalValue > 0 {
+            // Focused mode: known rules → show progress toward specific goal
+            goalValue = r.goalValue
+            let daily = dailyValuesForMetric(r.metric)
 
-        switch rules.metric {
-        case "steps":
-            daily = healthService.stepDays.map { ($0.date, Double($0.steps)) }
             currentValue = daily.reduce(0) { $0 + $1.value }
-        case "distance", "distance_km":
-            daily = healthService.distanceDays.map { ($0.date, $0.distanceMeters / 1000.0) }
-            currentValue = daily.reduce(0) { $0 + $1.value }
-        case "active_minutes":
-            daily = healthService.activeEnergyDays.map { ($0.date, $0.kilocalories / 5.0) }
-            currentValue = daily.reduce(0) { $0 + $1.value }
-        case "cycling_km":
-            daily = healthService.cyclingDays.map { ($0.date, $0.distanceMeters / 1000.0) }
-            currentValue = daily.reduce(0) { $0 + $1.value }
-        case "swimming_km":
-            daily = healthService.swimmingDays.map { ($0.date, $0.distanceMeters / 1000.0) }
-            currentValue = daily.reduce(0) { $0 + $1.value }
-        case "hiking_km":
-            daily = healthService.distanceDays.map { ($0.date, $0.distanceMeters / 1000.0) }
-            currentValue = daily.reduce(0) { $0 + $1.value }
-        default:
-            daily = healthService.stepDays.map { ($0.date, Double($0.steps)) }
-            currentValue = daily.reduce(0) { $0 + $1.value }
-        }
 
-        // Check server value too
-        if appState.hasWallet {
-            if let sp = try? await APIClient.shared.fetchMyProgress(
-                baseURL: appState.serverURL,
-                challengeId: detail.id,
-                subject: appState.walletAddress
-            ) {
-                let serverVal = sp.currentValue ?? 0
-                if serverVal > currentValue { currentValue = serverVal }
-                if let sg = sp.goalValue, sg > 0 { goalValue = sg }
+            if appState.hasWallet {
+                if let sp = try? await APIClient.shared.fetchMyProgress(
+                    baseURL: appState.serverURL,
+                    challengeId: detail.id,
+                    subject: appState.walletAddress
+                ) {
+                    let serverVal = sp.currentValue ?? 0
+                    if serverVal > currentValue { currentValue = serverVal }
+                    if let sg = sp.goalValue, sg > 0 { goalValue = sg }
+                }
+            }
+
+            dailyValues = daily.filter { $0.value > 0 }
+            withAnimation(.easeInOut(duration: 0.8)) {
+                animatedProgress = goalValue > 0 ? min(1.0, currentValue / goalValue) : 0
+            }
+        } else {
+            // Discovery mode: no rules → show all HealthKit activity
+            var metrics: [(label: String, icon: String, value: Double, unit: String, daily: [(date: String, value: Double)])] = []
+
+            let stepDaily = healthService.stepDays.map { ($0.date, Double($0.steps)) }
+            let totalSteps = stepDaily.reduce(0) { $0 + $1.1 }
+            if totalSteps > 0 {
+                metrics.append(("Steps", "figure.walk", totalSteps, "steps", stepDaily.filter { $0.1 > 0 }))
+            }
+
+            let distDaily = healthService.distanceDays.map { ($0.date, $0.distanceMeters / 1000.0) }
+            let totalDist = distDaily.reduce(0) { $0 + $1.1 }
+            if totalDist > 0.01 {
+                metrics.append(("Distance", "point.bottomleft.forward.to.point.topright.scurvepath", totalDist, "km", distDaily.filter { $0.1 > 0 }))
+            }
+
+            let cycleDaily = healthService.cyclingDays.map { ($0.date, $0.distanceMeters / 1000.0) }
+            let totalCycling = cycleDaily.reduce(0) { $0 + $1.1 }
+            if totalCycling > 0.01 {
+                metrics.append(("Cycling", "figure.outdoor.cycle", totalCycling, "km", cycleDaily.filter { $0.1 > 0 }))
+            }
+
+            let swimDaily = healthService.swimmingDays.map { ($0.date, $0.distanceMeters / 1000.0) }
+            let totalSwimming = swimDaily.reduce(0) { $0 + $1.1 }
+            if totalSwimming > 0.01 {
+                metrics.append(("Swimming", "figure.pool.swim", totalSwimming, "km", swimDaily.filter { $0.1 > 0 }))
+            }
+
+            let workoutDaily = healthService.allWorkoutDays.map { ($0.date, $0.totalMinutes) }
+            let totalWorkouts = workoutDaily.reduce(0) { $0 + $1.1 }
+            if totalWorkouts > 0 {
+                metrics.append(("Workouts", "figure.strengthtraining.traditional", totalWorkouts, "min", workoutDaily.filter { $0.1 > 0 }))
+            }
+
+            let energyDaily = healthService.activeEnergyDays.map { ($0.date, $0.kilocalories) }
+            let totalEnergy = energyDaily.reduce(0) { $0 + $1.1 }
+            if totalEnergy > 0 {
+                metrics.append(("Energy", "flame.fill", totalEnergy, "kcal", energyDaily.filter { $0.1 > 0 }))
+            }
+
+            activityMetrics = metrics
+
+            if !metrics.isEmpty {
+                withAnimation(.easeInOut(duration: 0.8)) {
+                    animatedProgress = 0.15  // subtle activity indicator
+                }
             }
         }
+    }
 
-        dailyValues = daily.filter { $0.value > 0 }
-        withAnimation(.easeInOut(duration: 0.8)) {
-            animatedProgress = min(1.0, currentValue / goalValue)
+    /// Map a rule metric to daily HealthKit values.
+    /// Uses workout-level data for type-specific metrics (running vs walking isolation).
+    private func dailyValuesForMetric(_ metric: String?) -> [(date: String, value: Double)] {
+        switch metric {
+        case "steps":
+            return healthService.stepDays.map { ($0.date, Double($0.steps)) }
+        case "distance", "distance_km":
+            // Running distance from actual running workouts
+            return healthService.runningWorkoutDays.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
+        case "walking_km":
+            // Walking distance from walking workouts only
+            return healthService.walkingWorkoutDays.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
+        case "cycling_km":
+            return healthService.cyclingDays.map { ($0.date, $0.distanceMeters / 1000.0) }
+        case "swimming_km":
+            return healthService.swimmingDays.map { ($0.date, $0.distanceMeters / 1000.0) }
+        case "hiking_km":
+            return healthService.hikingWorkoutDays.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
+        case "elev_gain_m":
+            // Combine hiking workout proxy + flights climbed for elevation
+            var elevByDate: [String: Double] = [:]
+            for day in healthService.flightsClimbedDays where day.flights > 0 {
+                elevByDate[day.date, default: 0] += Double(day.flights) * 3.0
+            }
+            return elevByDate.map { ($0.key, $0.value) }.sorted { $0.0 < $1.0 }
+        case "active_minutes":
+            return healthService.allWorkoutDays.map { ($0.date, $0.totalMinutes) }
+        case "strength_sessions":
+            return healthService.strengthWorkoutDays.map { ($0.date, Double($0.count)) }
+        case "yoga_min":
+            return healthService.yogaWorkoutDays.map { ($0.date, $0.totalMinutes) }
+        case "hiit_min":
+            return healthService.hiitWorkoutDays.map { ($0.date, $0.totalMinutes) }
+        case "rowing_km":
+            return healthService.rowingWorkoutDays.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
+        case "exercise_time":
+            return healthService.exerciseTimeDays.map { ($0.date, $0.minutes) }
+        case "calories":
+            return healthService.activeEnergyDays.map { ($0.date, $0.kilocalories) }
+        default:
+            return [] // Unknown metric — don't fake data
         }
     }
 

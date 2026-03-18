@@ -33,6 +33,21 @@ struct ActivityTheme {
         let walkTheme = ActivityTheme(icon: "figure.walk", label: "Walking",
             barColors: [Color(hex: 0x22C55E), Color(hex: 0x16A34A)],
             figureTint: Color(hex: 0x22C55E), barBackground: Color(hex: 0x22C55E).opacity(0.15))
+        let yogaTheme = ActivityTheme(icon: "figure.yoga", label: "Yoga",
+            barColors: [Color(hex: 0xA855F7), Color(hex: 0x9333EA)],
+            figureTint: Color(hex: 0xA855F7), barBackground: Color(hex: 0xA855F7).opacity(0.15))
+        let hiitTheme = ActivityTheme(icon: "figure.highintensity.intervaltraining", label: "HIIT",
+            barColors: [Color(hex: 0xF43F5E), Color(hex: 0xE11D48)],
+            figureTint: Color(hex: 0xF43F5E), barBackground: Color(hex: 0xF43F5E).opacity(0.15))
+        let rowingTheme = ActivityTheme(icon: "figure.rowing", label: "Rowing",
+            barColors: [Color(hex: 0x0EA5E9), Color(hex: 0x0284C7)],
+            figureTint: Color(hex: 0x0EA5E9), barBackground: Color(hex: 0x0EA5E9).opacity(0.15))
+        let caloriesTheme = ActivityTheme(icon: "flame.fill", label: "Calories",
+            barColors: [Color(hex: 0xF59E0B), Color(hex: 0xD97706)],
+            figureTint: Color(hex: 0xF59E0B), barBackground: Color(hex: 0xF59E0B).opacity(0.15))
+        let exerciseTheme = ActivityTheme(icon: "heart.circle.fill", label: "Exercise",
+            barColors: [Color(hex: 0x10B981), Color(hex: 0x059669)],
+            figureTint: Color(hex: 0x10B981), barBackground: Color(hex: 0x10B981).opacity(0.15))
 
         let modelId = (detail.modelId ?? "").lowercased()
         if modelId.contains("swimming")  { return swimTheme }
@@ -40,14 +55,26 @@ struct ActivityTheme {
         if modelId.contains("distance")  { return runTheme }
         if modelId.contains("strength")  { return strTheme }
         if modelId.contains("hiking")    { return hikeTheme }
+        if modelId.contains("yoga")      { return yogaTheme }
+        if modelId.contains("hiit")      { return hiitTheme }
+        if modelId.contains("rowing")    { return rowingTheme }
+        if modelId.contains("calories")  { return caloriesTheme }
+        if modelId.contains("exercise")  { return exerciseTheme }
+        if modelId.contains("walking")   { return walkTheme }
         if modelId.contains("steps")     { return walkTheme }
 
         let metric = detail.rules?.metric ?? ""
         if metric == "swimming_km"       { return swimTheme }
         if metric == "cycling_km"        { return cycleTheme }
         if metric == "distance" || metric == "distance_km" { return runTheme }
+        if metric == "walking_km"        { return walkTheme }
         if metric == "strength_sessions" { return strTheme }
         if metric == "hiking_km"         { return hikeTheme }
+        if metric == "yoga_min"          { return yogaTheme }
+        if metric == "hiit_min"          { return hiitTheme }
+        if metric == "rowing_km"         { return rowingTheme }
+        if metric == "exercise_time"     { return exerciseTheme }
+        if metric == "calories"          { return caloriesTheme }
         if metric == "steps"             { return walkTheme }
 
         let tags = (detail.tags ?? []).joined(separator: " ").lowercased()
@@ -56,6 +83,10 @@ struct ActivityTheme {
         if tags.contains("running")   { return runTheme }
         if tags.contains("strength")  { return strTheme }
         if tags.contains("hiking")    { return hikeTheme }
+        if tags.contains("yoga")      { return yogaTheme }
+        if tags.contains("hiit")      { return hiitTheme }
+        if tags.contains("rowing")    { return rowingTheme }
+        if tags.contains("calories")  { return caloriesTheme }
         if tags.contains("walking")   { return walkTheme }
 
         let text = [(detail.title ?? ""), (detail.description ?? "")].joined(separator: " ").lowercased()
@@ -64,6 +95,10 @@ struct ActivityTheme {
         if text.contains("run")  || text.contains("marathon") || text.contains("jog") { return runTheme }
         if text.contains("strength") || text.contains("lift") || text.contains("weight") { return strTheme }
         if text.contains("hik")  || text.contains("trail") || text.contains("climb") { return hikeTheme }
+        if text.contains("yoga") || text.contains("meditat") { return yogaTheme }
+        if text.contains("hiit") || text.contains("crossfit") || text.contains("interval") { return hiitTheme }
+        if text.contains("row")  || text.contains("ergometer") { return rowingTheme }
+        if text.contains("calori") || text.contains("burn") { return caloriesTheme }
 
         return walkTheme
     }
@@ -204,6 +239,7 @@ enum UserChallengeState {
     case active
     case awaitingProof
     case awaitingVerdict
+    case submitted          // evidence sent, proof window closed, awaiting pipeline
     case completed
     case failed
     case ended
@@ -213,7 +249,8 @@ enum UserChallengeState {
         case .notJoined: return "Not Joined"
         case .active: return "Active"
         case .awaitingProof: return "Awaiting Proof"
-        case .awaitingVerdict: return "Under Review"
+        case .awaitingVerdict: return "Verifying"
+        case .submitted: return "Submitted"
         case .completed: return "Completed"
         case .failed: return "Failed"
         case .ended: return "Ended"
@@ -223,20 +260,38 @@ enum UserChallengeState {
     var secondaryLabel: String? {
         switch self {
         case .awaitingProof: return "Submit your proof"
+        case .awaitingVerdict: return "AI verification in progress"
+        case .submitted: return "Awaiting finalization"
         default: return nil
         }
     }
 
     static func from(detail: ChallengeDetail, participantStatus: ParticipantStatus?, phase: ChallengePhase) -> UserChallengeState {
-        let joined = detail.youJoined == true || participantStatus != nil
+        // Use youJoined from the API (based on on-chain Joined events) as the
+        // authoritative join signal. participantStatus alone doesn't mean the
+        // user explicitly joined — the creator has a DB record but hasn't joined.
+        // This matches the webapp's hasJoined logic.
+        let joined = detail.youJoined == true
 
+        // Verdict takes precedence — terminal states
         if let pass = participantStatus?.verdictPass {
             return pass ? .completed : .failed
         }
 
         if joined {
             if participantStatus?.hasEvidence == true {
-                return .awaitingVerdict
+                // Evidence submitted but no verdict yet.
+                // Show phase-aware status instead of permanent "Under Review":
+                switch phase {
+                case .active, .proofWindow:
+                    // Still within the challenge / proof window → actively verifying
+                    return .awaitingVerdict
+                case .ended, .finalized:
+                    // Proof window closed, challenge ended — waiting for pipeline/finalization
+                    return .submitted
+                default:
+                    return .awaitingVerdict
+                }
             }
             switch phase {
             case .active: return .active
@@ -268,6 +323,7 @@ struct ChallengeProgressHero: View {
     @State private var animatedProgress: Double = 0
     @State private var currentValue: Double = 0
     @State private var goalValue: Double = 0
+    @State private var activitySummary: [(label: String, value: Double, unit: String)] = []
     @State private var hasLoaded = false
     @State private var figureAppeared = false
     @State private var insightIndex = 0
@@ -281,7 +337,7 @@ struct ChallengeProgressHero: View {
         UserChallengeState.from(detail: detail, participantStatus: participantStatus, phase: phase)
     }
     private var rules: ChallengeRules? { detail.rules }
-    private var metricLabel: String { rules?.metricLabel ?? "km" }
+    private var metricLabel: String { rules?.metricLabel ?? "" }
 
     /// Whether the user can tap to see detailed progress metrics.
     private var canViewProgress: Bool {
@@ -314,9 +370,11 @@ struct ChallengeProgressHero: View {
                             .lineLimit(2)
                     }
 
-                    // Numeric progress
+                    // Numeric progress or activity summary
                     if goalValue > 0 {
                         progressLabel
+                    } else if !activitySummary.isEmpty {
+                        activitySummaryLabel
                     } else {
                         // Category pill
                         Text(theme.label)
@@ -462,6 +520,17 @@ struct ChallengeProgressHero: View {
         .onChange(of: phase.isActive) { _, isActive in
             if !isActive { isPulsing = false }
         }
+    }
+
+    // MARK: - Activity Summary (no rules)
+
+    private var activitySummaryLabel: some View {
+        let parts = activitySummary.prefix(3).map { item in
+            "\(formatValue(item.value)) \(item.unit)"
+        }
+        return Text(parts.joined(separator: " · "))
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(theme.figureTint)
     }
 
     // MARK: - Numeric Progress
@@ -624,8 +693,8 @@ struct ChallengeProgressHero: View {
             }
             .buttonStyle(LCGoldButton())
 
-        case .awaitingVerdict:
-            // No action — awaiting AI verification
+        case .awaitingVerdict, .submitted:
+            // No action — awaiting AI verification / finalization
             EmptyView()
 
         case .completed:
@@ -660,60 +729,105 @@ struct ChallengeProgressHero: View {
         guard !hasLoaded else { return }
         hasLoaded = true
 
-        guard let rules else { return }
-        let goal = rules.goalValue
-        guard goal > 0 else { return }
-
-        goalValue = goal
-
         let start = detail.startDate ?? detail.endsDate?.addingTimeInterval(-7 * 86400) ?? Date().addingTimeInterval(-7 * 86400)
         let end = min(Date(), detail.endsDate ?? Date())
         guard end > start else { return }
 
-        var hkValue: Double = 0
         await healthService.ensureAuthorization()
         await healthService.collectEvidence(from: start, to: end)
 
-        let steps = healthService.stepDays
-        let distances = healthService.distanceDays
-        let cycling = healthService.cyclingDays
-        let swimming = healthService.swimmingDays
-        let energy = healthService.activeEnergyDays
+        if let r = rules, r.goalValue > 0 {
+            // Focused mode: known rules → show progress toward specific goal
+            goalValue = r.goalValue
+            let hkValue = healthValueForMetric(r.metric)
 
-        switch rules.metric {
-        case "steps":
-            hkValue = Double(steps.reduce(0) { $0 + $1.steps })
-        case "distance", "distance_km":
-            hkValue = distances.reduce(0) { $0 + $1.distanceMeters } / 1000.0
-        case "active_minutes":
-            hkValue = energy.reduce(0) { $0 + $1.kilocalories } / 5.0
-        case "cycling_km":
-            hkValue = cycling.reduce(0) { $0 + $1.distanceMeters } / 1000.0
-        case "swimming_km":
-            hkValue = swimming.reduce(0) { $0 + $1.distanceMeters } / 1000.0
-        case "hiking_km":
-            hkValue = distances.reduce(0) { $0 + $1.distanceMeters } / 1000.0
-        case "strength_sessions":
-            hkValue = 0
-        default:
-            hkValue = Double(steps.reduce(0) { $0 + $1.steps })
-        }
+            // Check server value too
+            var serverValue: Double = 0
+            if appState.hasWallet {
+                if let sp = try? await APIClient.shared.fetchMyProgress(
+                    baseURL: appState.serverURL,
+                    challengeId: detail.id,
+                    subject: appState.walletAddress
+                ) {
+                    serverValue = sp.currentValue ?? 0
+                    if let sg = sp.goalValue, sg > 0 { goalValue = sg }
+                }
+            }
 
-        var serverValue: Double = 0
-        if appState.hasWallet {
-            if let sp = try? await APIClient.shared.fetchMyProgress(
-                baseURL: appState.serverURL,
-                challengeId: detail.id,
-                subject: appState.walletAddress
-            ) {
-                serverValue = sp.currentValue ?? 0
-                if let sg = sp.goalValue, sg > 0 { goalValue = sg }
+            let value = max(hkValue, serverValue)
+            currentValue = value
+            animatedProgress = goalValue > 0 ? min(1.0, value / goalValue) : 0
+        } else {
+            // Discovery mode: no rules → show all HealthKit activity
+            var summary: [(label: String, value: Double, unit: String)] = []
+
+            let totalSteps = Double(healthService.stepDays.reduce(0) { $0 + $1.steps })
+            if totalSteps > 0 { summary.append(("Steps", totalSteps, "steps")) }
+
+            let totalDist = healthService.distanceDays.reduce(0) { $0 + $1.distanceMeters } / 1000.0
+            if totalDist > 0.01 { summary.append(("Distance", totalDist, "km")) }
+
+            let totalCycling = healthService.cyclingDays.reduce(0) { $0 + $1.distanceMeters } / 1000.0
+            if totalCycling > 0.01 { summary.append(("Cycling", totalCycling, "km")) }
+
+            let totalSwimming = healthService.swimmingDays.reduce(0) { $0 + $1.distanceMeters } / 1000.0
+            if totalSwimming > 0.01 { summary.append(("Swimming", totalSwimming, "km")) }
+
+            let totalWorkouts = healthService.allWorkoutDays.reduce(0) { $0 + $1.totalMinutes }
+            if totalWorkouts > 0 { summary.append(("Workouts", totalWorkouts, "min")) }
+
+            let totalEnergy = healthService.activeEnergyDays.reduce(0) { $0 + $1.kilocalories }
+            if totalEnergy > 0 { summary.append(("Energy", totalEnergy, "kcal")) }
+
+            activitySummary = summary
+
+            // Show activity-present state on ring (no percentage since no goal)
+            if !summary.isEmpty {
+                animatedProgress = 0.15 // subtle activity indicator
             }
         }
+    }
 
-        let value = max(hkValue, serverValue)
-        currentValue = value
-        animatedProgress = min(1.0, value / goalValue)
+    /// Map a rule metric to the correct HealthKit data.
+    /// Uses workout-level data for type-specific metrics (running vs walking isolation).
+    private func healthValueForMetric(_ metric: String?) -> Double {
+        switch metric {
+        case "steps":
+            return Double(healthService.stepDays.reduce(0) { $0 + $1.steps })
+        case "distance", "distance_km":
+            // Running distance from actual running workouts (not combined walking+running)
+            return healthService.runningWorkoutDays.reduce(0) { $0 + $1.totalDistanceMeters } / 1000.0
+        case "walking_km":
+            // Walking distance from walking workouts only
+            return healthService.walkingWorkoutDays.reduce(0) { $0 + $1.totalDistanceMeters } / 1000.0
+        case "cycling_km":
+            return healthService.cyclingDays.reduce(0) { $0 + $1.distanceMeters } / 1000.0
+        case "swimming_km":
+            return healthService.swimmingDays.reduce(0) { $0 + $1.distanceMeters } / 1000.0
+        case "hiking_km":
+            return healthService.hikingWorkoutDays.reduce(0) { $0 + $1.totalDistanceMeters } / 1000.0
+        case "elev_gain_m":
+            // Hiking elevation: workout elevation + flights climbed proxy
+            let workoutElev = healthService.hikingWorkoutDays.reduce(0) { $0 + $1.totalDistanceMeters * 0.05 } // rough estimate
+            let flightsElev = Double(healthService.flightsClimbedDays.reduce(0) { $0 + $1.flights }) * 3.0
+            return workoutElev + flightsElev
+        case "active_minutes":
+            return healthService.allWorkoutDays.reduce(0) { $0 + $1.totalMinutes }
+        case "strength_sessions":
+            return Double(healthService.strengthWorkoutDays.reduce(0) { $0 + $1.count })
+        case "yoga_min":
+            return healthService.yogaWorkoutDays.reduce(0) { $0 + $1.totalMinutes }
+        case "hiit_min":
+            return healthService.hiitWorkoutDays.reduce(0) { $0 + $1.totalMinutes }
+        case "rowing_km":
+            return healthService.rowingWorkoutDays.reduce(0) { $0 + $1.totalDistanceMeters } / 1000.0
+        case "exercise_time":
+            return healthService.exerciseTimeDays.reduce(0) { $0 + $1.minutes }
+        case "calories":
+            return healthService.activeEnergyDays.reduce(0) { $0 + $1.kilocalories }
+        default:
+            return 0 // Unknown metric — don't fake data
+        }
     }
 
     private func formatValue(_ value: Double) -> String {

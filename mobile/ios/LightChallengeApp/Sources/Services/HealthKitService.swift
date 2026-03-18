@@ -33,6 +33,15 @@ class HealthKitService: ObservableObject {
     @Published var activeEnergyDays: [DailyActiveEnergy] = []
     @Published var heartRateDays: [DailyHeartRate] = []
     @Published var flightsClimbedDays: [DailyFlightsClimbed] = []
+    @Published var strengthWorkoutDays: [DailyWorkouts] = []
+    @Published var allWorkoutDays: [DailyWorkouts] = []
+    @Published var yogaWorkoutDays: [DailyWorkouts] = []
+    @Published var hiitWorkoutDays: [DailyWorkouts] = []
+    @Published var rowingWorkoutDays: [DailyWorkouts] = []
+    @Published var runningWorkoutDays: [DailyWorkouts] = []
+    @Published var walkingWorkoutDays: [DailyWorkouts] = []
+    @Published var hikingWorkoutDays: [DailyWorkouts] = []
+    @Published var exerciseTimeDays: [DailyExerciseTime] = []
 
     // MARK: - Authorization
 
@@ -50,6 +59,8 @@ class HealthKitService: ObservableObject {
             HKQuantityType(.activeEnergyBurned),
             HKQuantityType(.heartRate),
             HKQuantityType(.flightsClimbed),
+            HKQuantityType(.appleExerciseTime),
+            HKWorkoutType.workoutType(),
         ]
 
         do {
@@ -102,9 +113,18 @@ class HealthKitService: ObservableObject {
         async let energy = fetchDailyActiveEnergy(from: startDate, to: endDate)
         async let hr = fetchDailyHeartRate(from: startDate, to: endDate)
         async let flights = fetchDailyFlightsClimbed(from: startDate, to: endDate)
+        async let strength = fetchDailyWorkouts(from: startDate, to: endDate, activityTypes: [.traditionalStrengthTraining, .functionalStrengthTraining])
+        async let allWorkouts = fetchDailyWorkouts(from: startDate, to: endDate, activityTypes: nil)
+        async let yoga = fetchDailyWorkouts(from: startDate, to: endDate, activityTypes: [.yoga])
+        async let hiit = fetchDailyWorkouts(from: startDate, to: endDate, activityTypes: [.highIntensityIntervalTraining, .crossTraining, .mixedCardio])
+        async let rowing = fetchDailyWorkouts(from: startDate, to: endDate, activityTypes: [.rowing])
+        async let running = fetchDailyWorkouts(from: startDate, to: endDate, activityTypes: [.running])
+        async let walking = fetchDailyWorkouts(from: startDate, to: endDate, activityTypes: [.walking])
+        async let hiking = fetchDailyWorkouts(from: startDate, to: endDate, activityTypes: [.hiking])
+        async let exerciseTime = fetchDailyExerciseTime(from: startDate, to: endDate)
 
         do {
-            let (s, d, c, sw, e, h, f) = try await (steps, distances, cycling, swimming, energy, hr, flights)
+            let (s, d, c, sw, e, h, f, str, aw, y, hi, ro, rn, wk, hk, et) = try await (steps, distances, cycling, swimming, energy, hr, flights, strength, allWorkouts, yoga, hiit, rowing, running, walking, hiking, exerciseTime)
             stepDays = s
             distanceDays = d
             cyclingDays = c
@@ -112,6 +132,15 @@ class HealthKitService: ObservableObject {
             activeEnergyDays = e
             heartRateDays = h
             flightsClimbedDays = f
+            strengthWorkoutDays = str
+            allWorkoutDays = aw
+            yogaWorkoutDays = y
+            hiitWorkoutDays = hi
+            rowingWorkoutDays = ro
+            runningWorkoutDays = rn
+            walkingWorkoutDays = wk
+            hikingWorkoutDays = hk
+            exerciseTimeDays = et
             isLoading = false
         } catch {
             self.error = "Failed to read HealthKit data: \(error.localizedDescription)"
@@ -198,6 +227,71 @@ class HealthKitService: ObservableObject {
         return raw.map { DailyFlightsClimbed(date: $0.date, flights: Int($0.value)) }
     }
 
+    // MARK: - Workouts (HKWorkout samples)
+
+    private func fetchDailyWorkouts(
+        from start: Date,
+        to end: Date,
+        activityTypes: [HKWorkoutActivityType]?
+    ) async throws -> [DailyWorkouts] {
+        let predicate: NSPredicate
+        if let types = activityTypes {
+            let typePreds = types.map { HKQuery.predicateForWorkouts(with: $0) }
+            let timePred = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+            predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                timePred,
+                NSCompoundPredicate(orPredicateWithSubpredicates: typePreds)
+            ])
+        } else {
+            predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: HKWorkoutType.workoutType(),
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            ) { _, samples, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                let workouts = (samples as? [HKWorkout]) ?? []
+                // Group by date
+                var byDate: [String: (count: Int, minutes: Double, distanceM: Double, calories: Double)] = [:]
+                let fmt = ISO8601DateFormatter()
+                for w in workouts {
+                    let dateStr = String(fmt.string(from: w.startDate).prefix(10))
+                    let minutes = w.duration / 60.0
+                    let dist = w.totalDistance?.doubleValue(for: .meter()) ?? 0
+                    let cals = w.totalEnergyBurned?.doubleValue(for: .kilocalorie()) ?? 0
+                    var entry = byDate[dateStr] ?? (count: 0, minutes: 0, distanceM: 0, calories: 0)
+                    entry.count += 1
+                    entry.minutes += minutes
+                    entry.distanceM += dist
+                    entry.calories += cals
+                    byDate[dateStr] = entry
+                }
+                let result = byDate.map {
+                    DailyWorkouts(date: $0.key, count: $0.value.count, totalMinutes: $0.value.minutes,
+                                  totalDistanceMeters: $0.value.distanceM, totalCalories: $0.value.calories)
+                }.sorted { $0.date < $1.date }
+                continuation.resume(returning: result)
+            }
+            healthStore.execute(query)
+        }
+    }
+
+    // MARK: - Exercise Time (Apple's green ring)
+
+    private func fetchDailyExerciseTime(from start: Date, to end: Date) async throws -> [DailyExerciseTime] {
+        let raw = try await fetchDailyCumulative(
+            type: HKQuantityType(.appleExerciseTime), unit: .minute(), from: start, to: end
+        )
+        return raw.map { DailyExerciseTime(date: $0.date, minutes: $0.value) }
+    }
+
     // MARK: - Heart Rate (discrete average)
 
     private func fetchDailyHeartRate(from start: Date, to end: Date) async throws -> [DailyHeartRate] {
@@ -261,21 +355,8 @@ class HealthKitService: ObservableObject {
             ])
         }
 
-        // Walking/running distance
-        for day in distanceDays where day.distanceMeters > 0 {
-            let (startTs, endTs) = dayTimestamps(day.date)
-            records.append([
-                "provider": "apple_health",
-                "user_id": userId,
-                "activity_id": "hk_dist:\(day.date)",
-                "type": "walk",
-                "start_ts": startTs,
-                "end_ts": endTs,
-                "duration_s": 86400,
-                "distance_m": day.distanceMeters,
-                "source_device": "HealthKit",
-            ])
-        }
+        // NOTE: distanceWalkingRunning omitted — it combines walking+running into one
+        // ambiguous value. Use workout-level running/walking records below for isolation.
 
         // Cycling distance
         for day in cyclingDays where day.distanceMeters > 0 {
@@ -309,14 +390,14 @@ class HealthKitService: ObservableObject {
             ])
         }
 
-        // Active energy burned
+        // Active energy burned (cross-activity aggregate)
         for day in activeEnergyDays where day.kilocalories > 0 {
             let (startTs, endTs) = dayTimestamps(day.date)
             records.append([
                 "provider": "apple_health",
                 "user_id": userId,
                 "activity_id": "hk_energy:\(day.date)",
-                "type": "steps",
+                "type": "calories",
                 "start_ts": startTs,
                 "end_ts": endTs,
                 "duration_s": 86400,
@@ -342,14 +423,153 @@ class HealthKitService: ObservableObject {
             ])
         }
 
-        // Flights climbed (elevation proxy: 1 flight ≈ 3 m)
+        // Running workouts (type: "run" — only counts actual running, not walking)
+        for day in runningWorkoutDays where day.count > 0 {
+            let (startTs, endTs) = dayTimestamps(day.date)
+            records.append([
+                "provider": "apple_health",
+                "user_id": userId,
+                "activity_id": "hk_run:\(day.date)",
+                "type": "run",
+                "start_ts": startTs,
+                "end_ts": endTs,
+                "duration_s": Int(day.totalMinutes * 60),
+                "distance_m": day.totalDistanceMeters,
+                "calories": day.totalCalories,
+                "sessions": day.count,
+                "source_device": "HealthKit",
+            ])
+        }
+
+        // Walking workouts (type: "walk" — only counts explicit walking workouts)
+        for day in walkingWorkoutDays where day.count > 0 {
+            let (startTs, endTs) = dayTimestamps(day.date)
+            records.append([
+                "provider": "apple_health",
+                "user_id": userId,
+                "activity_id": "hk_walk_workout:\(day.date)",
+                "type": "walk",
+                "start_ts": startTs,
+                "end_ts": endTs,
+                "duration_s": Int(day.totalMinutes * 60),
+                "distance_m": day.totalDistanceMeters,
+                "calories": day.totalCalories,
+                "sessions": day.count,
+                "source_device": "HealthKit",
+            ])
+        }
+
+        // Strength workouts
+        for day in strengthWorkoutDays where day.count > 0 {
+            let (startTs, endTs) = dayTimestamps(day.date)
+            records.append([
+                "provider": "apple_health",
+                "user_id": userId,
+                "activity_id": "hk_strength:\(day.date)",
+                "type": "strength",
+                "start_ts": startTs,
+                "end_ts": endTs,
+                "duration_s": Int(day.totalMinutes * 60),
+                "calories": day.totalCalories,
+                "sessions": day.count,
+                "source_device": "HealthKit",
+            ])
+        }
+
+        // Yoga workouts
+        for day in yogaWorkoutDays where day.count > 0 {
+            let (startTs, endTs) = dayTimestamps(day.date)
+            records.append([
+                "provider": "apple_health",
+                "user_id": userId,
+                "activity_id": "hk_yoga:\(day.date)",
+                "type": "yoga",
+                "start_ts": startTs,
+                "end_ts": endTs,
+                "duration_s": Int(day.totalMinutes * 60),
+                "calories": day.totalCalories,
+                "sessions": day.count,
+                "source_device": "HealthKit",
+            ])
+        }
+
+        // HIIT workouts
+        for day in hiitWorkoutDays where day.count > 0 {
+            let (startTs, endTs) = dayTimestamps(day.date)
+            records.append([
+                "provider": "apple_health",
+                "user_id": userId,
+                "activity_id": "hk_hiit:\(day.date)",
+                "type": "hiit",
+                "start_ts": startTs,
+                "end_ts": endTs,
+                "duration_s": Int(day.totalMinutes * 60),
+                "calories": day.totalCalories,
+                "sessions": day.count,
+                "source_device": "HealthKit",
+            ])
+        }
+
+        // Rowing workouts
+        for day in rowingWorkoutDays where day.count > 0 {
+            let (startTs, endTs) = dayTimestamps(day.date)
+            records.append([
+                "provider": "apple_health",
+                "user_id": userId,
+                "activity_id": "hk_rowing:\(day.date)",
+                "type": "rowing",
+                "start_ts": startTs,
+                "end_ts": endTs,
+                "duration_s": Int(day.totalMinutes * 60),
+                "distance_m": day.totalDistanceMeters,
+                "calories": day.totalCalories,
+                "sessions": day.count,
+                "source_device": "HealthKit",
+            ])
+        }
+
+        // Hiking workouts (type: "hike" — distinct from walking, captures elevation + distance)
+        for day in hikingWorkoutDays where day.count > 0 {
+            let (startTs, endTs) = dayTimestamps(day.date)
+            records.append([
+                "provider": "apple_health",
+                "user_id": userId,
+                "activity_id": "hk_hike:\(day.date)",
+                "type": "hike",
+                "start_ts": startTs,
+                "end_ts": endTs,
+                "duration_s": Int(day.totalMinutes * 60),
+                "distance_m": day.totalDistanceMeters,
+                "calories": day.totalCalories,
+                "sessions": day.count,
+                "source_device": "HealthKit",
+            ])
+        }
+
+        // Apple Exercise Time (green ring minutes)
+        for day in exerciseTimeDays where day.minutes > 0 {
+            let (startTs, endTs) = dayTimestamps(day.date)
+            records.append([
+                "provider": "apple_health",
+                "user_id": userId,
+                "activity_id": "hk_exercise_time:\(day.date)",
+                "type": "exercise_time",
+                "start_ts": startTs,
+                "end_ts": endTs,
+                "duration_s": 86400,
+                "exercise_minutes": day.minutes,
+                "source_device": "HealthKit",
+            ])
+        }
+
+        // Flights climbed (elevation proxy: 1 flight ≈ 3 m — counts toward hiking challenges)
         for day in flightsClimbedDays where day.flights > 0 {
             let (startTs, endTs) = dayTimestamps(day.date)
             records.append([
                 "provider": "apple_health",
                 "user_id": userId,
                 "activity_id": "hk_flights:\(day.date)",
-                "type": "walk",
+                "type": "hike",
                 "start_ts": startTs,
                 "end_ts": endTs,
                 "duration_s": 86400,

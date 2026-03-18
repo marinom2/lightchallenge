@@ -39,6 +39,67 @@ ChallengePay status events → statusIndexer → public.challenges.status
 
 ---
 
+## Fitness Activity Isolation Model
+
+Each fitness activity type is isolated end-to-end to prevent cross-contamination
+(e.g., walking workouts cannot count toward running challenges).
+
+### Evidence Collection (iOS / HealthKit)
+
+| Activity     | HealthKit Source                          | Evidence `type` | Key Metrics              |
+|--------------|-------------------------------------------|-----------------|--------------------------|
+| Steps        | `stepCount` (cumulative quantity)          | `steps`         | steps_count              |
+| Running      | `HKWorkout(.running)`                     | `run`           | distance_m, duration_s   |
+| Walking      | `HKWorkout(.walking)`                     | `walk`          | distance_m, duration_s   |
+| Hiking       | `HKWorkout(.hiking)` + flightsClimbed     | `hike`          | distance_m, elev_gain_m  |
+| Cycling      | `distanceCycling` (cumulative quantity)    | `cycle`         | distance_m               |
+| Swimming     | `distanceSwimming` (cumulative quantity)   | `swim`          | distance_m               |
+| Strength     | `HKWorkout(.traditionalStrengthTraining)` | `strength`      | duration_s, sessions     |
+| Yoga         | `HKWorkout(.yoga)`                        | `yoga`          | duration_s, sessions     |
+| HIIT         | `HKWorkout(.highIntensityIntervalTraining, .crossTraining, .mixedCardio)` | `hiit` | duration_s, sessions |
+| Rowing       | `HKWorkout(.rowing)`                      | `rowing`        | distance_m, duration_s   |
+| Calories     | `activeEnergyBurned` (cumulative, cross-activity) | `calories` | calories              |
+| Exercise     | `appleExerciseTime` (cumulative, cross-activity)  | `exercise_time` | exercise_minutes     |
+
+**Key design decisions:**
+- `distanceWalkingRunning` is **not** sent as evidence — it combines walking+running into one ambiguous value. Workout-level queries provide isolated per-type distance.
+- `flightsClimbed` sends type `hike` (not `walk`) — stair elevation counts toward hiking.
+- `activeEnergyBurned` sends type `calories` (not `steps`) — it's a cross-activity aggregate.
+- Steps are always cross-activity (pedometer counts all on-foot motion).
+- Calories and exercise time are always cross-activity aggregates.
+
+### Evaluator Isolation (offchain)
+
+**Full Rule path:** `activities.filter(a => a.type === rule.challengeType)` — only activities matching the rule's `challengeType` are considered. A running challenge only sees `type: "run"` records.
+
+**Simplified Rules path:** `activityMatchesSimpleMetric()` enforces type-specific filtering:
+- `walking_km` → only `walk` activities
+- `hiking_km` → only `hike` activities
+- `cycling_km` → only `cycle` activities
+- `swimming_km` → only `swim` activities
+- `rowing_km` → only `rowing` activities
+- `yoga_min` → only `yoga` activities
+- `hiit_min` → only `hiit` activities
+- `strength_sessions` → only `strength` activities
+- Generic metrics (`steps`, `distance_km`, `active_minutes`, `calories`, `exercise_time`) accept all activity types.
+
+### `canonicalType()` Mapping (offchain/evaluators/fitnessEvaluator.ts)
+
+Maps provider-specific type strings to canonical types:
+- `run`, `virtualrun`, `trail_run`, `running` → `run`
+- `walk`, `walking` → `walk`
+- `hike`, `hiking`, `trail`, `mountaineering` → `hike`
+- `cycle`, `ride`, `virtualride`, `cycling`, `bike` → `cycle`
+- `swim`, `swimming`, `openwater` → `swim`
+- `strength`, `weighttraining`, `functional_training` → `strength`
+- `yoga`, `pilates`, `flexibility` → `yoga`
+- `hiit`, `crossfit`, `crosstraining`, `mixed_cardio`, `circuit_training` → `hiit`
+- `rowing`, `rowing_machine`, `indoor_rowing` → `rowing`
+- `calories`, `active_energy`, `calorie_burn` → `calories`
+- `exercise_time` → `exercise_time`
+
+---
+
 ## Prerequisites
 
 - Node.js 22 + `npm install` at repo root
@@ -59,7 +120,7 @@ npx tsx db/migrate.ts
 Applied migrations are tracked in `public.schema_migrations`.
 Re-running is safe — already-applied files are skipped.
 
-Current migrations: `001_evidence_verdicts` through `019_seed_demo_challenges`.
+Current migrations: `001_evidence_verdicts` through `027_expanded_fitness_models`.
 See [db/DATABASE.md](db/DATABASE.md) for full schema documentation.
 
 ---
@@ -709,20 +770,50 @@ Create a fresh request by re-running the challenge worker job.
 
 ## 16. API Authentication Headers
 
-Webapp API routes that perform writes or return user-specific data require the following
-authentication headers. The frontend sends these automatically via middleware; external
-callers (scripts, monitoring) must set them manually.
+Webapp API routes that perform writes or return user-specific data support two
+authentication methods.
+
+### Method 1: Wallet Signature (primary — web app)
+
+The frontend sends these automatically via middleware; external callers (scripts,
+monitoring) must set them manually.
 
 | Header | Value | Purpose |
 |---|---|---|
 | `x-lc-address` | `0x<wallet-address>` | Wallet address of the caller |
-| `x-lc-signature` | `0x<EIP-191 signature>` | Signature of `timestamp` by the wallet |
+| `x-lc-signature` | `0x<EIP-191 signature>` | Signature of `lightchallenge:{timestamp}` by the wallet |
 | `x-lc-timestamp` | Unix epoch milliseconds (string) | Must be within 5 minutes of server time |
 
-The server verifies that `x-lc-signature` is a valid EIP-191 signature of the `x-lc-timestamp`
-value by `x-lc-address`. Stale timestamps (older than 5 minutes) are rejected.
+The server verifies that `x-lc-signature` is a valid EIP-191 signature of the
+`lightchallenge:{x-lc-timestamp}` message by `x-lc-address`. Stale timestamps
+(older than 5 minutes) are rejected.
 
-**Admin endpoints** (e.g. `/api/admin/*`) additionally require the `ADMIN_KEY` env var
+### Method 2: Transaction Receipt Verification (fallback — mobile clients)
+
+Mobile wallets (via WalletConnect) can perform `eth_sendTransaction` but not
+`personal_sign` reliably on LightChain's custom chain (ID 504). For routes that
+involve an on-chain transaction, the API accepts a fallback:
+
+1. Client sends `txHash` and `subject` (wallet address) in the request body
+   (no signature headers needed)
+2. Server fetches the on-chain transaction receipt via RPC
+3. Server verifies `receipt.status == 0x1` (success) and `receipt.from == subject`
+4. Optionally verifies `receipt.to` matches the expected contract (e.g. ChallengePay)
+
+**Routes supporting tx-receipt auth:**
+- `POST /api/challenges` — challenge metadata save after `createChallenge()` tx
+- `PATCH /api/challenges` — challenge metadata update
+- `POST /api/challenge/[id]/participant` — join record after `joinChallengeNative()` tx
+
+**Security notes:**
+- Only succeeds if a real on-chain tx was sent from the claimed wallet
+- The tx must have succeeded (status 0x1)
+- When `expectedTo` is checked, the tx must target the correct contract
+- Implementation: `verifyByTxReceipt()` in `webapp/lib/auth.ts`
+
+### Admin Endpoints
+
+Admin endpoints (e.g. `/api/admin/*`) additionally require the `ADMIN_KEY` env var
 to be set on the server, and the calling address must match the configured admin wallet.
 
 ---

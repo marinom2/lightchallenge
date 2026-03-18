@@ -72,9 +72,10 @@ Key server-side routes:
 
 | Route | Method | Purpose |
 |---|---|---|
-| `/api/challenges` | GET/POST | Challenge CRUD |
+| `/api/challenges` | GET/POST/PATCH | Challenge CRUD (POST/PATCH support tx-receipt auth fallback for mobile) |
 | `/api/challenges/meta/[id]` | GET | Fast DB metadata |
 | `/api/challenge/[id]` | GET | Full on-chain + DB data |
+| `/api/challenge/[id]/participant` | GET/POST | Participant status / join record (POST supports tx-receipt auth fallback) |
 | `/api/me/challenges` | GET | User's challenges |
 | `/api/me/achievements` | GET | User's achievement mints |
 | `/api/me/reputation` | GET | User's reputation/level |

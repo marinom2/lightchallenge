@@ -223,6 +223,9 @@ struct ChallengeDetailView: View {
         case .awaitingVerdict:
             verdictCard
 
+        case .submitted:
+            submittedCard
+
         case .completed:
             completedCard(detail)
 
@@ -444,7 +447,26 @@ struct ChallengeDetailView: View {
             VStack(alignment: .leading, spacing: LC.space2) {
                 Text("Proof Under Review")
                     .font(.subheadline.weight(.semibold))
-                Text("Your evidence is being evaluated")
+                Text("Your evidence is being verified by AI")
+                    .font(.caption)
+                    .foregroundStyle(LC.textSecondary(scheme))
+            }
+            Spacer()
+        }
+        .padding(LC.space16)
+        .lcCard()
+    }
+
+    private var submittedCard: some View {
+        HStack(spacing: LC.space12) {
+            Image(systemName: "checkmark.circle")
+                .font(.system(size: 18))
+                .foregroundStyle(.blue)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: LC.space2) {
+                Text("Evidence Submitted")
+                    .font(.subheadline.weight(.semibold))
+                Text("Challenge ended — awaiting on-chain finalization")
                     .font(.caption)
                     .foregroundStyle(LC.textSecondary(scheme))
             }
@@ -484,20 +506,39 @@ struct ChallengeDetailView: View {
     }
 
     private var failedCard: some View {
-        HStack(spacing: LC.space12) {
-            Image(systemName: "xmark.seal.fill")
-                .font(.system(size: 20))
-                .foregroundStyle(LC.danger)
-                .frame(width: 28)
-            VStack(alignment: .leading, spacing: LC.space2) {
-                Text("Challenge Failed")
-                    .font(.subheadline.weight(.bold))
+        VStack(alignment: .leading, spacing: LC.space8) {
+            HStack(spacing: LC.space12) {
+                Image(systemName: "xmark.seal.fill")
+                    .font(.system(size: 20))
                     .foregroundStyle(LC.danger)
-                Text("Your activity did not meet the requirements")
-                    .font(.caption)
-                    .foregroundStyle(LC.textSecondary(scheme))
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: LC.space2) {
+                    Text("Challenge Failed")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(LC.danger)
+                    Text("Your activity did not meet the requirements")
+                        .font(.caption)
+                        .foregroundStyle(LC.textSecondary(scheme))
+                }
+                Spacer()
             }
-            Spacer()
+
+            // Show verdict reasons if available
+            if let reasons = participantStatus?.verdictReasons, !reasons.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(reasons.prefix(3), id: \.self) { reason in
+                        HStack(alignment: .top, spacing: 6) {
+                            Text("\u{2022}")
+                                .font(.caption)
+                                .foregroundStyle(LC.danger.opacity(0.7))
+                            Text(reason)
+                                .font(.caption)
+                                .foregroundStyle(LC.textSecondary(scheme))
+                        }
+                    }
+                }
+                .padding(.leading, 40)
+            }
         }
         .padding(LC.space16)
         .lcCard()
@@ -606,8 +647,14 @@ struct ChallengeDetailView: View {
             milestones.append(Milestone(id: "created", label: "Created", date: created, isCompleted: true))
         }
 
-        // You Joined
-        if detail.youJoined == true || participantStatus != nil {
+        // Registration Closes
+        if let joinClosesStr = detail.joinClosesTs, let ts = Double(joinClosesStr), ts > 0 {
+            let joinClosesDate = Date(timeIntervalSince1970: ts)
+            milestones.append(Milestone(id: "joinCloses", label: "Registration Closes", date: joinClosesDate, isCompleted: joinClosesDate <= now))
+        }
+
+        // You Joined — only when the API confirms join (on-chain Joined event)
+        if detail.youJoined == true {
             milestones.append(Milestone(id: "joined", label: "You Joined", date: nil, isCompleted: true))
         }
 
@@ -670,17 +717,13 @@ struct ChallengeDetailView: View {
 
     private var canShowManualUpload: Bool {
         guard appState.hasWallet else { return false }
-        guard detail?.youJoined == true || participantStatus != nil else { return false }
+        guard detail?.youJoined == true else { return false }
         guard participantStatus?.hasEvidence != true else { return false }
         guard let detail else { return false }
         let phase = ChallengePhase.from(detail: detail, verdictPass: participantStatus?.verdictPass)
-        let challengeEnded = !phase.isActive
-        let proofDeadlinePassed: Bool = {
-            if case .ended = phase { return true }
-            if case .finalized = phase { return true }
-            return false
-        }()
-        return challengeEnded && !proofDeadlinePassed
+        // Show manual upload only in the proof window (challenge ended, deadline not passed)
+        if case .proofWindow = phase { return true }
+        return false
     }
 
     @ViewBuilder

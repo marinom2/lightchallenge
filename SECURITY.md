@@ -54,7 +54,8 @@ The following components are in scope:
 - Minimum stake enforcement
 
 ### API Security
-- Wallet-signature authentication on state-mutating endpoints
+- **Primary auth**: EIP-191 wallet-signature authentication on state-mutating endpoints (message: `lightchallenge:{timestamp}`, 5-minute window)
+- **Mobile fallback auth**: Transaction-receipt verification for mobile clients — server fetches on-chain receipt and verifies `receipt.from` matches claimed wallet and `receipt.to` matches expected contract. Only available on routes that involve an on-chain transaction (`POST/PATCH /api/challenges`, `POST /api/challenge/[id]/participant`). See `webapp/lib/auth.ts:verifyByTxReceipt()`.
 - Admin endpoints fail-closed (no dev-mode bypass)
 - Relay rate limiting (20 req/min per IP)
 - RPC proxy restricted to read-only methods
@@ -84,7 +85,7 @@ The protocol has not yet undergone a formal third-party audit. This is planned b
 
 ## Known Limitations
 
-1. **Auth model**: Lightweight wallet-signature verification (not full SIWE sessions). Adequate for current stage; SIWE planned for production.
+1. **Auth model**: Lightweight wallet-signature verification (not full SIWE sessions) with tx-receipt fallback for mobile. Adequate for current stage; SIWE planned for production.
 2. **Reorg recovery**: 12-block confirmation buffer protects against standard reorgs. Deep reorgs (>12 blocks) require manual reconciliation.
 3. **Rounding dust**: Integer division in fee splits and per-winner bonus may leave small amounts (< participantsCount wei) in Treasury buckets. Recoverable via sweep.
 4. **TrustedForwarder**: Deployed but dormant (no targets allowed). Retained for future gasless transaction support.

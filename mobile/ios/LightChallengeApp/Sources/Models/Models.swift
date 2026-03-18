@@ -47,6 +47,21 @@ struct DailySwimmingDistance: Identifiable, Codable {
     let distanceMeters: Double
 }
 
+struct DailyWorkouts: Identifiable, Codable {
+    var id: String { date }
+    let date: String      // "YYYY-MM-DD"
+    let count: Int
+    let totalMinutes: Double
+    let totalDistanceMeters: Double
+    let totalCalories: Double
+}
+
+struct DailyExerciseTime: Identifiable, Codable {
+    var id: String { date }
+    let date: String      // "YYYY-MM-DD"
+    let minutes: Double
+}
+
 struct EvidencePayload {
     let records: [[String: Any]]
     let evidenceHash: String
@@ -83,6 +98,12 @@ struct ServerConfig {
     static let fitnessHikingHash    = "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60004"
     static let fitnessSwimmingHash  = "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60005"
     static let fitnessStrengthHash  = "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60006"
+    static let fitnessYogaHash      = "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60007"
+    static let fitnessHiitHash      = "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60008"
+    static let fitnessCaloriesHash  = "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60009"
+    static let fitnessRowingHash    = "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6000a"
+    static let fitnessWalkingHash   = "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6000b"
+    static let fitnessExerciseHash  = "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6000c"
 
     /// Default model hash for fitness challenges (steps is most common)
     static let defaultFitnessModelHash = fitnessStepsHash

@@ -1,75 +1,156 @@
-# LightChallenge iOS — Apple Health Evidence Collector
+# LightChallenge iOS App
 
-Native iOS app that reads step count and distance data from Apple HealthKit and submits it as evidence to the LightChallenge verification platform.
-
-## Why a native app?
-
-Apple Health data is only accessible through the HealthKit framework on iOS. There is no web API, no REST endpoint, no OAuth flow. The only ways to get Apple Health data are:
-
-1. **Native iOS app** (this) — reads HealthKit directly, best UX
-2. **Manual ZIP export** — user exports from Health app, uploads via web
-
-This app provides path (1). The web app supports path (2) via the Apple Health adapter.
+Full-featured iOS client for the LightChallenge protocol — browse challenges, create and join with on-chain transactions, submit fitness evidence via HealthKit, and track achievements.
 
 ## Features
 
-- **HealthKit integration**: Reads `HKQuantityTypeIdentifierStepCount` and `HKQuantityTypeIdentifierDistanceWalkingRunning`
-- **Deep link support**: `lightchallenge://challenge/{id}?subject={wallet}` — QR code from webapp opens directly to challenge
-- **Data preview**: Shows collected step/distance totals before submission
-- **API submission**: Sends evidence as JSON to `/api/aivm/intake` (multipart/form-data)
-- **Privacy**: Only aggregate daily totals are sent — no raw health samples leave the device
+- **WalletConnect v2** (Reown AppKit): Connect MetaMask, Trust Wallet, or any WC-compatible wallet on LightChain (chain ID 504)
+- **Challenge creation**: On-chain `createChallenge()` via WalletConnect, followed by off-chain metadata save with tx-receipt auth
+- **Challenge browsing**: Explore by category (fitness, gaming, custom), search, filter by status
+- **Join challenges**: On-chain `joinChallengeNative()` with stake amount
+- **HealthKit integration**: Read steps, distance, cycling, swimming data; submit as evidence
+- **Auto-proof**: Automatic HealthKit evidence submission during proof window (via `AutoProofService`)
+- **Strava OAuth**: Link Strava account for server-side activity collection
+- **Phase-aware UI**: Shows correct status per challenge lifecycle phase (upcoming → active → proofWindow → ended → finalized)
+- **Achievements & claims**: View soulbound NFTs, claim rewards
+- **Leaderboard**: Seasonal protocol-wide rankings
+- **Push notifications**: Proof window reminders, verdict notifications
+- **Token prices**: Live LCAI/USDC conversion via `TokenPriceService`
 
-## Setup
+## Requirements
 
-### Requirements
-- Xcode 15+
+- Xcode 16+
 - iOS 17+
 - Physical device (HealthKit not available in Simulator)
 
-### Build
-1. Open `LightChallenge/` in Xcode
-2. In Signing & Capabilities, add:
-   - **HealthKit** capability (check "Background Delivery" if needed)
-   - Configure your Team for signing
-3. Build and run on a physical iPhone
+## Build
 
-### Deep Links
-The app registers the `lightchallenge://` URL scheme. The webapp's QR code generates links like:
-
-```
-lightchallenge://challenge/42?subject=0xABC123...
+```bash
+cd mobile/ios/LightChallengeApp
+xcodebuild -scheme LightChallengeApp -destination 'id=<DEVICE_ID>' build
 ```
 
-Scanning this QR code on iPhone opens the app pre-filled with the challenge ID and wallet address.
+Or open `LightChallengeApp.xcodeproj` in Xcode and build to a physical device.
 
-## Architecture
+## Source Tree
 
 ```
 Sources/
-├── LightChallengeApp.swift          # App entry point + deep link handler
+├── LightChallengeApp.swift                 # App entry, deep links, WalletConnect setup
 ├── Models/
-│   └── Models.swift                 # Data models (DailySteps, DailyDistance, etc.)
+│   ├── Challenge.swift                     # ChallengeMeta, ChallengeDetail, ChallengePhase, enums
+│   ├── Contracts.swift                     # ABI definitions, contract addresses
+│   ├── Models.swift                        # Shared data models (evidence, verdicts, claims)
+│   └── Templates.swift                     # Challenge template definitions
 ├── Services/
-│   └── HealthKitService.swift       # HealthKit data collection + API submission
+│   ├── ABIEncoder.swift                    # Ethereum ABI encoding for contract calls
+│   ├── APIClient.swift                     # Network layer (all /api/* calls)
+│   ├── AppState.swift                      # Global state (wallet, environment, navigation)
+│   ├── AutoProofService.swift              # Automatic HealthKit evidence submission
+│   ├── AvatarService.swift                 # Wallet-based avatar generation
+│   ├── CacheService.swift                  # Disk + memory cache for API responses
+│   ├── ContractService.swift               # On-chain tx construction (create, join, claim)
+│   ├── HealthKitService.swift              # HealthKit data collection + evidence building
+│   ├── NotificationService.swift           # Push notification scheduling
+│   ├── OAuthService.swift                  # Strava OAuth flow
+│   ├── TokenPriceService.swift             # LCAI/USDC price fetching
+│   └── WalletManager.swift                 # WalletConnect session + signing via Reown AppKit
+├── Theme/
+│   └── DesignTokens.swift                  # Colors, spacing, typography constants
 └── Views/
-    └── ContentView.swift            # Main UI (auth, preview, submit)
+    ├── ContentView.swift                   # Root view (onboarding vs main)
+    ├── MainTabView.swift                   # Tab bar (Explore, Challenges, Activity, Profile)
+    ├── Achievements/
+    │   ├── AchievementsView.swift          # Achievement NFT gallery
+    │   ├── AchievementShareCard.swift      # Shareable achievement image
+    │   └── ChallengeShareCard.swift        # Shareable challenge image
+    ├── Activity/
+    │   └── MyActivityView.swift            # User's challenge participation list
+    ├── Challenges/
+    │   └── ChallengesView.swift            # Active + past challenge list
+    ├── Claims/
+    │   └── ClaimsView.swift                # Reward claims UI
+    ├── Create/
+    │   └── CreateChallengeView.swift        # Challenge creation wizard
+    ├── Detail/
+    │   ├── ChallengeDetailView.swift       # Full challenge detail (phases, actions, cards)
+    │   ├── ChallengeProgressHero.swift     # Progress ring, phase badge, UserChallengeState
+    │   ├── ActivityFigureView.swift        # Activity stat display
+    │   ├── ActivitySourceNudgeSheet.swift  # Prompt to connect data source
+    │   ├── FitnessProofView.swift          # HealthKit evidence submission UI
+    │   ├── GamingHandoffView.swift         # Desktop handoff for gaming challenges
+    │   ├── ProgressMetricsView.swift       # Challenge-wide progress stats
+    │   └── VictoryCelebrationView.swift    # Victory animation
+    ├── Explore/
+    │   ├── ExploreView.swift               # Category grid + featured challenges
+    │   ├── CategoryDetailView.swift        # Challenges in a single category
+    │   └── ChallengeRow.swift              # Challenge list row component
+    ├── Leaderboard/
+    │   └── LeaderboardView.swift           # Seasonal leaderboard
+    ├── Library/
+    │   └── ProofSelectionView.swift        # Evidence source picker
+    ├── Notifications/
+    │   └── NotificationsView.swift         # Notification center
+    ├── Onboarding/
+    │   ├── OnboardingView.swift            # First-launch onboarding flow
+    │   └── SplashPortal.swift              # Splash screen animation
+    ├── Profile/
+    │   └── ProfileView.swift               # User profile (reputation, stats)
+    ├── Settings/
+    │   ├── SettingsView.swift              # App settings
+    │   ├── AvatarPickerView.swift          # Avatar selection
+    │   └── AvatarView.swift                # Avatar display component
+    └── Wallet/
+        └── WalletSheet.swift               # Wallet connection sheet
 ```
 
-## Data Flow
+## Key Concepts
 
-```
-iPhone HealthKit → HealthKitService.collectEvidence()
-  → DailySteps[] + DailyDistance[]
-  → buildEvidencePayload() → JSON records
-  → POST /api/aivm/intake (multipart/form-data)
-  → Server: evidenceValidator → adapter.ingest() → public.evidence
-  → evidenceEvaluator → public.verdicts
-```
+### Authentication
+
+The iOS app cannot reliably perform EIP-191 `personal_sign` on LightChain's custom chain via WalletConnect. Instead, the API uses **tx-receipt verification** as a fallback: after a successful on-chain transaction, the app sends the `txHash` + `subject` (wallet address) to the API, which verifies that `receipt.from` matches the claimed wallet.
+
+### Challenge Phases
+
+`ChallengePhase` is derived from challenge dates and on-chain status:
+
+| Phase | Condition |
+|-------|-----------|
+| `upcoming` | `startsAt` is in the future |
+| `active` | Started but not ended |
+| `proofWindow` | Challenge ended, proof deadline not passed |
+| `ended` | Proof deadline passed, not yet finalized |
+| `finalized` | On-chain status is Finalized or Canceled |
+
+### User Challenge State
+
+`UserChallengeState` is phase-aware:
+
+| State | Meaning |
+|-------|---------|
+| `notJoined` | Wallet has not joined |
+| `active` | Joined, challenge in progress |
+| `awaitingProof` | Challenge ended, no evidence yet, proof window open |
+| `awaitingVerdict` | Evidence submitted, AI verification in progress |
+| `submitted` | Evidence submitted, challenge ended — awaiting finalization |
+| `completed` | Verdict passed, challenge finalized |
+| `failed` | Verdict failed |
+| `ended` | Challenge ended, not joined or no action taken |
+
+### Gaming Challenges
+
+Gaming challenges (Dota 2, CS2, LoL) require desktop for data source linking (Steam, Riot). The iOS app shows a "Desktop Required" handoff card for these — users browse and join on mobile but submit evidence via the web app.
 
 ## Privacy
 
-The app requests **read-only** access to:
-- Step Count (`HKQuantityTypeIdentifierStepCount`)
-- Walking + Running Distance (`HKQuantityTypeIdentifierDistanceWalkingRunning`)
+HealthKit access is **read-only**. Data is aggregated to daily totals before transmission. No raw samples, timestamps, or device identifiers are included in evidence payloads.
 
-Data is aggregated to daily totals before transmission. No raw samples, timestamps, or source device identifiers beyond "HealthKit" are included in the evidence payload.
+## Deep Links
+
+The app registers `lightchallenge://` URL scheme:
+
+```
+lightchallenge://challenge/{id}?subject={wallet}
+```
+
+QR codes on the web app generate these links for mobile handoff.

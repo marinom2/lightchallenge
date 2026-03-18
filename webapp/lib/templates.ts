@@ -40,7 +40,7 @@ export type TemplateField =
     };
 
 /** Supported kinds across Fitness & Gaming */
-export type FitnessKind = "steps" | "running" | "cycling" | "hiking" | "swimming" | "strength";
+export type FitnessKind = "steps" | "running" | "walking" | "cycling" | "hiking" | "swimming" | "strength" | "yoga" | "hiit" | "rowing" | "calories" | "exercise";
 export type GameId = "dota" | "lol" | "cs";
 
 /** A template line item used by the renderer */
@@ -183,7 +183,7 @@ const FITNESS_HIKING_ELEVATION_WINDOW: Template = {
     min_elev_gain_m: Math.round(Number(aivm(state).elevGainM ?? 1000)),
   }),
   ruleBuilder: ({ state }) => ({
-    challengeType: "walk",
+    challengeType: "hike",
     period: {
       start: isoOrNow(state.timeline.starts),
       end: isoOrNow(state.timeline.ends),
@@ -316,6 +316,156 @@ const FITNESS_DISTANCE_COMPETITIVE: Template = {
   },
 };
 
+const FITNESS_WALKING_DISTANCE: Template = {
+  id: "walking_distance",
+  kind: "walking",
+  name: "Walking — Distance Target",
+  hint: "Accumulate walking distance within the challenge window.",
+  modelId: "fitness.walking@1",
+  fields: [{ kind: "number", key: "distanceKm", label: "Distance (km)", min: 0.5, step: 0.5, default: 5 }],
+  paramsBuilder: ({ state }) => ({
+    start_ts: ts(state.timeline.starts),
+    end_ts: ts(state.timeline.ends),
+    min_distance_m: Math.round(Number(aivm(state).distanceKm ?? 5) * 1000),
+  }),
+  ruleBuilder: ({ state }) => ({
+    challengeType: "walk",
+    period: {
+      start: isoOrNow(state.timeline.starts),
+      end: isoOrNow(state.timeline.ends),
+      timezone: localTz(),
+    },
+    conditions: [
+      { metric: "walking_km", op: ">=", value: Number(aivm(state).distanceKm ?? 5) },
+    ],
+  }),
+};
+
+const FITNESS_YOGA_DURATION: Template = {
+  id: "yoga_duration",
+  kind: "yoga",
+  name: "Yoga — Duration Target",
+  hint: "Accumulate yoga practice time within the challenge window.",
+  modelId: "fitness.yoga@1",
+  fields: [{ kind: "number", key: "durationMin", label: "Target minutes", min: 10, step: 10, default: 60 }],
+  paramsBuilder: ({ state }) => ({
+    start_ts: ts(state.timeline.starts),
+    end_ts: ts(state.timeline.ends),
+    min_duration_min: Number(aivm(state).durationMin ?? 60),
+  }),
+  ruleBuilder: ({ state }) => ({
+    challengeType: "yoga",
+    period: {
+      start: isoOrNow(state.timeline.starts),
+      end: isoOrNow(state.timeline.ends),
+      timezone: localTz(),
+    },
+    conditions: [
+      { metric: "yoga_min", op: ">=", value: Number(aivm(state).durationMin ?? 60) },
+    ],
+  }),
+};
+
+const FITNESS_HIIT_SESSIONS: Template = {
+  id: "hiit_sessions",
+  kind: "hiit",
+  name: "HIIT — Session Time",
+  hint: "Accumulate HIIT / CrossFit training time.",
+  modelId: "fitness.hiit@1",
+  fields: [{ kind: "number", key: "durationMin", label: "Target minutes", min: 10, step: 10, default: 60 }],
+  paramsBuilder: ({ state }) => ({
+    start_ts: ts(state.timeline.starts),
+    end_ts: ts(state.timeline.ends),
+    min_duration_min: Number(aivm(state).durationMin ?? 60),
+  }),
+  ruleBuilder: ({ state }) => ({
+    challengeType: "hiit",
+    period: {
+      start: isoOrNow(state.timeline.starts),
+      end: isoOrNow(state.timeline.ends),
+      timezone: localTz(),
+    },
+    conditions: [
+      { metric: "hiit_min", op: ">=", value: Number(aivm(state).durationMin ?? 60) },
+    ],
+  }),
+};
+
+const FITNESS_ROWING_DISTANCE: Template = {
+  id: "rowing_distance",
+  kind: "rowing",
+  name: "Rowing — Distance Target",
+  hint: "Accumulate rowing distance within the challenge window.",
+  modelId: "fitness.rowing@1",
+  fields: [{ kind: "number", key: "distanceKm", label: "Distance (km)", min: 0.5, step: 0.5, default: 5 }],
+  paramsBuilder: ({ state }) => ({
+    start_ts: ts(state.timeline.starts),
+    end_ts: ts(state.timeline.ends),
+    min_distance_m: Math.round(Number(aivm(state).distanceKm ?? 5) * 1000),
+  }),
+  ruleBuilder: ({ state }) => ({
+    challengeType: "rowing",
+    period: {
+      start: isoOrNow(state.timeline.starts),
+      end: isoOrNow(state.timeline.ends),
+      timezone: localTz(),
+    },
+    conditions: [
+      { metric: "rowing_km", op: ">=", value: Number(aivm(state).distanceKm ?? 5) },
+    ],
+  }),
+};
+
+const FITNESS_CALORIE_BURN: Template = {
+  id: "calorie_burn",
+  kind: "calories",
+  name: "Calorie Burn Target",
+  hint: "Burn a target amount of active calories.",
+  modelId: "fitness.calories@1",
+  fields: [{ kind: "number", key: "calories", label: "Target calories (kcal)", min: 100, step: 100, default: 500 }],
+  paramsBuilder: ({ state }) => ({
+    start_ts: ts(state.timeline.starts),
+    end_ts: ts(state.timeline.ends),
+    min_calories: Number(aivm(state).calories ?? 500),
+  }),
+  ruleBuilder: ({ state }) => ({
+    challengeType: "calories",
+    period: {
+      start: isoOrNow(state.timeline.starts),
+      end: isoOrNow(state.timeline.ends),
+      timezone: localTz(),
+    },
+    conditions: [
+      { metric: "calories", op: ">=", value: Number(aivm(state).calories ?? 500) },
+    ],
+  }),
+};
+
+const FITNESS_EXERCISE_TIME: Template = {
+  id: "exercise_time",
+  kind: "exercise",
+  name: "Exercise Minutes Target",
+  hint: "Accumulate exercise ring minutes from any activity.",
+  modelId: "fitness.exercise@1",
+  fields: [{ kind: "number", key: "minutes", label: "Target minutes", min: 10, step: 10, default: 150 }],
+  paramsBuilder: ({ state }) => ({
+    start_ts: ts(state.timeline.starts),
+    end_ts: ts(state.timeline.ends),
+    min_minutes: Number(aivm(state).minutes ?? 150),
+  }),
+  ruleBuilder: ({ state }) => ({
+    challengeType: "exercise_time",
+    period: {
+      start: isoOrNow(state.timeline.starts),
+      end: isoOrNow(state.timeline.ends),
+      timezone: localTz(),
+    },
+    conditions: [
+      { metric: "exercise_time", op: ">=", value: Number(aivm(state).minutes ?? 150) },
+    ],
+  }),
+};
+
 const FITNESS_DURATION_THRESHOLD: Template = {
   id: "duration_threshold",
   kind: "running",
@@ -363,10 +513,16 @@ const FITNESS_DURATION_THRESHOLD: Template = {
 const FITNESS: Template[] = [
   FITNESS_STEPS,
   FITNESS_RUNNING_DISTANCE_WINDOW,
+  FITNESS_WALKING_DISTANCE,
   FITNESS_CYCLING_DISTANCE_WINDOW,
   FITNESS_HIKING_ELEVATION_WINDOW,
   FITNESS_SWIMMING_LAPS_WINDOW,
   FITNESS_STRENGTH_WORKOUTS,
+  FITNESS_YOGA_DURATION,
+  FITNESS_HIIT_SESSIONS,
+  FITNESS_ROWING_DISTANCE,
+  FITNESS_CALORIE_BURN,
+  FITNESS_EXERCISE_TIME,
   FITNESS_STEPS_COMPETITIVE,
   FITNESS_DISTANCE_COMPETITIVE,
   FITNESS_DURATION_THRESHOLD,

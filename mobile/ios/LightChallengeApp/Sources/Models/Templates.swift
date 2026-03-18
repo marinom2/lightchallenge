@@ -48,27 +48,17 @@ enum FitnessTemplates {
     static let all: [ChallengeTemplate] = [
         stepsDailyTemplate,
         runningDistanceTemplate,
+        walkingDistanceTemplate,
         cyclingDistanceTemplate,
         hikingElevationTemplate,
         swimmingLapsTemplate,
         strengthWorkoutTemplate,
+        yogaDurationTemplate,
+        hiitSessionsTemplate,
+        rowingDistanceTemplate,
+        calorieBurnTemplate,
+        exerciseTimeTemplate,
         stepsCompetitiveTemplate,
-        durationThresholdTemplate,
-    ]
-
-    /// Templates that primarily use step counting (works best with Apple Health, Fitbit, Google Fit).
-    static let stepBasedTemplates: [ChallengeTemplate] = [
-        stepsDailyTemplate,
-        strengthWorkoutTemplate,
-        stepsCompetitiveTemplate,
-    ]
-
-    /// Templates that primarily use distance/GPS (works with all providers).
-    static let distanceBasedTemplates: [ChallengeTemplate] = [
-        runningDistanceTemplate,
-        cyclingDistanceTemplate,
-        hikingElevationTemplate,
-        swimmingLapsTemplate,
         durationThresholdTemplate,
     ]
 
@@ -289,6 +279,41 @@ enum FitnessTemplates {
         }
     )
 
+    // MARK: - Walking
+
+    private static let walkingDistanceTemplate = ChallengeTemplate(
+        id: "walking_distance",
+        name: "Walking — Distance Target",
+        hint: "Accumulate walking distance within the challenge window",
+        fitnessKind: "walking",
+        kindId: .fitnessGeneral,
+        modelId: "fitness.walking@1",
+        modelHash: ServerConfig.fitnessWalkingHash,
+        fields: [
+            TemplateField(key: "distanceKm", label: "Target Distance (km)", kind: .number(min: 0.5, max: nil, step: 0.5, defaultValue: 5)),
+        ],
+        paramsBuilder: { args in
+            let km = args["distanceKm"] as? Double ?? 5.0
+            return [
+                "minMeters": Int(km * 1000),
+                "types": "walk",
+            ]
+        },
+        ruleBuilder: { args, start, end in
+            let km = args["distanceKm"] as? Double ?? 5.0
+            return [
+                "challengeType": "walk",
+                "period": [
+                    "start": ISO8601DateFormatter().string(from: start),
+                    "end": ISO8601DateFormatter().string(from: end),
+                ],
+                "conditions": [
+                    ["metric": "walking_km", "op": ">=", "value": km]
+                ],
+            ]
+        }
+    )
+
     // MARK: - Strength
 
     private static let strengthWorkoutTemplate = ChallengeTemplate(
@@ -318,6 +343,177 @@ enum FitnessTemplates {
                 ],
                 "conditions": [
                     ["metric": "active_minutes", "op": ">=", "value": sessions * 45]
+                ],
+            ]
+        }
+    )
+
+    // MARK: - Yoga
+
+    private static let yogaDurationTemplate = ChallengeTemplate(
+        id: "yoga_duration",
+        name: "Yoga — Duration Target",
+        hint: "Accumulate yoga practice time within the challenge window",
+        fitnessKind: "yoga",
+        kindId: .fitnessGeneral,
+        modelId: "fitness.yoga@1",
+        modelHash: ServerConfig.fitnessYogaHash,
+        fields: [
+            TemplateField(key: "durationMin", label: "Target Minutes", kind: .number(min: 10, max: nil, step: 10, defaultValue: 60)),
+        ],
+        paramsBuilder: { args in
+            [
+                "minDurationMin": args["durationMin"] ?? 60,
+                "types": "yoga",
+            ]
+        },
+        ruleBuilder: { args, start, end in
+            let minutes = args["durationMin"] as? Double ?? 60.0
+            return [
+                "challengeType": "yoga",
+                "period": [
+                    "start": ISO8601DateFormatter().string(from: start),
+                    "end": ISO8601DateFormatter().string(from: end),
+                ],
+                "conditions": [
+                    ["metric": "yoga_min", "op": ">=", "value": minutes]
+                ],
+            ]
+        }
+    )
+
+    // MARK: - HIIT
+
+    private static let hiitSessionsTemplate = ChallengeTemplate(
+        id: "hiit_sessions",
+        name: "HIIT — Session Time",
+        hint: "Accumulate HIIT / CrossFit training time",
+        fitnessKind: "hiit",
+        kindId: .fitnessGeneral,
+        modelId: "fitness.hiit@1",
+        modelHash: ServerConfig.fitnessHiitHash,
+        fields: [
+            TemplateField(key: "durationMin", label: "Target Minutes", kind: .number(min: 10, max: nil, step: 10, defaultValue: 60)),
+        ],
+        paramsBuilder: { args in
+            [
+                "minDurationMin": args["durationMin"] ?? 60,
+                "types": "hiit,crossfit",
+            ]
+        },
+        ruleBuilder: { args, start, end in
+            let minutes = args["durationMin"] as? Double ?? 60.0
+            return [
+                "challengeType": "hiit",
+                "period": [
+                    "start": ISO8601DateFormatter().string(from: start),
+                    "end": ISO8601DateFormatter().string(from: end),
+                ],
+                "conditions": [
+                    ["metric": "hiit_min", "op": ">=", "value": minutes]
+                ],
+            ]
+        }
+    )
+
+    // MARK: - Rowing
+
+    private static let rowingDistanceTemplate = ChallengeTemplate(
+        id: "rowing_distance",
+        name: "Rowing — Distance Target",
+        hint: "Accumulate rowing distance within the challenge window",
+        fitnessKind: "rowing",
+        kindId: .fitnessGeneral,
+        modelId: "fitness.rowing@1",
+        modelHash: ServerConfig.fitnessRowingHash,
+        fields: [
+            TemplateField(key: "distanceKm", label: "Target Distance (km)", kind: .number(min: 0.5, max: nil, step: 0.5, defaultValue: 5)),
+        ],
+        paramsBuilder: { args in
+            let km = args["distanceKm"] as? Double ?? 5.0
+            return [
+                "minMeters": Int(km * 1000),
+                "types": "rowing",
+            ]
+        },
+        ruleBuilder: { args, start, end in
+            let km = args["distanceKm"] as? Double ?? 5.0
+            return [
+                "challengeType": "rowing",
+                "period": [
+                    "start": ISO8601DateFormatter().string(from: start),
+                    "end": ISO8601DateFormatter().string(from: end),
+                ],
+                "conditions": [
+                    ["metric": "rowing_km", "op": ">=", "value": km]
+                ],
+            ]
+        }
+    )
+
+    // MARK: - Calories
+
+    private static let calorieBurnTemplate = ChallengeTemplate(
+        id: "calorie_burn",
+        name: "Calorie Burn Target",
+        hint: "Burn a target amount of active calories",
+        fitnessKind: "calories",
+        kindId: .fitnessGeneral,
+        modelId: "fitness.calories@1",
+        modelHash: ServerConfig.fitnessCaloriesHash,
+        fields: [
+            TemplateField(key: "calories", label: "Target Calories (kcal)", kind: .number(min: 100, max: nil, step: 100, defaultValue: 500)),
+        ],
+        paramsBuilder: { args in
+            [
+                "minCalories": args["calories"] ?? 500,
+                "types": "any",
+            ]
+        },
+        ruleBuilder: { args, start, end in
+            let cals = args["calories"] as? Double ?? 500.0
+            return [
+                "challengeType": "calories",
+                "period": [
+                    "start": ISO8601DateFormatter().string(from: start),
+                    "end": ISO8601DateFormatter().string(from: end),
+                ],
+                "conditions": [
+                    ["metric": "calories", "op": ">=", "value": cals]
+                ],
+            ]
+        }
+    )
+
+    // MARK: - Exercise Time
+
+    private static let exerciseTimeTemplate = ChallengeTemplate(
+        id: "exercise_time",
+        name: "Exercise Minutes Target",
+        hint: "Accumulate Apple Exercise ring minutes from any activity",
+        fitnessKind: "exercise",
+        kindId: .fitnessGeneral,
+        modelId: "fitness.exercise@1",
+        modelHash: ServerConfig.fitnessExerciseHash,
+        fields: [
+            TemplateField(key: "minutes", label: "Target Minutes", kind: .number(min: 10, max: nil, step: 10, defaultValue: 150)),
+        ],
+        paramsBuilder: { args in
+            [
+                "minMinutes": args["minutes"] ?? 150,
+                "types": "any",
+            ]
+        },
+        ruleBuilder: { args, start, end in
+            let minutes = args["minutes"] as? Double ?? 150.0
+            return [
+                "challengeType": "exercise",
+                "period": [
+                    "start": ISO8601DateFormatter().string(from: start),
+                    "end": ISO8601DateFormatter().string(from: end),
+                ],
+                "conditions": [
+                    ["metric": "exercise_time", "op": ">=", "value": minutes]
                 ],
             ]
         }

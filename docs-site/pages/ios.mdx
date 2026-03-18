@@ -113,10 +113,10 @@ Sources/
 | Service | Role |
 |---------|------|
 | **AppState** | Singleton `@MainActor` `ObservableObject`. Stores wallet address, server URL, onboarding flag, tab selection, and deep-link targets. Persisted via `@AppStorage` (UserDefaults). |
-| **WalletManager** | Wraps Reown AppKit (WalletConnect v2). Handles wallet pairing, transaction signing, deep-link callbacks. Uses a native `URLSessionWebSocketTask` factory (no Starscream dependency). |
+| **WalletManager** | Wraps Reown AppKit (WalletConnect v2). Handles wallet pairing, transaction signing, deep-link callbacks. Uses a native `URLSessionWebSocketTask` factory (no Starscream dependency). Constructs raw WalletConnect `Request` objects with explicit `gasPrice` and array-wrapped params for custom chain compatibility. |
 | **HealthKitService** | Requests read-only authorization for 7 HealthKit quantity types. Collects daily aggregates for a specific date range and submits them as multipart/form-data to `/api/aivm/intake`. |
 | **AutoProofService** | Orchestrates automatic proof submission during the proof window. Tries server-side auto-proof first (Strava/Fitbit), then Apple Health local collection, then prompts for HealthKit access. |
-| **ContractService** | Encodes ABI calldata via `ABIEncoder` and sends transactions through `WalletManager`. Supports `createChallenge`, `joinChallengeNative`, claim eligibility checks (winner/loser/refund/treasury), and claim execution. |
+| **ContractService** | Encodes ABI calldata via `ABIEncoder` and sends transactions through `WalletManager`. Supports `createChallenge`, `joinChallengeNative`, claim eligibility checks (winner/loser/refund/treasury), and claim execution. After on-chain creation, saves challenge metadata to the API using tx-receipt-based authentication. |
 | **OAuthService** | Manages Strava, Fitbit, and Garmin account linking via `ASWebAuthenticationSession`. Detects installed fitness apps for native deep-link OAuth flows. |
 | **APIClient** | Swift `actor` for network requests. Fetches challenge lists, metadata, activity, and evidence. Configurable base URL via `ServerConfig`. |
 | **CacheService** | File-based JSON caching in the app's Caches directory (1-hour TTL). Enables offline browsing of previously loaded challenge data. |
@@ -164,10 +164,20 @@ Once the challenge period ends (`endTs < now < proofDeadlineTs`), `AutoProofServ
 
 ### 4. Verdict and Claim
 
-After evidence submission, the backend evaluates it and produces a verdict.
-The detail view updates to show **Passed** or **Failed** with the corresponding icon.
+After evidence submission, the detail view shows phase-aware status:
+
+| Phase | Evidence Status | User State | UI Display |
+|-------|----------------|------------|------------|
+| Active / Proof Window | Submitted, no verdict | `awaitingVerdict` | "Verifying — AI verification in progress" (pulsing hourglass) |
+| Ended / Finalized | Submitted, no verdict | `submitted` | "Evidence Submitted — Awaiting on-chain finalization" (blue checkmark) |
+| Any | Verdict: pass | `completed` | "Challenge Passed" + Claim Reward button |
+| Any | Verdict: fail | `failed` | "Challenge Failed" + verdict reasons (bullet list) |
+
 On pass, a **"Claim Reward"** button appears, which calls `ContractService` to execute the on-chain claim.
 A `VictoryCelebrationView` animation plays on successful claims.
+
+When a challenge fails, the detail view displays up to 3 verdict reasons from the evaluator
+(e.g. "Did not meet step threshold", "Insufficient activity days") so users understand why.
 
 ---
 
@@ -321,6 +331,33 @@ Evidence is submitted as **multipart/form-data** to `POST /api/aivm/intake` with
 | Join challenge | ChallengePay | `joinNative(challengeId)` with stake value |
 | Check claim eligibility | ChallengePay | `claimWinner / claimLoser / claimRefund` eligibility |
 | Execute claim | ChallengePay / Treasury | Claim transaction via wallet |
+
+### Transaction Construction (Custom Chain Compatibility)
+
+`WalletManager.sendTransaction()` bypasses the Reown SDK's `W3MJSONRPC.eth_sendTransaction` helper
+and constructs raw WalletConnect `Request` objects directly. This is required because:
+
+1. **Array-wrapped params** — MetaMask expects `eth_sendTransaction` params as `[{txObj}]` (JSON-RPC spec),
+   but the SDK sends them as a flat dictionary.
+2. **Explicit gasPrice** — LightChain (chain ID 504) uses legacy gas pricing (no EIP-1559). Without an
+   explicit `gasPrice`, MetaMask fails with "Cannot convert undefined value to object".
+3. **Gas estimation** — Each transaction includes an `eth_estimateGas` RPC call with a 20% buffer,
+   plus an `eth_gasPrice` RPC call for the current gas price.
+
+### API Authentication (Mobile)
+
+Mobile clients authenticate API writes using **tx-receipt verification** as a fallback
+when EIP-191 signature auth is not available (WalletConnect doesn't support `personal_sign`
+after a transaction without a second wallet interaction).
+
+The server verifies the on-chain transaction receipt:
+1. Fetches the receipt from LightChain RPC
+2. Confirms `status == 0x1` (success)
+3. Verifies `from` matches the claimed wallet address
+4. Optionally verifies `to` matches the ChallengePay contract
+
+This applies to `POST /api/challenges` (metadata save after creation) and
+`POST /api/challenge/{id}/participant` (join recording).
 
 ### Contract Addresses (Testnet)
 

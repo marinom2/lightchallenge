@@ -6,12 +6,21 @@ All API routes are served from the Next.js webapp under `/api/`.
 - UAT: `https://uat.lightchallenge.app/api`
 - Local: `http://localhost:3000/api`
 
-**Authentication:** State-mutating routes require wallet signature headers:
-- `x-lc-address` — the signer's wallet address (checksummed or lowercase)
-- `x-lc-signature` — EIP-191 `personal_sign` of the message `lightchallenge:{timestamp}`
-- `x-lc-timestamp` — Unix epoch milliseconds
+**Authentication:** State-mutating routes require one of:
 
-Signatures are valid for 5 minutes. Read-only endpoints are public.
+1. **Wallet signature headers** (primary — web app):
+   - `x-lc-address` — the signer's wallet address (checksummed or lowercase)
+   - `x-lc-signature` — EIP-191 `personal_sign` of the message `lightchallenge:{timestamp}`
+   - `x-lc-timestamp` — Unix epoch milliseconds
+   - Signatures are valid for 5 minutes.
+
+2. **Transaction receipt verification** (fallback — mobile clients):
+   - Send `txHash` and `subject` in the request body instead of signature headers.
+   - The server fetches the on-chain transaction receipt and verifies that `receipt.from` matches the claimed `subject` address, and optionally that `receipt.to` matches the expected contract (e.g. ChallengePay).
+   - Only works for routes that accept a `txHash` field (POST/PATCH `/api/challenges`, POST `/api/challenge/[id]/participant`).
+   - This fallback exists because mobile wallets (via WalletConnect) support `eth_sendTransaction` but not `personal_sign` reliably on custom chains.
+
+Read-only endpoints are public.
 
 ---
 
@@ -51,7 +60,7 @@ List all challenges from the database with optional filters.
 
 Create or upsert a challenge in the database. Also attempts an on-chain MetadataRegistry write.
 
-**Auth:** Wallet signature headers required. Wallet must match the `subject` field.
+**Auth:** Wallet signature headers required, OR `txHash` + `subject` in the body for tx-receipt fallback. Wallet must match the `subject` field.
 
 **Request body:** JSON object with challenge metadata fields including `id`, `title`, `description`, `subject`, `txHash`, `modelId`, `modelHash`, `category`, `params`, `proof`, `timeline`, `funds`, `options`, etc.
 
@@ -71,7 +80,7 @@ Create or upsert a challenge in the database. Also attempts an on-chain Metadata
 
 Update an existing challenge. Same body shape as POST; `id` is required.
 
-**Auth:** Wallet signature headers required.
+**Auth:** Wallet signature headers required, OR `txHash` + `subject` in the body for tx-receipt fallback.
 
 ### GET /api/challenge/[id]
 
@@ -297,7 +306,7 @@ Get the participant lifecycle status for a (challenge, subject) pair.
 
 Record a challenge join in the database. Called by the frontend after a successful on-chain transaction.
 
-**Auth:** Wallet signature headers required. Wallet must match `subject`.
+**Auth:** Wallet signature headers required, OR `txHash` + `subject` in the body for tx-receipt fallback. Wallet must match `subject`.
 
 **Request body:**
 ```json

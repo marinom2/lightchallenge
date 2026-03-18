@@ -44,8 +44,8 @@ actor APIClient {
         }
         let (data, _) = try await session.data(from: url)
 
-        // The meta endpoint returns the object directly with an id field
-        // But the response may not include `id`, so we need to handle that
+        // The meta endpoint returns the object directly with an id field.
+        // Decode all available fields — don't drop status/funds/params.
         struct MetaResponse: Decodable {
             let title: String?
             let description: String?
@@ -53,6 +53,7 @@ actor APIClient {
             let game: String?
             let mode: String?
             let tags: [String]?
+            let status: String?
             let modelId: String?
             let modelKind: String?
             let modelHash: String?
@@ -61,6 +62,9 @@ actor APIClient {
             let endsAt: Double?
             let proofDeadline: Double?
             let proof: ProofConfig?
+            let funds: FundsConfig?
+            let params: ChallengeParams?
+            let participantCount: Int?
         }
 
         let meta = try decoder.decode(MetaResponse.self, from: data)
@@ -72,7 +76,7 @@ actor APIClient {
             game: meta.game,
             mode: meta.mode,
             tags: meta.tags,
-            status: nil,
+            status: meta.status,
             modelId: meta.modelId,
             modelKind: meta.modelKind,
             modelHash: meta.modelHash,
@@ -81,9 +85,9 @@ actor APIClient {
             endsAt: meta.endsAt,
             proofDeadline: meta.proofDeadline,
             proof: meta.proof,
-            funds: nil,
-            params: nil,
-            participantCount: nil
+            funds: meta.funds,
+            params: meta.params,
+            participantCount: meta.participantCount
         )
     }
 

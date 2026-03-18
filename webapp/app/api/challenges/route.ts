@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Pool } from "pg";
 import { isAddress } from "viem";
-import { verifyWallet, requireAuth } from "@/lib/auth";
+import { verifyWallet, requireAuth, verifyByTxReceipt } from "@/lib/auth";
+import { ADDR } from "@/lib/contracts";
 import { sslConfig } from "../../../../offchain/db/sslConfig";
+import { upsertParticipant } from "../../../../offchain/db/participants";
 import {
   writeRegistryUri,
   buildMetadataUri,
@@ -580,13 +582,40 @@ export async function POST(req: NextRequest) {
   try {
     const body = (await req.json().catch(() => ({}))) as AnyBody;
 
-    // Auth: verify wallet matches the challenge subject
-    const wallet = await verifyWallet(req);
+    // Auth: verify wallet matches the challenge subject.
+    // Primary: EIP-191 signature. Fallback: tx-receipt verification (for mobile
+    // clients that can't easily do personal_sign after a WalletConnect transaction).
+    let wallet = await verifyWallet(req);
+    if (!wallet && body.txHash && body.subject) {
+      wallet = await verifyByTxReceipt(
+        body.txHash as string,
+        body.subject as string,
+        ADDR.ChallengePay ?? undefined
+      );
+    }
     const authErr = requireAuth(wallet, body.subject as string | undefined);
     if (authErr) return authErr;
 
     const item = await upsertChallenge(body);
     const id = String(body.id ?? item?.id ?? "");
+
+    // Auto-record the creator as a participant. createChallenge() on-chain marks
+    // the creator as a participant but does NOT emit a Joined event, so the DB
+    // record must be created here. Soft failure — does not block the response.
+    const subjectAddr = asAddrOrNull(body.subject);
+    if (id && id !== "0" && subjectAddr) {
+      try {
+        await upsertParticipant({
+          challengeId: BigInt(id),
+          subject: subjectAddr,
+          txHash: typeof body.txHash === "string" ? body.txHash : null,
+          joinedAt: new Date(),
+          source: "onchain_join",
+        });
+      } catch (e) {
+        console.warn("[challenges POST] auto-participant failed:", e);
+      }
+    }
 
     // Attempt on-chain MetadataRegistry write (soft failure — does not block response)
     let registry: { registryStatus: string; registryTxHash?: string; registryError?: string } | undefined;
@@ -611,8 +640,15 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
 
-    // Auth: verify wallet matches the challenge subject
-    const wallet = await verifyWallet(req);
+    // Auth: verify wallet (signature or tx-receipt fallback for mobile)
+    let wallet = await verifyWallet(req);
+    if (!wallet && body.txHash && body.subject) {
+      wallet = await verifyByTxReceipt(
+        body.txHash as string,
+        body.subject as string,
+        ADDR.ChallengePay ?? undefined
+      );
+    }
     const authErr = requireAuth(wallet, body.subject as string | undefined);
     if (authErr) return authErr;
 

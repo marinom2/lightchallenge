@@ -288,26 +288,46 @@ class WalletManager: ObservableObject {
         // Estimate gas via direct RPC (MetaMask on custom chains may fail without it)
         let estimatedGas = try await estimateGas(tx: tx)
 
-        // Build and send the transaction via AppKit's typed JSONRPC
-        let rpc = W3MJSONRPC.eth_sendTransaction(
-            from: connectedAddress,
-            to: tx.to,
-            value: tx.value,
-            data: tx.data.hexString,
-            nonce: nil,
-            gas: estimatedGas,
-            gasPrice: nil,
-            maxFeePerGas: nil,
-            maxPriorityFeePerGas: nil,
-            gasLimit: estimatedGas,
-            chainId: "504"
+        // Fetch gas price — LightChain uses legacy gas pricing (no EIP-1559).
+        // Without an explicit gasPrice, MetaMask fails on custom chains with
+        // "Cannot convert undefined value to object" because it can't auto-detect
+        // the gas pricing model.
+        let gasPrice = try await fetchGasPrice()
+
+        // Build transaction object with all required fields explicit.
+        // eth_sendTransaction JSON-RPC spec requires params as an array: [{txObj}].
+        // The W3MJSONRPC helper sends params as a flat dict which some wallets reject,
+        // so we construct the Request directly.
+        let txObj: [String: String] = [
+            "from": connectedAddress,
+            "to": tx.to,
+            "value": tx.value,
+            "data": tx.data.hexString,
+            "gasLimit": estimatedGas,
+            "gasPrice": gasPrice,
+        ]
+
+        let sessions = AppKit.instance.getSessions()
+        guard let session = sessions.first else {
+            throw WalletError.notConnected
+        }
+
+        guard let blockchain = Blockchain("eip155:\(LightChain.chainId)") else {
+            throw WalletError.transactionFailed("Invalid chain configuration")
+        }
+
+        let wcRequest = try Request(
+            topic: session.topic,
+            method: "eth_sendTransaction",
+            params: AnyCodable([txObj]),
+            chainId: blockchain
         )
 
         // Open the wallet app for user confirmation
         AppKit.instance.launchCurrentWallet()
 
-        // Send the request and wait for response
-        try await AppKit.instance.request(rpc)
+        // Send the request via WalletConnect
+        try await AppKit.instance.request(params: wcRequest)
 
         // Wait for the response via publisher
         return try await withCheckedThrowingContinuation { continuation in
@@ -374,6 +394,34 @@ class WalletManager: ObservableObject {
         }
 
         return gasHex
+    }
+
+    /// Fetch current gas price from LightChain RPC.
+    private func fetchGasPrice() async throws -> String {
+        let callBody: [String: Any] = [
+            "jsonrpc": "2.0",
+            "id": Int(Date().timeIntervalSince1970),
+            "method": "eth_gasPrice",
+            "params": [] as [Any],
+        ]
+
+        guard let url = URL(string: LightChain.rpcURL) else {
+            return "0x3b9aca00" // 1 gwei fallback
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: callBody)
+
+        let (responseData, _) = try await URLSession.shared.data(for: request)
+        let json = try JSONSerialization.jsonObject(with: responseData) as? [String: Any]
+
+        guard let gasPrice = json?["result"] as? String else {
+            return "0x3b9aca00" // 1 gwei fallback
+        }
+
+        return gasPrice
     }
 
     // MARK: - Read-Only RPC (no wallet needed)

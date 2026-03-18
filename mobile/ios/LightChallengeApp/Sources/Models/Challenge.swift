@@ -194,12 +194,17 @@ struct ChallengeRules: Codable {
     var metricLabel: String {
         switch metric {
         case "steps": return "steps"
-        case "distance", "distance_km": return "km"
+        case "distance", "distance_km", "walking_km": return "km"
         case "active_minutes": return "min"
         case "cycling_km": return "km"
         case "swimming_km": return "km"
         case "hiking_km": return "km"
+        case "rowing_km": return "km"
         case "strength_sessions": return "sessions"
+        case "yoga_min": return "min"
+        case "hiit_min": return "min"
+        case "exercise_time": return "min"
+        case "calories": return "kcal"
         default: return metric ?? ""
         }
     }
@@ -208,28 +213,91 @@ struct ChallengeRules: Codable {
         switch metric {
         case "steps": return "Steps"
         case "distance", "distance_km": return "Distance"
+        case "walking_km": return "Walking"
         case "active_minutes": return "Active Minutes"
         case "cycling_km": return "Cycling"
         case "swimming_km": return "Swimming"
         case "hiking_km": return "Hiking"
+        case "rowing_km": return "Rowing"
         case "strength_sessions": return "Strength"
+        case "yoga_min": return "Yoga"
+        case "hiit_min": return "HIIT"
+        case "exercise_time": return "Exercise Time"
+        case "calories": return "Calories"
         default: return metric?.capitalized ?? "Activity"
         }
     }
+}
+
+/// A single condition entry from the rule structure: { metric, op, value }
+private struct RuleCondition: Codable {
+    let metric: String?
+    let op: String?
+    let value: Double?
+}
+
+/// A target block: dailyTarget or weeklyTarget with conditions array.
+private struct TargetBlock: Codable {
+    let conditions: [RuleCondition]?
+    let consecutiveDays: Int?
 }
 
 struct ChallengeParams: Codable {
     /// Rules can come as an array `[{...}]` or a single object `{...}` from the API.
     let rules: [ChallengeRules]?
 
-    /// Convenience: first rule (challenges typically have one rule).
-    var firstRule: ChallengeRules? { rules?.first }
+    // Rule-format fields (from iOS template ruleBuilder output)
+    private let challengeType: String?
+    private let conditions: [RuleCondition]?
+    private let dailyTarget: TargetBlock?
+    private let weeklyTarget: TargetBlock?
 
-    init(rules: [ChallengeRules]?) { self.rules = rules }
+    /// First rule: from explicit `rules` array, or synthesized from conditions.
+    var firstRule: ChallengeRules? {
+        if let r = rules?.first { return r }
+        return synthesizedFromConditions
+    }
+
+    private var synthesizedFromConditions: ChallengeRules? {
+        let conds = dailyTarget?.conditions ?? weeklyTarget?.conditions ?? conditions ?? []
+        guard let first = conds.first, let rawMetric = first.metric else { return nil }
+
+        let metric: String
+        switch rawMetric {
+        case "steps_count":    metric = "steps"
+        case "distance_km":    metric = "distance_km"
+        case "walking_km":     metric = "walking_km"
+        case "elev_gain_m":    metric = "hiking_km"
+        case "active_minutes": metric = "active_minutes"
+        case "duration_min":   metric = "active_minutes"
+        case "yoga_min":       metric = "yoga_min"
+        case "hiit_min":       metric = "hiit_min"
+        case "rowing_km":      metric = "rowing_km"
+        case "exercise_time":  metric = "exercise_time"
+        case "calories":       metric = "calories"
+        case "strength_sessions": metric = "strength_sessions"
+        default:               metric = rawMetric
+        }
+
+        let period: String
+        if dailyTarget != nil { period = "daily" }
+        else if weeklyTarget != nil { period = "weekly" }
+        else { period = "total" }
+
+        return ChallengeRules(period: period, metric: metric, threshold: first.value)
+    }
+
+    init(rules: [ChallengeRules]?) {
+        self.rules = rules
+        self.challengeType = nil
+        self.conditions = nil
+        self.dailyTarget = nil
+        self.weeklyTarget = nil
+    }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        // Try array first, then single object
+        // Try standard rules array/object
         if let arr = try? container.decode([ChallengeRules].self, forKey: .rules) {
             rules = arr
         } else if let single = try? container.decode(ChallengeRules.self, forKey: .rules) {
@@ -237,10 +305,16 @@ struct ChallengeParams: Codable {
         } else {
             rules = nil
         }
+
+        // Rule-format fields (from template ruleBuilder)
+        challengeType = try? container.decode(String.self, forKey: .challengeType)
+        conditions = try? container.decode([RuleCondition].self, forKey: .conditions)
+        dailyTarget = try? container.decode(TargetBlock.self, forKey: .dailyTarget)
+        weeklyTarget = try? container.decode(TargetBlock.self, forKey: .weeklyTarget)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case rules
+        case rules, challengeType, conditions, dailyTarget, weeklyTarget
     }
 }
 

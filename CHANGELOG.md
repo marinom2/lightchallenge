@@ -4,6 +4,31 @@ All notable changes to the LightChallenge protocol are documented in this file.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.0-alpha] — 2026-03-18
+
+iOS app hardening, mobile auth pipeline, and phase-aware challenge states.
+
+### Added
+
+- **Transaction-receipt authentication** — Server-side fallback for mobile clients that cannot perform `personal_sign` on LightChain's custom chain. Verifies on-chain tx receipt `from` matches claimed wallet address. Applied to `POST/PATCH /api/challenges` and `POST /api/challenge/[id]/participant`. (`webapp/lib/auth.ts:verifyByTxReceipt()`)
+- **Phase-aware UserChallengeState** — New `.submitted` state distinguishes between active verification (`.awaitingVerdict`) and post-deadline waiting (`.submitted`). Prevents "under evaluation" showing forever after proof window ends.
+- **Verdict reasons display** — Failed challenge card now shows up to 3 bullet points from verdict reasons, giving users visibility into why they failed.
+- **iOS challenge creation pipeline** — `ContractService.saveChallengeMeta` now sends `txHash` for tx-receipt auth, with error logging for HTTP failures.
+- **iOS success screen redesign** — After creating a challenge: larger checkmark, challenge title, info card (ID + stake + tx hash), full-width "View Challenge" button.
+
+### Fixed
+
+- **Challenge metadata not saving from iOS** — API returned 401 because iOS couldn't send `x-lc-signature` header. Fixed by tx-receipt auth fallback.
+- **"Under evaluation" forever** — `UserChallengeState.from()` returned `.awaitingVerdict` whenever evidence existed regardless of phase. Now returns `.submitted` for ended/finalized challenges.
+- **Manual upload logic incorrect** — `canShowManualUpload` showed upload button during wrong phases and for creators who hadn't joined. Fixed to require `youJoined == true` and `.proofWindow` phase.
+- **Meta endpoint losing data** — `fetchChallengeMeta` hardcoded `status: nil, funds: nil, params: nil`. Fixed to decode and pass through actual API response values.
+
+### Changed
+
+- **Documentation updates** — Updated API reference (tx-receipt auth), iOS README (complete rewrite), OPERATIONS.md (section 16), SECURITY.md (auth model), webapp README (route table).
+
+---
+
 ## [0.1.0-alpha] — 2026-03-14
 
 Initial testnet deployment at `uat.lightchallenge.app`.

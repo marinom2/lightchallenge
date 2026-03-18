@@ -19,6 +19,7 @@
 
 import { recoverMessageAddress } from "viem";
 import { NextRequest, NextResponse } from "next/server";
+import { RPC_URL } from "./lightchain";
 
 export interface VerifiedWallet {
   address: string; // checksummed
@@ -100,6 +101,64 @@ export function requireAuth(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   return null; // auth passed
+}
+
+// ── Tx-receipt auth (mobile fallback) ─────────────────────────────────────────
+// Mobile wallets (MetaMask via WalletConnect) can't easily do personal_sign
+// for API auth after a transaction. Instead, the mobile app sends the txHash
+// and we verify the transaction's `from` address on-chain.
+
+/**
+ * Verify wallet ownership by checking a transaction receipt on LightChain.
+ * The `from` field of the confirmed transaction must match the claimed address.
+ *
+ * @param txHash - The 0x-prefixed transaction hash
+ * @param claimedAddress - The address the caller claims to own
+ * @param expectedTo - Optional: require the tx was sent to this contract address
+ */
+export async function verifyByTxReceipt(
+  txHash: string,
+  claimedAddress: string,
+  expectedTo?: string
+): Promise<VerifiedWallet | null> {
+  if (!txHash || !txHash.startsWith("0x") || txHash.length < 10) return null;
+  if (!claimedAddress) return null;
+
+  try {
+    const body = JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "eth_getTransactionReceipt",
+      params: [txHash],
+    });
+
+    const res = await fetch(RPC_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+    });
+
+    const json = await res.json();
+    const receipt = json?.result;
+    if (!receipt) return null;
+
+    // Transaction must have succeeded (status 0x1)
+    if (receipt.status !== "0x1") return null;
+
+    // Verify `from` matches claimed address
+    const txFrom = (receipt.from as string || "").toLowerCase();
+    if (txFrom !== claimedAddress.toLowerCase()) return null;
+
+    // Optionally verify the tx was sent to the expected contract
+    if (expectedTo) {
+      const txTo = (receipt.to as string || "").toLowerCase();
+      if (txTo !== expectedTo.toLowerCase()) return null;
+    }
+
+    return { address: claimedAddress };
+  } catch {
+    return null;
+  }
 }
 
 // ── Evidence token ────────────────────────────────────────────────────────────

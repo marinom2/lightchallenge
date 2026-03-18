@@ -14,7 +14,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAddress } from "viem";
 import { upsertParticipant, getParticipantStatus } from "../../../../../../offchain/db/participants";
-import { verifyWallet, requireAuth } from "@/lib/auth";
+import { verifyWallet, requireAuth, verifyByTxReceipt } from "@/lib/auth";
+import { ADDR } from "@/lib/contracts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -88,8 +89,11 @@ export async function POST(
     );
   }
 
-  // Auth: verify wallet matches the subject joining the challenge
-  const wallet = await verifyWallet(req);
+  // Auth: verify wallet (signature or tx-receipt fallback for mobile)
+  let wallet = await verifyWallet(req);
+  if (!wallet && txHash && subject) {
+    wallet = await verifyByTxReceipt(txHash, subject, ADDR.ChallengePay ?? undefined);
+  }
   const authErr = requireAuth(wallet, subject);
   if (authErr) return authErr;
 
