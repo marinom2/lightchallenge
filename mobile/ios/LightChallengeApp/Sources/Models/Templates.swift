@@ -59,6 +59,7 @@ enum FitnessTemplates {
         calorieBurnTemplate,
         exerciseTimeTemplate,
         stepsCompetitiveTemplate,
+        distanceCompetitiveTemplate,
         durationThresholdTemplate,
     ]
 
@@ -127,6 +128,48 @@ enum FitnessTemplates {
                 "challengeType": "steps",
                 "mode": "competitive",
                 "metric": "steps_count",
+                "period": [
+                    "start": ISO8601DateFormatter().string(from: start),
+                    "end": ISO8601DateFormatter().string(from: end),
+                    "timezone": TimeZone.current.identifier,
+                ],
+            ]
+        }
+    )
+
+    private static let distanceCompetitiveTemplate = ChallengeTemplate(
+        id: "distance_competitive",
+        name: "Distance Competition",
+        hint: "Compete: whoever covers the most distance wins.",
+        fitnessKind: "running",
+        kindId: .running,
+        modelId: "fitness.distance@1",
+        modelHash: ServerConfig.fitnessDistanceHash,
+        fields: [
+            TemplateField(key: "activityType", label: "Activity Type", kind: .select(
+                options: [
+                    (value: "run", label: "Running"),
+                    (value: "walk", label: "Walking"),
+                    (value: "cycle", label: "Cycling"),
+                ],
+                defaultValue: "run"
+            )),
+            TemplateField(key: "topN", label: "Number of Winners", kind: .number(min: 1, max: 100, step: 1, defaultValue: 1)),
+        ],
+        paramsBuilder: { args in
+            [
+                "mode": "competitive",
+                "metric": "distance_km",
+                "topN": args["topN"] ?? 1,
+            ]
+        },
+        ruleBuilder: { args, start, end in
+            let actType = args["activityType"] as? String ?? "run"
+            return [
+                "challengeType": actType,
+                "mode": "competitive",
+                "competitiveMetric": "distance_km",
+                "topN": args["topN"] ?? 1,
                 "period": [
                     "start": ISO8601DateFormatter().string(from: start),
                     "end": ISO8601DateFormatter().string(from: end),

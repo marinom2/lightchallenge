@@ -50,22 +50,33 @@ struct ProgressMetricsView: View {
                     // Large progress ring
                     ringSection
 
+                    // Verdict card — show why the user passed or failed
+                    if userState == .failed || userState == .completed {
+                        verdictCard
+                    }
+
+                    // Unified layout: goal/metrics → requirements → daily breakdown
+                    // Same card structure regardless of whether rules are present.
+                    if goalValue > 0 {
+                        goalCard
+                    }
+
                     if rules != nil {
-                        // Focused mode: known goal
-                        if goalValue > 0 {
-                            goalCard
-                        }
                         requirementsCard
-                        if !dailyValues.isEmpty {
-                            dailyBreakdown
-                        }
-                    } else {
-                        // Discovery mode: show all activity
-                        if !activityMetrics.isEmpty {
-                            activityOverviewCard
-                        } else if hasLoaded {
-                            noActivityCard
-                        }
+                    } else if !activityMetrics.isEmpty {
+                        // No explicit rules — show activity period info
+                        activityPeriodCard
+                    }
+
+                    if !dailyValues.isEmpty {
+                        dailyBreakdown
+                    }
+
+                    // Show extra activity metrics below for context (both modes)
+                    if !activityMetrics.isEmpty {
+                        activityOverviewCard
+                    } else if hasLoaded && goalValue == 0 {
+                        noActivityCard
                     }
                 }
                 .padding(.horizontal, LC.space16)
@@ -294,16 +305,30 @@ struct ProgressMetricsView: View {
             unit = metricLabel
         }
 
+        // Calculate challenge duration to pick the right phrasing
+        let durationDays: Int = {
+            guard let s = detail.startDate, let e = detail.endsDate else { return 0 }
+            return max(1, Int(e.timeIntervalSince(s) / 86400))
+        }()
+
         let timeframe: String
         switch period {
         case "daily":
-            timeframe = "every day"
+            if durationDays <= 1 {
+                timeframe = "today"
+            } else {
+                timeframe = "every day for \(durationDays) days"
+            }
         case "weekly":
             timeframe = "per week"
         case "average":
             timeframe = "on average"
         default:
-            timeframe = "in total"
+            if durationDays <= 1 {
+                timeframe = "today"
+            } else {
+                timeframe = "within \(durationDays) days"
+            }
         }
 
         return "\(activityVerb) \(formattedGoal) \(unit) \(timeframe)"
@@ -438,6 +463,174 @@ struct ProgressMetricsView: View {
         }
     }
 
+    // MARK: - Verdict Card (explains pass/fail in human-friendly terms)
+
+    private var verdictCard: some View {
+        let passed = userState == .completed
+
+        return VStack(alignment: .leading, spacing: LC.space12) {
+            // Header
+            HStack(spacing: LC.space8) {
+                Image(systemName: passed ? "checkmark.seal.fill" : "xmark.seal.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(passed ? LC.success : LC.danger)
+                Text(passed ? "Challenge Passed" : "Challenge Failed")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(passed ? LC.success : LC.danger)
+            }
+
+            // Human-friendly explanation
+            Text(verdictExplanation)
+                .font(.body)
+                .foregroundStyle(LC.textPrimary(scheme))
+
+            // Verdict reasons from evaluator (if available)
+            if let reasons = participantStatus?.verdictReasons, !reasons.isEmpty {
+                VStack(alignment: .leading, spacing: LC.space6) {
+                    Text("Details")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(LC.textTertiary(scheme))
+                        .textCase(.uppercase)
+
+                    ForEach(reasons, id: \.self) { reason in
+                        HStack(alignment: .top, spacing: LC.space8) {
+                            Image(systemName: passed ? "checkmark.circle.fill" : "info.circle.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(passed ? LC.success.opacity(0.7) : LC.danger.opacity(0.7))
+                                .padding(.top, 2)
+                            Text(reason)
+                                .font(.caption)
+                                .foregroundStyle(LC.textSecondary(scheme))
+                        }
+                    }
+                }
+            }
+        }
+        .padding(LC.space16)
+        .background(
+            RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
+                .fill((passed ? LC.success : LC.danger).opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
+                .stroke((passed ? LC.success : LC.danger).opacity(0.2), lineWidth: 1)
+        )
+    }
+
+    /// Human-friendly explanation of why the challenge was passed or failed.
+    private var verdictExplanation: String {
+        let passed = userState == .completed
+
+        guard let r = rules else {
+            return passed
+                ? "You successfully completed the challenge requirements."
+                : "You did not meet the challenge requirements."
+        }
+
+        let goal = r.goalValue
+        let metric = r.metric ?? "steps"
+        let period = r.period ?? "total"
+
+        let metricName: String = {
+            switch metric {
+            case "steps": return "steps"
+            case "distance", "distance_km": return "km running"
+            case "walking_km": return "km walking"
+            case "cycling_km": return "km cycling"
+            case "swimming_km": return "km swimming"
+            case "hiking_km": return "km hiking"
+            case "elev_gain_m": return "m elevation"
+            case "rowing_km": return "km rowing"
+            case "strength_sessions": return "strength sessions"
+            case "yoga_min": return "minutes of yoga"
+            case "hiit_min": return "minutes of HIIT"
+            case "active_minutes": return "active minutes"
+            case "exercise_time": return "exercise minutes"
+            case "calories": return "calories"
+            default: return metricLabel
+            }
+        }()
+
+        let fmtGoal = formatValue(goal)
+        let fmtCurrent = formatValue(currentValue)
+
+        if passed {
+            return "You achieved \(fmtCurrent) \(metricName), exceeding the goal of \(fmtGoal). Well done!"
+        }
+
+        // Failed — explain the shortfall
+        let shortfall = goal - currentValue
+        let pct = goal > 0 ? Int((currentValue / goal) * 100) : 0
+
+        if currentValue <= 0 {
+            let periodStr = period == "daily" ? "each day" : "during the challenge"
+            return "No \(metricName) were recorded \(periodStr). The goal was \(fmtGoal) \(metricName)."
+        }
+
+        return "You recorded \(fmtCurrent) \(metricName) but needed \(fmtGoal) — that's \(formatValue(shortfall)) short (\(pct)% of target)."
+    }
+
+    // MARK: - Activity Period Card (Discovery mode — no rules)
+
+    /// Shows challenge period and status for challenges without explicit rules.
+    private var activityPeriodCard: some View {
+        VStack(alignment: .leading, spacing: LC.space12) {
+            HStack(spacing: LC.space8) {
+                Image(systemName: "target")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(theme.figureTint)
+                Text("Challenge Info")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(LC.textPrimary(scheme))
+            }
+
+            Text("Complete the \(theme.label.lowercased()) activity within the challenge period.")
+                .font(.body.weight(.medium))
+                .foregroundStyle(LC.textPrimary(scheme))
+
+            VStack(alignment: .leading, spacing: LC.space8) {
+                requirementRow(
+                    icon: theme.icon,
+                    label: "Activity",
+                    value: theme.label,
+                    color: theme.figureTint
+                )
+                if let tw = timeWindowDescription {
+                    requirementRow(
+                        icon: "calendar",
+                        label: "Window",
+                        value: tw,
+                        color: .orange
+                    )
+                }
+            }
+
+            Divider()
+
+            HStack(spacing: LC.space12) {
+                let statusIcon = activityMetrics.isEmpty ? "circle.dashed" : "circle.dotted.circle"
+                let statusColor = activityMetrics.isEmpty ? LC.textTertiary(scheme) : theme.figureTint
+                let statusText = activityMetrics.isEmpty ? "No activity recorded yet" : "Activity detected — keep going!"
+
+                Image(systemName: statusIcon)
+                    .font(.system(size: 18))
+                    .foregroundStyle(statusColor)
+                Text(statusText)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(LC.textSecondary(scheme))
+            }
+        }
+        .padding(LC.space16)
+        .background(
+            RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
+                .fill(LC.cardBg(scheme))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
+                .stroke(LC.cardBorder(scheme), lineWidth: 1)
+        )
+    }
+
     // MARK: - Activity Overview (Discovery Mode)
 
     private var activityOverviewCard: some View {
@@ -553,9 +746,14 @@ struct ProgressMetricsView: View {
         guard !hasLoaded else { return }
         hasLoaded = true
 
-        let start = detail.startDate ?? detail.endsDate?.addingTimeInterval(-7 * 86400) ?? Date().addingTimeInterval(-7 * 86400)
-        let end = min(Date(), detail.endsDate ?? Date())
-        guard end > start else { return }
+        // Use the exact challenge start/end times for HealthKit queries.
+        // This ensures we only count activity that occurred during the challenge window.
+        let challengeStart = detail.startDate ?? detail.endsDate?.addingTimeInterval(-7 * 86400) ?? Date().addingTimeInterval(-7 * 86400)
+        let start = challengeStart
+        // For active challenges, use now as end; for ended challenges, use the exact end time
+        let challengeEnd = detail.endsDate ?? Date()
+        let end = challengeEnd < Date() ? challengeEnd : Date()
+        guard end >= start else { return }
 
         await healthService.ensureAuthorization()
         await healthService.collectEvidence(from: start, to: end)
@@ -624,6 +822,12 @@ struct ProgressMetricsView: View {
             }
 
             activityMetrics = metrics
+
+            // Pick the primary metric for the daily breakdown (inferred from theme)
+            if let primary = metrics.first {
+                currentValue = primary.value
+                dailyValues = primary.daily
+            }
 
             if !metrics.isEmpty {
                 withAnimation(.easeInOut(duration: 0.8)) {

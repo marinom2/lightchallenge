@@ -97,6 +97,7 @@ function metricValue(a: Activity, m: string): number | null {
   switch (m) {
     case "distance_km": return a.distance_km ?? null;
     case "walking_km": return a.type === "walk" ? (a.distance_km ?? 0) : 0;
+    case "hiking_km": return a.type === "hike" ? (a.distance_km ?? 0) : 0;
     case "rowing_km": return a.type === "rowing" ? (a.distance_km ?? 0) : 0;
     case "cycling_km": return a.type === "cycle" ? (a.distance_km ?? 0) : 0;
     case "swimming_km": return a.type === "swim" ? (a.distance_km ?? 0) : 0;

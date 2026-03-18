@@ -104,6 +104,9 @@ function normalizeActivityType(activityName: string): string {
   if (n.includes("walk")) return "walk";
   if (n.includes("bike") || n.includes("cycl") || n.includes("spinning") || n.includes("ride")) return "cycle";
   if (n.includes("swim") || n.includes("pool") || n.includes("lap")) return "swim";
+  if (n === "yoga" || n === "pilates") return "yoga";
+  if (n === "hiit" || n.includes("interval") || n.includes("bootcamp")) return "hiit";
+  if (n.includes("row")) return "rowing";
   if (n.includes("weight") || n.includes("strength") || n.includes("crossfit")
       || n.includes("workout") || n.includes("circuit")) return "strength";
   return n;

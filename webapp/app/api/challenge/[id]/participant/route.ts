@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAddress } from "viem";
 import { upsertParticipant, getParticipantStatus } from "../../../../../../offchain/db/participants";
+import { createNotification } from "../../../../../../offchain/db/notifications";
 import { verifyWallet, requireAuth, verifyByTxReceipt } from "@/lib/auth";
 import { ADDR } from "@/lib/contracts";
 
@@ -105,6 +106,34 @@ export async function POST(
       joinedAt: new Date(),
       source: "onchain_join",
     });
+
+    // Notify the challenge creator (best-effort, non-blocking)
+    try {
+      const { Pool } = await import("pg");
+      const { getPool } = await import("../../../../../../offchain/db/pool");
+      const pool = getPool();
+      const chRes = await pool.query<{ title: string; creator: string }>(
+        `SELECT title, creator FROM public.challenges WHERE id = $1::bigint`,
+        [idStr]
+      );
+      const ch = chRes.rows[0];
+      if (ch?.creator && ch.creator.toLowerCase() !== subject.toLowerCase()) {
+        const addr = subject.slice(0, 6) + "…" + subject.slice(-4);
+        await createNotification(
+          ch.creator,
+          "challenge_joined",
+          `New participant — ${ch.title || `Challenge #${idStr}`}`,
+          `${addr} joined "${ch.title || `Challenge #${idStr}`}".`,
+          {
+            challengeId: idStr,
+            tier: `joined_${subject.toLowerCase().slice(0, 10)}`,
+            deepLink: `lightchallengeapp://challenge/${idStr}`,
+          }
+        );
+      }
+    } catch {
+      // Non-critical
+    }
 
     return NextResponse.json({ ok: true, id: row.id });
   } catch (e: any) {

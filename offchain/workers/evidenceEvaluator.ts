@@ -64,6 +64,7 @@ const pool = new Pool({
 import { getEvaluator } from "../evaluators/index";
 import { upsertVerdict } from "../db/verdicts";
 import { getChallengeConfig } from "../db/challenges";
+import { createNotification } from "../db/notifications";
 import type { EvidenceRow } from "../db/evidence";
 
 // ─── Pending evidence query ───────────────────────────────────────────────────
@@ -192,6 +193,35 @@ async function evaluateRow(row: EvidenceRow): Promise<void> {
       `subject=${row.subject}`,
       `provider=${provider}${detail}`,
     );
+
+    // Emit verdict-ready notification (best-effort, non-blocking)
+    if (row.challenge_id && String(row.challenge_id) !== "0") {
+      try {
+        const titleRes = await pool.query<{ title: string }>(
+          `SELECT title FROM public.challenges WHERE id = $1::bigint`,
+          [String(row.challenge_id)]
+        );
+        const challengeTitle = titleRes.rows[0]?.title || `Challenge #${row.challenge_id}`;
+        const notifBody = result.verdict
+          ? `Your evidence for "${challengeTitle}" passed evaluation! Awaiting on-chain finalization.`
+          : `Your evidence for "${challengeTitle}" was evaluated. ${result.reasons[0] || ""}`;
+        await createNotification(
+          row.subject,
+          "challenge_finalized",
+          result.verdict ? `Evaluation passed — ${challengeTitle}` : `Evaluation complete — ${challengeTitle}`,
+          notifBody,
+          {
+            challengeId: String(row.challenge_id),
+            tier: `verdict_${result.verdict ? "pass" : "fail"}`,
+            verdictPass: result.verdict,
+            deepLink: `lightchallengeapp://challenge/${row.challenge_id}`,
+          },
+          pool,
+        );
+      } catch {
+        // Non-critical — don't block evaluator
+      }
+    }
   } catch (outerErr: any) {
     // Last-resort catch: verdict write itself failed.  Log and move on;
     // the row will be retried on the next poll.

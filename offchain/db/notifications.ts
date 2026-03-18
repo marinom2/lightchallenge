@@ -23,7 +23,19 @@ export type NotificationType =
   | "registration_confirmed"
   | "dispute_filed"
   | "dispute_resolved"
-  | "achievement_earned";
+  | "achievement_earned"
+  // Progress alerts
+  | "challenge_behind_pace"
+  | "challenge_final_push"
+  | "challenge_goal_reached"
+  // Lifecycle events
+  | "challenge_finalized"
+  | "claim_available"
+  | "claim_reminder"
+  | "challenge_joined"
+  | "proof_submitted"
+  | "challenge_starting"
+  | "proof_window_open";
 
 /** Shape of a row as returned from the DB. */
 export type NotificationRow = {

@@ -61,9 +61,14 @@
 	</dict>
 	<key>NSHealthShareUsageDescription</key>
 	<string>LightChallenge reads your daily step count, walking/running distance, cycling distance, swimming distance, active energy burned, heart rate, and flights climbed to verify fitness challenge completion. Only aggregate daily totals are collected.</string>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>io.lightchallenge.app.autoproof</string>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
+		<string>fetch</string>
 	</array>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>

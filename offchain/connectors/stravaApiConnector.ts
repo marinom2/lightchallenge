@@ -66,7 +66,10 @@ function normalizeType(type: string): string {
   if (t.includes("walk")) return "walk";
   if (t.includes("ride") || t.includes("cycl") || t === "mountainbikeride" || t === "gravelride") return "cycle";
   if (t.includes("swim")) return "swim";
-  if (t === "weighttraining" || t === "crossfit" || t === "workout"
+  if (t === "yoga" || t === "pilates") return "yoga";
+  if (t === "crossfit" || t === "hiit" || t === "highintensityintervaltraining") return "hiit";
+  if (t === "rowing" || t === "virtualrowing") return "rowing";
+  if (t === "weighttraining" || t === "workout"
       || t === "strength" || t === "weight_training") return "strength";
   return t;
 }

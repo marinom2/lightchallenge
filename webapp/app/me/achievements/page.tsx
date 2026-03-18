@@ -243,6 +243,8 @@ function TypeBreakdown({ achievements }: { achievements: Achievement[] }) {
 /* ── Milestone tracker ─────────────────────────────────────────────────────── */
 
 function MilestoneTracker({ achievements, reputation }: { achievements: Achievement[]; reputation: Reputation | null }) {
+  const [expanded, setExpanded] = useState(false);
+
   const milestones = useMemo(() => {
     const total = achievements.length;
     const victories = achievements.filter((a) => a.achievement_type === "victory").length;
@@ -261,13 +263,17 @@ function MilestoneTracker({ achievements, reputation }: { achievements: Achievem
     ];
   }, [achievements, reputation]);
 
+  const VISIBLE_COUNT = 4;
+  const visible = expanded ? milestones : milestones.slice(0, VISIBLE_COUNT);
+  const hasMore = milestones.length > VISIBLE_COUNT;
+
   return (
     <div className="p-5 rounded-lg border bg-raised stack-3">
       <div className="text-small font-semibold">
         Milestones
       </div>
-      <div className="d-grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
-        {milestones.map((m) => {
+      <div className="stack-2">
+        {visible.map((m) => {
           const done = m.current >= m.target;
           const pct = Math.min(100, Math.round((m.current / m.target) * 100));
           return (
@@ -292,6 +298,16 @@ function MilestoneTracker({ achievements, reputation }: { achievements: Achievem
           );
         })}
       </div>
+      {hasMore && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="text-caption color-accent font-medium cursor-pointer"
+          style={{ background: "none", border: "none", padding: 0 }}
+        >
+          {expanded ? "Show less" : `Show all ${milestones.length} milestones`}
+        </button>
+      )}
     </div>
   );
 }
@@ -469,7 +485,7 @@ export default function AchievementsPage() {
 
       {/* ── Achievement breakdown + Milestones ────────────────────────── */}
       {!loading && achievements.length > 0 && (
-        <div className="d-grid gap-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        <div className="d-grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
           <TypeBreakdown achievements={achievements} />
           <MilestoneTracker achievements={achievements} reputation={reputation} />
         </div>

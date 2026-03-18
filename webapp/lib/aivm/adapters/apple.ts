@@ -58,6 +58,7 @@ async function parseExportXml(zipBuf: Buffer, userIdHash: `0x${string}`): Promis
         "HKQuantityTypeIdentifierDistanceCycling",
         "HKQuantityTypeIdentifierDistanceSwimming",
         "HKQuantityTypeIdentifierActiveEnergyBurned",
+        "HKQuantityTypeIdentifierFlightsClimbed",
       ]);
 
       if (SUPPORTED_TYPES.has(t)) {
@@ -86,9 +87,12 @@ async function parseExportXml(zipBuf: Buffer, userIdHash: `0x${string}`): Promis
             unit.startsWith("mi") ? valNum * 1609.34 :
             valNum;
         } else if (t.endsWith("ActiveEnergyBurned")) {
-          // Active energy can represent strength/workout sessions
           type = "active_energy";
-          // Store calories as distance_m field (reused for metric extraction)
+        } else if (t.endsWith("FlightsClimbed")) {
+          type = "hike";
+          // ~3m elevation per flight of stairs
+          distance_m = null;
+          steps = null;
         } else {
           type = "distance";
           distance_m =
@@ -114,19 +118,34 @@ async function parseExportXml(zipBuf: Buffer, userIdHash: `0x${string}`): Promis
         });
       }
 
-      // Also parse Workout records for strength/hiking
+      // Also parse Workout records for all activity types
       if (node.name === "Workout") {
         const wt = String(attrs.type || "");
         const s = toUnix(attrs.startDate);
         const e = toUnix(attrs.endDate);
 
+        // Map HKWorkoutActivityType to canonical types
         let type: string | null = null;
         if (wt === "HKWorkoutActivityTypeTraditionalStrengthTraining"
-            || wt === "HKWorkoutActivityTypeFunctionalStrengthTraining"
-            || wt === "HKWorkoutActivityTypeCrossTraining") {
+            || wt === "HKWorkoutActivityTypeFunctionalStrengthTraining") {
           type = "strength";
         } else if (wt === "HKWorkoutActivityTypeHiking") {
           type = "hike";
+        } else if (wt === "HKWorkoutActivityTypeRunning") {
+          type = "run";
+        } else if (wt === "HKWorkoutActivityTypeWalking") {
+          type = "walk";
+        } else if (wt === "HKWorkoutActivityTypeCycling") {
+          type = "cycle";
+        } else if (wt === "HKWorkoutActivityTypeSwimming") {
+          type = "swim";
+        } else if (wt === "HKWorkoutActivityTypeYoga") {
+          type = "yoga";
+        } else if (wt === "HKWorkoutActivityTypeCrossTraining"
+            || wt === "HKWorkoutActivityTypeHighIntensityIntervalTraining") {
+          type = "hiit";
+        } else if (wt === "HKWorkoutActivityTypeRowing") {
+          type = "rowing";
         }
 
         if (type) {

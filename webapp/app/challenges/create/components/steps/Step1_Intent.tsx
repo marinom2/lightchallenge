@@ -115,17 +115,17 @@ const GAME_OPTIONS: Array<{ value: GameId; label: string; sub: string }> = [
 
 const FITNESS_OPTIONS: Array<{ value: FitnessKind; label: string; sub: string }> = [
   { value: "steps", label: "Steps", sub: "Apple Health, Garmin, Fitbit, Google Fit" },
-  { value: "running", label: "Running", sub: "Strava, Garmin, Fitbit, Google Fit" },
+  { value: "running", label: "Running", sub: "Apple Health, Strava, Garmin, Fitbit, Google Fit" },
   { value: "walking", label: "Walking", sub: "Apple Health, Garmin, Fitbit, Google Fit" },
-  { value: "cycling", label: "Cycling", sub: "Strava, Garmin" },
-  { value: "hiking", label: "Hiking / Elevation", sub: "Strava, Garmin" },
-  { value: "swimming", label: "Swimming", sub: "Strava, Garmin" },
+  { value: "cycling", label: "Cycling", sub: "Apple Health, Strava, Garmin, Fitbit, Google Fit" },
+  { value: "hiking", label: "Hiking / Elevation", sub: "Apple Health, Strava, Garmin" },
+  { value: "swimming", label: "Swimming", sub: "Apple Health, Strava, Garmin" },
   { value: "strength", label: "Strength", sub: "Apple Health, Garmin, Fitbit" },
-  { value: "yoga", label: "Yoga", sub: "Apple Health, Garmin, Strava" },
-  { value: "hiit", label: "HIIT / CrossFit", sub: "Apple Health, Garmin, Strava" },
-  { value: "rowing", label: "Rowing", sub: "Apple Health, Garmin, Strava" },
+  { value: "yoga", label: "Yoga", sub: "Apple Health, Strava, Garmin" },
+  { value: "hiit", label: "HIIT / CrossFit", sub: "Apple Health, Strava, Garmin" },
+  { value: "rowing", label: "Rowing", sub: "Apple Health, Strava, Garmin" },
   { value: "calories", label: "Calorie Burn", sub: "Apple Health, Garmin, Fitbit, Google Fit" },
-  { value: "exercise", label: "Exercise Minutes", sub: "Apple Health" },
+  { value: "exercise", label: "Exercise Minutes", sub: "Apple Health, Garmin, Fitbit" },
 ];
 
 export default function Step1_Intent({

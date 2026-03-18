@@ -107,6 +107,12 @@ let ADAPTER_HASHES: Record<string, SourceType> = {
   "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60004": "apple_health", // fitness.hiking@1
   "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60005": "apple_health", // fitness.swimming@1
   "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60006": "apple_health", // fitness.strength@1
+  "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60007": "apple_health", // fitness.yoga@1
+  "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60008": "apple_health", // fitness.hiit@1
+  "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60009": "apple_health", // fitness.calories@1
+  "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6000a": "apple_health", // fitness.rowing@1
+  "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6000b": "apple_health", // fitness.walking@1
+  "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6000c": "apple_health", // fitness.exercise@1
   // ── Dota 2 ──
   "0xe8fe0f3dccfa30d73e362ae12070b18b4ce623d836a7bca392429212ecb14def": "dota",       // dota.private_match_1v1@1
   "0xa36667f7fba0e008bfca236bcec118fef4f7177046cbc57f093b557b41ca95e6": "dota",       // dota.private_match_5v5@1

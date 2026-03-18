@@ -104,22 +104,32 @@ function formatUSDCValue(usd: number): string {
   return `${usd.toFixed(4)} USDC`;
 }
 
+/** Format LCAI amount with appropriate precision. */
+function formatLCAIValue(lcai: number): string {
+  if (lcai >= 1000) return `${lcai.toFixed(0)} LCAI`;
+  if (lcai >= 1) return `${lcai.toFixed(2)} LCAI`;
+  if (lcai >= 0.01) return `${lcai.toFixed(3)} LCAI`;
+  if (lcai >= 0.0001) return `${lcai.toFixed(4)} LCAI`;
+  if (lcai > 0) return `${lcai.toFixed(6)} LCAI`;
+  return "0 LCAI";
+}
+
 /** Format a wei string as USDC using the given token price. Falls back to LCAI. */
 export function formatWeiAsUSD(weiStr: string | null | undefined, tokenPrice: number | null): string {
-  if (!weiStr) return "0 USDC";
+  if (!weiStr) return "0 LCAI";
   try {
     const wei = BigInt(weiStr);
     const lcai = Number(wei) / 1e18;
+    if (lcai === 0) return "0 LCAI";
     if (tokenPrice && tokenPrice > 0) {
-      return formatUSDCValue(lcai * tokenPrice);
+      const usd = lcai * tokenPrice;
+      // If USD rounds to 0 at 4dp but LCAI is non-zero, show LCAI instead
+      if (usd < 0.00005 && lcai > 0) return formatLCAIValue(lcai);
+      return formatUSDCValue(usd);
     }
-    // Fallback: show LCAI
-    if (lcai >= 1000) return `${lcai.toFixed(0)} LCAI`;
-    if (lcai >= 1) return `${lcai.toFixed(2)} LCAI`;
-    if (lcai >= 0.01) return `${lcai.toFixed(3)} LCAI`;
-    return `${lcai.toFixed(4)} LCAI`;
+    return formatLCAIValue(lcai);
   } catch {
-    return "0 USDC";
+    return "0 LCAI";
   }
 }
 

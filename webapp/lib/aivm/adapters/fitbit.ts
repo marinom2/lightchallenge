@@ -53,6 +53,9 @@ function normalizeFitbit(json: any, userIdHash: string): CanonicalRecord[] {
       else if (actName.includes("walk")) type = "walk";
       else if (actName.includes("bike") || actName.includes("cycl") || actName.includes("spinning") || actName.includes("ride")) type = "cycle";
       else if (actName.includes("swim") || actName.includes("pool") || actName.includes("lap")) type = "swim";
+      else if (actName === "yoga" || actName === "pilates") type = "yoga";
+      else if (actName === "hiit" || actName.includes("interval") || actName.includes("bootcamp")) type = "hiit";
+      else if (actName.includes("row")) type = "rowing";
       else if (actName.includes("weight") || actName.includes("strength") || actName.includes("crossfit") || actName.includes("workout") || actName.includes("circuit")) type = "strength";
 
       if (start_ts > 0 && dist_m >= 0) {
@@ -118,12 +121,13 @@ export const fitbitAdapter: Adapter = {
       publicSignals = [bind, success, BigInt(total)];
       dataHash = sha256hex(Buffer.from(JSON.stringify({ targetDayUtc, total })));
     } else {
-      const startTs = Number(params?.startTs);
-      const endTs   = Number(params?.endTs);
-      const minMeters = Number(params?.minMeters ?? 5000);
+      // Generic distance aggregation — accepts all activity types in window
+      const startTs = Number(params?.startTs ?? params?.start_ts ?? 0);
+      const endTs   = Number(params?.endTs ?? params?.end_ts ?? Math.floor(Date.now() / 1000));
+      const minMeters = Number(params?.minMeters ?? params?.min_distance_m ?? 5000);
       const distance_m = Math.round(
         records
-          .filter(r => r.type === "distance" && r.start_ts >= startTs && r.end_ts <= endTs)
+          .filter(r => r.start_ts >= startTs && r.end_ts <= endTs)
           .reduce((a, r) => a + (r.distance_m ?? 0), 0)
       );
       const success = distance_m >= minMeters ? 1n : 0n;

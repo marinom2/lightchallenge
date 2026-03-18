@@ -147,6 +147,173 @@ class NotificationService: ObservableObject {
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request)
     }
+
+    // MARK: - Smart Challenge Alerts
+
+    /// Evaluate a challenge's progress and schedule local "at risk" notifications.
+    /// Called during foreground progress checks and background task execution.
+    ///
+    /// Tiers:
+    ///   - 50% time elapsed, <25% progress → gentle nudge
+    ///   - 75% time elapsed, <50% progress → warning
+    ///   - 90% time elapsed, <75% progress → urgent
+    ///   - ≤24h remaining, <100% progress → final push
+    ///   - ≤6h remaining, <100% progress → last chance
+    ///   - Goal reached → celebration
+    func evaluateAndScheduleAlerts(
+        challengeId: String,
+        title: String,
+        startDate: Date,
+        endDate: Date,
+        currentValue: Double,
+        goalValue: Double,
+        metricLabel: String
+    ) {
+        guard endDate > Date(), startDate < Date(), goalValue > 0 else { return }
+
+        let now = Date()
+        let totalDuration = endDate.timeIntervalSince(startDate)
+        let elapsed = now.timeIntervalSince(startDate)
+        let timeFraction = min(1.0, elapsed / totalDuration)
+        let remaining = endDate.timeIntervalSince(now)
+        let progress = min(1.0, currentValue / goalValue)
+        let pct = Int(progress * 100)
+
+        // Goal reached — schedule immediate celebration (if not already sent)
+        if progress >= 1.0 {
+            scheduleAlertOnce(
+                id: "goal-reached-\(challengeId)",
+                title: "Target reached!",
+                body: "You hit your goal for \"\(title)\". Your proof will be submitted automatically.",
+                delay: 1,
+                challengeId: challengeId
+            )
+            return
+        }
+
+        let remainingText = Self.formatRemaining(remaining)
+
+        // Final push: ≤6h
+        if remaining <= 6 * 3600 {
+            scheduleAlertOnce(
+                id: "final-6h-\(challengeId)",
+                title: "Final hours — \(title)",
+                body: "Only \(remainingText) left at \(pct)% of \(metricLabel). Give it one last push!",
+                delay: 1,
+                challengeId: challengeId
+            )
+        }
+        // Final push: ≤24h
+        else if remaining <= 24 * 3600 {
+            scheduleAlertOnce(
+                id: "final-24h-\(challengeId)",
+                title: "Last day — \(title)",
+                body: "\(remainingText) remaining with \(pct)% progress on \(metricLabel). Finish strong!",
+                delay: 1,
+                challengeId: challengeId
+            )
+        }
+
+        // Behind pace: 90%+ time, <75% progress
+        if timeFraction >= 0.9 && progress < 0.75 {
+            scheduleAlertOnce(
+                id: "behind-90-\(challengeId)",
+                title: "Almost over — \(title)",
+                body: "90% done but only \(pct)% progress. \(remainingText) left for \(metricLabel).",
+                delay: 1,
+                challengeId: challengeId
+            )
+        }
+        // Behind pace: 75%+ time, <50% progress
+        else if timeFraction >= 0.75 && progress < 0.50 {
+            scheduleAlertOnce(
+                id: "behind-75-\(challengeId)",
+                title: "Falling behind — \(title)",
+                body: "Three-quarters through with only \(pct)% progress. Pick up the pace — \(remainingText) left!",
+                delay: 1,
+                challengeId: challengeId
+            )
+        }
+        // Behind pace: 50%+ time, <25% progress
+        else if timeFraction >= 0.50 && progress < 0.25 {
+            scheduleAlertOnce(
+                id: "behind-50-\(challengeId)",
+                title: "Halfway check — \(title)",
+                body: "You're halfway through but only at \(pct)% of \(metricLabel). \(remainingText) to go.",
+                delay: 1,
+                challengeId: challengeId
+            )
+        }
+
+        // Also schedule a future notification for the next milestone if not yet triggered.
+        // Example: if we're at 40% time, schedule one for when we'll be at 50%.
+        if timeFraction < 0.50 {
+            let timeUntil50Pct = (0.50 * totalDuration) - elapsed
+            if timeUntil50Pct > 60 { // Only if >1 min away
+                scheduleAlertOnce(
+                    id: "reminder-50-\(challengeId)",
+                    title: "Halfway mark — \(title)",
+                    body: "You're halfway through \"\(title)\". Check your progress!",
+                    delay: timeUntil50Pct,
+                    challengeId: challengeId
+                )
+            }
+        } else if timeFraction < 0.75 {
+            let timeUntil75Pct = (0.75 * totalDuration) - elapsed
+            if timeUntil75Pct > 60 {
+                scheduleAlertOnce(
+                    id: "reminder-75-\(challengeId)",
+                    title: "75% mark — \(title)",
+                    body: "Three-quarters of \"\(title)\" is done. How's your progress?",
+                    delay: timeUntil75Pct,
+                    challengeId: challengeId
+                )
+            }
+        }
+    }
+
+    /// Schedule a local notification only if one with the same identifier doesn't already exist.
+    private func scheduleAlertOnce(id: String, title: String, body: String, delay: TimeInterval, challengeId: String) {
+        let center = UNUserNotificationCenter.current()
+
+        center.getPendingNotificationRequests { existing in
+            let alreadyScheduled = existing.contains { $0.identifier == id }
+            if alreadyScheduled { return }
+
+            // Also check delivered notifications to avoid re-firing
+            center.getDeliveredNotifications { delivered in
+                let alreadyDelivered = delivered.contains { $0.request.identifier == id }
+                if alreadyDelivered { return }
+
+                let content = UNMutableNotificationContent()
+                content.title = title
+                content.body = body
+                content.sound = .default
+                content.userInfo = [
+                    "challengeId": challengeId,
+                    "deepLink": "lightchallengeapp://challenge/\(challengeId)"
+                ]
+
+                let trigger = UNTimeIntervalNotificationTrigger(
+                    timeInterval: max(1, delay),
+                    repeats: false
+                )
+
+                let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+                center.add(request)
+            }
+        }
+    }
+
+    private static func formatRemaining(_ seconds: TimeInterval) -> String {
+        if seconds <= 0 { return "ended" }
+        let h = Int(seconds / 3600)
+        let d = h / 24
+        if d >= 2 { return "\(d) days" }
+        if h >= 1 { return "\(h)h" }
+        let m = Int(ceil(seconds / 60))
+        return "\(m)m"
+    }
 }
 
 // MARK: - Notification Model
@@ -182,11 +349,28 @@ struct AppNotification: Identifiable {
 
     var icon: String {
         switch type {
+        // Competition / match
         case "match_result": "trophy.fill"
+        case "match_upcoming": "calendar.badge.clock"
         case "competition_started": "flag.fill"
         case "competition_completed": "checkmark.seal.fill"
         case "registration_confirmed": "person.badge.plus"
         case "achievement_earned": "star.fill"
+        // Progress alerts
+        case "challenge_behind_pace": "exclamationmark.triangle.fill"
+        case "challenge_final_push": "flame.fill"
+        case "challenge_goal_reached": "checkmark.circle.fill"
+        // Lifecycle events
+        case "challenge_finalized": "flag.checkered"
+        case "claim_available": "banknote.fill"
+        case "claim_reminder": "bell.badge.fill"
+        case "challenge_joined": "person.badge.plus"
+        case "proof_submitted": "arrow.up.doc.fill"
+        case "challenge_starting": "play.circle.fill"
+        case "proof_window_open": "clock.badge.exclamationmark.fill"
+        // Disputes
+        case "dispute_filed": "exclamationmark.bubble.fill"
+        case "dispute_resolved": "checkmark.bubble.fill"
         default: "bell.fill"
         }
     }

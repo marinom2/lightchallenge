@@ -7,6 +7,41 @@
 //   https://uat.lightchallenge.app/challenge/{id}?subject={wallet}
 
 import SwiftUI
+import BackgroundTasks
+import UserNotifications
+
+// MARK: - Notification Delegate (handles notification taps → deep links)
+
+/// Bridges UNUserNotificationCenter delegate callbacks to SwiftUI's onOpenURL.
+/// When a user taps a notification with a deepLink in userInfo, this delegate
+/// extracts the URL and opens it, triggering the app's standard deep link flow.
+class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    /// Show banners even when the app is in the foreground.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound, .badge])
+    }
+
+    /// Handle notification tap: extract deepLink from userInfo and open it.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let userInfo = response.notification.request.content.userInfo
+        if let deepLink = userInfo["deepLink"] as? String,
+           let url = URL(string: deepLink) {
+            print("[NOTIFICATION] tapped → opening deep link: \(deepLink)")
+            DispatchQueue.main.async {
+                UIApplication.shared.open(url)
+            }
+        }
+        completionHandler()
+    }
+}
 
 @main
 struct LightChallengeApp: App {
@@ -19,6 +54,24 @@ struct LightChallengeApp: App {
     @State private var showSplash = true
     @State private var showOnboarding = true
     @Environment(\.scenePhase) private var scenePhase
+
+    private static let autoProofTaskId = "io.lightchallenge.app.autoproof"
+    private let notificationDelegate = NotificationDelegate()
+
+    init() {
+        // Set notification delegate so taps trigger deep links
+        UNUserNotificationCenter.current().delegate = notificationDelegate
+
+        // Register background task for auto-proof submission.
+        // This allows evidence to be submitted even if the user doesn't open the app.
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.autoProofTaskId, using: nil) { task in
+            guard let refreshTask = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            Self.handleAutoProofBackgroundTask(refreshTask)
+        }
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -57,6 +110,11 @@ struct LightChallengeApp: App {
                         Task {
                             await checkPendingAutoProofs()
                         }
+                    }
+
+                    if phase == .background && appState.hasWallet {
+                        // Schedule background auto-proof check
+                        Self.scheduleAutoProofTask()
                     }
                 }
                 .onChange(of: walletManager.isConnected) { _, connected in
@@ -105,6 +163,11 @@ struct LightChallengeApp: App {
                             wallet: appState.walletAddress
                         )
                     }
+
+                    // Cold-launch auto-proof check
+                    if appState.hasWallet {
+                        await checkPendingAutoProofs()
+                    }
                 }
         }
     }
@@ -131,7 +194,8 @@ struct LightChallengeApp: App {
         }
     }
 
-    /// Fetch the user's challenges and activities, then run auto-proof checks.
+    /// Fetch the user's challenges and activities, then run auto-proof checks
+    /// and evaluate smart progress alerts.
     private func checkPendingAutoProofs() async {
         let baseURL = appState.serverURL
         let wallet = appState.walletAddress
@@ -158,9 +222,57 @@ struct LightChallengeApp: App {
                 appState: appState,
                 healthService: healthService
             )
+
+            // Evaluate smart progress alerts for active challenges the user has joined
+            await evaluateChallengeAlerts(challenges: challenges, activities: activityMap)
         } catch {
             // Silently fail — auto-proof is best-effort on foreground
             print("[AutoProof] foreground check failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Check each active joined challenge and schedule smart local notifications
+    /// if the user is falling behind their target.
+    private func evaluateChallengeAlerts(
+        challenges: [ChallengeMeta],
+        activities: [String: MyChallenge]
+    ) async {
+        let baseURL = appState.serverURL
+        let wallet = appState.walletAddress
+        let now = Date()
+
+        for challenge in challenges {
+            // Only evaluate active challenges the user has joined
+            guard activities[challenge.id] != nil else { continue }
+            guard let startDate = challenge.startDate,
+                  let endDate = challenge.endsDate,
+                  startDate < now, endDate > now else { continue }
+
+            // Need a measurable goal (non-competitive)
+            guard let rule = challenge.params?.firstRule,
+                  rule.goalValue > 0 else { continue }
+
+            // Fetch server-side progress
+            do {
+                let progress = try await APIClient.shared.fetchMyProgress(
+                    baseURL: baseURL,
+                    challengeId: challenge.id,
+                    subject: wallet
+                )
+
+                notificationService.evaluateAndScheduleAlerts(
+                    challengeId: challenge.id,
+                    title: challenge.displayTitle,
+                    startDate: startDate,
+                    endDate: endDate,
+                    currentValue: progress.currentValue ?? 0,
+                    goalValue: progress.goalValue ?? rule.goalValue,
+                    metricLabel: progress.metricLabel ?? rule.metricLabel
+                )
+            } catch {
+                // Best-effort — don't block other challenges
+                continue
+            }
         }
     }
 
@@ -191,6 +303,75 @@ struct LightChallengeApp: App {
         if let token, !token.isEmpty {
             healthService.pendingToken = token
             healthService.pendingExpires = expires ?? ""
+        }
+    }
+
+    // MARK: - Background Task
+
+    /// Schedule the next background auto-proof check.
+    /// iOS will wake the app at an opportune time (typically within 15-30 minutes).
+    static func scheduleAutoProofTask() {
+        let request = BGAppRefreshTaskRequest(identifier: autoProofTaskId)
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60) // earliest: 15 min
+        do {
+            try BGTaskScheduler.shared.submit(request)
+        } catch {
+            print("[AutoProof] Failed to schedule background task: \(error.localizedDescription)")
+        }
+    }
+
+    /// Handle background auto-proof task execution.
+    /// Creates temporary service instances (background has no UI state objects).
+    @MainActor
+    static func handleAutoProofBackgroundTask(_ task: BGAppRefreshTask) {
+        // Re-schedule for next run
+        scheduleAutoProofTask()
+
+        let bgAppState = AppState()
+        let bgHealthService = HealthKitService()
+
+        guard bgAppState.hasWallet else {
+            task.setTaskCompleted(success: true)
+            return
+        }
+
+        let workTask = Task {
+            do {
+                async let challengesTask = APIClient.shared.fetchChallenges(baseURL: bgAppState.serverURL)
+                async let activitiesTask = APIClient.shared.fetchMyActivity(baseURL: bgAppState.serverURL, subject: bgAppState.walletAddress)
+
+                let challenges = try await challengesTask
+                let activities = try await activitiesTask
+
+                var activityMap: [String: MyChallenge] = [:]
+                for activity in activities {
+                    activityMap[activity.challengeId] = activity
+                }
+
+                // Restore HealthKit auth
+                if bgAppState.healthEnabled {
+                    await bgHealthService.requestAuthorization()
+                }
+
+                AutoProofService.shared.checkPendingChallenges(
+                    challenges: challenges,
+                    activities: activityMap,
+                    appState: bgAppState,
+                    healthService: bgHealthService
+                )
+
+                // Give auto-proof submissions a few seconds to complete
+                try await Task.sleep(nanoseconds: 5_000_000_000)
+
+                task.setTaskCompleted(success: true)
+            } catch {
+                print("[AutoProof] Background task failed: \(error.localizedDescription)")
+                task.setTaskCompleted(success: false)
+            }
+        }
+
+        task.expirationHandler = {
+            workTask.cancel()
         }
     }
 }

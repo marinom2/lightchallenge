@@ -316,11 +316,11 @@ class ContractService: ObservableObject {
 
         let jsonData = try JSONSerialization.data(withJSONObject: body)
 
-        // Retry up to 5 times with increasing delay — the server-side RPC node
+        // Retry up to 7 times with increasing delay — the server-side RPC node
         // may need time to propagate the receipt for tx-receipt auth verification.
         var lastStatusCode = 0
         var lastBody = ""
-        let delays: [UInt64] = [0, 3, 6, 10, 15] // seconds before each attempt
+        let delays: [UInt64] = [0, 2, 5, 10, 20, 35, 55] // seconds before each attempt (~127s total)
         for attempt in 0..<delays.count {
             if delays[attempt] > 0 {
                 try await Task.sleep(nanoseconds: delays[attempt] * 1_000_000_000)

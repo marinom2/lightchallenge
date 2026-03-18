@@ -15,7 +15,6 @@ struct CreateChallengeView: View {
     @State private var fitnessKind: String = "steps"
     @State private var selectedTemplate: ChallengeTemplate?
     @State private var title: String = ""
-    @State private var description: String = ""
     @State private var tags: String = ""
     @State private var stakeAmount: String = "0.01"
     @State private var joinCloses = Date().addingTimeInterval(7200)  // +2h
@@ -26,6 +25,7 @@ struct CreateChallengeView: View {
     @State private var isCreating = false
     @State private var createError: String?
     @State private var createdResult: CreateChallengeResult?
+    @State private var tokenPrice: Double?
 
     private let fitnessKinds: [(key: String, label: String, icon: String)] = [
         ("steps", "Steps", "figure.walk"),
@@ -162,16 +162,11 @@ struct CreateChallengeView: View {
         VStack(alignment: .leading, spacing: LC.space20) {
             sectionHeader(title: "Challenge Details", subtitle: "Name your challenge, set the stake, and schedule dates")
 
-            // Title & Description card
+            // Title & Tags card
             VStack(spacing: 0) {
                 inputRow(label: "Title", isLast: false) {
                     TextField("e.g. 10K Steps Daily", text: $title)
                         .font(.body)
-                }
-                inputRow(label: "Description", isLast: false) {
-                    TextField("Optional — describe the challenge", text: $description, axis: .vertical)
-                        .font(.body)
-                        .lineLimit(2...4)
                 }
                 inputRow(label: "Tags", isLast: true) {
                     VStack(alignment: .leading, spacing: LC.space2) {
@@ -375,12 +370,35 @@ struct CreateChallengeView: View {
         VStack(alignment: .leading, spacing: LC.space20) {
             sectionHeader(title: "Review & Create", subtitle: "Confirm all details before submitting on-chain")
 
+            // Auto-generated description preview
+            if !autoDescription.isEmpty {
+                VStack(alignment: .leading, spacing: LC.space8) {
+                    Text("Description (auto-generated)")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(LC.textTertiary(scheme))
+                        .textCase(.uppercase)
+                    Text(autoDescription)
+                        .font(.subheadline)
+                        .foregroundStyle(LC.textPrimary(scheme))
+                }
+                .padding(LC.space16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
+                        .fill(LC.accent.opacity(0.04))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
+                        .stroke(LC.accent.opacity(0.15), lineWidth: 1)
+                )
+            }
+
             // Summary card
             VStack(spacing: 0) {
                 reviewRow("Title", value: title.isEmpty ? "—" : title, isFirst: true)
                 reviewRow("Activity", value: fitnessKind.capitalized)
                 reviewRow("Template", value: selectedTemplate?.name ?? "None")
-                reviewRow("Stake", value: "\(stakeAmount) LCAI", accent: true)
+                reviewRow("Stake", value: stakeDisplayWithUSD, accent: true)
 
                 Divider().padding(.leading, LC.space16)
 
@@ -434,6 +452,7 @@ struct CreateChallengeView: View {
                 errorBanner(error)
             }
         }
+        .task { tokenPrice = await TokenPriceService.shared.getUSDPrice() }
     }
 
     // MARK: - Reusable Components
@@ -560,7 +579,7 @@ struct CreateChallengeView: View {
                                 .foregroundStyle(.white)
                         }
                     } else {
-                        Label("Create Challenge", systemImage: "bolt.circle.fill")
+                        Text("Create")
                     }
                 }
                 .buttonStyle(LCGoldButton(isDisabled: !canCreate || isCreating))
@@ -606,44 +625,17 @@ struct CreateChallengeView: View {
 
             // Info card
             VStack(spacing: 0) {
-                HStack {
-                    Text("Challenge ID")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text("#\(result.challengeId)")
-                        .font(.subheadline.monospaced().weight(.medium))
-                }
-                .padding(.horizontal, LC.space16)
-                .padding(.vertical, LC.space12)
-
+                successRow("Title", value: title.isEmpty ? "Challenge #\(result.challengeId)" : title)
                 Divider().padding(.leading, LC.space16)
-
-                HStack {
-                    Text("Stake")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(stakeAmount) LCAI")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(LC.accent)
-                }
-                .padding(.horizontal, LC.space16)
-                .padding(.vertical, LC.space12)
-
+                successRow("Stake", value: stakeDisplayWithUSD, accent: true)
                 Divider().padding(.leading, LC.space16)
-
-                HStack {
-                    Text("Transaction")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(result.txHash.prefix(10))...\(result.txHash.suffix(6))")
-                        .font(.caption.monospaced())
-                        .foregroundStyle(LC.textTertiary(scheme))
+                successRow("Starts", value: starts.formatted(date: .abbreviated, time: .shortened))
+                Divider().padding(.leading, LC.space16)
+                successRow("Ends", value: ends.formatted(date: .abbreviated, time: .shortened))
+                if let template = selectedTemplate {
+                    Divider().padding(.leading, LC.space16)
+                    successRow("Activity", value: template.name)
                 }
-                .padding(.horizontal, LC.space16)
-                .padding(.vertical, LC.space12)
             }
             .background(
                 RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
@@ -682,6 +674,117 @@ struct CreateChallengeView: View {
             .padding(.bottom, LC.space40)
         }
         .padding()
+        .task { tokenPrice = await TokenPriceService.shared.getUSDPrice() }
+    }
+
+    private var stakeDisplayWithUSD: String {
+        let base = "\(stakeAmount) LCAI"
+        guard let lcai = Double(stakeAmount), let price = tokenPrice, price > 0 else { return base }
+        let usd = lcai * price
+        let usdStr = usd >= 1 ? String(format: "$%.2f", usd) : (usd >= 0.01 ? String(format: "$%.2f", usd) : "< $0.01")
+        return "\(base) (\(usdStr))"
+    }
+
+    private func successRow(_ label: String, value: String, accent: Bool = false) -> some View {
+        HStack {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(accent ? LC.accent : LC.textPrimary(scheme))
+        }
+        .padding(.horizontal, LC.space16)
+        .padding(.vertical, LC.space12)
+    }
+
+    // MARK: - Auto-Generated Description
+
+    /// Build a user-friendly description from the selected template and parameters.
+    private var autoDescription: String {
+        guard let template = selectedTemplate else { return "" }
+        let durationDays = max(1, Int(ends.timeIntervalSince(starts) / 86400))
+        let durationLabel = durationDays == 1 ? "1 day" : "\(durationDays) days"
+
+        switch template.id {
+        case "steps_daily":
+            let steps = Int(templateFields["minSteps"] as? Double ?? 8000)
+            let days = Int(templateFields["days"] as? Double ?? 7)
+            return "Walk at least \(formatNumber(steps)) steps every day for \(days) consecutive days."
+
+        case "steps_competitive":
+            let topN = Int(templateFields["topN"] as? Double ?? 3)
+            return "Compete for the highest step count over \(durationLabel). Top \(topN) win."
+
+        case "distance_competitive":
+            let topN = Int(templateFields["topN"] as? Double ?? 1)
+            let act = templateFields["activityType"] as? String ?? "run"
+            let actLabel = act == "walk" ? "walking" : act == "cycle" ? "cycling" : "running"
+            return "Compete for the longest \(actLabel) distance over \(durationLabel). Top \(topN) win."
+
+        case "running_window":
+            let km = templateFields["distanceKm"] as? Double ?? 5
+            return "Run at least \(formatKm(km)) total within \(durationLabel)."
+
+        case "walking_distance":
+            let km = templateFields["distanceKm"] as? Double ?? 5
+            return "Walk at least \(formatKm(km)) total within \(durationLabel)."
+
+        case "cycling_window":
+            let km = templateFields["distanceKm"] as? Double ?? 20
+            return "Cycle at least \(formatKm(km)) total within \(durationLabel)."
+
+        case "hiking_elev_gain":
+            let m = Int(templateFields["elevGainM"] as? Double ?? 500)
+            return "Gain at least \(formatNumber(m)) meters of elevation hiking within \(durationLabel)."
+
+        case "swimming_laps":
+            let km = templateFields["distanceKm"] as? Double ?? 1
+            return "Swim at least \(formatKm(km)) total within \(durationLabel)."
+
+        case "strength_workouts":
+            let sessions = Int(templateFields["sessions"] as? Double ?? 5)
+            return "Complete \(sessions) strength training sessions within \(durationLabel)."
+
+        case "yoga_duration":
+            let min = Int(templateFields["durationMin"] as? Double ?? 60)
+            return "Practice at least \(min) minutes of yoga within \(durationLabel)."
+
+        case "hiit_sessions":
+            let min = Int(templateFields["durationMin"] as? Double ?? 60)
+            return "Complete at least \(min) minutes of HIIT training within \(durationLabel)."
+
+        case "rowing_distance":
+            let km = templateFields["distanceKm"] as? Double ?? 5
+            return "Row at least \(formatKm(km)) total within \(durationLabel)."
+
+        case "calorie_burn":
+            let cals = Int(templateFields["calories"] as? Double ?? 500)
+            return "Burn at least \(formatNumber(cals)) active calories within \(durationLabel)."
+
+        case "exercise_time":
+            let min = Int(templateFields["minutes"] as? Double ?? 150)
+            return "Accumulate \(min) exercise minutes within \(durationLabel)."
+
+        case "duration_threshold":
+            let min = Int(templateFields["durationMin"] as? Double ?? 150)
+            return "Accumulate \(min) active minutes from fitness activities within \(durationLabel)."
+
+        default:
+            return "\(template.name) — \(durationLabel) challenge."
+        }
+    }
+
+    private func formatNumber(_ n: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.groupingSeparator = ","
+        return formatter.string(from: NSNumber(value: n)) ?? "\(n)"
+    }
+
+    private func formatKm(_ km: Double) -> String {
+        km == km.rounded() ? "\(Int(km)) km" : String(format: "%.1f km", km)
     }
 
     // MARK: - Validation
@@ -754,7 +857,7 @@ struct CreateChallengeView: View {
 
             let meta = CreateChallengeMeta(
                 title: title,
-                description: description.isEmpty ? nil : description,
+                description: autoDescription.isEmpty ? nil : autoDescription,
                 tags: parsedTags + [fitnessKind],
                 modelId: template.modelId,
                 modelHash: template.modelHash,

@@ -945,3 +945,100 @@ export const toPlain = (t: Template): TemplatePlain => ({
   modelId: t.modelId,
   fields: t.fields,
 });
+
+/**
+ * Build a standardized, user-friendly description from the selected template,
+ * form fields, and timeline. Called at create-time so users never need to
+ * write descriptions manually.
+ */
+export function buildAutoDescription(state: ChallengeFormState): string {
+  const templateId =
+    (state as any).aivmForm?.templateId ??
+    state.verification?.templateId ??
+    null;
+  const template = templateId ? getTemplateById(templateId) : null;
+  if (!template) return "";
+
+  const form = (state as any).aivmForm ?? {};
+  const starts = state.timeline.starts;
+  const ends = state.timeline.ends;
+  const durationDays =
+    starts && ends
+      ? Math.max(1, Math.round((ends.getTime() - starts.getTime()) / 86400000))
+      : 7;
+  const dur = durationDays === 1 ? "1 day" : `${durationDays} days`;
+
+  const fmtNum = (n: number) => n.toLocaleString("en-US");
+  const fmtKm = (km: number) =>
+    km === Math.round(km) ? `${km} km` : `${km.toFixed(1)} km`;
+
+  switch (template.id) {
+    case "steps_daily": {
+      const steps = Number(form.minSteps ?? 8000);
+      const days = Number(form.days ?? 7);
+      return `Walk at least ${fmtNum(steps)} steps every day for ${days} consecutive days.`;
+    }
+    case "steps_competitive": {
+      const topN = Number(form.topN ?? 3);
+      return `Compete for the highest step count over ${dur}. Top ${topN} win.`;
+    }
+    case "distance_competitive": {
+      const topN = Number(form.topN ?? 1);
+      const act = String(form.activityType ?? "run");
+      const actLabel = act === "walk" ? "walking" : act === "cycle" ? "cycling" : "running";
+      return `Compete for the longest ${actLabel} distance over ${dur}. Top ${topN} win.`;
+    }
+    case "running_window": {
+      const km = Number(form.distanceKm ?? 5);
+      return `Run at least ${fmtKm(km)} total within ${dur}.`;
+    }
+    case "walking_distance": {
+      const km = Number(form.distanceKm ?? 5);
+      return `Walk at least ${fmtKm(km)} total within ${dur}.`;
+    }
+    case "cycling_window": {
+      const km = Number(form.distanceKm ?? 20);
+      return `Cycle at least ${fmtKm(km)} total within ${dur}.`;
+    }
+    case "hiking_elev_gain":
+    case "hiking_elev_gain_window": {
+      const m = Number(form.elevGainM ?? 500);
+      return `Gain at least ${fmtNum(m)} meters of elevation hiking within ${dur}.`;
+    }
+    case "swimming_laps":
+    case "swimming_laps_window": {
+      const km = Number(form.distanceKm ?? 1);
+      return `Swim at least ${fmtKm(km)} total within ${dur}.`;
+    }
+    case "strength_workouts": {
+      const sessions = Number(form.sessions ?? 5);
+      return `Complete ${sessions} strength training sessions within ${dur}.`;
+    }
+    case "yoga_duration": {
+      const min = Number(form.durationMin ?? 60);
+      return `Practice at least ${min} minutes of yoga within ${dur}.`;
+    }
+    case "hiit_sessions": {
+      const min = Number(form.durationMin ?? 60);
+      return `Complete at least ${min} minutes of HIIT training within ${dur}.`;
+    }
+    case "rowing_distance": {
+      const km = Number(form.distanceKm ?? 5);
+      return `Row at least ${fmtKm(km)} total within ${dur}.`;
+    }
+    case "calorie_burn": {
+      const cals = Number(form.calories ?? 500);
+      return `Burn at least ${fmtNum(cals)} active calories within ${dur}.`;
+    }
+    case "exercise_time": {
+      const min = Number(form.minutes ?? 150);
+      return `Accumulate ${min} exercise minutes within ${dur}.`;
+    }
+    case "duration_threshold": {
+      const min = Number(form.durationMin ?? 150);
+      return `Accumulate ${min} active minutes from fitness activities within ${dur}.`;
+    }
+    default:
+      return `${template.name} — ${dur} challenge.`;
+  }
+}

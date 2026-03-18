@@ -1790,14 +1790,26 @@ const primaryAction = React.useMemo(() => {
         <div className="cd-tab-content">
           {!data ? (
             <div className="empty-hint">Loading chain events…</div>
-          ) : timeline.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state__title">No activity yet</div>
-              <div className="empty-state__sub">On-chain events will appear here as the challenge progresses.</div>
-            </div>
-          ) : (
-            <ChainTimeline items={timeline} />
-          )}
+          ) : (() => {
+            // Filter timeline to show only current user's events + challenge-wide events (Created, Finalized)
+            const me = address?.toLowerCase();
+            const globalEvents = new Set(["ChallengeCreated", "Finalized", "OutcomeSet"]);
+            const myTimeline = me
+              ? timeline.filter(
+                  (t) =>
+                    globalEvents.has(t.name) ||
+                    (t.who && t.who.toLowerCase() === me)
+                )
+              : timeline.filter((t) => globalEvents.has(t.name));
+            return myTimeline.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state__title">No activity yet</div>
+                <div className="empty-state__sub">Your on-chain actions will appear here as you participate.</div>
+              </div>
+            ) : (
+              <ChainTimeline items={myTimeline} />
+            );
+          })()}
         </div>
       )}
     </div>

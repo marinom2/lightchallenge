@@ -132,31 +132,50 @@ export async function verifyByTxReceipt(
       params: [txHash],
     });
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+
     const res = await fetch(RPC_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body,
+      signal: controller.signal,
     });
+
+    clearTimeout(timeout);
 
     const json = await res.json();
     const receipt = json?.result;
-    if (!receipt) return null;
+    if (!receipt) {
+      console.warn(`[txReceiptAuth] no receipt for ${txHash} (RPC: ${RPC_URL})`);
+      return null;
+    }
 
     // Transaction must have succeeded (status 0x1)
-    if (receipt.status !== "0x1") return null;
+    if (receipt.status !== "0x1") {
+      console.warn(`[txReceiptAuth] tx ${txHash} status=${receipt.status}`);
+      return null;
+    }
 
     // Verify `from` matches claimed address
     const txFrom = (receipt.from as string || "").toLowerCase();
-    if (txFrom !== claimedAddress.toLowerCase()) return null;
+    if (txFrom !== claimedAddress.toLowerCase()) {
+      console.warn(`[txReceiptAuth] from mismatch: receipt=${txFrom} claimed=${claimedAddress.toLowerCase()}`);
+      return null;
+    }
 
     // Optionally verify the tx was sent to the expected contract
     if (expectedTo) {
       const txTo = (receipt.to as string || "").toLowerCase();
-      if (txTo !== expectedTo.toLowerCase()) return null;
+      if (txTo !== expectedTo.toLowerCase()) {
+        console.warn(`[txReceiptAuth] to mismatch: receipt=${txTo} expected=${expectedTo.toLowerCase()}`);
+        return null;
+      }
     }
 
     return { address: claimedAddress };
-  } catch {
+  } catch (err) {
+    console.error(`[txReceiptAuth] RPC error for ${txHash}:`, err);
     return null;
   }
 }

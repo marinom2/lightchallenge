@@ -224,6 +224,12 @@ enum ChallengePhase {
             return .ended
         }
 
+        // No end date but status is Active — check proof deadline as a fallback.
+        // If the proof deadline has passed, the challenge is effectively ended.
+        if let deadline = detail.proofDeadlineDate, deadline <= now {
+            return .ended
+        }
+
         if detail.isActive {
             return .active(remaining: 0)
         }
@@ -304,6 +310,12 @@ enum UserChallengeState {
         if case .finalized = phase { return .ended }
         if case .ended = phase { return .ended }
 
+        // Safety: if the challenge end date has passed, show ended regardless of phase.
+        // This handles the edge case where endsDate is nil but the challenge is effectively over
+        // (e.g. status "Active" on-chain but proofDeadline has passed).
+        if let end = detail.endsDate, end <= Date() { return .ended }
+        if let deadline = detail.proofDeadlineDate, deadline <= Date() { return .ended }
+
         return .notJoined
     }
 }
@@ -340,8 +352,9 @@ struct ChallengeProgressHero: View {
     private var metricLabel: String { rules?.metricLabel ?? "" }
 
     /// Whether the user can tap to see detailed progress metrics.
+    /// Always enabled — even non-participants can view the progress sheet.
     private var canViewProgress: Bool {
-        userState != .notJoined
+        true
     }
 
     var body: some View {
@@ -655,6 +668,17 @@ struct ChallengeProgressHero: View {
 
     // MARK: - Action Button
 
+    /// Whether the challenge is still joinable (end date not passed, status active).
+    private var isJoinable: Bool {
+        // Can't join if end date has passed
+        if let end = detail.endsDate, end <= Date() { return false }
+        // Can't join if proof deadline has passed
+        if let deadline = detail.proofDeadlineDate, deadline <= Date() { return false }
+        // Can't join if finalized/canceled
+        if detail.status == "Finalized" || detail.status == "Canceled" { return false }
+        return true
+    }
+
     @ViewBuilder
     private var actionButton: some View {
         switch userState {
@@ -663,13 +687,20 @@ struct ChallengeProgressHero: View {
                 ProgressView()
                     .tint(LC.accent)
                     .frame(maxWidth: .infinity, minHeight: 50)
-            } else {
+            } else if isJoinable {
                 Button {
                     onAction(.join)
                 } label: {
                     Text("Join Challenge")
                 }
                 .buttonStyle(LCGoldButton())
+            } else {
+                Button {
+                    onAction(.viewResults)
+                } label: {
+                    Text("View Details")
+                }
+                .buttonStyle(LCSecondaryButton())
             }
 
         case .active:
@@ -698,12 +729,14 @@ struct ChallengeProgressHero: View {
             EmptyView()
 
         case .completed:
+            // Claim button only shown by the completedCard in ChallengeDetailView
+            // which checks on-chain eligibility. Hero just shows share.
             Button {
-                onAction(.claimReward)
+                onAction(.share)
             } label: {
-                Label("Claim Reward", systemImage: "gift.fill")
+                Label("Share Result", systemImage: "square.and.arrow.up")
             }
-            .buttonStyle(LCGoldButton())
+            .buttonStyle(LCSecondaryButton())
 
         case .failed:
             Button {
@@ -729,9 +762,12 @@ struct ChallengeProgressHero: View {
         guard !hasLoaded else { return }
         hasLoaded = true
 
-        let start = detail.startDate ?? detail.endsDate?.addingTimeInterval(-7 * 86400) ?? Date().addingTimeInterval(-7 * 86400)
-        let end = min(Date(), detail.endsDate ?? Date())
-        guard end > start else { return }
+        let challengeStart = detail.startDate ?? detail.endsDate?.addingTimeInterval(-7 * 86400) ?? Date().addingTimeInterval(-7 * 86400)
+        let start = challengeStart
+        // Use exact challenge end time for ended challenges, now for active ones
+        let challengeEnd = detail.endsDate ?? Date()
+        let end = challengeEnd < Date() ? challengeEnd : Date()
+        guard end >= start else { return }
 
         await healthService.ensureAuthorization()
         await healthService.collectEvidence(from: start, to: end)

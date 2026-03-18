@@ -256,7 +256,7 @@ Once contracts are deployed, configure `webapp/.env.local` for the Next.js app a
 # Chain
 NEXT_PUBLIC_CHAIN_ID=504
 NEXT_PUBLIC_RPC_URL=https://light-testnet-rpc.lightchain.ai
-NEXT_PUBLIC_EXPLORER_URL=https://testnet-explorer.lightchain.ai
+NEXT_PUBLIC_EXPLORER_URL=https://testnet.lightscan.app
 NEXT_PUBLIC_NATIVE_SYMBOL=LCAI
 
 # Contract addresses (auto-read from public/deployments/lightchain.json)

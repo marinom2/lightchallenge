@@ -34,18 +34,24 @@ struct ChallengesView: View {
 
     // MARK: - Computed
 
+    /// Activities deduplicated by challengeId (keeps first occurrence).
+    private var deduplicatedActivities: [MyChallenge] {
+        var seen = Set<String>()
+        return activities.filter { seen.insert($0.challengeId).inserted }
+    }
+
     private var evidenceCount: Int {
-        activities.filter { a in a.hasEvidence != true && a.verdictPass == nil }.count
+        deduplicatedActivities.filter { a in a.hasEvidence != true && a.verdictPass == nil }.count
     }
 
     private var claimableCount: Int {
-        activities.filter { a in
-            a.verdictPass != nil && (eligibility[a.challengeId]?.hasAnyClaim == true)
+        deduplicatedActivities.filter { a in
+            a.isOnChain && a.verdictPass != nil && (eligibility[a.challengeId]?.hasAnyClaim == true)
         }.count
     }
 
     private var passedCount: Int {
-        activities.filter { $0.verdictPass == true }.count
+        deduplicatedActivities.filter { $0.verdictPass == true }.count
     }
 
     private var gridColumns: [GridItem] {
@@ -93,13 +99,13 @@ struct ChallengesView: View {
                 switch hub {
                 case .evidence:
                     EvidenceHubView(
-                        activities: activities.filter { $0.hasEvidence != true && $0.verdictPass == nil },
+                        activities: deduplicatedActivities,
                         challengeMetas: challengeMetas,
                         selectedProof: $selectedProof
                     )
                 case .myChallenges:
                     MyChallengesListView(
-                        activities: activities,
+                        activities: deduplicatedActivities,
                         challengeMetas: challengeMetas,
                         eligibility: eligibility,
                         selectedProof: $selectedProof,
@@ -108,7 +114,7 @@ struct ChallengesView: View {
                     )
                 case .claim:
                     ClaimHubView(
-                        activities: activities.filter { $0.verdictPass != nil && eligibility[$0.challengeId]?.hasAnyClaim == true },
+                        activities: deduplicatedActivities.filter { $0.isOnChain && $0.verdictPass != nil && eligibility[$0.challengeId]?.hasAnyClaim == true },
                         challengeMetas: challengeMetas,
                         eligibility: eligibility,
                         claimingId: $claimingId,
@@ -175,7 +181,7 @@ struct ChallengesView: View {
                     // My Challenges
                     actionCard(
                         title: "My Challenges",
-                        subtitle: "\(activities.count) total",
+                        subtitle: "\(deduplicatedActivities.count) total",
                         icon: "flame.fill",
                         gradient: [Color(hex: 0xF97316), Color(hex: 0xEA580C)],
                         badge: nil
@@ -197,7 +203,7 @@ struct ChallengesView: View {
                 .padding(.horizontal, LC.space16)
 
                 // Recent activity preview
-                if !activities.isEmpty {
+                if !deduplicatedActivities.isEmpty {
                     recentSection
                 }
             }
@@ -274,7 +280,7 @@ struct ChallengesView: View {
 
     private var summaryHeader: some View {
         HStack(spacing: LC.space16) {
-            summaryStatPill(value: "\(activities.count)", label: "Total", icon: "flame.fill", color: LC.accent)
+            summaryStatPill(value: "\(deduplicatedActivities.count)", label: "Total", icon: "flame.fill", color: LC.accent)
             summaryStatPill(value: "\(evidenceCount)", label: "Proof Due", icon: "exclamationmark.circle.fill", color: LC.warning)
             summaryStatPill(value: "\(passedCount)", label: "Passed", icon: "checkmark.circle.fill", color: LC.success)
             summaryStatPill(value: "\(claimableCount)", label: "Claimable", icon: "trophy.fill", color: LC.accent)
@@ -319,7 +325,7 @@ struct ChallengesView: View {
             }
             .padding(.horizontal, LC.space16)
 
-            ForEach(activities.prefix(3)) { activity in
+            ForEach(deduplicatedActivities.prefix(3)) { activity in
                 Button {
                     navigationPath.append(activity.challengeId)
                 } label: {
@@ -544,14 +550,33 @@ struct EvidenceHubView: View {
     @Binding var selectedProof: ProofTarget?
     @Environment(\.colorScheme) private var scheme
 
+    private var pending: [MyChallenge] {
+        activities.filter { $0.hasEvidence != true && $0.verdictPass == nil }
+    }
+
+    private var submitted: [MyChallenge] {
+        activities.filter { $0.hasEvidence == true }
+    }
+
     var body: some View {
         ScrollView {
             if activities.isEmpty {
                 emptyState
             } else {
                 LazyVStack(spacing: LC.space12) {
-                    ForEach(activities) { activity in
-                        evidenceRow(activity)
+                    if !pending.isEmpty {
+                        sectionHeader("Pending", icon: "exclamationmark.circle.fill", color: LC.warning, count: pending.count)
+                        ForEach(pending) { activity in
+                            evidenceRow(activity, isSubmitted: false)
+                        }
+                    }
+
+                    if !submitted.isEmpty {
+                        sectionHeader("Submitted", icon: "checkmark.circle.fill", color: LC.success, count: submitted.count)
+                            .padding(.top, pending.isEmpty ? 0 : LC.space8)
+                        ForEach(submitted) { activity in
+                            evidenceRow(activity, isSubmitted: true)
+                        }
                     }
                 }
                 .padding(.horizontal, LC.space16)
@@ -563,7 +588,26 @@ struct EvidenceHubView: View {
         .navigationBarTitleDisplayMode(.large)
     }
 
-    private func evidenceRow(_ activity: MyChallenge) -> some View {
+    private func sectionHeader(_ title: String, icon: String, color: Color, count: Int) -> some View {
+        HStack(spacing: LC.space6) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(color)
+            Text(title)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(LC.textPrimary(scheme))
+            Spacer()
+            Text("\(count)")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Capsule().fill(color))
+        }
+        .padding(.top, LC.space8)
+    }
+
+    private func evidenceRow(_ activity: MyChallenge, isSubmitted: Bool) -> some View {
         let meta = challengeMetas[activity.challengeId]
 
         return VStack(alignment: .leading, spacing: LC.space12) {
@@ -574,7 +618,7 @@ struct EvidenceHubView: View {
                     .frame(width: 40, height: 40)
                     .background(
                         RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous)
-                            .fill(LC.fitnessGradient)
+                            .fill(isSubmitted ? LinearGradient(colors: [LC.success, Color(hex: 0x16A34A)], startPoint: .topLeading, endPoint: .bottomTrailing) : LC.fitnessGradient)
                     )
 
                 VStack(alignment: .leading, spacing: LC.space2) {
@@ -583,7 +627,11 @@ struct EvidenceHubView: View {
                         .foregroundStyle(LC.textPrimary(scheme))
                         .lineLimit(1)
 
-                    if let end = meta?.endsDate {
+                    if isSubmitted {
+                        Text("Evidence already submitted")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(LC.success)
+                    } else if let end = meta?.endsDate {
                         let remaining = end.timeIntervalSinceNow
                         Text(remaining <= 0 ? "Challenge ended" : "Ends \(end.relativeShort)")
                             .font(.caption2.weight(.medium))
@@ -600,28 +648,30 @@ struct EvidenceHubView: View {
                 }
             }
 
-            // Submit button
-            Button {
-                selectedProof = ProofTarget(
-                    challengeId: activity.challengeId,
-                    modelHash: meta?.proof?.modelHash ?? meta?.modelHash ?? ServerConfig.defaultFitnessModelHash
-                )
-            } label: {
-                HStack(spacing: LC.space8) {
-                    Image(systemName: "heart.text.square.fill")
-                        .font(.system(size: 14))
-                    Text("Submit Evidence")
-                        .font(.caption.weight(.bold))
+            if !isSubmitted {
+                // Submit button — only for pending
+                Button {
+                    selectedProof = ProofTarget(
+                        challengeId: activity.challengeId,
+                        modelHash: meta?.proof?.modelHash ?? meta?.modelHash ?? ServerConfig.defaultFitnessModelHash
+                    )
+                } label: {
+                    HStack(spacing: LC.space8) {
+                        Image(systemName: "heart.text.square.fill")
+                            .font(.system(size: 14))
+                        Text("Submit Evidence")
+                            .font(.caption.weight(.bold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 36)
+                    .background(
+                        RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous)
+                            .fill(LC.accent)
+                    )
                 }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 36)
-                .background(
-                    RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous)
-                        .fill(LC.accent)
-                )
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
         .padding(LC.space16)
         .background(
@@ -639,9 +689,9 @@ struct EvidenceHubView: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 48))
                 .foregroundStyle(LC.success.opacity(0.5))
-            Text("All Evidence Submitted")
+            Text("No Challenges Yet")
                 .font(.headline)
-            Text("No challenges need evidence right now.")
+            Text("Join a challenge to start submitting evidence.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -661,11 +711,11 @@ struct MyChallengesListView: View {
     @Binding var claimingId: String?
     var onClaim: (MyChallenge, ContractService.ClaimEligibility) async -> Void
     @State private var selectedFilter: FitnessType? = nil
+    @State private var expandedSections: Set<String> = ["needsAction", "active"]
     @Environment(\.colorScheme) private var scheme
 
     // MARK: - Filtering
 
-    /// Activity types user actually participates in.
     private var availableFilters: [FitnessType] {
         FitnessType.allCases.filter { type in
             activities.contains { a in
@@ -683,10 +733,15 @@ struct MyChallengesListView: View {
         }
     }
 
-    // MARK: - Status Groups
+    // MARK: - Status Groups (sorted)
+
+    private var needsActionIds: Set<String> {
+        Set(needsActionUnsorted.map(\.id))
+    }
 
     /// Needs Action: no evidence submitted yet, OR has a claimable reward.
-    private var needsAction: [MyChallenge] {
+    /// Sorted by due date (earliest deadline first).
+    private var needsActionUnsorted: [MyChallenge] {
         filtered.filter { a in
             if a.hasEvidence != true && a.verdictPass == nil { return true }
             if a.verdictPass != nil && eligibility[a.challengeId]?.hasAnyClaim == true { return true }
@@ -694,10 +749,26 @@ struct MyChallengesListView: View {
         }
     }
 
+    private var needsAction: [MyChallenge] {
+        needsActionUnsorted.sorted { a, b in
+            let aEnd = challengeMetas[a.challengeId]?.endsDate ?? .distantFuture
+            let bEnd = challengeMetas[b.challengeId]?.endsDate ?? .distantFuture
+            return aEnd < bEnd
+        }
+    }
+
     /// Active: evidence submitted, awaiting verdict.
+    /// Sorted by most recent start date, then by stake amount descending.
     private var active: [MyChallenge] {
         filtered.filter { a in
             a.verdictPass == nil && a.hasEvidence == true && !needsActionIds.contains(a.id)
+        }.sorted { a, b in
+            let aStart = challengeMetas[a.challengeId]?.startDate ?? .distantPast
+            let bStart = challengeMetas[b.challengeId]?.startDate ?? .distantPast
+            if aStart != bStart { return aStart > bStart }
+            let aStake = Double(challengeMetas[a.challengeId]?.funds?.stake ?? "0") ?? 0
+            let bStake = Double(challengeMetas[b.challengeId]?.funds?.stake ?? "0") ?? 0
+            return aStake > bStake
         }
     }
 
@@ -715,47 +786,103 @@ struct MyChallengesListView: View {
         }
     }
 
-    private var needsActionIds: Set<String> {
-        Set(needsAction.map(\.id))
-    }
-
     // MARK: - Body
 
     var body: some View {
-        List {
-            // Activity type filters
-            if !availableFilters.isEmpty {
-                Section {
+        ScrollView {
+            VStack(spacing: 0) {
+                // Activity type filters
+                if !availableFilters.isEmpty {
                     filterChips
+                        .padding(.bottom, LC.space12)
                 }
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
-            }
 
-            // Status sections (Apple Fitness style)
-            if !needsAction.isEmpty {
-                statusSection("Needs Action", icon: "exclamationmark.circle.fill", color: LC.warning, items: needsAction)
-            }
-            if !active.isEmpty {
-                statusSection("Active", icon: "figure.run", color: LC.accent, items: active)
-            }
-            if !passed.isEmpty {
-                statusSection("Passed", icon: "checkmark.circle.fill", color: LC.success, items: passed)
-            }
-            if !failed.isEmpty {
-                statusSection("Failed", icon: "xmark.circle.fill", color: LC.danger, items: failed)
-            }
+                // Collapsible sections (Apple Fitness style)
+                if !needsAction.isEmpty {
+                    collapsibleSection("needsAction", title: "Needs Action", icon: "exclamationmark.circle.fill", color: LC.warning, items: needsAction)
+                }
+                if !active.isEmpty {
+                    collapsibleSection("active", title: "Active", icon: "figure.run", color: LC.accent, items: active)
+                }
+                if !passed.isEmpty {
+                    collapsibleSection("passed", title: "Passed", icon: "checkmark.circle.fill", color: LC.success, items: passed)
+                }
+                if !failed.isEmpty {
+                    collapsibleSection("failed", title: "Failed", icon: "xmark.circle.fill", color: LC.danger, items: failed)
+                }
 
-            if filtered.isEmpty {
-                Section {
+                if filtered.isEmpty {
                     emptyState
+                        .padding(.top, LC.space48)
                 }
-                .listRowBackground(Color.clear)
             }
+            .padding(.bottom, LC.space32)
         }
-        .listStyle(.insetGrouped)
+        .background(Color(.systemGroupedBackground))
         .navigationTitle("My Challenges")
         .navigationBarTitleDisplayMode(.large)
+    }
+
+    // MARK: - Collapsible Section
+
+    private func collapsibleSection(_ key: String, title: String, icon: String, color: Color, items: [MyChallenge]) -> some View {
+        let isExpanded = expandedSections.contains(key)
+
+        return VStack(spacing: 0) {
+            // Tappable header with chevron
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    if isExpanded {
+                        expandedSections.remove(key)
+                    } else {
+                        expandedSections.insert(key)
+                    }
+                }
+            } label: {
+                HStack(spacing: LC.space8) {
+                    Image(systemName: icon)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(color)
+
+                    Text(title)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(LC.textPrimary(scheme))
+
+                    Text("\(items.count)")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(color))
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(LC.textTertiary(scheme))
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                }
+                .padding(.horizontal, LC.space16)
+                .padding(.vertical, LC.space12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            // Expandable content
+            if isExpanded {
+                LazyVStack(spacing: LC.space8) {
+                    ForEach(items) { activity in
+                        NavigationLink(value: activity.challengeId) {
+                            challengeRow(activity, sectionColor: color)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, LC.space16)
+                .padding(.bottom, LC.space12)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
     }
 
     // MARK: - Filter Chips
@@ -792,32 +919,6 @@ struct MyChallengesListView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Status Section
-
-    private func statusSection(_ title: String, icon: String, color: Color, items: [MyChallenge]) -> some View {
-        Section {
-            ForEach(items) { activity in
-                NavigationLink(value: activity.challengeId) {
-                    challengeRow(activity, sectionColor: color)
-                }
-            }
-        } header: {
-            HStack(spacing: LC.space6) {
-                Image(systemName: icon)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(color)
-                Text(title)
-                Spacer()
-                Text("\(items.count)")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(color))
-            }
-        }
-    }
-
     // MARK: - Challenge Row (Apple Fitness style)
 
     private func challengeRow(_ activity: MyChallenge, sectionColor: Color) -> some View {
@@ -825,7 +926,6 @@ struct MyChallengesListView: View {
         let fitnessIcon = activityIcon(for: meta)
 
         return HStack(spacing: LC.space12) {
-            // Activity type icon (green like Apple Fitness)
             Image(systemName: fitnessIcon)
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(sectionColor)
@@ -837,11 +937,37 @@ struct MyChallengesListView: View {
                     .foregroundStyle(LC.textPrimary(scheme))
                     .lineLimit(1)
 
-                Text(activity.statusLabel)
-                    .font(.caption)
-                    .foregroundStyle(statusColor(activity))
+                HStack(spacing: LC.space4) {
+                    Text(activity.statusLabel)
+                        .font(.caption)
+                        .foregroundStyle(statusColor(activity))
+
+                    if let end = meta?.endsDate {
+                        Text("·")
+                            .font(.caption)
+                            .foregroundStyle(LC.textTertiary(scheme))
+                        Text(end.timeIntervalSinceNow > 0 ? "Ends \(end.relativeShort)" : "Ended")
+                            .font(.caption)
+                            .foregroundStyle(LC.textSecondary(scheme))
+                    }
+                }
             }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(LC.textTertiary(scheme))
         }
+        .padding(LC.space12)
+        .background(
+            RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
+                .fill(LC.cardBg(scheme))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
+                .stroke(LC.cardBorder(scheme), lineWidth: 1)
+        )
     }
 
     // MARK: - Helpers
@@ -882,19 +1008,30 @@ struct ClaimHubView: View {
     let eligibility: [String: ContractService.ClaimEligibility]
     @Binding var claimingId: String?
     var onClaim: (MyChallenge, ContractService.ClaimEligibility) async -> Void
+    @State private var expandedSections: Set<String> = ["winner", "cashback"]
     @Environment(\.colorScheme) private var scheme
+
+    private var winners: [MyChallenge] {
+        activities.filter { $0.verdictPass == true }
+    }
+
+    private var cashback: [MyChallenge] {
+        activities.filter { $0.verdictPass != true }
+    }
 
     var body: some View {
         ScrollView {
             if activities.isEmpty {
                 emptyState
             } else {
-                LazyVStack(spacing: LC.space12) {
-                    ForEach(activities) { activity in
-                        claimRow(activity)
+                VStack(spacing: 0) {
+                    if !winners.isEmpty {
+                        claimSection("winner", title: "Winner Rewards", icon: "trophy.fill", color: LC.success, items: winners)
+                    }
+                    if !cashback.isEmpty {
+                        claimSection("cashback", title: "Cashback", icon: "arrow.uturn.backward.circle.fill", color: LC.warning, items: cashback)
                     }
                 }
-                .padding(.horizontal, LC.space16)
                 .padding(.bottom, LC.space32)
             }
         }
@@ -903,42 +1040,106 @@ struct ClaimHubView: View {
         .navigationBarTitleDisplayMode(.large)
     }
 
+    // MARK: - Collapsible Section
+
+    private func claimSection(_ key: String, title: String, icon: String, color: Color, items: [MyChallenge]) -> some View {
+        let isExpanded = expandedSections.contains(key)
+
+        return VStack(spacing: 0) {
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    if isExpanded {
+                        expandedSections.remove(key)
+                    } else {
+                        expandedSections.insert(key)
+                    }
+                }
+            } label: {
+                HStack(spacing: LC.space8) {
+                    Image(systemName: icon)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(color)
+
+                    Text(title)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(LC.textPrimary(scheme))
+
+                    Text("\(items.count)")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(color))
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(LC.textTertiary(scheme))
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                }
+                .padding(.horizontal, LC.space16)
+                .padding(.vertical, LC.space12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                LazyVStack(spacing: LC.space8) {
+                    ForEach(items) { activity in
+                        claimRow(activity)
+                    }
+                }
+                .padding(.horizontal, LC.space16)
+                .padding(.bottom, LC.space12)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+
     private func claimRow(_ activity: MyChallenge) -> some View {
         let meta = challengeMetas[activity.challengeId]
         let elig = eligibility[activity.challengeId]
 
         return VStack(alignment: .leading, spacing: LC.space12) {
-            HStack(spacing: LC.space12) {
-                Image(systemName: "trophy.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(
-                        RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color(hex: 0xEAB308), Color(hex: 0xCA8A04)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
+            NavigationLink(value: activity.challengeId) {
+                HStack(spacing: LC.space12) {
+                    Image(systemName: "trophy.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(
+                            RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(hex: 0xEAB308), Color(hex: 0xCA8A04)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
                                 )
-                            )
-                    )
+                        )
 
-                VStack(alignment: .leading, spacing: LC.space2) {
-                    Text(meta?.displayTitle ?? "Challenge #\(activity.challengeId)")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(LC.textPrimary(scheme))
-                        .lineLimit(1)
+                    VStack(alignment: .leading, spacing: LC.space2) {
+                        Text(meta?.displayTitle ?? "Challenge #\(activity.challengeId)")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(LC.textPrimary(scheme))
+                            .lineLimit(1)
 
-                    if activity.verdictPass == true {
-                        LCStatusBadge(text: "Winner", color: LC.success)
-                    } else {
-                        LCStatusBadge(text: "Cashback", color: LC.warning)
+                        if activity.verdictPass == true {
+                            LCStatusBadge(text: "Winner", color: LC.success)
+                        } else {
+                            LCStatusBadge(text: "Cashback", color: LC.warning)
+                        }
                     }
-                }
 
-                Spacer()
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(LC.textTertiary(scheme))
+                }
             }
+            .buttonStyle(.plain)
 
             if let elig {
                 Button {

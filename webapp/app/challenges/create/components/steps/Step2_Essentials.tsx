@@ -160,9 +160,7 @@ export default function Step2_Essentials({
     });
   }, [dispatch, tagDraft]);
 
-  const basicsDone =
-    state.essentials.title.trim().length > 0 &&
-    state.essentials.description.trim().length > 0;
+  const basicsDone = state.essentials.title.trim().length > 0;
 
   const tagsDone = state.essentials.tags.length > 0;
 
@@ -192,60 +190,35 @@ export default function Step2_Essentials({
     <div className="space-y-4">
       <BuilderCard
         step={CARD_NUMBERS.basics}
-        title="Title & description"
-        subtitle="What are participants competing to do?"
+        title="Title"
+        subtitle="Name your challenge — description is auto-generated from rules."
         done={basicsDone}
         active={activeCard === "basics"}
         onExpand={() => setActiveCard("basics")}
         onDone={basicsDone ? () => goNext("basics") : undefined}
         summary={
-          <div className="space-y-1">
-            <div className="font-medium text-(--text)">
-              {state.essentials.title || "Untitled"}
-            </div>
-            <div className="line-clamp-2">
-              {state.essentials.description || "No description yet."}
-            </div>
+          <div className="font-medium text-(--text)">
+            {state.essentials.title || "Untitled"}
           </div>
         }
       >
-        <div className="space-y-3">
-          <Field label="Title" hint="Keep it short and specific.">
-            <input
-              className="input"
-              value={state.essentials.title}
-              onChange={(e) =>
-                dispatch({
-                  type: "SET_ESSENTIALS",
-                  payload: { title: e.target.value },
-                })
-              }
-              placeholder={
-                state.intent.type === "GAMING"
-                  ? "Dota 5v5 — First to 2 wins"
-                  : "10k steps every day"
-              }
-            />
-          </Field>
-
-          <Field
-            label="Description"
-            hint="Optional. Add rules or context."
-          >
-            <textarea
-              className="input"
-              rows={4}
-              value={state.essentials.description}
-              onChange={(e) =>
-                dispatch({
-                  type: "SET_ESSENTIALS",
-                  payload: { description: e.target.value },
-                })
-              }
-              placeholder="Keep it objective. Example: Winner is the team that wins the match on official match history."
-            />
-          </Field>
-        </div>
+        <Field label="Title" hint="Keep it short and specific. Description will be auto-generated from rules.">
+          <input
+            className="input"
+            value={state.essentials.title}
+            onChange={(e) =>
+              dispatch({
+                type: "SET_ESSENTIALS",
+                payload: { title: e.target.value },
+              })
+            }
+            placeholder={
+              state.intent.type === "GAMING"
+                ? "Dota 5v5 — First to 2 wins"
+                : "10k steps every day"
+            }
+          />
+        </Field>
       </BuilderCard>
 
       <BuilderCard

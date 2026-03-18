@@ -42,6 +42,9 @@ struct ChallengeDetailView: View {
     @State private var showingShareCard = false
     @State private var isJoining = false
     @State private var joinError: String?
+    @State private var showingTopUp = false
+    @State private var isTopUpInProgress = false
+    @State private var topUpError: String?
     @State private var showingTrackerNudge = false
     @State private var showingProgressMetrics = false
     @State private var participantLoaded = false
@@ -49,6 +52,10 @@ struct ChallengeDetailView: View {
     @State private var fileUploadStatus: FileUploadStatus = .idle
     @State private var _reputation: Reputation?
     @State private var tokenPrice: Double?
+    @State private var claimEligibility: ContractService.ClaimEligibility?
+    @State private var isClaiming = false
+    @State private var claimError: String?
+    @State private var claimSuccess = false
     @Environment(\.colorScheme) private var scheme
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -142,6 +149,21 @@ struct ChallengeDetailView: View {
                 .presentationDragIndicator(.visible)
             }
         }
+        .sheet(isPresented: $showingTopUp) {
+            TopUpSheet(
+                challengeId: challengeId,
+                detail: detail,
+                tokenPrice: tokenPrice,
+                isTopUpInProgress: $isTopUpInProgress,
+                topUpError: $topUpError,
+                onTopUp: { amountWei in
+                    await topUpChallenge(amountWei: amountWei)
+                },
+                onDismiss: { showingTopUp = false }
+            )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
     }
 
     // MARK: - Detail Content
@@ -185,7 +207,7 @@ struct ChallengeDetailView: View {
         case .submitProof:
             showingProofFlow = true
         case .claimReward:
-            appState.selectedTab = .challenges
+            Task { await executeClaim() }
         case .viewResults:
             showingShareCard = true
         case .viewProgress:
@@ -348,17 +370,15 @@ struct ChallengeDetailView: View {
                 autoProofStatusRow(proofStatus)
             }
 
-            // Invite a friend — only when join window is still open
-            if isJoinWindowOpen {
-                ShareLink(
-                    item: URL(string: "\(appState.serverURL)/challenge/\(challengeId)")!,
-                    subject: Text("Join my challenge"),
-                    message: Text("Think you can beat me? Join \"\(detail.displayTitle)\" on LightChallenge!")
-                ) {
+            // Top up — only when user has joined AND join window is still open
+            if detail.youJoined == true && isJoinWindowOpen {
+                Button {
+                    showingTopUp = true
+                } label: {
                     HStack(spacing: LC.space8) {
-                        Image(systemName: "person.badge.plus")
+                        Image(systemName: "plus.circle.fill")
                             .font(.system(size: 14, weight: .semibold))
-                        Text("Invite a Friend")
+                        Text("Top Up Stake")
                             .font(.subheadline.weight(.semibold))
                     }
                     .foregroundStyle(.white)
@@ -371,6 +391,24 @@ struct ChallengeDetailView: View {
                             endPoint: .trailing
                         )
                     )
+                    .clipShape(RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous))
+                }
+
+                ShareLink(
+                    item: URL(string: "\(appState.serverURL)/challenge/\(challengeId)")!,
+                    subject: Text("Join my challenge"),
+                    message: Text("Think you can beat me? Join \"\(detail.displayTitle)\" on LightChallenge!")
+                ) {
+                    HStack(spacing: LC.space8) {
+                        Image(systemName: "person.badge.plus")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Invite a Friend")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .foregroundStyle(LC.accent)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(LC.accent.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous))
                 }
             }
@@ -494,6 +532,53 @@ struct ChallengeDetailView: View {
                 Spacer()
             }
 
+            // Claim status
+            if let elig = claimEligibility {
+                if elig.hasAnyClaim && !claimSuccess {
+                    Button {
+                        Task { await executeClaim() }
+                    } label: {
+                        HStack(spacing: LC.space8) {
+                            if isClaiming {
+                                ProgressView().tint(.white).controlSize(.small)
+                            } else {
+                                Image(systemName: "trophy.fill")
+                                    .font(.system(size: 14))
+                            }
+                            Text(isClaiming ? "Claiming..." : "Claim Reward")
+                                .font(.subheadline.weight(.bold))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(
+                            RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
+                                .fill(LC.success)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isClaiming)
+                } else if claimSuccess {
+                    HStack(spacing: LC.space8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(LC.success)
+                        Text("Reward claimed!")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(LC.success)
+                    }
+                } else {
+                    Text("No on-chain reward available for this challenge")
+                        .font(.caption)
+                        .foregroundStyle(LC.textTertiary(scheme))
+                }
+            }
+
+            if let claimError {
+                Text(claimError)
+                    .font(.caption)
+                    .foregroundStyle(LC.danger)
+            }
+
             Button {
                 showingShareCard = true
             } label: {
@@ -538,6 +623,47 @@ struct ChallengeDetailView: View {
                     }
                 }
                 .padding(.leading, 40)
+            }
+
+            // Cashback / refund claim for failed challenges
+            if let elig = claimEligibility, (elig.canClaimLoser || elig.canClaimTreasury) && !claimSuccess {
+                Button {
+                    Task { await executeClaim() }
+                } label: {
+                    HStack(spacing: LC.space8) {
+                        if isClaiming {
+                            ProgressView().tint(.white).controlSize(.small)
+                        } else {
+                            Image(systemName: "banknote.fill")
+                                .font(.system(size: 14))
+                        }
+                        Text(isClaiming ? "Claiming..." : "Claim Cashback")
+                            .font(.caption.weight(.bold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 40)
+                    .background(
+                        RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous)
+                            .fill(LC.warning)
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(isClaiming)
+            } else if claimSuccess {
+                HStack(spacing: LC.space8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(LC.success)
+                    Text("Cashback claimed!")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(LC.success)
+                }
+            }
+
+            if let claimError {
+                Text(claimError)
+                    .font(.caption)
+                    .foregroundStyle(LC.danger)
             }
         }
         .padding(LC.space16)
@@ -711,6 +837,33 @@ struct ChallengeDetailView: View {
         }
 
         isJoining = false
+    }
+
+    // MARK: - Top Up
+
+    private func topUpChallenge(amountWei: String) async {
+        isTopUpInProgress = true
+        topUpError = nil
+
+        do {
+            guard let idNum = UInt64(challengeId) else {
+                topUpError = "Invalid challenge ID"
+                isTopUpInProgress = false
+                return
+            }
+            // Uses the same joinChallengeNative — the contract allows multiple joins
+            _ = try await ContractService.shared.joinChallengeNative(
+                challengeId: idNum,
+                stakeWei: amountWei,
+                baseURL: appState.serverURL
+            )
+            await loadData()
+            showingTopUp = false
+        } catch {
+            topUpError = error.localizedDescription
+        }
+
+        isTopUpInProgress = false
     }
 
     // MARK: - Manual File Upload
@@ -923,6 +1076,7 @@ struct ChallengeDetailView: View {
             async let participantTask: () = loadParticipantStatus()
             async let reputationTask: () = loadReputation()
             _ = await (progressTask, participantTask, reputationTask)
+            await loadClaimEligibility()
         } catch {
             if detail == nil, let meta = await metaTask.value {
                 detail = ChallengeDetail.fromMeta(meta)
@@ -932,6 +1086,7 @@ struct ChallengeDetailView: View {
                 async let participantTask: () = loadParticipantStatus()
                 async let reputationTask: () = loadReputation()
                 _ = await (progressTask, participantTask, reputationTask)
+                await loadClaimEligibility()
             } else {
                 self.error = error.localizedDescription
             }
@@ -972,6 +1127,50 @@ struct ChallengeDetailView: View {
         )
     }
 
+    private func loadClaimEligibility() async {
+        guard appState.hasWallet,
+              let cid = UInt64(challengeId),
+              participantStatus?.verdictPass != nil else { return }
+        claimEligibility = await ContractService.shared.checkClaimEligibility(
+            challengeId: cid,
+            user: appState.walletAddress
+        )
+    }
+
+    private func executeClaim() async {
+        guard let elig = claimEligibility, elig.hasAnyClaim,
+              let cid = UInt64(challengeId) else {
+            claimError = "No claimable reward found"
+            return
+        }
+
+        isClaiming = true
+        claimError = nil
+
+        do {
+            // Try to finalize first (no-op if already finalized)
+            _ = try? await ContractService.shared.finalize(challengeId: cid)
+
+            if elig.canClaimWinner {
+                _ = try await ContractService.shared.claimWinner(challengeId: cid)
+            } else if elig.canClaimLoser {
+                _ = try await ContractService.shared.claimLoser(challengeId: cid)
+            }
+
+            if elig.canClaimTreasury {
+                _ = try? await ContractService.shared.treasuryClaimETH(challengeId: cid, amount: elig.allowance)
+            }
+
+            claimSuccess = true
+            // Refresh eligibility
+            await loadClaimEligibility()
+        } catch {
+            claimError = error.localizedDescription
+        }
+
+        isClaiming = false
+    }
+
     // MARK: - Garmin HealthKit Tip
 
     @ViewBuilder
@@ -988,6 +1187,162 @@ struct ChallengeDetailView: View {
             .padding(LC.space8)
             .background(LC.info.opacity(0.06))
             .clipShape(RoundedRectangle(cornerRadius: LC.radiusSM))
+        }
+    }
+}
+
+// MARK: - Top Up Sheet
+
+struct TopUpSheet: View {
+    let challengeId: String
+    let detail: ChallengeDetail?
+    let tokenPrice: Double?
+    @Binding var isTopUpInProgress: Bool
+    @Binding var topUpError: String?
+    let onTopUp: (String) async -> Void
+    let onDismiss: () -> Void
+
+    @State private var selectedAmount: Double = 0.10
+    @Environment(\.colorScheme) private var scheme
+
+    private let presets: [Double] = [0.05, 0.10, 0.25, 0.50, 1.00]
+
+    /// Max top-up: 10 LCAI per transaction to prevent accidental large transfers
+    private let maxTopUp: Double = 10.0
+
+    private var weiString: String {
+        let wei = selectedAmount * 1e18
+        return String(format: "%.0f", wei)
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: LC.space24) {
+                // Amount display
+                VStack(spacing: LC.space8) {
+                    Text(String(format: "%.2f", selectedAmount))
+                        .font(.system(size: 48, weight: .bold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(LC.accent)
+                    Text("LCAI")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(LC.textSecondary(scheme))
+                    if let price = tokenPrice, price > 0 {
+                        let usd = selectedAmount * price
+                        Text("≈ $\(String(format: "%.4f", usd)) USD")
+                            .font(.caption2)
+                            .foregroundStyle(LC.textTertiary(scheme))
+                    }
+                }
+                .padding(.top, LC.space16)
+
+                // Preset buttons
+                HStack(spacing: LC.space8) {
+                    ForEach(presets, id: \.self) { amount in
+                        Button {
+                            selectedAmount = amount
+                        } label: {
+                            Text(String(format: amount < 1 ? "%.2f" : "%.0f", amount))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(selectedAmount == amount ? .white : LC.textPrimary(scheme))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 36)
+                                .background(
+                                    selectedAmount == amount
+                                        ? AnyShapeStyle(LC.accent)
+                                        : AnyShapeStyle(LC.cardBg(scheme))
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous)
+                                        .stroke(selectedAmount == amount ? LC.accent : LC.cardBorder(scheme), lineWidth: 1)
+                                )
+                        }
+                    }
+                }
+                .padding(.horizontal, LC.space16)
+
+                // Stepper
+                HStack(spacing: LC.space16) {
+                    Button {
+                        selectedAmount = max(0.01, selectedAmount - 0.05)
+                    } label: {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(LC.textSecondary(scheme))
+                    }
+                    .disabled(selectedAmount <= 0.01)
+
+                    Slider(value: $selectedAmount, in: 0.01...maxTopUp, step: 0.01)
+                        .tint(LC.accent)
+
+                    Button {
+                        selectedAmount = min(maxTopUp, selectedAmount + 0.05)
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(LC.accent)
+                    }
+                    .disabled(selectedAmount >= maxTopUp)
+                }
+                .padding(.horizontal, LC.space16)
+
+                // Info
+                HStack(spacing: LC.space8) {
+                    Image(systemName: "info.circle")
+                        .font(.caption)
+                        .foregroundStyle(LC.textTertiary(scheme))
+                    Text("Funds are held in Treasury until the challenge resolves.")
+                        .font(.caption2)
+                        .foregroundStyle(LC.textTertiary(scheme))
+                }
+                .padding(.horizontal, LC.space16)
+
+                // Error
+                if let error = topUpError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(LC.danger)
+                        .padding(.horizontal, LC.space16)
+                }
+
+                Spacer()
+
+                // Confirm button
+                Button {
+                    Task { await onTopUp(weiString) }
+                } label: {
+                    HStack(spacing: LC.space8) {
+                        if isTopUpInProgress {
+                            ProgressView()
+                                .tint(.white)
+                        }
+                        Text(isTopUpInProgress ? "Processing..." : "Confirm Top Up")
+                            .font(.headline.weight(.semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(
+                        LinearGradient(
+                            colors: [LC.accent, LC.accent.opacity(0.85)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous))
+                }
+                .disabled(isTopUpInProgress || selectedAmount < 0.01)
+                .padding(.horizontal, LC.space16)
+                .padding(.bottom, LC.space16)
+            }
+            .navigationTitle("Top Up Stake")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Cancel") { onDismiss() }
+                        .foregroundStyle(LC.accent)
+                }
+            }
         }
     }
 }

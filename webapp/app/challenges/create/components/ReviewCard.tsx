@@ -5,7 +5,7 @@ import { ShieldCheck, Calendar, Coins, Tag } from "lucide-react";
 import type { ChainPolicyHints } from "../lib/chainRulesLoader";
 import type { ChallengeFormState, DerivedState } from "../state/types";
 
-import { getTemplateById } from "@/lib/templates";
+import { getTemplateById, buildAutoDescription } from "@/lib/templates";
 
 function fmtDate(d: Date | null) {
   if (!d) return "Not set";
@@ -79,9 +79,10 @@ export default function ReviewCard(props: {
         <h2 className="cw-review__title">
           {s.essentials.title || "Untitled challenge"}
         </h2>
-        {s.essentials.description ? (
-          <p className="cw-review__desc">{s.essentials.description}</p>
-        ) : null}
+        {(() => {
+          const desc = buildAutoDescription(s) || s.essentials.description;
+          return desc ? <p className="cw-review__desc">{desc}</p> : null;
+        })()}
         <div className="cw-review__chips">
           <span className="chip">
             <Tag size={12} />

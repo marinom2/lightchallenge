@@ -1,6 +1,6 @@
 import { Adapter, AdapterContext, AdapterResult, CanonicalRecord } from "./types";
 import { computeBind } from "@/lib/aivm/bind";
-import { isFitnessModel } from "./fitnessModels";
+import { isFitnessModel, getFitnessHash } from "./fitnessModels";
 
 /** EVM-friendly 0x-prefixed SHA-256 (keeps your original hashing choice) */
 function sha256hex(buf: Buffer | string): `0x${string}` {
@@ -18,7 +18,7 @@ function sha256hex(buf: Buffer | string): `0x${string}` {
  *
  * Strava sport_type values: Run, TrailRun, Walk, Hike, Ride,
  * MountainBikeRide, GravelRide, VirtualRide, EBikeRide, Swim,
- * WeightTraining, Crossfit, Workout, Yoga, etc.
+ * WeightTraining, Crossfit, Workout, Yoga, Rowing, etc.
  */
 function mapStravaType(t: string): string {
   const x = t.toLowerCase();
@@ -27,7 +27,10 @@ function mapStravaType(t: string): string {
   if (x.includes("ride") || x.includes("cycl") || x === "virtualride" || x === "ebikeride"
       || x === "mountainbikeride" || x === "gravelride") return "cycle";
   if (x.includes("swim")) return "swim";
-  if (x === "weighttraining" || x === "crossfit" || x === "workout"
+  if (x === "yoga" || x === "pilates") return "yoga";
+  if (x === "crossfit" || x === "hiit" || x === "highintensityintervaltraining") return "hiit";
+  if (x === "rowing" || x === "virtualrowing") return "rowing";
+  if (x === "weighttraining" || x === "workout"
       || x === "strength" || x === "weight_training") return "strength";
   if (x.includes("walk")) return "walk";
   return "walk"; // safe default for unknown types
@@ -55,8 +58,9 @@ function parseJson(json: any, userIdHash: `0x${string}`): CanonicalRecord[] {
     const duration = Number(a.elapsed_time || 0);
     const end_ts = start_ts + duration;
     const distance_m = Number(a.distance || 0);
-    const rawType = String(a.type || "").toLowerCase();
+    const rawType = String(a.type || a.sport_type || "").toLowerCase();
     const id = String(a.id ?? `json-${i}`);
+    const elev_gain_m = a.total_elevation_gain != null ? Math.round(Number(a.total_elevation_gain)) : null;
 
     return {
       provider: "strava",
@@ -67,6 +71,7 @@ function parseJson(json: any, userIdHash: `0x${string}`): CanonicalRecord[] {
       end_ts,
       duration_s: duration,
       distance_m,
+      elev_gain_m,
       steps: null,
       avg_hr_bpm: a.average_heartrate ?? null,
       source_device: "strava",
@@ -92,6 +97,7 @@ function parseCsv(csvText: string, userIdHash: `0x${string}`): CanonicalRecord[]
   const iElapsed = col("elapsed time");
   const iDist = col("distance");
   const iId = col("activity id");
+  const iElev = col("elevation gain");
 
   const safeGet = (arr: string[], idx: number) => (idx >= 0 ? arr[idx] : "");
   const toNum = (v: string) => {
@@ -108,6 +114,8 @@ function parseCsv(csvText: string, userIdHash: `0x${string}`): CanonicalRecord[]
     const distance_m = toNum(safeGet(cols, iDist));
     const rawType = safeGet(cols, iType).toLowerCase();
     const id = safeGet(cols, iId) || `csv-${i}`;
+    const elevRaw = safeGet(cols, iElev);
+    const elev_gain_m = elevRaw ? Math.round(toNum(elevRaw)) : null;
 
     return {
       provider: "strava",
@@ -118,6 +126,7 @@ function parseCsv(csvText: string, userIdHash: `0x${string}`): CanonicalRecord[]
       end_ts,
       duration_s: duration,
       distance_m,
+      elev_gain_m,
       steps: null,
       avg_hr_bpm: null,
       source_device: "strava",
@@ -138,16 +147,11 @@ export const stravaAdapter: Adapter = {
   },
   async ingest(input: { file?: Buffer; json?: any; context: AdapterContext }): Promise<AdapterResult> {
     const { context } = input;
-    const { challengeId, subject, params } = context;
+    const { challengeId, subject, modelHash, params } = context;
+    const h = modelHash.toLowerCase();
 
-    const startTs = Number(params?.startTs);
-    const endTs = Number(params?.endTs);
-    const minMeters = Number(params?.minMeters ?? 5000);
-
-    // Accept CSV or JSON; default allowed types are run, walk, ride
-    const allowedTypes: string[] = String(params?.types ?? "run,walk,ride")
-      .split(",")
-      .map((s) => s.trim().toLowerCase());
+    const startTs = Number(params?.startTs ?? params?.start_ts ?? 0);
+    const endTs = Number(params?.endTs ?? params?.end_ts ?? Math.floor(Date.now() / 1000));
 
     const userIdHash = sha256hex(Buffer.from(String(subject)));
 
@@ -166,21 +170,36 @@ export const stravaAdapter: Adapter = {
       throw new Error("Strava adapter needs JSON or CSV file");
     }
 
-    // Aggregate by window and type
-    const windowed = records.filter(
-      (r) => r.start_ts >= startTs && r.end_ts <= endTs && allowedTypes.includes(r.type)
+    // Filter to challenge window
+    const inWindow = records.filter(
+      (r) => r.start_ts >= startTs && r.end_ts <= endTs
     );
-    const distance_m = Math.round(
-      windowed.reduce((a, r) => a + (r.distance_m ?? 0), 0)
-    );
-    const success = distance_m >= minMeters ? 1n : 0n;
 
-    // Public signals + commitment
     const bind = computeBind(challengeId, subject);
-    const publicSignals = [bind, success, BigInt(distance_m)];
-    const dataHash = sha256hex(
-      Buffer.from(JSON.stringify({ startTs, endTs, distance_m }))
-    );
+    let publicSignals: bigint[];
+    let dataHash: `0x${string}`;
+
+    if (h === getFitnessHash("fitness.hiking@1")) {
+      // Hiking: sum elevation gain from hike records
+      const elev_gain_m = Math.round(
+        inWindow
+          .filter(r => r.type === "hike")
+          .reduce((a, r) => a + (r.elev_gain_m ?? 0), 0)
+      );
+      const minElev = Number(params?.min_elev_gain_m ?? params?.minElevGainM ?? 1000);
+      const success = elev_gain_m >= minElev ? 1n : 0n;
+      publicSignals = [bind, success, BigInt(elev_gain_m)];
+      dataHash = sha256hex(Buffer.from(JSON.stringify({ startTs, endTs, elev_gain_m })));
+    } else {
+      // Generic distance aggregation — accepts all activity types in window
+      const distance_m = Math.round(
+        inWindow.reduce((a, r) => a + (r.distance_m ?? 0), 0)
+      );
+      const minMeters = Number(params?.minMeters ?? params?.min_distance_m ?? 5000);
+      const success = distance_m >= minMeters ? 1n : 0n;
+      publicSignals = [bind, success, BigInt(distance_m)];
+      dataHash = sha256hex(Buffer.from(JSON.stringify({ startTs, endTs, distance_m })));
+    }
 
     return { records, publicSignals, dataHash };
   },

@@ -27,6 +27,7 @@ import { ADDR, ABI, ZERO_ADDR } from "@/lib/contracts";
 import { getKind, type ChallengeKindKey } from "@/lib/challengeKinds";
 import { getTemplateByIdSync } from "@/lib/templateRegistry";
 import { getModelFromRegistry } from "@/lib/modelRegistry";
+import { buildAutoDescription } from "@/lib/templates";
 import {
   resolveChallengeBinding,
   makeBenchmarkHash,
@@ -405,7 +406,7 @@ export function useCreateChallenge() {
         await saveLocalMeta({
           id: String(challengeId),
           title: state.essentials.title,
-          description: state.essentials.description,
+          description: buildAutoDescription(state) || state.essentials.description || "",
           category: state.intent.type === "FITNESS" ? "fitness" : "gaming",
           params: aivmMeta.params,
           tags: [...(state.essentials.tags ?? []), "aivm", "lightchain-poi"],

@@ -133,7 +133,7 @@ export async function POST(
       : undefined;
 
     // Process fitness platforms
-    const fitnessProviders = ["apple", "strava", "fitbit", "garmin"];
+    const fitnessProviders = ["apple", "strava", "fitbit", "garmin", "googlefit"];
 
     for (const provider of fitnessProviders) {
       const account = accounts.find((a) => a.provider === provider);

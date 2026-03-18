@@ -228,17 +228,17 @@ Both types use the same on-chain contract (`ChallengePay`) which operates on bin
 
 ### Challenge Templates
 
-There are 20 code-side templates defined in `webapp/lib/templates.ts`:
+There are 26 code-side templates defined in `webapp/lib/templates.ts`:
 
 | Category | Count | Templates |
 |---|---|---|
-| Fitness | 8 | Steps (daily threshold), Steps (competitive), Running distance, Distance (competitive), Cycling distance, Hiking elevation, Swimming laps, Active minutes threshold |
+| Fitness | 15 | Steps (daily threshold), Steps (competitive), Running distance, Walking distance, Distance (competitive), Cycling distance, Hiking elevation, Swimming laps, Strength workouts, Yoga duration, HIIT sessions, Rowing distance, Calorie burn, Exercise time, Duration threshold |
 | Dota 2 | 6 | Hero kills (threshold), Private 1v1, Private 5v5, Kills (competitive), Win streak, Match wins |
 | League of Legends | 3 | Win rate (threshold), Kills (competitive), Match wins |
 | Counter-Strike 2 | 2 | FACEIT wins (threshold), FACEIT kills (competitive) |
 
 **Supported metrics:**
-- Fitness: steps, distance (km), duration (minutes), elevation gain (m), calories, laps
+- Fitness: steps, distance (km), duration (minutes), elevation gain (m), calories, laps, workouts, sessions
 - Gaming: wins, kills, assists, KDA, damage, win streak
 
 Templates define both the UI form fields and the evaluator rule. Competitive templates include `mode: "competitive"` and `competitiveMetric` in their `ruleBuilder` output, which the evaluator uses to compute a numeric score and the dispatcher uses to detect competitive mode.
@@ -468,7 +468,7 @@ These rules must be followed when contributing to this repository:
 | Network | Lightchain testnet |
 | Chain ID | 504 |
 | RPC | `https://light-testnet-rpc.lightchain.ai` |
-| Explorer | `https://testnet-explorer.lightchain.ai` |
+| Explorer | `https://testnet.lightscan.app` |
 | Native token | LCAI |
 
 Deployed contract addresses are in `webapp/public/deployments/lightchain.json` and documented in [OPERATIONS.md](OPERATIONS.md).

@@ -242,15 +242,24 @@ private struct TargetBlock: Codable {
     let consecutiveDays: Int?
 }
 
+/// Nested rule object: params.rule contains { challengeType, dailyTarget, weeklyTarget, conditions }
+private struct NestedRule: Codable {
+    let challengeType: String?
+    let conditions: [RuleCondition]?
+    let dailyTarget: TargetBlock?
+    let weeklyTarget: TargetBlock?
+}
+
 struct ChallengeParams: Codable {
     /// Rules can come as an array `[{...}]` or a single object `{...}` from the API.
     let rules: [ChallengeRules]?
 
-    // Rule-format fields (from iOS template ruleBuilder output)
+    // Rule-format fields (from iOS template ruleBuilder output) — top-level or nested under `rule`
     private let challengeType: String?
     private let conditions: [RuleCondition]?
     private let dailyTarget: TargetBlock?
     private let weeklyTarget: TargetBlock?
+    private let rule: NestedRule?
 
     /// First rule: from explicit `rules` array, or synthesized from conditions.
     var firstRule: ChallengeRules? {
@@ -259,7 +268,10 @@ struct ChallengeParams: Codable {
     }
 
     private var synthesizedFromConditions: ChallengeRules? {
-        let conds = dailyTarget?.conditions ?? weeklyTarget?.conditions ?? conditions ?? []
+        // Look for conditions at top level first, then inside nested `rule` object
+        let topConds = dailyTarget?.conditions ?? weeklyTarget?.conditions ?? conditions ?? []
+        let ruleConds = rule?.dailyTarget?.conditions ?? rule?.weeklyTarget?.conditions ?? rule?.conditions ?? []
+        let conds = topConds.isEmpty ? ruleConds : topConds
         guard let first = conds.first, let rawMetric = first.metric else { return nil }
 
         let metric: String
@@ -280,8 +292,8 @@ struct ChallengeParams: Codable {
         }
 
         let period: String
-        if dailyTarget != nil { period = "daily" }
-        else if weeklyTarget != nil { period = "weekly" }
+        if dailyTarget != nil || rule?.dailyTarget != nil { period = "daily" }
+        else if weeklyTarget != nil || rule?.weeklyTarget != nil { period = "weekly" }
         else { period = "total" }
 
         return ChallengeRules(period: period, metric: metric, threshold: first.value)
@@ -293,6 +305,7 @@ struct ChallengeParams: Codable {
         self.conditions = nil
         self.dailyTarget = nil
         self.weeklyTarget = nil
+        self.rule = nil
     }
 
     init(from decoder: Decoder) throws {
@@ -306,15 +319,18 @@ struct ChallengeParams: Codable {
             rules = nil
         }
 
-        // Rule-format fields (from template ruleBuilder)
+        // Rule-format fields at top level (from template ruleBuilder)
         challengeType = try? container.decode(String.self, forKey: .challengeType)
         conditions = try? container.decode([RuleCondition].self, forKey: .conditions)
         dailyTarget = try? container.decode(TargetBlock.self, forKey: .dailyTarget)
         weeklyTarget = try? container.decode(TargetBlock.self, forKey: .weeklyTarget)
+
+        // Canonical AIVM params format: rule object nested under `rule` key
+        rule = try? container.decode(NestedRule.self, forKey: .rule)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case rules, challengeType, conditions, dailyTarget, weeklyTarget
+        case rules, challengeType, conditions, dailyTarget, weeklyTarget, rule
     }
 }
 
@@ -601,12 +617,21 @@ struct MyChallenge: Codable, Identifiable {
     let verdictReasons: [String]?
     let verdictEvaluator: String?
     let verdictUpdatedAt: String?
+    /// Participant row provenance: onchain_join | evidence_intake | unknown
+    let source: String?
+    /// On-chain challenge status: Active | Finalized | Canceled
+    let challengeStatus: String?
 
     var id: String { challengeId }
 
     // Note: No CodingKeys needed — the shared JSONDecoder uses
     // .convertFromSnakeCase which handles challenge_id → challengeId etc.
     // Explicit CodingKeys with snake_case strings CONFLICT with that strategy.
+
+    /// Whether this is a real on-chain challenge (not a mock/evidence-only entry).
+    var isOnChain: Bool {
+        challengeStatus != nil
+    }
 
     var statusLabel: String {
         if let pass = verdictPass {
