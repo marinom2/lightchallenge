@@ -74,8 +74,20 @@ export function TreasuryPanel() {
     if (!token || !to) return push("Enter token & recipient", "bad");
     const meta = erc20.find(x => x.addr.toLowerCase() === token.toLowerCase());
     const dec = meta?.decimals ?? 18;
+    const sym = meta?.symbol ?? "tokens";
     let amt: bigint;
     try { amt = parseUnits(grantAmt || "0", dec); } catch { return push("Invalid amount", "bad"); }
+    if (amt === 0n) return push("Amount must be > 0", "bad");
+    const display = formatUnits(amt, dec);
+    const confirmed = window.confirm(
+      `TREASURY GRANT — Please verify carefully:\n\n` +
+      `Token: ${sym} (${short(token)})\n` +
+      `Recipient: ${to}\n` +
+      `Amount: ${display} ${sym}\n\n` +
+      `This will create an on-chain allowance from the Treasury.\n` +
+      `Are you sure?`
+    );
+    if (!confirmed) return;
     try {
       setBusy("Sending transaction…");
       const tx = await writeContractAsync({
@@ -103,8 +115,21 @@ export function TreasuryPanel() {
     const tokenAddr = isNative ? ZERO : (sweepKind as Address);
     const meta = isNative ? undefined : erc20.find(x => x.addr.toLowerCase() === tokenAddr.toLowerCase());
     const dec = isNative ? 18 : (meta?.decimals ?? 18);
+    const sym = isNative ? "LCAI (native)" : (meta?.symbol ?? "ERC20");
     let amt: bigint;
     try { amt = parseUnits(sweepAmt || "0", dec); } catch { return push("Invalid amount", "bad"); }
+    if (amt === 0n) return push("Amount must be > 0", "bad");
+    const display = formatUnits(amt, dec);
+    const confirmed = window.confirm(
+      `TREASURY SWEEP — DANGER: This transfers funds OUT of the Treasury.\n\n` +
+      `Token: ${sym}\n` +
+      `Recipient: ${to}\n` +
+      `Amount: ${display} ${sym}\n\n` +
+      `WARNING: Sweeping funds that back active challenges or unclaimed ` +
+      `rewards will cause participants to be unable to claim.\n\n` +
+      `Only sweep confirmed free/excess funds. Are you sure?`
+    );
+    if (!confirmed) return;
     try {
       setBusy("Sending transaction…");
       const tx = await writeContractAsync({

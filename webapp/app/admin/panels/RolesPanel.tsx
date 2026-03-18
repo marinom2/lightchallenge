@@ -28,6 +28,18 @@ export function RolesPanel() {
 
   const doGrant = async () => {
     const who = okAddr(roleAddr); if (!who) return;
+    const roleName = role === "operator" ? "OPERATOR" : "SWEEPER";
+    const warning = role === "operator"
+      ? "The OPERATOR role can grant ERC-20 allowances from the Treasury.\nThis gives the address direct access to Treasury funds."
+      : "The SWEEPER role can sweep excess funds out of the Treasury.\nThis gives the address ability to withdraw funds.";
+    const confirmed = window.confirm(
+      `GRANT ${roleName} ROLE — FINANCIAL ACCESS\n\n` +
+      `Address: ${who}\n\n` +
+      `${warning}\n\n` +
+      `Only grant this role to trusted, verified addresses.\n` +
+      `Are you sure?`
+    );
+    if (!confirmed) return;
     try {
       setBusy("Sending…");
       const tx = await writeContractAsync({

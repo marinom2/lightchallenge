@@ -277,12 +277,34 @@ function ModelsTab({ adminKey }: { adminKey: string }) {
 
     setMStatus({ text: "Saving…", kind: "info" });
     try {
-      const res = await fetch("/api/admin/models", {
-        method: "PUT",
-        headers: { "content-type": "application/json", ...(adminKey ? { "x-admin-key": adminKey } : {}) },
-        body: mText,
+      const headers: Record<string, string> = {
+        "content-type": "application/json",
+        ...(adminKey ? { "x-admin-key": adminKey } : {}),
+      };
+      let res = await fetch("/api/admin/models", {
+        method: "PUT", headers, body: mText,
       });
-      const j = await res.json();
+      let j = await res.json();
+
+      // Handle model count reduction safety check (409)
+      if (res.status === 409 && j.existingCount && j.newCount !== undefined) {
+        const confirmed = window.confirm(
+          `MODEL COUNT REDUCTION\n\n` +
+          `Current models in DB: ${j.existingCount}\n` +
+          `Models in your save: ${j.newCount}\n\n` +
+          `This is a significant reduction (>50%). ` +
+          `If you accidentally removed models, click Cancel.\n\n` +
+          `Proceed with saving ${j.newCount} models?`
+        );
+        if (!confirmed) return setMStatus({ text: "Save cancelled", kind: "info" });
+        // Retry with confirmation header
+        headers["x-confirm-model-reduction"] = "true";
+        res = await fetch("/api/admin/models", {
+          method: "PUT", headers, body: mText,
+        });
+        j = await res.json();
+      }
+
       if (j.ok) { setMStatus({ text: `Saved ${j.count} model(s) to DB`, kind: "ok" }); mInitial.current = mText; }
       else setMStatus({ text: j.error || "Save failed", kind: "bad" });
     } catch (e: any) {

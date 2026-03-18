@@ -71,6 +71,33 @@ export async function PUT(req: NextRequest) {
     if (!data || !Array.isArray(data.models)) {
       throw new Error("Top-level must be { models: [] }");
     }
+
+    // Safety: refuse to save an empty model list (would break challenge creation)
+    if (data.models.length === 0) {
+      return NextResponse.json(
+        { error: "Refusing to save empty model list — this would break challenge creation. At least 1 model is required." },
+        { status: 400 }
+      );
+    }
+
+    // Safety: check for significant model count drop (potential accidental data loss)
+    const existingCount = (await getAllModelsAdmin()).length;
+    if (existingCount > 0 && data.models.length < existingCount / 2) {
+      // Allow if explicitly confirmed via header
+      const forceConfirm = req.headers.get("x-confirm-model-reduction");
+      if (forceConfirm !== "true") {
+        return NextResponse.json(
+          {
+            error: `Model count would drop from ${existingCount} to ${data.models.length}. ` +
+              `If intentional, resend with header x-confirm-model-reduction: true.`,
+            existingCount,
+            newCount: data.models.length,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     validateModels(data.models);
     await replaceAllModels(data.models as ModelRow[]);
     return NextResponse.json({ ok: true, count: data.models.length });
