@@ -79,32 +79,33 @@ enum CurrencyType: UInt8 {
 
 /// Pre-computed keccak256 function selectors for ChallengePay and Treasury.
 /// These are the first 4 bytes of keccak256(function_signature).
+/// Verified against compiled Hardhat artifacts on 2026-03-18.
 enum FunctionSelectors {
     // ChallengePay
     // createChallenge((uint8,uint8,address,uint256,uint256,uint256,uint256,uint256,address,uint256,bytes32))
-    static let createChallenge = Data([0x1a, 0x38, 0x6d, 0x33])
+    static let createChallenge = Data([0xbe, 0x96, 0xec, 0xaa])
     // joinChallengeNative(uint256)
-    static let joinChallengeNative = Data([0xd5, 0x4a, 0xe1, 0x7a])
+    static let joinChallengeNative = Data([0x58, 0x1f, 0xa0, 0x2e])
     // finalize(uint256)
-    static let finalize = Data([0x05, 0x26, 0x16, 0x11])
+    static let finalize = Data([0x05, 0x26, 0x1a, 0xea])
     // claimWinner(uint256)
-    static let claimWinner = Data([0x41, 0xc1, 0x2b, 0x70])
+    static let claimWinner = Data([0xc3, 0x88, 0x7a, 0xd7])
     // claimLoser(uint256)
-    static let claimLoser = Data([0x90, 0x7c, 0x0f, 0x12])
+    static let claimLoser = Data([0x06, 0xb2, 0x81, 0x41])
     // claimRefund(uint256)
-    static let claimRefund = Data([0x7e, 0x6a, 0x93, 0x2f])
+    static let claimRefund = Data([0x5b, 0x7b, 0xaf, 0x64])
     // getChallenge(uint256)
-    static let getChallenge = Data([0xc5, 0x52, 0x4e, 0xfc])
+    static let getChallenge = Data([0x1b, 0xdd, 0x4b, 0x74])
     // contribOf(uint256,address)
-    static let contribOf = Data([0x96, 0xa9, 0x69, 0x07])
+    static let contribOf = Data([0xdf, 0x3b, 0x1a, 0x51])
     // isWinner(uint256,address)
-    static let isWinner = Data([0x6e, 0x83, 0x9c, 0x43])
+    static let isWinner = Data([0xbd, 0xd4, 0x15, 0xaf])
 
     // Treasury
-    // claimETH(uint256)
-    static let treasuryClaimETH = Data([0xa2, 0xe6, 0x20, 0x45])
+    // claimETH(uint256,uint256)
+    static let treasuryClaimETH = Data([0x29, 0x8a, 0x7b, 0x2e])
     // ethAllowanceOf(uint256,address)
-    static let ethAllowanceOf = Data([0xd4, 0x1b, 0x6d, 0xb6])
+    static let ethAllowanceOf = Data([0x3d, 0xe6, 0x14, 0x7a])
 }
 
 // MARK: - Create Params

@@ -61,8 +61,11 @@ enum ABIEncoder {
         encodeUint256Call(selector: FunctionSelectors.claimRefund, id: challengeId)
     }
 
-    static func encodeTreasuryClaimETH(bucketId: UInt64) -> Data {
-        encodeUint256Call(selector: FunctionSelectors.treasuryClaimETH, id: bucketId)
+    static func encodeTreasuryClaimETH(bucketId: UInt64, amount: String) -> Data {
+        encode(selector: FunctionSelectors.treasuryClaimETH, params: [
+            .uint64(bucketId),
+            .uint256(amount),
+        ])
     }
 
     // MARK: - Read calls
@@ -95,9 +98,18 @@ enum ABIEncoder {
     // MARK: - Helpers
 
     /// Convert wei string to hex (for tx value field).
+    /// Supports values larger than UInt64.max (~18.45 ETH) via manual decimal-to-hex.
     static func weiToHex(_ wei: String) -> String {
-        guard let value = UInt64(wei) else { return "0x0" }
-        return "0x" + String(value, radix: 16)
+        guard !wei.isEmpty, wei != "0" else { return "0x0" }
+        // Try UInt64 first (fast path for values < 18.45 ETH)
+        if let value = UInt64(wei) {
+            return "0x" + String(value, radix: 16)
+        }
+        // Big number: convert decimal string to hex via repeated division
+        let hexBytes = decimalStringToBytes(wei)
+        if hexBytes.count == 1 && hexBytes[0] == 0 { return "0x0" }
+        return "0x" + hexBytes.map { String(format: "%02x", $0) }.joined()
+            .drop(while: { $0 == "0" }).description
     }
 
     /// Convert ETH amount (e.g. "0.1") to wei string.

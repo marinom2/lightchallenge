@@ -14,7 +14,12 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     // ⬇️ Lazy import breaks circular/TDZ issues during build
-    const { adapters } = await import("@/lib/aivm/adapters");
+    const { adapters, initFitnessModels } = await import("@/lib/aivm/adapters");
+
+    // Refresh fitness model hashes from DB so adapter.supports() uses current hashes
+    const { getAllModels } = await import("@/lib/modelRegistry");
+    const allModels = await getAllModels();
+    if (allModels.length > 0) initFitnessModels(allModels);
 
     const form = await req.formData();
 

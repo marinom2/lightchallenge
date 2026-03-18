@@ -523,7 +523,7 @@ struct ChallengesView: View {
             }
 
             if elig.canClaimTreasury {
-                _ = try? await ContractService.shared.treasuryClaimETH(challengeId: cid)
+                _ = try? await ContractService.shared.treasuryClaimETH(challengeId: cid, amount: elig.allowance)
             }
 
             claimResult = "Claimed!"

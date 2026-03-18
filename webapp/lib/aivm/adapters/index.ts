@@ -1,6 +1,6 @@
 // Re-export types for external consumers (from types.ts — no circular import)
 export type { CanonicalRecord, AdapterResult, AdapterContext, Adapter } from "./types";
-export { isFitnessModel, FITNESS_MODEL_HASHES, FITNESS_MODEL_ID_TO_HASH } from "./fitnessModels";
+export { isFitnessModel, FITNESS_MODEL_HASHES, FITNESS_MODEL_ID_TO_HASH, getFitnessHash, initFitnessModels } from "./fitnessModels";
 
 // Re-export individual adapters for named imports
 export { appleAdapter } from "./apple";

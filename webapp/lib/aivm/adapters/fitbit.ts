@@ -1,9 +1,6 @@
 import { Adapter, AdapterContext, AdapterResult, CanonicalRecord } from "./types";
 import { computeBind } from "@/lib/aivm/bind";
-import { isFitnessModel } from "./fitnessModels";
-
-const FITBIT_STEPS_DAY_MODEL       = "0xef89f75d3f5b1bb04ee42748a51dc8410c79cfdea474356ed5edb0b08e451ee9" as const;
-const FITBIT_DISTANCE_WINDOW_MODEL = "0x3a7a7b773abcce8dd5619d63eff68bb14d12b873ca5d2fb395aee7a5c5d89fd6" as const;
+import { isFitnessModel, getFitnessHash } from "./fitnessModels";
 
 function sha256hex(buf: Buffer | string): `0x${string}` {
   const { createHash } = require("node:crypto");
@@ -87,10 +84,7 @@ export const fitbitAdapter: Adapter = {
   name: "fitbit.multi",
   category: "fitness",
   supports(modelHash: string) {
-    const h = modelHash.toLowerCase();
-    return h === FITBIT_STEPS_DAY_MODEL.toLowerCase()
-        || h === FITBIT_DISTANCE_WINDOW_MODEL.toLowerCase()
-        || isFitnessModel(h);
+    return isFitnessModel(modelHash);
   },
   async ingest(input: { file?: Buffer; json?: any; context: AdapterContext }): Promise<AdapterResult> {
     const { context } = input;
@@ -114,7 +108,7 @@ export const fitbitAdapter: Adapter = {
     let publicSignals: bigint[] = [];
     let dataHash: `0x${string}`;
 
-    if (h === FITBIT_STEPS_DAY_MODEL.toLowerCase()) {
+    if (h === getFitnessHash("fitness.steps@1")) {
       const targetDayUtc = String(params?.targetDayUtc || "").slice(0,10);
       const minSteps = Number(params?.minSteps ?? 5000);
       const total = records

@@ -258,6 +258,7 @@ struct ClaimsView: View {
             _ = try? await ContractService.shared.finalize(challengeId: cid)
 
             let txHash: String
+            let elig = eligibility[challengeId]
             switch action {
             case .winner:
                 txHash = try await ContractService.shared.claimWinner(challengeId: cid)
@@ -266,12 +267,15 @@ struct ClaimsView: View {
             case .refund:
                 txHash = try await ContractService.shared.claimRefund(challengeId: cid)
             case .treasury:
-                txHash = try await ContractService.shared.treasuryClaimETH(challengeId: cid)
+                txHash = try await ContractService.shared.treasuryClaimETH(challengeId: cid, amount: elig?.allowance ?? "0")
             }
 
             // Withdraw from treasury if there's an allowance after claim
             if action == .winner || action == .loser {
-                _ = try? await ContractService.shared.treasuryClaimETH(challengeId: cid)
+                let freshElig = await ContractService.shared.checkClaimEligibility(challengeId: cid, user: appState.walletAddress)
+                if freshElig.canClaimTreasury {
+                    _ = try? await ContractService.shared.treasuryClaimETH(challengeId: cid, amount: freshElig.allowance)
+                }
             }
 
             claimResult = "Claimed! TX: \(txHash.prefix(18))..."

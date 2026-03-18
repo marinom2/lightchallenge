@@ -1,0 +1,595 @@
+# LightChallenge: Trustless AI-Verified Stake Challenges
+
+**A Decentralized Protocol for Real-World Achievement Verification and On-Chain Settlement**
+
+*Version 1.0 — March 2026*
+
+---
+
+## Abstract
+
+LightChallenge is a permissionless, stake-weighted challenge protocol built on the Lightchain network. It enables anyone to create verifiable, financially-backed challenges — fitness goals, gaming milestones, or any measurable objective — where outcomes are determined autonomously by decentralized AI models and settled trustlessly through smart contracts.
+
+The protocol eliminates the need for centralized judges, manual arbitration, or trust in any single party. Users stake tokens when they join a challenge. AI models running on Lightchain's AIVM (AI Virtual Machine) infrastructure verify real-world evidence through a Proof-of-Intelligence (PoI) consensus mechanism. Smart contracts automatically distribute rewards to winners and return partial cashback to losers, creating a self-sustaining economic loop with 99%+ gross margins and zero operational overhead per challenge.
+
+LightChallenge captures value through a transparent, on-chain fee structure: 5% of forfeited stakes flow to the protocol, enforced by immutable smart contract logic. This positions LightChallenge as the first protocol to combine decentralized AI verification with trustless financial settlement for real-world activity challenges.
+
+---
+
+## 1. Introduction
+
+### 1.1 The Problem
+
+The global fitness accountability market exceeds $10 billion, yet 92% of people fail their New Year fitness resolutions. Existing solutions fall into three categories, each with fundamental flaws:
+
+**Centralized accountability apps** (Strava, Fitbit) provide tracking but no financial consequence. Without skin in the game, users abandon goals freely. Engagement decays by 80%+ within 90 days.
+
+**Stake-based platforms** (StepBet, DietBet) extract 15–25% take rates, rely on centralized judges, and operate as black boxes. Users must trust the platform to adjudicate fairly — a trust that is frequently violated by opaque dispute resolution.
+
+**Web3 fitness protocols** (STEPN) generated massive short-term revenue ($122.5M in a single quarter) but collapsed 90%+ because their economic model was speculative, not utility-driven. New users funded old users' rewards — a structure that is economically unsustainable.
+
+### 1.2 Our Thesis
+
+We believe that:
+
+1. **Financial commitment works.** People who put money on the line are 3x more likely to follow through on goals.
+2. **Verification must be trustless.** Centralized judges create disputes, bias, and platform risk. AI verification with cryptographic consensus eliminates all three.
+3. **Economics must be zero-sum, not speculative.** Losers fund winners. No token inflation, no Ponzi structure, no reliance on growing user counts to sustain payouts.
+4. **Fees must be fair and immutable.** Protocol fees are snapshotted at challenge creation time and enforced by smart contracts. No retroactive changes, no hidden fees.
+
+### 1.3 The LightChallenge Protocol
+
+LightChallenge implements these principles through a fully on-chain challenge protocol with five key components:
+
+- **ChallengePay** — Core smart contract handling the complete challenge lifecycle: creation, staking, proof verification, finalization, and claims
+- **Treasury** — Bucketed custody contract with pull-based claims. All funds are isolated per challenge; no single bug can drain the system
+- **AIVM Integration** — Client integration with Lightchain's AI Virtual Machine for decentralized Proof-of-Intelligence verification
+- **Evidence Pipeline** — Multi-source data ingestion from fitness platforms (Apple Health, Strava, Garmin, Fitbit) and gaming APIs (Steam, Riot, OpenDota)
+- **Achievement System** — Soulbound NFT trophies (ERC-721 + ERC-5192) minted on-chain upon challenge completion
+
+---
+
+## 2. Protocol Design
+
+### 2.1 Challenge Lifecycle
+
+Every challenge follows a deterministic state machine with three terminal states:
+
+```
+                  createChallenge()
+                        │
+                        ▼
+                     Active
+                    (Outcome.None)
+                   /    │    \
+                  /     │     \
+    cancelChallenge()   │   finalize() [after endTime + proofDeadline]
+         │              │         │
+         ▼              │         ▼
+      Canceled          │    Finalized
+   (full refund)        │   (Success if winners exist,
+                        │    Fail otherwise)
+                        │
+              submitProofFor / submitMyProof
+              [startTs .. proofDeadlineTs window]
+              → marks verified winners
+```
+
+**Timing parameters** govern the challenge lifecycle:
+
+```
+creation ──── joinClosesTs ──── startTs ──── endTime ──── proofDeadlineTs
+   │              │                │            │               │
+   │  join window │                │  activity  │  proof grace  │
+   │  (open)      │                │  period    │  period       │
+   └──────────────┘                └────────────┴───────────────┘
+                                   proof submission allowed
+```
+
+- **Join window**: Open from creation until `joinClosesTs` (defaults to `startTs`)
+- **Activity period**: `startTs` to `endTime` — when users complete the challenge
+- **Proof grace period**: `endTime` to `proofDeadlineTs` — additional time for evidence submission
+- **Finalization**: Only possible after both `endTime` and `proofDeadlineTs` have passed
+
+### 2.2 Staking and Pooling
+
+All funds are held in Treasury buckets, where `bucketId = challengeId`. ChallengePay holds zero funds at all times — this is a protocol invariant.
+
+**Flexible staking:** Participants can stake any amount above the global minimum (`minStake`). There is no fixed buy-in. Distribution is proportional to contribution, making the protocol accessible regardless of stake size.
+
+**Pool accounting:**
+- `pool` = sum of all participant contributions
+- `winnersPool` = sum of contributions from verified winners
+- `losersPool` = `pool - winnersPool` (computed at finalization)
+
+Contributions are additive — a participant can increase their stake by joining multiple times, increasing both their exposure and potential reward.
+
+### 2.3 Fee Architecture
+
+Fees are configured globally and **snapshotted into each challenge at creation time**. This prevents retroactive fee changes from affecting existing challenges — a critical trust property.
+
+When a challenge finalizes with at least one loser, the forfeited pool is distributed through a deterministic pipeline:
+
+```
+Losers' Pool (100%)
+    │
+    ├── Cashback to Losers (10%) ──── retention incentive
+    │
+    └── Remaining (90%)
+         │
+         ├── Protocol Fee (5%) ──── LightChallenge revenue
+         │
+         ├── Creator Fee (5%) ──── incentive for challenge creators
+         │
+         └── Winner Rewards (80%) ──── distributed pro-rata by contribution
+```
+
+**Fee parameters** (all in basis points, max 10,000):
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `cashbackBps` | Returned to losers before any fees | 1,000 (10%) |
+| `forfeitFeeBps` | Total fee on losers' pool after cashback | 1,000 (10%) |
+| `protocolBps` | Protocol's share of the fee | 500 (5%) |
+| `creatorBps` | Creator's share of the fee | 500 (5%) |
+
+**Fee caps** provide an immutable upper bound. Once set, `forfeitFeeBps` and `cashbackBps` cannot exceed the cap values, providing governance assurance that fees will never exceed published limits.
+
+**Rounding dust** from integer division is assigned to the protocol address. Per-claim dust stays in the Treasury bucket and is recoverable via `sweep()`.
+
+### 2.4 Payout Distribution
+
+Payouts are computed atomically in `_snapshotAndBook()` during `finalize()`. All grants are issued as Treasury allowances — no direct transfers.
+
+Given a challenge with `totalPool`, `winnersPool`, and `losersPool = totalPool - winnersPool`:
+
+```
+Step 1: cashback       = losersPool × cashbackBps / 10000
+Step 2: afterCashback  = losersPool − cashback
+Step 3: feeGross       = afterCashback × forfeitFeeBps / 10000
+Step 4: protocolAmt    = afterCashback × protocolBps / 10000
+Step 5: creatorAmt     = afterCashback × creatorBps / 10000
+Step 6: dust           = feeGross − (protocolAmt + creatorAmt) → protocol
+Step 7: distributable  = afterCashback − feeGross
+Step 8: perBonusX      = distributable × 1e18 / winnersPool
+Step 9: perCashbackX   = cashback × 1e18 / losersPool
+```
+
+**Claim types:**
+
+| Function | Eligible | Payout |
+|----------|----------|--------|
+| `claimWinner(id)` | Verified winners | `principal + principal × perBonusX / 1e18` |
+| `claimLoser(id)` | Non-winners with cashback | `principal × perCashbackX / 1e18` |
+| `claimRefund(id)` | Canceled challenges | Full principal (100% refund) |
+
+**Edge cases:**
+- **No winners** (`winnersPool == 0`): Outcome is `Fail`. The entire distributable amount routes to the protocol. Losers still receive cashback.
+- **All winners** (`losersPool == 0`): No fees, no distributable. Each winner claims exactly their principal.
+- **Single participant who wins**: Claims their own principal — no bonus since losers' pool is zero.
+
+---
+
+## 3. Treasury Architecture
+
+`Treasury.sol` implements bucketed, claim-based custody using OpenZeppelin `AccessControl`. It is designed around four properties:
+
+### 3.1 Bucketed Isolation
+
+Every challenge has its own bucket (`bucketId = challengeId`). Funds in one bucket cannot be used for another. This means a bug in one challenge's payout logic cannot drain funds belonging to other challenges — a critical safety property that eliminates systemic risk.
+
+### 3.2 Operator Grants
+
+`ChallengePay` holds `OPERATOR_ROLE` on the Treasury. During finalization, it calls `grantETH(bucketId, to, amount)` to create allowances for winners, losers (cashback), creators, and the protocol.
+
+### 3.3 Pull-Based Claims
+
+Recipients call `claimETH(bucketId)` on the Treasury directly. Once an allowance is granted, **no admin action can prevent the claim**. This provides unstoppable withdrawal guarantees — even if ChallengePay is paused or compromised, existing allowances remain claimable.
+
+### 3.4 Sweep Safety
+
+The `SWEEPER_ROLE` can only recover truly free funds:
+
+```
+free = onchainBalance − outstandingAllowances − totalBucketBalances
+```
+
+Active challenge funds and pending claims are always protected. The sweep function cannot touch allocated funds under any circumstances.
+
+### 3.5 Accounting Model
+
+```
+                ┌──────────────────────────┐
+ deposit() ────→│  bucketBalance[id] (+)   │
+                │  totalBucketBalance (+)  │
+                └──────────┬───────────────┘
+                           │
+                     grant()
+                           │
+                ┌──────────▼───────────────┐
+                │  bucketBalance[id] (−)   │
+                │  allowanceOf[id][addr](+)│
+                │  outstanding (+)         │
+                └──────────┬───────────────┘
+                           │
+                     claim()
+                           │
+                ┌──────────▼───────────────┐
+                │  allowanceOf[id][addr](−)│
+                │  outstanding (−)         │
+                │  → ETH transfer to addr  │
+                └──────────────────────────┘
+```
+
+---
+
+## 4. AI Verification: Proof-of-Intelligence
+
+LightChallenge is a **client** of the Lightchain AIVM network. We submit inference requests and consume finalization events. We do not operate worker or validator nodes — verification is performed entirely by independent Lightchain network participants.
+
+### 4.1 Why Decentralized AI Verification?
+
+Traditional challenge platforms use one of three verification models:
+
+| Model | Problem |
+|-------|---------|
+| **Honor system** | No verification at all — rampant cheating |
+| **Centralized judges** | Single point of failure, bias, disputes, operational cost |
+| **Peer voting** | Collusion, Sybil attacks, low participation |
+
+LightChallenge uses **Proof-of-Intelligence (PoI) consensus** — a novel verification model where independent AI workers process evidence, commit to results cryptographically, and validators attest to correctness before results are finalized on-chain.
+
+### 4.2 Evidence Pipeline
+
+The verification pipeline transforms raw user activity data into cryptographically verified on-chain proofs through eight phases:
+
+**Phase 1 — Evidence Collection**
+Users submit fitness or gaming data through the iOS app, web app, or API. Supported data sources:
+
+| Source | Data Type | Integration |
+|--------|-----------|-------------|
+| Apple Health | Steps, distance, workouts | iOS HealthKit push |
+| Strava | Running, cycling, swimming | OAuth auto-sync |
+| Fitbit | Steps, heart rate, activities | OAuth auto-sync |
+| Garmin | Activities via HealthKit | Device sync |
+| OpenDota | Dota 2 match history | Public API |
+| Riot Games | League of Legends matches | API key |
+| Steam / FACEIT | CS2, gaming stats | API |
+
+Evidence is normalized by adapter-specific ingestors and stored with cryptographic hashes for integrity.
+
+**Phase 2 — Evidence Evaluation**
+The `evidenceEvaluator` worker runs the appropriate evaluator (fitness or gaming) against challenge rules. The result is a **verdict** — pass or fail with detailed reasons and a score — stored in the database.
+
+**Phase 3 — Challenge Dispatch**
+The `challengeDispatcher` gates on: challenge active + verdict exists. It queues an AIVM job for Lightchain network processing.
+
+**Phase 4 — AIVM Job Execution**
+The `challengeWorker` loads the verdict and builds a **deterministic prompt** with:
+- `promptId = keccak256(challengeId, subject)` — unique per challenge + participant
+- `promptHash = keccak256(JSON verdict payload)` — content hash
+- Canonical result string: `{"challengeId":"N","verified":true}`
+
+**Phase 5 — Lightchain AIVM Submission**
+The orchestrator performs exactly two on-chain transactions:
+
+1. `AIVMInferenceV2.requestInferenceV2(model, promptHash, promptId, modelDigest, detConfigHash)` → returns `(requestId, taskId)`
+2. `ChallengeTaskRegistry.recordBinding(challengeId, subject, requestId, taskId, modelDigest, paramsHash)` → links challenge to AIVM task
+
+The orchestrator stops here. Everything after is handled by the Lightchain network.
+
+**Phase 6 — Lightchain Network Processing**
+
+| Step | Actor | On-chain Call | Result |
+|------|-------|--------------|--------|
+| Commit | Lightchain worker | `commitInference(requestId, commitment)` | Status → Committed |
+| Reveal | Lightchain worker | `revealInference(requestId, secret, response)` | Status → Revealed |
+| Attest | Lightchain validators | `submitPoIAttestation(taskId, resultHash, transcriptHash, slot)` | EIP-712 attestation |
+| Finalize | AIVM contract | `_tryFinalize()` (auto on quorum) | Status → Finalized |
+
+The commit-reveal scheme prevents front-running: workers commit a hash before revealing the actual response. Validators independently verify the computation and sign EIP-712 typed attestations. When `poiAttestationCount >= poiQuorum`, the contract auto-finalizes and emits `InferenceFinalized`.
+
+**Phase 7 — Finalization Bridge**
+Our `aivmIndexer` catches `InferenceFinalized`, builds an `AivmPoiProofV1` struct, and calls `submitProofFor(challengeId, subject, encodedProof)` on ChallengePay.
+
+**Phase 8 — On-Chain Proof Verification**
+`ChallengePayAivmPoiVerifier.verify()` performs 20+ checks against live on-chain state:
+
+| # | Check | Source |
+|---|-------|--------|
+| 1–3 | Schema version, challengeId, subject match | Proof struct |
+| 4 | passed = true | Proof struct |
+| 5–11 | Binding exists and all fields match (requestId, taskId, modelDigest, paramsHash, benchmarkHash) | ChallengeTaskRegistry |
+| 12–14 | AIVM request is Finalized, worker ≠ zero, finalizedAt ≠ 0 | AIVMInferenceV2 |
+| 15–17 | AIVM taskId, modelDigest, detConfigHash match | AIVMInferenceV2 |
+| 18 | requestIdByTaskId reverse lookup matches | AIVMInferenceV2 |
+| 19 | poiResultHash matches responseHash | AIVMInferenceV2 |
+| 20 | poiAttestationCount ≥ poiQuorum | AIVMInferenceV2 |
+| 21 | responseHash = keccak256(canonical result string) | Computed on-chain |
+
+If **any** check fails, the proof is rejected. No payout. No exceptions.
+
+### 4.3 AIVM Request States
+
+```
+None (0) → Requested (1) → Committed (2) → Revealed (3) → Finalized (4)
+                                                              │
+                                                     InferenceFinalized
+                                                              │
+                                                       aivmIndexer picks up
+                                                              │
+                                                     submitProofFor() → payout
+```
+
+Alternative terminal states: Cancelled (5), TimedOut (6), Disputed (7).
+
+---
+
+## 5. Security Model
+
+### 5.1 Fund Safety Invariants
+
+**Zero balance in ChallengePay.** All deposits route to `Treasury.depositETH()` or `Treasury.depositERC20From()`. ChallengePay's `address(this).balance` should always be zero. Funds are never at risk from ChallengePay vulnerabilities.
+
+**Bucketed isolation.** Each challenge's funds live in a separate Treasury bucket. A bug in one challenge's payout cannot drain another's bucket. This eliminates the catastrophic failure mode where a single exploit drains the entire protocol.
+
+**Pull-based claims.** Treasury allowances are unstoppable: once `grantETH(bucketId, to, amount)` is called, the recipient can claim regardless of any admin action on ChallengePay.
+
+**Sweep safety.** `Treasury.sweep()` can only touch funds where `balance > outstanding + bucketBalances`. Active challenge funds and pending claims are always protected.
+
+### 5.2 Fee Safety
+
+**Snapshot at creation.** Fee parameters are copied into each challenge struct at `createChallenge()`. Admin fee changes do not affect existing challenges. This prevents bait-and-switch attacks where a challenge is created under one fee structure and finalized under another.
+
+**Underflow prevention.** `protocolBps + creatorBps <= forfeitFeeBps` is enforced at configuration time. The computation `losersAfterCashback - feeGross` cannot underflow.
+
+**Fee caps.** `FeeCaps` provides immutable upper bounds. Once set, `forfeitFeeBps` and `cashbackBps` cannot exceed the cap values — even by the admin.
+
+### 5.3 Access Control
+
+| Mechanism | Description |
+|-----------|-------------|
+| **2-step admin transfer** | `transferAdmin()` sets pending; `acceptAdmin()` confirms. Prevents accidental admin loss. |
+| **Dispatcher ACL** | Only authorized dispatchers can call `submitProofFor`. Prevents unauthorized proof submissions. |
+| **Creator allowlist** | Optional gate restricting who can create challenges. |
+| **Token allowlist** | Optional gate restricting which ERC-20 tokens can be used. |
+| **Global pause** | Admin can halt all operations via `pauseAll(true)`. |
+
+### 5.4 Challenge Integrity
+
+**Verifier immutability.** When `proofTightenOnly` is enabled, the proof deadline can only be reduced, not extended. This prevents rule changes that disadvantage participants after they've joined.
+
+**Cancel blocked after winners.** Once any participant has a verified proof, the challenge cannot be canceled. This prevents creators from canceling challenges to avoid payouts.
+
+**Finalize requires deadline passage.** No early finalization is possible — `block.timestamp >= endTime && block.timestamp >= proofDeadlineTs` is required.
+
+**Double-claim prevention.** Dedicated claimed mappings (`winnerClaimed`, `loserClaimed`, `refundClaimed`) prevent any form of double withdrawal.
+
+### 5.5 Reentrancy Protection
+
+All state-mutating public functions use OpenZeppelin's `ReentrancyGuard` (`nonReentrant` modifier). Treasury claims follow the checks-effects-interactions pattern.
+
+### 5.6 Proof Integrity
+
+The database is a staging area. Everything that controls money — proofs, finalization, payouts — is verified against on-chain state, not the database. Even if the database is compromised, on-chain proofs require valid AIVM finalization with PoI quorum attestation.
+
+| Layer | Controller | Can be faked? |
+|-------|-----------|--------------|
+| Evidence (DB) | Our server | Staging only — not trusted for payouts |
+| Verdicts (DB) | Evaluator worker | Staging only — not trusted for payouts |
+| AIVM Request (on-chain) | Orchestrator | Requires private key |
+| Commit/Reveal (on-chain) | Network workers | Cryptographic commitment |
+| PoI Attestation (on-chain) | Network validators | EIP-712 signatures + quorum |
+| Proof Verification (on-chain) | ChallengePayAivmPoiVerifier | Reads directly from AIVM contract |
+| Payouts (on-chain) | ChallengePay + Treasury | Only after verified proof |
+
+---
+
+## 6. Achievement System
+
+`ChallengeAchievement.sol` mints soulbound (non-transferable) ERC-721 tokens implementing ERC-5192.
+
+| Achievement | Eligibility |
+|-------------|-------------|
+| **Completion** | Any participant in a Finalized challenge |
+| **Victory** | Any verified winner in a Finalized challenge with `Outcome.Success` |
+
+Properties:
+- **Soulbound** — all transfers revert; `locked(tokenId)` always returns `true`
+- **Claim-based** — users call `mint(challengeId, achievementType)` themselves
+- **Double-mint protection** — `minted[challengeId][user][type]` prevents duplicates
+- **On-chain verification** — reads ChallengePay state via `IChallengePay` view interface; no admin action required
+
+ChallengeAchievement has a strict one-way dependency on ChallengePay (read-only). ChallengePay has no knowledge of ChallengeAchievement.
+
+---
+
+## 7. Event Routing
+
+`EventChallengeRouter.sol` enables multi-outcome event resolution — mapping real-world events (matches, competitions, predictions) to multiple `ChallengePay` challenges.
+
+An event contains N outcomes, each bound to a `challengeId` and a `subject` address:
+
+```
+Event "Team A vs Team B"
+  ├── Outcome 0: "Team A wins" → challengeId=42, subject=0xabc...
+  └── Outcome 1: "Team B wins" → challengeId=43, subject=0xdef...
+```
+
+When the real-world outcome is known, the owner calls `finalizeEvent(eventId, winnerIndex, proof)`, which:
+1. Calls `submitProofFor()` on the winning challenge
+2. Calls `finalize()` to settle the winning challenge
+3. Losing challenges expire naturally with no winners (Outcome.Fail)
+
+---
+
+## 8. Technology Stack
+
+### 8.1 Smart Contracts
+
+- **Language**: Solidity 0.8.24
+- **Framework**: Hardhat with hardhat-deploy
+- **Standards**: ERC-721 (achievements), ERC-5192 (soulbound), EIP-2771 (gasless), EIP-712 (typed signatures)
+- **Security**: OpenZeppelin's ReentrancyGuard, AccessControl, Pausable
+
+### 8.2 Off-Chain Services
+
+- **Runtime**: TypeScript on Node.js
+- **Workers**: Polling-based with configurable intervals
+- **Database**: PostgreSQL (Neon) — challenges, participants, evidence, verdicts, AIVM jobs, identity bindings, claims
+- **Chain interaction**: ethers v6
+
+### 8.3 Web Application
+
+- **Framework**: Next.js 14 with App Router
+- **Wallet**: wagmi v2, RainbowKit, WalletConnect v2
+- **Supported wallets**: MetaMask, WalletConnect, Coinbase Wallet, Rainbow, Trust Wallet, Phantom
+
+### 8.4 Mobile Application
+
+- **Platform**: iOS (SwiftUI)
+- **Data collection**: Apple HealthKit integration
+- **Auto-proof**: Background evidence submission during active challenges
+- **Distribution**: TestFlight (beta), App Store (planned)
+
+### 8.5 Deployed Contracts (Lightchain Testnet, Chain ID 504)
+
+| Contract | Address |
+|----------|---------|
+| ChallengePay | `0xBeA3b508a5Ce2E6C8462108f42c732Da7454c5cb` |
+| EventChallengeRouter | `0x4c523C1eBdcD8FAAA27808f01F3Ec00B98Fb0f2D` |
+| ChallengeTaskRegistry | `0x0e079C693Bd177Fa31baab70EfCD5b9D625c355E` |
+| ChallengePayAivmPoiVerifier | `0x44c750aA01Ec2465CB3E7354EF1c16cc83D45123` |
+| AIVMInferenceV2 (Lightchain) | `0x2d499C52312ca8F0AD3B7A53248113941650bA7E` |
+
+---
+
+## 9. Economics and Sustainability
+
+### 9.1 Revenue Model
+
+LightChallenge operates a **transaction-fee model** that captures value from every challenge resolution. Revenue is protocol-level, enforced by smart contracts, and requires zero manual intervention.
+
+| Stream | Description | Status |
+|--------|-------------|--------|
+| Protocol Fees | 5% of every losers' pool | Active |
+| No-Winner Windfall | If all fail, entire distributable pool → protocol | Active |
+| Sponsored Challenges | Brands fund prize pools (15–20% sourcing fee) | Planned |
+| Premium Tiers | Higher stakes, custom rules, private groups | Planned |
+| API & White-Label | Embedded challenges for fitness apps, corporate wellness | Planned |
+
+### 9.2 Unit Economics
+
+Each challenge is a self-contained economic unit with zero marginal cost:
+
+**Example: "Run 50km in 2 weeks" (40 participants, $30 avg stake, 45% completion)**
+
+| Metric | Value |
+|--------|-------|
+| Total Pool | $1,200 |
+| Losers' Pool | $660 |
+| Cashback (10%) | $66 returned to losers |
+| Protocol Revenue (5%) | $29.70 |
+| Creator Revenue (5%) | $29.70 |
+| Winner Bonus Pool | $534.60 |
+| Avg. Winner Payout | $59.70 (nearly 2x stake) |
+| Marginal Cost | $0 (smart contracts handle settlement) |
+| Gross Margin | 99%+ |
+
+### 9.3 Financial Projections
+
+| Stage | Monthly Challenges | Monthly GMV | Annual Protocol Revenue |
+|-------|-------------------|-------------|------------------------|
+| Seed | 50 | $25,000 | $6,750 |
+| Early | 200 | $150,000 | $40,500 |
+| Growth | 1,000 | $1,250,000 | $337,500 |
+| **Scale** | **5,000** | **$7,500,000** | **$2,025,000** |
+| Mature | 10,000 | $20,000,000 | $5,400,000 |
+
+### 9.4 Why This Is Sustainable
+
+| Dimension | STEPN (Failed) | LightChallenge |
+|-----------|---------------|----------------|
+| Revenue source | NFT minting fees | Protocol fees on real activity |
+| Entry barrier | $500–2,000 NFT shoes | Stake any amount |
+| Economic model | New money funds payouts | Zero-sum: losers fund winners |
+| Verification | None — spoofing rampant | PoI consensus on AIVM |
+| Value driver | Token speculation | Activity completion |
+
+LightChallenge revenue scales linearly with challenge volume. It does not depend on token price appreciation, new user inflow funding existing payouts, or any speculative mechanism. The protocol earns fees from economic activity, not speculation.
+
+---
+
+## 10. Competitive Landscape
+
+LightChallenge sits at the intersection of fitness accountability, prediction markets, and Web3 gaming.
+
+| Platform | Model | Take Rate | Verification | Status |
+|----------|-------|-----------|-------------|--------|
+| STEPN | Move-to-earn NFTs | 8–10% | None | Collapsed 90%+ |
+| Sweatcoin | Brand partnerships | N/A | Centralized | Active |
+| Polymarket | Prediction market fees | 0.10% | Oracle-based | Active |
+| StepBet | Fitness staking (CeFi) | 15% | Centralized judges | Active |
+| Azuro | DeFi betting protocol | ~2% | Oracle-based | Active |
+| **LightChallenge** | **AI-verified challenges** | **~5%** | **PoI consensus** | **Building** |
+
+**Differentiation:**
+- **Trustless verification** — No centralized judge. AI + PoI consensus eliminates disputes by design.
+- **Fair economics** — 5% take rate vs. industry 15–25%. Winners keep more. Losers get 10% cashback.
+- **Flexible staking** — No minimum buy-in barrier. Pro-rata distribution regardless of stake size.
+- **Multi-category** — Fitness and gaming on one protocol, with planned expansion to education, productivity, and any measurable domain.
+
+---
+
+## 11. Roadmap
+
+### Phase 1: Foundation (Q1–Q2 2026) — *Current*
+- Lightchain testnet deployment (complete)
+- iOS app on TestFlight
+- Fitness challenges: steps, running, cycling, hiking
+- Core integrations: Apple Health, Strava, Garmin, Fitbit
+- Seed community of 500+ active users
+
+### Phase 2: Growth (Q3–Q4 2026)
+- Mainnet launch on Lightchain
+- Android app release
+- Gaming challenges: Steam, Riot Games, FACEIT
+- Creator tools: custom rules, branding, private groups
+- Referral system with on-chain rewards
+- First sponsored challenge partnerships
+
+### Phase 3: Scale (2027)
+- Corporate wellness partnerships (B2B)
+- White-label API for fitness apps and platforms
+- Tournament and competition engine
+- Cross-chain deployment (Ethereum L2s)
+- Premium features and subscription tiers
+- Target: 5,000+ monthly challenges
+
+---
+
+## 12. Gasless Transactions
+
+`TrustedForwarder.sol` implements EIP-2771 meta-transaction relay, enabling gasless user interactions. Users sign transactions off-chain; a funded relayer submits them on-chain, paying gas fees on behalf of users.
+
+ChallengePay's `_msgSender2771()` extracts the original sender from the calldata tail when the call comes from the trusted forwarder. This enables complete gasless onboarding — users can join challenges without holding native tokens for gas.
+
+Status: Deployed and integrated. Pending relay service configuration for production use.
+
+---
+
+## 13. Conclusion
+
+LightChallenge introduces a new primitive: **trustless, AI-verified stake challenges with autonomous on-chain settlement.** By combining Lightchain's Proof-of-Intelligence consensus with battle-tested smart contract patterns (bucketed Treasury, pull-based claims, snapshotted fees, 20-check proof verification), the protocol achieves something no existing platform offers:
+
+- **Zero trust required** — outcomes determined by decentralized AI consensus, not centralized judges
+- **Zero operational cost** — smart contracts handle all settlement, claim distribution, and fee collection
+- **Zero speculative dependency** — revenue comes from real activity, not token price or user growth
+
+The protocol is live on Lightchain testnet with the full pipeline validated end-to-end: evidence submission → AI evaluation → AIVM verification → on-chain finalization → Treasury payout. Every component — from the iOS evidence collector to the 20-check proof verifier — has been tested against real network infrastructure.
+
+We believe accountability should be trustless, rewards should be fair, and verification should be autonomous. LightChallenge is the infrastructure layer where real-world achievement meets on-chain settlement.
+
+---
+
+*Built on [Lightchain](https://lightchain.ai) · Verified by Proof-of-Intelligence · Settled by Smart Contracts*

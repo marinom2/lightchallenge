@@ -111,8 +111,8 @@ class ContractService: ObservableObject {
         return try await wallet.sendTransaction(tx)
     }
 
-    func treasuryClaimETH(challengeId: UInt64) async throws -> String {
-        let calldata = ABIEncoder.encodeTreasuryClaimETH(bucketId: challengeId)
+    func treasuryClaimETH(challengeId: UInt64, amount: String) async throws -> String {
+        let calldata = ABIEncoder.encodeTreasuryClaimETH(bucketId: challengeId, amount: amount)
         let tx = TransactionRequest(
             to: ContractAddresses.treasury,
             data: calldata,
@@ -136,9 +136,7 @@ class ContractService: ObservableObject {
         let calldata = ABIEncoder.encodeContribOf(challengeId: challengeId, user: user)
         let result = try await wallet.ethCall(to: ContractAddresses.challengePay, data: calldata)
         guard result.count >= 32 else { return "0" }
-        // Decode uint256 from big-endian bytes
-        let value = result.prefix(32).reduce(UInt64(0)) { ($0 << 8) | UInt64($1) }
-        return String(value)
+        return decodeUint256(result.prefix(32))
     }
 
     /// Get ETH allowance from Treasury for a bucket.
@@ -146,8 +144,36 @@ class ContractService: ObservableObject {
         let calldata = ABIEncoder.encodeEthAllowance(bucketId: bucketId, user: user)
         let result = try await wallet.ethCall(to: ContractAddresses.treasury, data: calldata)
         guard result.count >= 32 else { return "0" }
-        let value = result.prefix(32).reduce(UInt64(0)) { ($0 << 8) | UInt64($1) }
-        return String(value)
+        return decodeUint256(result.prefix(32))
+    }
+
+    /// Decode a 32-byte big-endian uint256 to decimal string.
+    /// Uses UInt64 fast path when possible, falls back to manual big-number conversion.
+    private func decodeUint256(_ bytes: Data) -> String {
+        // Strip leading zeros to check if it fits in UInt64
+        let stripped = bytes.drop(while: { $0 == 0 })
+        if stripped.count <= 8 {
+            let value = stripped.reduce(UInt64(0)) { ($0 << 8) | UInt64($1) }
+            return String(value)
+        }
+        // Big number: convert bytes to decimal string via repeated division
+        var hex = stripped.map { $0 }
+        var digits: [UInt8] = []
+        while !hex.isEmpty {
+            var remainder: UInt16 = 0
+            var next: [UInt8] = []
+            for byte in hex {
+                let val = remainder * 256 + UInt16(byte)
+                let q = val / 10
+                remainder = val % 10
+                if !next.isEmpty || q > 0 {
+                    next.append(UInt8(q))
+                }
+            }
+            digits.append(UInt8(remainder))
+            hex = next
+        }
+        return digits.isEmpty ? "0" : String(digits.reversed().map { Character(String($0)) })
     }
 
     // MARK: - Claim Eligibility

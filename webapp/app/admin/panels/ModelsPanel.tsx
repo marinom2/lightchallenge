@@ -121,6 +121,7 @@ function ModelsTab({ adminKey }: { adminKey: string }) {
   const [mLabel, setMLabel] = useState("");
   const [mKind, setMKind] = useState<ModelKind>("aivm");
   const [mHash, setMHash] = useState("");
+  const [mHashOverride, setMHashOverride] = useState(false); // true = custom hash (not auto-computed)
   const [mVerifier, setMVerifier] = useState("");
   const [mBinding, setMBinding] = useState(true);
   const [mActive, setMActive] = useState(true);
@@ -147,6 +148,9 @@ function ModelsTab({ adminKey }: { adminKey: string }) {
     setEditId(id);
     setMId(m.id); setMLabel(m.label); setMKind(m.kind as ModelKind);
     setMHash(m.modelHash); setMVerifier(m.verifier);
+    // Detect custom hash: if stored hash differs from keccak256(id), it's overridden
+    const autoHash = m.id.trim() ? aivmHashFromId(m.id.trim()) : "";
+    setMHashOverride(m.kind === "aivm" && m.modelHash.toLowerCase() !== autoHash.toLowerCase());
     setMBinding(m.binding !== false); setMActive(m.active !== false);
     setMSignals((m.signals ?? []).join(", "));
     setMSources((m.sources ?? []).join(", "));
@@ -189,17 +193,17 @@ function ModelsTab({ adminKey }: { adminKey: string }) {
     setMValid("OK");
   }, [mText]);
 
-  // auto-fill for AIVM kind
+  // auto-fill for AIVM kind (skip hash if override is active)
   useEffect(() => {
     if (mKind === "aivm") {
-      setMHash(mId.trim() ? aivmHashFromId(mId.trim()) : "");
+      if (!mHashOverride) setMHash(mId.trim() ? aivmHashFromId(mId.trim()) : "");
       if (AUTO_POI_VERIFIER) setMVerifier(AUTO_POI_VERIFIER);
     }
-  }, [mId, mKind]);
+  }, [mId, mKind, mHashOverride]);
 
   const clearForm = () => {
     setEditId(""); setMId(""); setMLabel(""); setMKind("aivm");
-    setMHash(""); setMVerifier(""); setMBinding(true); setMActive(true);
+    setMHash(""); setMHashOverride(false); setMVerifier(""); setMBinding(true); setMActive(true);
     setMSignals("bind, success"); setMSources(""); setMFileAccept("");
     setMNotes(""); setMParams([]);
   };
@@ -216,7 +220,7 @@ function ModelsTab({ adminKey }: { adminKey: string }) {
       id: mId.trim(),
       label: mLabel.trim(),
       kind: mKind,
-      modelHash: mKind === "aivm" ? aivmHashFromId(mId.trim()) : mHash.trim(),
+      modelHash: mKind === "aivm" && !mHashOverride ? aivmHashFromId(mId.trim()) : mHash.trim(),
       verifier: mKind === "aivm" ? (AUTO_POI_VERIFIER || mVerifier) : mVerifier,
       ...(mBinding ? { binding: true } : {}),
       active: mActive,
@@ -270,8 +274,9 @@ function ModelsTab({ adminKey }: { adminKey: string }) {
     <>
       {/* Info */}
       <div className="text-xs opacity-50 p-3 rounded-lg border border-white/5">
-        Models define AIVM inference tasks. Each model maps to a Lightchain AIVM task via its modelHash (keccak256 of the model ID).
-        The PoI verifier (ChallengePayAivmPoiVerifier) handles on-chain proof verification for all AIVM models.
+        Models define AIVM inference tasks. Each model maps to a Lightchain AIVM task via its modelHash.
+        By default, the hash is keccak256(modelId). If Lightchain assigns different identifiers after model registration,
+        enable &quot;Custom Model Hash&quot; on the model to override it — all adapters and proof routing update automatically.
       </div>
 
       {/* Existing model selector */}
@@ -338,13 +343,35 @@ function ModelsTab({ adminKey }: { adminKey: string }) {
           </Field>
         </div>
 
-        <SectionHeader title="AIVM Configuration" description={mKind === "aivm" ? "Auto-configured from model ID" : "Manual configuration required"} />
+        <SectionHeader title="AIVM Configuration" description={mKind === "aivm" ? (mHashOverride ? "Custom hash override active" : "Auto-configured from model ID") : "Manual configuration required"} />
+        {mKind === "aivm" && (
+          <div className="p-3 rounded-lg border border-white/10 mb-3">
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={mHashOverride} onChange={(e) => {
+                  setMHashOverride(e.target.checked);
+                  if (!e.target.checked && mId.trim()) setMHash(aivmHashFromId(mId.trim()));
+                }} />
+                <span className="text-sm font-medium">Custom Model Hash</span>
+              </label>
+              <span className="text-xs opacity-50">Enable if Lightchain assigns a different identifier than keccak256(modelId)</span>
+            </div>
+            {mHashOverride && (
+              <div className="text-xs mt-2 p-2 rounded bg-yellow-500/10 border border-yellow-500/20 text-yellow-300">
+                Custom hash mode: the hash field is now editable. Update it with the identifier assigned by Lightchain.
+                All adapters and verification routing will automatically use the new hash after saving.
+              </div>
+            )}
+          </div>
+        )}
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Model Hash">
-            <input className="input font-mono text-xs" value={mHash} onChange={(e) => setMHash(e.target.value)} placeholder="0x…" readOnly={mKind === "aivm"} />
+            <input className="input font-mono text-xs" value={mHash} onChange={(e) => setMHash(e.target.value)} placeholder="0x…" readOnly={mKind === "aivm" && !mHashOverride} />
             <HelpText>
-              {mKind === "aivm"
+              {mKind === "aivm" && !mHashOverride
                 ? <span className="chip chip--info">Auto: keccak256(modelId)</span>
+                : mKind === "aivm" && mHashOverride
+                ? "Enter the hash assigned by Lightchain for this model."
                 : "32-byte hex digest identifying this model on-chain."}
             </HelpText>
           </Field>

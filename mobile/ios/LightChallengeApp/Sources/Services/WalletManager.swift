@@ -285,6 +285,9 @@ class WalletManager: ObservableObject {
             throw WalletError.notConnected
         }
 
+        // Estimate gas via direct RPC (MetaMask on custom chains may fail without it)
+        let estimatedGas = try await estimateGas(tx: tx)
+
         // Build and send the transaction via AppKit's typed JSONRPC
         let rpc = W3MJSONRPC.eth_sendTransaction(
             from: connectedAddress,
@@ -292,11 +295,11 @@ class WalletManager: ObservableObject {
             value: tx.value,
             data: tx.data.hexString,
             nonce: nil,
-            gas: nil,
+            gas: estimatedGas,
             gasPrice: nil,
             maxFeePerGas: nil,
             maxPriorityFeePerGas: nil,
-            gasLimit: nil,
+            gasLimit: estimatedGas,
             chainId: "504"
         )
 
@@ -325,6 +328,52 @@ class WalletManager: ObservableObject {
                 }
                 .store(in: &self.cancellables)
         }
+    }
+
+    /// Estimate gas for a transaction via direct RPC to LightChain.
+    private func estimateGas(tx: TransactionRequest) async throws -> String {
+        let callBody: [String: Any] = [
+            "jsonrpc": "2.0",
+            "id": Int(Date().timeIntervalSince1970),
+            "method": "eth_estimateGas",
+            "params": [
+                [
+                    "from": connectedAddress,
+                    "to": tx.to,
+                    "data": tx.data.hexString,
+                    "value": tx.value,
+                ] as [String: Any]
+            ],
+        ]
+
+        guard let url = URL(string: LightChain.rpcURL) else {
+            return "0x100000" // 1M gas fallback
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: callBody)
+
+        let (responseData, _) = try await URLSession.shared.data(for: request)
+        let json = try JSONSerialization.jsonObject(with: responseData) as? [String: Any]
+
+        if let error = json?["error"] as? [String: Any],
+           let message = error["message"] as? String {
+            throw WalletError.simulationFailed(message)
+        }
+
+        guard let gasHex = json?["result"] as? String else {
+            return "0x100000" // 1M gas fallback
+        }
+
+        // Add 20% buffer to estimated gas
+        if let gas = UInt64(gasHex.dropFirst(2), radix: 16) {
+            let buffered = gas + gas / 5
+            return "0x" + String(buffered, radix: 16)
+        }
+
+        return gasHex
     }
 
     // MARK: - Read-Only RPC (no wallet needed)

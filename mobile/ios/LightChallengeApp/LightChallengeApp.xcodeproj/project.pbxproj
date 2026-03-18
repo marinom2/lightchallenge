@@ -17,6 +17,7 @@
 		22C7BD51A23BA1663439FA74 /* NotificationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 585BC1959D4139EB7E5DF876 /* NotificationsView.swift */; };
 		2D0FCA3E5F088B4D5B1A30B1 /* ClaimsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CED0C0C6160E432CAB20B6DC /* ClaimsView.swift */; };
 		360DDF3AFCCAFBDAB38400AC /* TokenPriceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DF25EB93B383D73BB3DCF4D /* TokenPriceService.swift */; };
+		402C717303E005E670598505 /* ProgressMetricsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F80B06CE448373535FB30BB /* ProgressMetricsView.swift */; };
 		4229DDC4AB359F338A1BE4BB /* ReownAppKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1541795F8BBD0D69D53472F0 /* ReownAppKit */; };
 		43D74F474BAE2BA81DAD7ECF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64FC4B6EF61438B2E4A3AE31 /* SettingsView.swift */; };
 		45458B7E79F43A785CE99693 /* HomeView.swift.bak in Resources */ = {isa = PBXBuildFile; fileRef = 2995120A1E682FCFF13A7F79 /* HomeView.swift.bak */; };
@@ -97,6 +98,7 @@
 		92616EA76D9D58987F97E9DF /* ChallengeRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeRow.swift; sourceTree = "<group>"; };
 		940344AA346043032B852F8B /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		956AFB8941781516AFD70596 /* FitnessProofView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitnessProofView.swift; sourceTree = "<group>"; };
+		9F80B06CE448373535FB30BB /* ProgressMetricsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressMetricsView.swift; sourceTree = "<group>"; };
 		A5F8B27098BA0AFE20E650FA /* LightChallengeApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LightChallengeApp.entitlements; sourceTree = "<group>"; };
 		A6ABAF1BACDB42FA19D56FC3 /* WalletManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletManager.swift; sourceTree = "<group>"; };
 		AEE7B27C2A3DF0F5E387AD12 /* ChallengeDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeDetailView.swift; sourceTree = "<group>"; };
@@ -350,6 +352,7 @@
 				64ACBB01A8D1FBE7224AECC3 /* ChallengeProgressHero.swift */,
 				956AFB8941781516AFD70596 /* FitnessProofView.swift */,
 				262C604C08756AF00CE8B815 /* GamingHandoffView.swift */,
+				9F80B06CE448373535FB30BB /* ProgressMetricsView.swift */,
 				87C8F03B75271A197ACEF743 /* VictoryCelebrationView.swift */,
 			);
 			path = Detail;
@@ -472,6 +475,7 @@
 				D12B98D622D360BFD4F09C4C /* OAuthService.swift in Sources */,
 				E4ADD5075FF83E61FB7A5EBE /* OnboardingView.swift in Sources */,
 				0DDBD13D0B11FE678B6256AD /* ProfileView.swift in Sources */,
+				402C717303E005E670598505 /* ProgressMetricsView.swift in Sources */,
 				8F8708FE2BD6A1ED9EDFABC4 /* ProofSelectionView.swift in Sources */,
 				43D74F474BAE2BA81DAD7ECF /* SettingsView.swift in Sources */,
 				F23286C4F4D1FBA4A08BAC95 /* SplashPortal.swift in Sources */,

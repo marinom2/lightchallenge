@@ -1,10 +1,6 @@
 import { Adapter, AdapterContext, AdapterResult, CanonicalRecord } from "./types";
 import { computeBind } from "@/lib/aivm/bind";
-import { isFitnessModel } from "./fitnessModels";
-
-/** Legacy model hashes — kept for backward compat. */
-const GARMIN_STEPS_DAY_MODEL = "0x7abfc322e4b015bd06ff99afe644c44868506d0ef39ae80a17b21813a389a1f2" as const;
-const GARMIN_DISTANCE_WINDOW_MODEL = "0x1f0529367f707855129caa7af76a01c8ed88b22602f06433aaa7fc0a50cd1b90" as const;
+import { isFitnessModel, getFitnessHash } from "./fitnessModels";
 
 function sha256hex(buf: Buffer | string): `0x${string}` {
   const { createHash } = require("node:crypto");
@@ -109,10 +105,7 @@ export const garminAdapter: Adapter = {
   name: "garmin.multi",
   category: "fitness",
   supports(modelHash: string) {
-    const h = modelHash.toLowerCase();
-    return h === GARMIN_STEPS_DAY_MODEL.toLowerCase() ||
-           h === GARMIN_DISTANCE_WINDOW_MODEL.toLowerCase() ||
-           isFitnessModel(h);
+    return isFitnessModel(modelHash);
   },
   async ingest(input: { file?: Buffer; json?: any; context: AdapterContext }): Promise<AdapterResult> {
     const { context } = input;
@@ -143,7 +136,7 @@ export const garminAdapter: Adapter = {
     let publicSignals: bigint[] = [];
     let dataHash: `0x${string}`;
 
-    if (h === GARMIN_STEPS_DAY_MODEL.toLowerCase()) {
+    if (h === getFitnessHash("fitness.steps@1")) {
       const targetDayUtc = String(params?.targetDayUtc || "").slice(0,10);
       const minSteps = Number(params?.minSteps ?? 5000);
       const daySteps = records

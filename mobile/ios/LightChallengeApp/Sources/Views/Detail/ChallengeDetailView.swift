@@ -43,6 +43,8 @@ struct ChallengeDetailView: View {
     @State private var isJoining = false
     @State private var joinError: String?
     @State private var showingTrackerNudge = false
+    @State private var showingProgressMetrics = false
+    @State private var participantLoaded = false
     @State private var showingFileImporter = false
     @State private var fileUploadStatus: FileUploadStatus = .idle
     @State private var _reputation: Reputation?
@@ -129,6 +131,17 @@ struct ChallengeDetailView: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showingProgressMetrics) {
+            if let detail {
+                ProgressMetricsView(
+                    detail: detail,
+                    participantStatus: participantStatus,
+                    healthService: healthService,
+                    tokenPrice: tokenPrice
+                )
+                .presentationDragIndicator(.visible)
+            }
+        }
     }
 
     // MARK: - Detail Content
@@ -140,6 +153,7 @@ struct ChallengeDetailView: View {
             ChallengeProgressHero(
                 detail: detail,
                 participantStatus: participantStatus,
+                participantLoaded: participantLoaded,
                 healthService: healthService,
                 progress: progress,
                 tokenPrice: tokenPrice,
@@ -174,6 +188,8 @@ struct ChallengeDetailView: View {
             appState.selectedTab = .challenges
         case .viewResults:
             showingShareCard = true
+        case .viewProgress:
+            showingProgressMetrics = true
         case .share:
             showingShareCard = true
         }
@@ -889,13 +905,17 @@ struct ChallengeDetailView: View {
     }
 
     private func loadParticipantStatus() async {
-        guard appState.hasWallet else { return }
+        guard appState.hasWallet else {
+            participantLoaded = true
+            return
+        }
         let prevPass = participantStatus?.verdictPass
         participantStatus = try? await APIClient.shared.fetchParticipantStatus(
             baseURL: appState.serverURL,
             challengeId: challengeId,
             subject: appState.walletAddress
         )
+        participantLoaded = true
         if prevPass == nil, participantStatus?.verdictPass == true {
             await MainActor.run { showingVictory = true }
         }

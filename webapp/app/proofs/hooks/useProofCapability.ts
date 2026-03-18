@@ -10,6 +10,7 @@ import {
   detectSource,
   computePrimaryAction,
   primaryActionLabel,
+  initAdapterHashes,
   type SourceInfo,
   type PrimaryAction,
   type ChallengeMeta,
@@ -31,12 +32,30 @@ interface Options {
   checkAccount?: boolean;
 }
 
+// Module-level flag — init adapter hashes from model registry once per page load
+let _vceInitialized = false;
+
 export function useProofCapability(
   meta: ChallengeMeta | null | undefined,
   opts: Options = {}
 ): ProofCapability {
   const { checkAccount = true } = opts;
   const { address, isConnected } = useAccount();
+
+  // Initialize VCE adapter hashes from model registry (once per page load)
+  const [vceReady, setVceReady] = useState(_vceInitialized);
+  useEffect(() => {
+    if (_vceInitialized) return;
+    fetch("/api/admin/models", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        const models = j?.models ?? [];
+        if (models.length > 0) initAdapterHashes(models);
+        _vceInitialized = true;
+        setVceReady(true);
+      })
+      .catch(() => { _vceInitialized = true; setVceReady(true); });
+  }, []);
 
   const source = meta ? detectSource(meta) : detectSource({});
 

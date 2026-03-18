@@ -19,8 +19,4 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
 CREATE INDEX IF NOT EXISTS idx_user_profiles_updated
   ON public.user_profiles (updated_at DESC);
 
--- Track schema migration
-INSERT INTO public.schema_migrations (version) VALUES ('022')
-  ON CONFLICT DO NOTHING;
-
 COMMIT;

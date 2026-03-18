@@ -76,9 +76,6 @@ struct ServerConfig {
     /// Default for testnet phase
     static let defaultBaseURL = uatBaseURL
 
-    /// Legacy: Apple Health steps model hash (backward compat)
-    static let appleStepsModelHash = "0x2e3f88a0496e6650c192355be471a62cae0bda1aece751eb2b30affd0f010c9e"
-
     // Provider-agnostic fitness model hashes
     static let fitnessStepsHash     = "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60001"
     static let fitnessDistanceHash  = "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60002"

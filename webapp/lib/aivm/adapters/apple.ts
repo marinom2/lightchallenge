@@ -34,11 +34,6 @@ type AppleRecordAttrs = {
   sourceName?: string;
 };
 
-// —— Model gating ——————————————————————————————————————————————
-
-/** Matches apple_health.steps@1 in models.json. */
-const APPLE_STEPS_MODEL = "0x2e3f88a0496e6650c192355be471a62cae0bda1aece751eb2b30affd0f010c9e" as const;
-
 // —— Core parsing ——————————————————————————————————————————————
 
 async function parseExportXml(zipBuf: Buffer, userIdHash: `0x${string}`): Promise<CanonicalRecord[]> {
@@ -173,8 +168,7 @@ export const appleAdapter: Adapter = {
   name: "apple_health.steps_on_day",
   category: "fitness",
   supports(modelHash: string) {
-    return modelHash.toLowerCase() === APPLE_STEPS_MODEL.toLowerCase()
-        || isFitnessModel(modelHash);
+    return isFitnessModel(modelHash);
   },
   async ingest(input: { file?: Buffer; json?: any; context: AdapterContext }): Promise<AdapterResult> {
     const { context } = input;

@@ -2,10 +2,6 @@ import { Adapter, AdapterContext, AdapterResult, CanonicalRecord } from "./types
 import { computeBind } from "@/lib/aivm/bind";
 import { isFitnessModel } from "./fitnessModels";
 
-/** Legacy model hash — kept for backward compat. */
-const STRAVA_DISTANCE_MODEL =
-  "0xd3a933d7c65286991ffe453223bf2a153111795364835762b04dc6703e84211e" as const;
-
 /** EVM-friendly 0x-prefixed SHA-256 (keeps your original hashing choice) */
 function sha256hex(buf: Buffer | string): `0x${string}` {
   const { createHash } = require("node:crypto");
@@ -138,8 +134,7 @@ export const stravaAdapter: Adapter = {
   name: "strava.distance_in_window",
   category: "fitness",
   supports(modelHash: string) {
-    return modelHash.toLowerCase() === STRAVA_DISTANCE_MODEL.toLowerCase()
-        || isFitnessModel(modelHash);
+    return isFitnessModel(modelHash);
   },
   async ingest(input: { file?: Buffer; json?: any; context: AdapterContext }): Promise<AdapterResult> {
     const { context } = input;

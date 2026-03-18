@@ -30,13 +30,36 @@ On testnet, we deployed Lightchain's contract source code ourselves:
 | 7 | **RPC endpoint** | Mainnet RPC URL | All on-chain interactions |
 | 8 | **minRequestFeeWei** | Minimum fee per inference request | We must send at least this amount with `requestInferenceV2()` |
 
-### Optional (may be required depending on mainnet design)
+### Model Registration (may be required depending on mainnet design)
 
 | # | Item | What it is | When needed |
 |---|------|-----------|-------------|
-| 9 | **Model registration** | Register our models (`fitness.steps@1`, etc.) via AIVMModelRegistry | Only if mainnet enforces model validation on `requestInferenceV2()` |
+| 9 | **Model registration** | Submit model proposals via Lightchain's DAO governance UI | Only if mainnet enforces model validation on `requestInferenceV2()` |
 | 10 | **Worker model support** | Ensure workers accept our model strings | Only if workers filter by model (testnet accepts all) |
 | 11 | **AIVMModelRegistry address** | Model governance contract | Only if model registration is required |
+
+**Lightchain Model Governance (from [docs](https://docs.lightchain.ai/docs/worker-and-model/model-governance)):**
+- Models are admitted through a **DAO proposal workflow**, not a direct contract call.
+- Proposals require: model name, source/reference link, suggested base fee, written justification.
+- Post-admission, the [Worker Explorer](https://docs.lightchain.ai/docs/worker-and-model/worker-explorer) tracks activity, uptime, and pricing.
+- On testnet, workers accept **any model string** — no registration needed.
+
+**Our models to register (if required on mainnet):**
+
+| Model ID | Description | Hash |
+|----------|-------------|------|
+| `fitness.steps@1` | Steps (all providers) | `0xa1b2...0001` |
+| `fitness.distance@1` | Running/Walking Distance | `0xa1b2...0002` |
+| `fitness.cycling@1` | Cycling Distance | `0xa1b2...0003` |
+| `fitness.hiking@1` | Hiking | `0xa1b2...0004` |
+| `fitness.swimming@1` | Swimming | `0xa1b2...0005` |
+| `fitness.strength@1` | Strength Training | `0xa1b2...0006` |
+| `dota.hero_kills_window@1` | Dota 2 Hero Kills | `0x0de4...` |
+| `dota.private_match_1v1@1` | Dota 2 Private 1v1 | `0xe8fe...` |
+| `dota.private_match_5v5@1` | Dota 2 Private 5v5 | `0xa366...` |
+| `dota.winrate_next_n@1` | Dota 2 Win Rate | `0x39ab...` |
+| `lol.winrate_next_n@1` | LoL Win Rate | `0x6a68...` |
+| `cs2.faceit_wins@1` | CS2 FACEIT Wins | `0x6889...` |
 
 ---
 

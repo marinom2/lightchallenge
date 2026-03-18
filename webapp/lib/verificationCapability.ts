@@ -91,23 +91,22 @@ export interface SourceInfo {
 
 // ─── Adapter model-hash → source mapping ─────────────────────────────────────
 //
-// Derived directly from webapp/lib/aivm/adapters/*.ts MODEL_HASH constants.
-// Hashes not listed here have NO adapter → mode = unsupported.
+// Provider-agnostic fitness hashes default to apple_health (mobile-first).
+// The user selects their actual provider when submitting evidence.
+// Gaming hashes map directly to their game source type.
+//
+// This map is rebuilt dynamically from the model registry via
+// initAdapterHashes(). The hardcoded defaults below are used only until
+// the first registry load completes.
 
-const ADAPTER_HASHES: Record<string, SourceType> = {
-  // ── Apple Health ──
-  "0x2e3f88a0496e6650c192355be471a62cae0bda1aece751eb2b30affd0f010c9e": "apple_health",
-  // ── Garmin ──
-  "0x7abfc322e4b015bd06ff99afe644c44868506d0ef39ae80a17b21813a389a1f2": "garmin",     // garmin.steps@1
-  "0x1f0529367f707855129caa7af76a01c8ed88b22602f06433aaa7fc0a50cd1b90": "garmin",     // garmin.distance@1
-  // ── Strava ──
-  "0xd3a933d7c65286991ffe453223bf2a153111795364835762b04dc6703e84211e": "strava",     // strava.distance_in_window@1
-  // ── Fitbit ──
-  "0xef89f75d3f5b1bb04ee42748a51dc8410c79cfdea474356ed5edb0b08e451ee9": "fitbit",     // fitbit.steps@1
-  "0x3a7a7b773abcce8dd5619d63eff68bb14d12b873ca5d2fb395aee7a5c5d89fd6": "fitbit",     // fitbit.distance@1
-  // ── Google Fit ──
-  "0xe63ac4325bc9b06404dabf113dbee540064bb36aac31f54dd9ae3dad706b9484": "google_fit", // googlefit.steps@1
-  "0x396b3817947618e5e3277256c54eae4c10def805bb207513deaa9bb30b19dd2e": "google_fit", // googlefit.distance@1
+let ADAPTER_HASHES: Record<string, SourceType> = {
+  // ── Provider-agnostic fitness (default: apple_health for mobile-first UX) ──
+  "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60001": "apple_health", // fitness.steps@1
+  "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60002": "apple_health", // fitness.distance@1
+  "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60003": "apple_health", // fitness.cycling@1
+  "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60004": "apple_health", // fitness.hiking@1
+  "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60005": "apple_health", // fitness.swimming@1
+  "0xa1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f60006": "apple_health", // fitness.strength@1
   // ── Dota 2 ──
   "0xe8fe0f3dccfa30d73e362ae12070b18b4ce623d836a7bca392429212ecb14def": "dota",       // dota.private_match_1v1@1
   "0xa36667f7fba0e008bfca236bcec118fef4f7177046cbc57f093b557b41ca95e6": "dota",       // dota.private_match_5v5@1
@@ -117,6 +116,33 @@ const ADAPTER_HASHES: Record<string, SourceType> = {
   // ── CS2 / FACEIT ──
   "0x68897197aeecd201ed61384bb4b1b07b1e14d4c3ac57ed33ebc0dd528ed551f4": "cs2",        // cs2.faceit_wins@1
 };
+
+/**
+ * Rebuild ADAPTER_HASHES from the model registry.
+ * Derives source type from model ID prefix:
+ *   fitness.* → apple_health, dota.* → dota, lol.* → lol, cs2.* → cs2
+ *
+ * Call from client-side after loading models from `/api/admin/models`.
+ */
+export function initAdapterHashes(models: { id: string; modelHash: string }[]): void {
+  const map: Record<string, SourceType> = {};
+  for (const m of models) {
+    const mid = m.id.toLowerCase();
+    const hash = m.modelHash.toLowerCase();
+    if (!hash || !mid) continue;
+
+    let source: SourceType | undefined;
+    if (mid.startsWith("fitness.")) source = "apple_health";
+    else if (mid.startsWith("dota.")) source = "dota";
+    else if (mid.startsWith("lol.")) source = "lol";
+    else if (mid.startsWith("cs2.")) source = "cs2";
+
+    if (source) map[hash] = source;
+  }
+  if (Object.keys(map).length > 0) {
+    ADAPTER_HASHES = map;
+  }
+}
 
 // ─── Source metadata table ────────────────────────────────────────────────────
 
@@ -272,7 +298,8 @@ export function detectSource(meta: ChallengeMeta): SourceInfo {
 
   // 2. modelId prefix
   if (!sourceType) {
-    if (mid.startsWith("apple_health")) sourceType = "apple_health";
+    if (mid.startsWith("fitness.")) sourceType = "apple_health"; // provider-agnostic fitness → mobile-first default
+    else if (mid.startsWith("apple_health")) sourceType = "apple_health";
     else if (mid.startsWith("strava")) sourceType = "strava";
     else if (mid.startsWith("garmin")) sourceType = "garmin";
     else if (mid.startsWith("fitbit")) sourceType = "fitbit";

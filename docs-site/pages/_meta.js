@@ -1,5 +1,6 @@
 export default {
   "index": "Introduction",
+  "whitepaper": "Whitepaper",
   "protocol": "Protocol",
   "how-it-works": "How It Works",
   "architecture": "Architecture",

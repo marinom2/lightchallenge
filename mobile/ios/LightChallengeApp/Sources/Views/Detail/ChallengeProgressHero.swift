@@ -258,6 +258,7 @@ enum UserChallengeState {
 struct ChallengeProgressHero: View {
     let detail: ChallengeDetail
     let participantStatus: ParticipantStatus?
+    let participantLoaded: Bool
     let healthService: HealthKitService
     let progress: ChallengeProgress?
     let tokenPrice: Double?
@@ -282,12 +283,17 @@ struct ChallengeProgressHero: View {
     private var rules: ChallengeRules? { detail.rules }
     private var metricLabel: String { rules?.metricLabel ?? "km" }
 
+    /// Whether the user can tap to see detailed progress metrics.
+    private var canViewProgress: Bool {
+        userState != .notJoined
+    }
+
     var body: some View {
         VStack(spacing: LC.space16) {
             // Top row: category + status
             topRow
 
-            // Ring + title block
+            // Ring + title block — tappable when participating
             HStack(spacing: LC.space16) {
                 // Progress ring
                 progressRing
@@ -324,6 +330,19 @@ struct ChallengeProgressHero: View {
                 }
 
                 Spacer(minLength: 0)
+
+                // Chevron hint when tappable
+                if canViewProgress {
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(LC.textTertiary(scheme))
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if canViewProgress {
+                    onAction(.viewProgress)
+                }
             }
 
             // Prize pool
@@ -571,12 +590,18 @@ struct ChallengeProgressHero: View {
     private var actionButton: some View {
         switch userState {
         case .notJoined:
-            Button {
-                onAction(.join)
-            } label: {
-                Text("Join Challenge")
+            if !participantLoaded {
+                ProgressView()
+                    .tint(LC.accent)
+                    .frame(maxWidth: .infinity, minHeight: 50)
+            } else {
+                Button {
+                    onAction(.join)
+                } label: {
+                    Text("Join Challenge")
+                }
+                .buttonStyle(LCGoldButton())
             }
-            .buttonStyle(LCGoldButton())
 
         case .active:
             if case .proofWindow = phase {
@@ -706,5 +731,6 @@ enum HeroAction {
     case submitProof
     case claimReward
     case viewResults
+    case viewProgress
     case share
 }
