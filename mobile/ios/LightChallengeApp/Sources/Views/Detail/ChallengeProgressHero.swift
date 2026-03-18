@@ -807,8 +807,8 @@ struct ChallengeProgressHero: View {
         case "hiking_km":
             return healthService.hikingWorkoutDays.reduce(0) { $0 + $1.totalDistanceMeters } / 1000.0
         case "elev_gain_m":
-            // Hiking elevation: workout elevation + flights climbed proxy
-            let workoutElev = healthService.hikingWorkoutDays.reduce(0) { $0 + $1.totalDistanceMeters * 0.05 } // rough estimate
+            // Real elevation from HKMetadataKeyElevationAscended + flights climbed proxy
+            let workoutElev = healthService.hikingWorkoutDays.reduce(0) { $0 + $1.totalElevationMeters }
             let flightsElev = Double(healthService.flightsClimbedDays.reduce(0) { $0 + $1.flights }) * 3.0
             return workoutElev + flightsElev
         case "active_minutes":

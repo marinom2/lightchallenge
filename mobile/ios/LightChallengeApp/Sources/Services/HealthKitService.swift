@@ -259,23 +259,28 @@ class HealthKitService: ObservableObject {
                 }
                 let workouts = (samples as? [HKWorkout]) ?? []
                 // Group by date
-                var byDate: [String: (count: Int, minutes: Double, distanceM: Double, calories: Double)] = [:]
+                var byDate: [String: (count: Int, minutes: Double, distanceM: Double, calories: Double, elevM: Double)] = [:]
                 let fmt = ISO8601DateFormatter()
                 for w in workouts {
                     let dateStr = String(fmt.string(from: w.startDate).prefix(10))
                     let minutes = w.duration / 60.0
                     let dist = w.totalDistance?.doubleValue(for: .meter()) ?? 0
                     let cals = w.totalEnergyBurned?.doubleValue(for: .kilocalorie()) ?? 0
-                    var entry = byDate[dateStr] ?? (count: 0, minutes: 0, distanceM: 0, calories: 0)
+                    // iOS 17+: HKMetadataKeyElevationAscended gives real elevation gain per workout
+                    let elev = (w.metadata?[HKMetadataKeyElevationAscended] as? HKQuantity)?
+                        .doubleValue(for: .meter()) ?? 0
+                    var entry = byDate[dateStr] ?? (count: 0, minutes: 0, distanceM: 0, calories: 0, elevM: 0)
                     entry.count += 1
                     entry.minutes += minutes
                     entry.distanceM += dist
                     entry.calories += cals
+                    entry.elevM += elev
                     byDate[dateStr] = entry
                 }
                 let result = byDate.map {
                     DailyWorkouts(date: $0.key, count: $0.value.count, totalMinutes: $0.value.minutes,
-                                  totalDistanceMeters: $0.value.distanceM, totalCalories: $0.value.calories)
+                                  totalDistanceMeters: $0.value.distanceM, totalCalories: $0.value.calories,
+                                  totalElevationMeters: $0.value.elevM)
                 }.sorted { $0.date < $1.date }
                 continuation.resume(returning: result)
             }
@@ -540,6 +545,7 @@ class HealthKitService: ObservableObject {
                 "end_ts": endTs,
                 "duration_s": Int(day.totalMinutes * 60),
                 "distance_m": day.totalDistanceMeters,
+                "elev_gain_m": day.totalElevationMeters,
                 "calories": day.totalCalories,
                 "sessions": day.count,
                 "source_device": "HealthKit",

@@ -54,6 +54,7 @@ struct DailyWorkouts: Identifiable, Codable {
     let totalMinutes: Double
     let totalDistanceMeters: Double
     let totalCalories: Double
+    let totalElevationMeters: Double
 }
 
 struct DailyExerciseTime: Identifiable, Codable {

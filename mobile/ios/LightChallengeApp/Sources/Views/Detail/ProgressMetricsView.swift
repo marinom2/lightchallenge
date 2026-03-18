@@ -652,8 +652,11 @@ struct ProgressMetricsView: View {
         case "hiking_km":
             return healthService.hikingWorkoutDays.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
         case "elev_gain_m":
-            // Combine hiking workout proxy + flights climbed for elevation
+            // Real elevation from HKMetadataKeyElevationAscended + flights climbed proxy
             var elevByDate: [String: Double] = [:]
+            for day in healthService.hikingWorkoutDays where day.totalElevationMeters > 0 {
+                elevByDate[day.date, default: 0] += day.totalElevationMeters
+            }
             for day in healthService.flightsClimbedDays where day.flights > 0 {
                 elevByDate[day.date, default: 0] += Double(day.flights) * 3.0
             }
