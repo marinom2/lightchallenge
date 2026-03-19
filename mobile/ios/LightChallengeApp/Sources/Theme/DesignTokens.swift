@@ -208,8 +208,16 @@ struct LCGoldButton: ButtonStyle {
             .frame(height: 50)
             .background(
                 RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
-                    .fill(isDisabled ? LC.accent.opacity(0.35) : LC.accent)
-                    .shadow(color: LC.accent.opacity(configuration.isPressed ? 0 : 0.2), radius: 8, y: 4)
+                    .fill(
+                        LinearGradient(
+                            colors: isDisabled
+                                ? [LC.accent.opacity(0.35)]
+                                : [LC.accent, LC.gradBlue],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .shadow(color: LC.accent.opacity(configuration.isPressed ? 0 : 0.15), radius: 10, y: 5)
             )
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
             .animation(.spring(response: 0.25, dampingFraction: 0.85), value: configuration.isPressed)

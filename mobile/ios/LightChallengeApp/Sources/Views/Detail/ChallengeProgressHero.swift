@@ -272,11 +272,12 @@ enum UserChallengeState {
     }
 
     static func from(detail: ChallengeDetail, participantStatus: ParticipantStatus?, phase: ChallengePhase, autoProofSubmitted: Bool = false) -> UserChallengeState {
-        // Use youJoined from the API (based on on-chain Joined events) as the
-        // authoritative join signal. participantStatus alone doesn't mean the
-        // user explicitly joined — the creator has a DB record but hasn't joined.
-        // This matches the webapp's hasJoined logic.
+        // Primary join signal: on-chain Joined event via the API.
+        // Fallback: if the user has a participantStatus with evidence or a verdict,
+        // they must have joined (covers edge cases where youJoined hasn't synced yet).
         let joined = detail.youJoined == true
+            || participantStatus?.hasEvidence == true
+            || participantStatus?.verdictPass != nil
 
         // Verdict takes precedence — but ONLY after the proof deadline has passed.
         // During active phase and proof window, the pipeline hasn't finalized,
@@ -352,7 +353,6 @@ struct ChallengeProgressHero: View {
     @State private var activitySummary: [(label: String, value: Double, unit: String)] = []
     @State private var hasLoaded = false
     @State private var figureAppeared = false
-    @State private var insightIndex = 0
     @Environment(\.colorScheme) private var scheme
 
     private var theme: ActivityTheme { ActivityTheme.from(detail: detail) }
@@ -372,87 +372,58 @@ struct ChallengeProgressHero: View {
     }
 
     var body: some View {
-        VStack(spacing: LC.space16) {
-            // Top row: category + status
+        VStack(spacing: LC.space20) {
+            // Status + time
             topRow
 
-            // Ring + title block — tappable when participating
+            // Ring + title — tappable
             HStack(spacing: LC.space16) {
-                // Progress ring
                 progressRing
                     .scaleEffect(figureAppeared ? 1.0 : 0.3)
                     .opacity(figureAppeared ? 1.0 : 0.0)
 
-                // Title + description + category
                 VStack(alignment: .leading, spacing: LC.space6) {
                     Text(detail.displayTitle)
-                        .font(.headline.weight(.bold))
+                        .font(.title3.weight(.bold))
                         .lineLimit(2)
                         .foregroundStyle(LC.textPrimary(scheme))
 
-                    if let desc = detail.description, !desc.isEmpty {
-                        Text(desc)
-                            .font(.caption)
-                            .foregroundStyle(LC.textSecondary(scheme))
-                            .lineLimit(2)
-                    }
-
-                    // Numeric progress or activity summary
                     if goalValue > 0 {
                         progressLabel
                     } else if !activitySummary.isEmpty {
                         activitySummaryLabel
-                    } else {
-                        // Category pill
-                        Text(theme.label)
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(theme.figureTint)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(theme.figureTint.opacity(0.1))
-                            .clipShape(Capsule())
+                    } else if let desc = detail.description, !desc.isEmpty {
+                        Text(desc)
+                            .font(.subheadline)
+                            .foregroundStyle(LC.textSecondary(scheme))
+                            .lineLimit(2)
                     }
                 }
 
                 Spacer(minLength: 0)
 
-                // Chevron hint when tappable
-                if canViewProgress {
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(LC.textTertiary(scheme))
-                }
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(LC.textTertiary(scheme))
             }
             .contentShape(Rectangle())
-            .onTapGesture {
-                if canViewProgress {
-                    onAction(.viewProgress)
-                }
-            }
+            .onTapGesture { onAction(.viewProgress) }
 
-            // Prize pool
-            prizeSection
-
-            // Dynamic insight line
-            if !insights.isEmpty {
-                insightLine
-            }
+            // Reward + participants — clean inline, no boxes
+            rewardLine
 
             // Primary action
             actionButton
         }
-        .padding(LC.space20)
+        .padding(LC.space24)
         .background(
             RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
                 .fill(LC.cardBg(scheme))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
-                .stroke(LC.cardBorder(scheme), lineWidth: 1)
+                .shadow(color: .black.opacity(scheme == .dark ? 0.3 : 0.06), radius: 16, y: 6)
         )
         .task { await loadProgress() }
         .onAppear {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.6).delay(0.2)) {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.15)) {
                 figureAppeared = true
             }
         }
@@ -513,36 +484,24 @@ struct ChallengeProgressHero: View {
     }
 
     private var topRow: some View {
-        HStack(spacing: LC.space8) {
-            // Status icon + label (clean inline, no bubble)
-            Image(systemName: resolvedStatusIcon)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(resolvedStatusColor)
+        HStack(spacing: LC.space6) {
+            Circle()
+                .fill(resolvedStatusColor)
+                .frame(width: 7, height: 7)
 
             Text(resolvedStatusLabel)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(resolvedStatusColor)
 
-            // Subtle secondary context
-            if let secondary = userState.secondaryLabel, participantLoaded {
-                Text("·")
-                    .font(.caption)
-                    .foregroundStyle(LC.textTertiary(scheme))
-                Text(secondary)
-                    .font(.caption2)
-                    .foregroundStyle(LC.textTertiary(scheme))
-            }
-
             Spacer()
 
-            // Time remaining — only show during active phase or proof window when no evidence yet
             if case .active(let remaining) = phase, remaining > 0 {
-                Label(phase.label, systemImage: "clock")
-                    .font(.caption2.weight(.medium))
+                Text(phase.label)
+                    .font(.caption.weight(.medium))
                     .foregroundStyle(LC.textSecondary(scheme))
             } else if case .proofWindow(let remaining) = phase, remaining > 0, userState == .awaitingProof {
-                Label(phase.label, systemImage: "clock.badge.exclamationmark")
-                    .font(.caption2.weight(.medium))
+                Text(phase.label)
+                    .font(.caption.weight(.medium))
                     .foregroundStyle(LC.warning)
             }
         }
@@ -567,15 +526,11 @@ struct ChallengeProgressHero: View {
         return .empty
     }
 
-    /// Progress-based color: lighter at low progress, more saturated/contrasting at high progress.
     private var ringColor: Color {
-        if phase.ringDimmed {
-            return .secondary
-        }
+        if phase.ringDimmed { return .secondary.opacity(0.6) }
         let base = theme.barColors.first ?? theme.figureTint
         let fraction = animatedProgress > 0 ? animatedProgress : phase.ringFraction
-        // At 0% → 40% opacity (light), at 100% → full color (high contrast)
-        let opacity = 0.4 + (fraction * 0.6)
+        let opacity = 0.5 + (fraction * 0.5)
         return base.opacity(opacity)
     }
 
@@ -586,13 +541,13 @@ struct ChallengeProgressHero: View {
             state: ringState,
             symbol: theme.icon,
             color: ringColor,
-            diameter: 140,
-            lineWidth: 12
+            diameter: 110,
+            lineWidth: 8
         )
-        .scaleEffect(isPulsing ? 1.03 : 1.0)
+        .scaleEffect(isPulsing ? 1.02 : 1.0)
         .animation(
             phase.isActive
-                ? .easeInOut(duration: 1.5).repeatForever(autoreverses: true)
+                ? .easeInOut(duration: 2.0).repeatForever(autoreverses: true)
                 : .default,
             value: isPulsing
         )
@@ -618,173 +573,61 @@ struct ChallengeProgressHero: View {
     // MARK: - Numeric Progress
 
     private var progressLabel: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 3) {
-            Text(formatValue(currentValue))
+        VStack(alignment: .leading, spacing: 2) {
+            Text("\(formatValueWithCommas(currentValue)) \(metricLabel)")
                 .font(.subheadline.weight(.bold).monospacedDigit())
-                .foregroundStyle(theme.barColors.first ?? LC.accent)
-            Text("/ \(formatValue(goalValue)) \(metricLabel)")
+                .foregroundStyle(LC.textPrimary(scheme))
+            Text("Goal: \(formatValueWithCommas(goalValue))")
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(LC.textTertiary(scheme))
         }
     }
 
-    // MARK: - Prize Section
+    // MARK: - Reward Line (clean inline — no boxes)
 
-    private var prizeSection: some View {
-        HStack(spacing: LC.space12) {
-            // Prize pool tile
-            if let pool = detail.poolDisplayUSD(tokenPrice: tokenPrice) {
-                prizeTile(
-                    icon: "banknote.fill",
-                    iconColor: LC.accent,
-                    value: pool,
-                    label: "Prize Pool",
-                    lcaiValue: detail.poolDisplay
-                )
-            } else if let stake = detail.stakeDisplayUSD(tokenPrice: tokenPrice) {
-                prizeTile(
-                    icon: "lock.fill",
-                    iconColor: LC.accent,
-                    value: stake,
-                    label: "Stake",
-                    lcaiValue: detail.stakeDisplay
-                )
-            }
+    @ViewBuilder
+    private var rewardLine: some View {
+        let hasReward = detail.poolDisplayUSD(tokenPrice: tokenPrice) != nil
+            || detail.stakeDisplayUSD(tokenPrice: tokenPrice) != nil
+        let hasParticipants = (detail.participantsCount ?? 0) > 0
 
-            // Participants tile
-            if let count = detail.participantsCount, count > 0 {
-                HStack(spacing: LC.space8) {
-                    ZStack {
-                        Circle()
-                            .fill(Color(hex: 0x8B5CF6).opacity(0.1))
-                            .frame(width: 32, height: 32)
-                        Image(systemName: "person.2.fill")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Color(hex: 0x8B5CF6))
-                    }
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("\(count)")
-                            .font(.subheadline.weight(.bold).monospacedDigit())
+        if hasReward || hasParticipants {
+            HStack(alignment: .firstTextBaseline) {
+                // Reward
+                if let pool = detail.poolDisplayUSD(tokenPrice: tokenPrice) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Earn up to \(pool)")
+                            .font(.subheadline.weight(.semibold))
                             .foregroundStyle(LC.textPrimary(scheme))
-                        Text("Participants")
-                            .font(.caption2.weight(.medium))
-                            .foregroundStyle(LC.textTertiary(scheme))
+                        if let lcai = detail.poolDisplay {
+                            Text("\u{2248} \(lcai)")
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(LC.textTertiary(scheme))
+                        }
+                    }
+                } else if let stake = detail.stakeDisplayUSD(tokenPrice: tokenPrice) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Stake \(stake)")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(LC.textPrimary(scheme))
+                        if let lcai = detail.stakeDisplay {
+                            Text("\u{2248} \(lcai)")
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(LC.textTertiary(scheme))
+                        }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(10)
-                .background(
-                    RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
-                        .fill(Color(hex: 0x8B5CF6).opacity(0.04))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
-                        .stroke(Color(hex: 0x8B5CF6).opacity(0.1), lineWidth: 1)
-                )
-            }
-        }
-    }
 
-    private func prizeTile(icon: String, iconColor: Color, value: String, label: String, lcaiValue: String?) -> some View {
-        HStack(spacing: LC.space8) {
-            ZStack {
-                Circle()
-                    .fill(iconColor.opacity(0.1))
-                    .frame(width: 32, height: 32)
-                Image(systemName: icon)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(iconColor)
-            }
-            VStack(alignment: .leading, spacing: 1) {
-                Text(value)
-                    .font(.subheadline.weight(.bold).monospacedDigit())
-                    .foregroundStyle(LC.accent)
-                HStack(spacing: 3) {
-                    Text(label)
-                        .font(.caption2.weight(.medium))
+                Spacer()
+
+                // Participants
+                if let count = detail.participantsCount, count > 0 {
+                    Text("\(count) participant\(count == 1 ? "" : "s")")
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(LC.textTertiary(scheme))
-                    if let lcai = lcaiValue {
-                        Text("·")
-                            .font(.caption2)
-                            .foregroundStyle(LC.textTertiary(scheme))
-                        Text(lcai)
-                            .font(.caption2.weight(.medium))
-                            .foregroundStyle(LC.textTertiary(scheme))
-                    }
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
-                .fill(iconColor.opacity(0.04))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
-                .stroke(iconColor.opacity(0.1), lineWidth: 1)
-        )
-    }
-
-    // MARK: - Dynamic Insight Line
-
-    private var insights: [String] {
-        var lines: [String] = []
-
-        // 1. Urgent
-        if case .proofWindow(let remaining) = phase, remaining > 0 && remaining < 86400 {
-            let hours = Int(remaining / 3600)
-            lines.append("\(hours)h left — submit your proof")
-        }
-
-        // 2. Status-related
-        if userState == .completed {
-            lines.append("You completed this challenge")
-        }
-
-        // 3. Competitive
-        if let p = progress {
-            let total = p.participantCount ?? 0
-            let passed = p.passCount ?? 0
-            if total > 1 && userState == .active {
-                lines.append("\(total) participants competing")
-            }
-            if passed > 0 && userState != .completed {
-                lines.append("\(passed) of \(total) have passed")
-            }
-        }
-
-        // 4. Reward
-        if let pool = detail.poolDisplay, userState == .completed {
-            lines.append("Potential reward: \(pool)")
-        }
-
-        // 5. Social
-        if let count = detail.participantsCount, count > 0, userState == .notJoined {
-            lines.append("\(count) people have joined")
-        }
-
-        return lines
-    }
-
-    private var insightLine: some View {
-        Text(insights[insightIndex % insights.count])
-            .font(.caption)
-            .foregroundStyle(LC.textSecondary(scheme))
-            .id(insightIndex)
-            .transition(.asymmetric(
-                insertion: .move(edge: .bottom).combined(with: .opacity),
-                removal: .move(edge: .top).combined(with: .opacity)
-            ))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .onReceive(Timer.publish(every: 5, on: .main, in: .common).autoconnect()) { _ in
-                guard insights.count > 1 else { return }
-                // Don't rotate if urgent
-                if case .proofWindow(let remaining) = phase, remaining > 0 && remaining < 86400 { return }
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    insightIndex += 1
-                }
-            }
     }
 
     // MARK: - Action Button
@@ -930,6 +773,13 @@ struct ChallengeProgressHero: View {
         if value >= 100 { return String(format: "%.0f", value) }
         if value >= 1 { return String(format: "%.1f", value) }
         return String(format: "%.2f", value)
+    }
+
+    private func formatValueWithCommas(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = value >= 100 ? 0 : (value >= 1 ? 1 : 2)
+        return formatter.string(from: NSNumber(value: value)) ?? formatValue(value)
     }
 }
 
