@@ -74,7 +74,7 @@ struct MyActivityView: View {
 
                 Spacer()
 
-                LCStatusBadge(text: activity.statusLabel, color: activityStatusColor(activity))
+                LCStatusBadge(text: activity.statusLabel(meta: challengeMetas[activity.challengeId]), color: activityStatusColor(activity))
             }
 
             Rectangle()
@@ -116,11 +116,13 @@ struct MyActivityView: View {
     }
 
     private func activityStatusColor(_ activity: MyChallenge) -> Color {
-        if let pass = activity.verdictPass {
-            return pass ? LC.success : LC.danger
+        let color = activity.statusColor(meta: challengeMetas[activity.challengeId])
+        switch color {
+        case "green": return LC.success
+        case "red": return LC.danger
+        case "amber": return LC.warning
+        default: return LC.info
         }
-        if activity.hasEvidence == true { return LC.warning }
-        return LC.info
     }
 
     // MARK: - States

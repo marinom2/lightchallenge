@@ -367,9 +367,9 @@ struct ChallengesView: View {
                     .foregroundStyle(LC.textPrimary(scheme))
                     .lineLimit(1)
 
-                Text(activity.statusLabel)
+                Text(activity.statusLabel(meta: challengeMetas[activity.challengeId]))
                     .font(.caption2.weight(.medium))
-                    .foregroundStyle(statusColor(activity))
+                    .foregroundStyle(statusColor(activity, meta: challengeMetas[activity.challengeId]))
             }
 
             Spacer()
@@ -391,16 +391,24 @@ struct ChallengesView: View {
     }
 
     private func statusGradient(_ activity: MyChallenge) -> LinearGradient {
-        if activity.verdictPass == true { return LinearGradient(colors: [LC.success, Color(hex: 0x16A34A)], startPoint: .topLeading, endPoint: .bottomTrailing) }
-        if activity.verdictPass == false { return LinearGradient(colors: [LC.danger, Color(hex: 0xDC2626)], startPoint: .topLeading, endPoint: .bottomTrailing) }
-        if activity.hasEvidence == true { return LinearGradient(colors: [LC.warning, Color(hex: 0xCA8A04)], startPoint: .topLeading, endPoint: .bottomTrailing) }
-        return LC.fitnessGradient
+        let meta = challengeMetas[activity.challengeId]
+        let color = activity.statusColor(meta: meta)
+        switch color {
+        case "green": return LinearGradient(colors: [LC.success, Color(hex: 0x16A34A)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case "red": return LinearGradient(colors: [LC.danger, Color(hex: 0xDC2626)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case "amber": return LinearGradient(colors: [LC.warning, Color(hex: 0xCA8A04)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        default: return LC.fitnessGradient
+        }
     }
 
-    private func statusColor(_ activity: MyChallenge) -> Color {
-        if let pass = activity.verdictPass { return pass ? LC.success : LC.danger }
-        if activity.hasEvidence == true { return LC.warning }
-        return LC.info
+    private func statusColor(_ activity: MyChallenge, meta: ChallengeMeta? = nil) -> Color {
+        let color = activity.statusColor(meta: meta ?? challengeMetas[activity.challengeId])
+        switch color {
+        case "green": return LC.success
+        case "red": return LC.danger
+        case "amber": return LC.warning
+        default: return LC.info
+        }
     }
 
     // MARK: - Empty States
@@ -572,11 +580,28 @@ struct EvidenceHubView: View {
     @Environment(\.colorScheme) private var scheme
 
     private var pending: [MyChallenge] {
-        activities.filter { $0.hasEvidence != true && $0.verdictPass == nil }
+        activities.filter { activity in
+            guard activity.hasEvidence != true && activity.verdictPass == nil else { return false }
+            // Only show challenges whose active period has ended
+            return !isChallengeActive(activity)
+        }
     }
 
     private var submitted: [MyChallenge] {
-        activities.filter { $0.hasEvidence == true }
+        activities.filter { activity in
+            guard activity.hasEvidence == true else { return false }
+            // Only show challenges whose active period has ended
+            return !isChallengeActive(activity)
+        }
+    }
+
+    /// Whether a challenge is still in its active period (before endsAt).
+    private func isChallengeActive(_ activity: MyChallenge) -> Bool {
+        if let meta = challengeMetas[activity.challengeId],
+           let ts = meta.endsAt, ts > 0 {
+            return Date(timeIntervalSince1970: ts) > Date()
+        }
+        return activity.challengeStatus == "Active"
     }
 
     var body: some View {
@@ -959,9 +984,9 @@ struct MyChallengesListView: View {
                     .lineLimit(1)
 
                 HStack(spacing: LC.space4) {
-                    Text(activity.statusLabel)
+                    Text(activity.statusLabel(meta: meta))
                         .font(.caption)
-                        .foregroundStyle(statusColor(activity))
+                        .foregroundStyle(statusColor(activity, meta: meta))
 
                     if let end = meta?.endsDate {
                         Text("·")
@@ -1001,10 +1026,14 @@ struct MyChallengesListView: View {
         return meta.resolvedCategory.icon
     }
 
-    private func statusColor(_ activity: MyChallenge) -> Color {
-        if let pass = activity.verdictPass { return pass ? LC.success : LC.danger }
-        if activity.hasEvidence == true { return LC.warning }
-        return .secondary
+    private func statusColor(_ activity: MyChallenge, meta: ChallengeMeta? = nil) -> Color {
+        let color = activity.statusColor(meta: meta ?? challengeMetas[activity.challengeId])
+        switch color {
+        case "green": return LC.success
+        case "red": return LC.danger
+        case "amber": return LC.warning
+        default: return .secondary
+        }
     }
 
     private var emptyState: some View {

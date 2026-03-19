@@ -266,7 +266,6 @@ enum UserChallengeState {
     var secondaryLabel: String? {
         switch self {
         case .awaitingProof: return "Submit your proof"
-        case .awaitingVerdict: return "AI verification in progress"
         case .submitted: return "Awaiting finalization"
         default: return nil
         }
@@ -297,16 +296,19 @@ enum UserChallengeState {
         if joined {
             if hasEvidence {
                 // Evidence submitted but no verdict yet.
-                // Show phase-aware status instead of permanent "Under Review":
+                // Phase-aware status:
+                // - Active: challenge still running → show Active (not Verifying)
+                // - ProofWindow: challenge ended, proof deadline open → Verifying
+                // - Ended/Finalized: proof deadline passed → Submitted (awaiting pipeline)
                 switch phase {
-                case .active, .proofWindow:
-                    // Still within the challenge / proof window → actively verifying
+                case .active:
+                    return .active
+                case .proofWindow:
                     return .awaitingVerdict
                 case .ended, .finalized:
-                    // Proof window closed, challenge ended — waiting for pipeline/finalization
                     return .submitted
                 default:
-                    return .awaitingVerdict
+                    return .active
                 }
             }
             switch phase {

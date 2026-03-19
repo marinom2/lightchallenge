@@ -634,6 +634,15 @@ struct MyChallenge: Codable, Identifiable {
     }
 
     var statusLabel: String {
+        statusLabel(meta: nil)
+    }
+
+    /// Timeline-aware status label. When a ChallengeMeta is available, verdicts
+    /// and evidence states are suppressed while the challenge is still active.
+    func statusLabel(meta: ChallengeMeta?) -> String {
+        if isActive(meta: meta) {
+            return "Active"
+        }
         if let pass = verdictPass {
             return pass ? "Passed" : "Failed"
         }
@@ -642,11 +651,27 @@ struct MyChallenge: Codable, Identifiable {
     }
 
     var statusColor: String {
+        statusColor(meta: nil)
+    }
+
+    func statusColor(meta: ChallengeMeta?) -> String {
+        if isActive(meta: meta) {
+            return "green"
+        }
         if let pass = verdictPass {
             return pass ? "green" : "red"
         }
         if hasEvidence == true { return "amber" }
         return "blue"
+    }
+
+    /// Whether the challenge is still in its active period (before endsAt).
+    private func isActive(meta: ChallengeMeta?) -> Bool {
+        if let ts = meta?.endsAt, ts > 0 {
+            return Date(timeIntervalSince1970: ts) > Date()
+        }
+        // Fallback: on-chain status "Active" with no timeline
+        return challengeStatus == "Active"
     }
 }
 
