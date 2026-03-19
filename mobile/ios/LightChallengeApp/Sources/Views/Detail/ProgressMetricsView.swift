@@ -39,7 +39,7 @@ struct ProgressMetricsView: View {
     }
 
     private var ringColor: Color {
-        if phase.ringDimmed { return .secondary }
+        if phase.ringDimmed { return .secondary.opacity(0.6) }
         return theme.barColors.first ?? theme.figureTint
     }
 
@@ -98,23 +98,32 @@ struct ProgressMetricsView: View {
     // MARK: - Ring Section
 
     private var ringSection: some View {
-        VStack(spacing: LC.space16) {
+        VStack(spacing: LC.space12) {
             ChallengeProgressRing(
                 state: ringState,
                 symbol: theme.icon,
                 color: ringColor,
                 diameter: 200,
-                lineWidth: 18
+                lineWidth: 14
             )
             .padding(.top, LC.space16)
 
-            // Status label
-            HStack(spacing: LC.space8) {
-                Image(systemName: phase.icon)
-                    .foregroundStyle(phase.color)
-                Text(userState.label)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(phase.color)
+            // Subtle system state — progress is the hero
+            if userState == .awaitingVerdict {
+                AnimatedVerifyingText()
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else if userState == .submitted {
+                Text("Awaiting finalization")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(LC.textTertiary(scheme))
+            } else if userState == .completed {
+                Text("Challenge passed")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(LC.success.opacity(0.8))
+            } else if userState == .failed {
+                Text("Challenge failed")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(LC.danger.opacity(0.8))
             }
         }
     }

@@ -365,55 +365,38 @@ struct ChallengeProgressHero: View {
     private var rules: ChallengeRules? { detail.rules }
     private var metricLabel: String { rules?.metricLabel ?? "" }
 
-    /// Whether the user can tap to see detailed progress metrics.
-    /// Always enabled — even non-participants can view the progress sheet.
-    private var canViewProgress: Bool {
-        true
-    }
 
     var body: some View {
-        VStack(spacing: LC.space20) {
-            // Status + time
-            topRow
+        VStack(spacing: LC.space24) {
+            // Challenge name
+            Text(detail.displayTitle)
+                .font(.title3.weight(.bold))
+                .foregroundStyle(LC.textPrimary(scheme))
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity)
 
-            // Ring + title — tappable
-            HStack(spacing: LC.space16) {
-                progressRing
-                    .scaleEffect(figureAppeared ? 1.0 : 0.3)
-                    .opacity(figureAppeared ? 1.0 : 0.0)
+            // Progress ring — tappable for detail
+            progressRing
+                .scaleEffect(figureAppeared ? 1.0 : 0.3)
+                .opacity(figureAppeared ? 1.0 : 0.0)
+                .contentShape(Circle())
+                .onTapGesture { onAction(.viewProgress) }
 
-                VStack(alignment: .leading, spacing: LC.space6) {
-                    Text(detail.displayTitle)
-                        .font(.title3.weight(.bold))
-                        .lineLimit(2)
-                        .foregroundStyle(LC.textPrimary(scheme))
-
-                    if goalValue > 0 {
-                        progressLabel
-                    } else if !activitySummary.isEmpty {
-                        activitySummaryLabel
-                    } else if let desc = detail.description, !desc.isEmpty {
-                        Text(desc)
-                            .font(.subheadline)
-                            .foregroundStyle(LC.textSecondary(scheme))
-                            .lineLimit(2)
-                    }
+            // Steps + goal
+            VStack(spacing: LC.space4) {
+                if goalValue > 0 {
+                    progressLabel
+                } else if !activitySummary.isEmpty {
+                    activitySummaryLabel
                 }
-
-                Spacer(minLength: 0)
-
-                Image(systemName: "chevron.right")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(LC.textTertiary(scheme))
             }
-            .contentShape(Rectangle())
-            .onTapGesture { onAction(.viewProgress) }
 
-            // Reward + participants — clean inline
+            // System state (verifying, submitted, ended, time remaining)
+            systemStateLine
+
+            // Reward + participants
             rewardLine
-
-            // Inline state message (replaces separate cards)
-            stateMessage
 
             // Primary action
             actionButton
@@ -432,103 +415,36 @@ struct ChallengeProgressHero: View {
         }
     }
 
-    // MARK: - Inline State Message
+    // MARK: - System State Line (single source of truth)
 
     @ViewBuilder
-    private var stateMessage: some View {
-        switch userState {
-        case .awaitingVerdict:
+    private var systemStateLine: some View {
+        if userState == .awaitingVerdict {
             AnimatedVerifyingText()
-        case .submitted:
-            Text("Evidence submitted — awaiting finalization")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(LC.textSecondary(scheme))
-                .frame(maxWidth: .infinity, alignment: .leading)
-        case .ended:
-            Text("This challenge has ended")
-                .font(.subheadline.weight(.medium))
+        } else if userState == .submitted {
+            Text("Awaiting finalization")
+                .font(.caption.weight(.medium))
                 .foregroundStyle(LC.textTertiary(scheme))
-                .frame(maxWidth: .infinity, alignment: .leading)
-        default:
-            EmptyView()
-        }
-    }
-
-    // MARK: - Top Row (Status)
-
-    /// Resolved status: prefer user state when evidence is in play.
-    private var resolvedStatusLabel: String {
-        // When participant data hasn't loaded, use neutral phase labels
-        // that don't commit to a user-specific state (avoids "Awaiting Proof" flash).
-        guard participantLoaded else {
-            switch phase {
-            case .proofWindow: return "Proof Window"
-            case .ended: return "Ended"
-            case .finalized(let p):
-                if let p { return p ? "Completed" : "Failed" }
-                return "Finalized"
-            default: return phase.statusLabel
-            }
-        }
-        switch userState {
-        case .awaitingVerdict, .submitted, .completed, .failed:
-            return userState.label
-        default:
-            return phase.statusLabel
-        }
-    }
-
-    private var resolvedStatusColor: Color {
-        guard participantLoaded else { return phase.color }
-        switch userState {
-        case .awaitingVerdict: return LC.accent
-        case .submitted: return LC.info
-        case .completed: return LC.success
-        case .failed: return LC.danger
-        default: return phase.color
-        }
-    }
-
-    private var resolvedStatusIcon: String {
-        guard participantLoaded else {
-            switch phase {
-            case .proofWindow: return "clock.badge.exclamationmark"
-            case .ended: return "flag.checkered"
-            default: return "circle"
-            }
-        }
-        switch userState {
-        case .active: return "bolt.fill"
-        case .awaitingProof: return "doc.text.magnifyingglass"
-        case .awaitingVerdict: return "gearshape.2.fill"
-        case .submitted: return "paperplane.fill"
-        case .completed: return "checkmark.seal.fill"
-        case .failed: return "xmark.circle.fill"
-        default: return "circle"
-        }
-    }
-
-    private var topRow: some View {
-        HStack(spacing: LC.space6) {
-            Circle()
-                .fill(resolvedStatusColor)
-                .frame(width: 7, height: 7)
-
-            Text(resolvedStatusLabel)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(resolvedStatusColor)
-
-            Spacer()
-
-            if case .active(let remaining) = phase, remaining > 0 {
-                Text(phase.label)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(LC.textSecondary(scheme))
-            } else if case .proofWindow(let remaining) = phase, remaining > 0, userState == .awaitingProof {
-                Text(phase.label)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(LC.warning)
-            }
+        } else if userState == .ended {
+            Text("Challenge ended")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(LC.textTertiary(scheme))
+        } else if case .active(let remaining) = phase, remaining > 0 {
+            Text(phase.label)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(LC.textSecondary(scheme))
+        } else if case .proofWindow(let remaining) = phase, remaining > 0, userState == .awaitingProof {
+            Text(phase.label)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(LC.textSecondary(scheme))
+        } else if userState == .completed {
+            Text("Challenge passed")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(LC.success)
+        } else if userState == .failed {
+            Text("Challenge failed")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(LC.danger)
         }
     }
 
@@ -598,12 +514,12 @@ struct ChallengeProgressHero: View {
     // MARK: - Numeric Progress
 
     private var progressLabel: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(spacing: 2) {
             Text("\(formatValueWithCommas(currentValue)) \(metricLabel)")
-                .font(.subheadline.weight(.bold).monospacedDigit())
+                .font(.title2.weight(.bold).monospacedDigit())
                 .foregroundStyle(LC.textPrimary(scheme))
             Text("Goal: \(formatValueWithCommas(goalValue))")
-                .font(.caption2.weight(.medium))
+                .font(.caption.weight(.medium))
                 .foregroundStyle(LC.textTertiary(scheme))
         }
     }
@@ -821,7 +737,7 @@ enum HeroAction {
 
 // MARK: - Animated Verifying Text
 
-/// Subtle "Verifying your activity..." with cycling ellipsis.
+/// Subtle "Verifying activity…" with cycling ellipsis — calm system state.
 struct AnimatedVerifyingText: View {
     @State private var dotCount = 0
     @Environment(\.colorScheme) private var scheme
@@ -831,11 +747,10 @@ struct AnimatedVerifyingText: View {
     }
 
     var body: some View {
-        Text("Verifying your activity\(dots)")
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(LC.textSecondary(scheme))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .onReceive(Timer.publish(every: 0.6, on: .main, in: .common).autoconnect()) { _ in
+        Text("Verifying activity\(dots)")
+            .font(.caption.weight(.medium))
+            .foregroundStyle(LC.textTertiary(scheme))
+            .onReceive(Timer.publish(every: 0.7, on: .main, in: .common).autoconnect()) { _ in
                 dotCount += 1
             }
     }
