@@ -193,10 +193,11 @@ function dailyStreak(rule: Rule, activities: Activity[]) {
   const needed = rule.dailyTarget!.consecutiveDays!;
   const conds = rule.dailyTarget!.conditions!;
 
+  const tz = rule.period.timezone;
   const dayPass: Record<string, boolean> = {};
   for (const dayIso of days) {
     // aggregate steps/distance/duration for the day (any type)
-    const dayActs = activities.filter(a => inDay(a, dayIso) && inPeriod(a, rule.period));
+    const dayActs = activities.filter(a => inDay(a, dayIso, tz) && inPeriod(a, rule.period));
     const summary: Activity = {
       type: rule.challengeType,
       start: dayIso + "T00:00:00Z",
@@ -219,22 +220,92 @@ function dailyStreak(rule: Rule, activities: Activity[]) {
   return { pass: best >= needed, reasons, evidence: { dayPass, needed, best } };
 }
 
-function inDay(a: Activity, dayIso: string): boolean {
+/**
+ * Check if an activity's start falls within a calendar day in the given timezone.
+ * Uses the challenge timezone (from rule.period) so that day boundaries align
+ * with the user's local calendar (e.g., midnight Sofia, not midnight UTC).
+ */
+function inDay(a: Activity, dayIso: string, tz?: string): boolean {
   const s = parseISO(a.start);
+  if (tz) {
+    // Day boundaries in the challenge timezone
+    const d0 = tzMidnight(dayIso, tz);
+    const d1 = new Date(d0.getTime() + 86400_000);
+    return s.getTime() >= d0.getTime() && s.getTime() < d1.getTime();
+  }
+  // Fallback: UTC day boundaries
   const d0 = startOfDay(parseISO(dayIso + "T00:00:00Z"));
   const d1 = addDays(d0, 1);
   return !isBefore(s, d0) && isBefore(s, d1);
 }
 
+/**
+ * Slice a challenge period into calendar days using the challenge timezone.
+ * A 4-hour challenge from 17:25-21:25 UTC in Europe/Sofia (UTC+2) spans
+ * a single local day (March 18), not two UTC days.
+ */
 function sliceIntoDays(p: Period): string[] {
+  const tz = p.timezone;
   const out: string[] = [];
-  let cur = startOfDay(parseISO(p.start));
-  const end = parseISO(p.end);
-  while (!isAfter(cur, end)) {
-    out.push(formatISO(cur, { representation: "date" }));
-    cur = addDays(cur, 1);
+
+  if (tz) {
+    // Use the challenge timezone for day slicing
+    const startDate = parseISO(p.start);
+    const endDate = parseISO(p.end);
+    // Get the local date string for the start
+    let cur = localDateStr(startDate, tz);
+    const endStr = localDateStr(endDate, tz);
+    out.push(cur);
+    // Walk forward by day until we pass the end date's local day
+    while (cur < endStr) {
+      const next = tzMidnight(cur, tz);
+      const nextDay = new Date(next.getTime() + 86400_000);
+      cur = localDateStr(nextDay, tz);
+      if (cur <= endStr) out.push(cur);
+    }
+  } else {
+    // Fallback: UTC day boundaries
+    let cur = startOfDay(parseISO(p.start));
+    const end = parseISO(p.end);
+    while (!isAfter(cur, end)) {
+      out.push(formatISO(cur, { representation: "date" }));
+      cur = addDays(cur, 1);
+    }
   }
   return out;
+}
+
+/** Get midnight in a specific timezone for a given YYYY-MM-DD string. */
+function tzMidnight(dayIso: string, tz: string): Date {
+  // Create a date at noon UTC on that day, then find the offset
+  const noon = new Date(`${dayIso}T12:00:00Z`);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  }).formatToParts(noon);
+  const get = (t: string) => parts.find(p => p.type === t)?.value ?? "0";
+  // Reconstruct midnight in that timezone, then convert to UTC
+  const localMidnight = new Date(`${get("year")}-${get("month")}-${get("day")}T00:00:00Z`);
+  // The offset between UTC midnight and local midnight
+  const offset = noon.getTime() - new Date(`${dayIso}T12:00:00Z`).getTime();
+  // Calculate: local midnight = UTC time - tz offset
+  const noonLocal = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(noon);
+  const noonHour = Number(noonLocal.find(p => p.type === "hour")?.value ?? 12);
+  const noonMin = Number(noonLocal.find(p => p.type === "minute")?.value ?? 0);
+  // offset in ms = (localHour - utcHour) * 3600000 + (localMin - utcMin) * 60000
+  const utcHour = noon.getUTCHours();
+  const utcMin = noon.getUTCMinutes();
+  const tzOffsetMs = ((noonHour - utcHour) * 3600 + (noonMin - utcMin) * 60) * 1000;
+  // Midnight local = dayIso 00:00 local = dayIso 00:00 UTC - tzOffset
+  return new Date(localMidnight.getTime() - tzOffsetMs);
+}
+
+/** Get YYYY-MM-DD string in a specific timezone. */
+function localDateStr(d: Date, tz: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+  return parts; // en-CA formats as YYYY-MM-DD
 }
 
 function weekKeyOf(isoDate: string): string {

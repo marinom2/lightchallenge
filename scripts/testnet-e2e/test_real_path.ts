@@ -16,7 +16,7 @@ const chain = defineChain({
   rpcUrls: { default: { http: ['https://light-testnet-rpc.lightchain.ai'] }, public: { http: ['https://light-testnet-rpc.lightchain.ai'] } }
 });
 
-const CP_ADDR = '0xEF52411a2f13DbE3BBB60A8474808D4d4F7F4CA2' as const;
+const CP_ADDR = '0xBeA3b508a5Ce2E6C8462108f42c732Da7454c5cb' as const;
 const CP_ABI = parseAbi([
   "function joinChallengeNative(uint256 id) payable",
   "event Joined(uint256 indexed id, address indexed participant)"
