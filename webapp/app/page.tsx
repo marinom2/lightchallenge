@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import {
@@ -14,7 +13,7 @@ import {
   Users,
   Gamepad2,
 } from "lucide-react";
-import ScrollCanvas from "./components/ScrollCanvas";
+import CompetitiveOrbit from "./components/CompetitiveOrbit";
 
 /* ── Data hooks ────────────────────────────────────────────────────────────── */
 
@@ -41,17 +40,6 @@ function useHealth() {
   return health;
 }
 
-/* ── Brand logos ───────────────────────────────────────────────────────────── */
-
-const BRANDS = [
-  { name: "Dota 2", src: "/brands/dota_vector.png", w: 80, h: 80 },
-  { name: "CS2", src: "/brands/cs-2-logo.png", w: 80, h: 80 },
-  { name: "Valorant", src: "/brands/valorant_vector.jpg", w: 80, h: 80 },
-  { name: "Strava", src: "/brands/brand-strava_vector.svg", w: 80, h: 80 },
-  { name: "Apple Health", src: "/brands/apple_vector.svg", w: 80, h: 80 },
-  { name: "Garmin", src: "/brands/garmin_vector.png", w: 80, h: 80 },
-];
-
 /* ── Page ──────────────────────────────────────────────────────────────────── */
 
 export default function HomePage() {
@@ -60,59 +48,57 @@ export default function HomePage() {
 
   return (
     <div className="hp">
-      {/* ═══════════════════ ORBIT HERO — scroll-driven ═══════════════════ */}
-      <section className="hp-scroll-hero">
-        <ScrollCanvas
-          framePath="/frames/orbit/frame_"
-          frameCount={192}
-          width={1280}
-          height={720}
-          scrollSpan={4}
-          className="hp-scroll-hero__canvas"
-        />
-
-        {/* Overlay content — pinned on top of the sticky canvas */}
-        <div className="hp-scroll-hero__overlay">
-          <div className="hp-scroll-hero__content">
-            <div className="hp-hero__eyebrow">
-              {health?.status === "healthy" && (
-                <span className="hp-hero__live-dot" />
-              )}
-              Verified competition infrastructure
-            </div>
-
-            <h1 className="hp-hero__headline">
-              Enter the arena for{" "}
-              <span className="hp-hero__headline-accent">
-                modern challenges.
-              </span>
-            </h1>
-
-            <p className="hp-hero__sub">
-              Launch and join structured challenges across Dota&nbsp;2, CS2,
-              League of Legends, and Valorant&nbsp;&mdash; built for players,
-              teams, and tournament organizers who want competition to feel real.
-            </p>
-
-            <div className="hp-hero__cta">
-              <Link href="/explore" className="btn btn-primary btn-lg">
-                Explore Challenges <ArrowRight size={16} />
-              </Link>
-              <Link href="/explore" className="btn btn-outline btn-lg">
-                For Teams &amp; Tournaments
-              </Link>
-            </div>
-
-            <div className="hp-hero__trust">
-              <TrustChip>Verified rules</TrustChip>
-              <TrustChip>Competitive formats</TrustChip>
-              <TrustChip>Team-ready</TrustChip>
-            </div>
+      {/* ═══════════════════════════════ HERO ═══════════════════════════════ */}
+      <section className="hp-hero">
+        <div className="hp-hero__content">
+          {/* Eyebrow */}
+          <div className="hp-hero__eyebrow">
+            {health?.status === "healthy" && (
+              <span className="hp-hero__live-dot" />
+            )}
+            Verified competition infrastructure
           </div>
+
+          {/* Headline */}
+          <h1 className="hp-hero__headline">
+            Enter the arena for{" "}
+            <span className="hp-hero__headline-accent">
+              modern challenges.
+            </span>
+          </h1>
+
+          {/* Supporting copy */}
+          <p className="hp-hero__sub">
+            Launch and join structured challenges across Dota&nbsp;2, CS2,
+            League of Legends, and Valorant&nbsp;&mdash; built for players,
+            teams, and tournament organizers who want competition to feel real.
+          </p>
+
+          {/* CTAs */}
+          <div className="hp-hero__cta">
+            <Link href="/explore" className="btn btn-primary btn-lg">
+              Explore Challenges <ArrowRight size={16} />
+            </Link>
+            <Link href="/explore" className="btn btn-outline btn-lg">
+              For Teams &amp; Tournaments
+            </Link>
+          </div>
+
+          {/* Trust chips */}
+          <div className="hp-hero__trust">
+            <TrustChip>Verified rules</TrustChip>
+            <TrustChip>Competitive formats</TrustChip>
+            <TrustChip>Team-ready</TrustChip>
+          </div>
+        </div>
+
+        {/* Animated orbit visual */}
+        <div className="hp-hero__visual">
+          <CompetitiveOrbit />
         </div>
       </section>
 
-      {/* ═════════════════════ ARENA RAIL ═════════════════════════════════ */}
+      {/* ═════════════════════════ ARENA RAIL ═══════════════════════════════ */}
       <div className="hp-rail">
         <RailStep icon={<Target size={14} />} label="Launch" />
         <div className="hp-rail__line" />
@@ -121,26 +107,7 @@ export default function HomePage() {
         <RailStep icon={<Trophy size={14} />} label="Verify" />
       </div>
 
-      {/* ═════════════════════ BRAND LOGOS ════════════════════════════════ */}
-      <section className="hp-brands">
-        <p className="hp-brands__label">Supported platforms</p>
-        <div className="hp-brands__row">
-          {BRANDS.map((b) => (
-            <div key={b.name} className="hp-brands__item">
-              <Image
-                src={b.src}
-                alt={b.name}
-                width={b.w}
-                height={b.h}
-                className="hp-brands__logo"
-              />
-              <span className="hp-brands__name">{b.name}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ═════════════════════ ENTRY PATHS ════════════════════════════════ */}
+      {/* ═════════════════════ ENTRY PATHS ══════════════════════════════════ */}
       <section className="hp-section">
         <div className="hp-paths">
           <Link href="/explore" className="hp-path">
@@ -172,7 +139,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ═══════════════════ HOW IT WORKS ═════════════════════════════════ */}
+      {/* ═══════════════════ HOW IT WORKS ═══════════════════════════════════ */}
       <section className="hp-section">
         <SectionLabel>How it works</SectionLabel>
         <h2 className="hp-section__title">
@@ -205,19 +172,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ═══════════════ VERIFICATION — scroll-driven logo ═══════════════ */}
-      <section className="hp-scroll-verify">
-        <ScrollCanvas
-          framePath="/frames/logo/frame_"
-          frameCount={144}
-          width={960}
-          height={960}
-          scrollSpan={3}
-          className="hp-scroll-verify__canvas"
-        />
-
-        <div className="hp-scroll-verify__overlay">
-          <div className="hp-scroll-verify__content">
+      {/* ═══════════════════ VERIFICATION ═══════════════════════════════════ */}
+      <section className="hp-section">
+        <div className="hp-verify">
+          <div className="hp-verify__content">
             <SectionLabel>Powered by Lightchain AIVM</SectionLabel>
             <h2 className="hp-section__title">
               AI-verified outcomes. On-chain proof.
@@ -235,10 +193,18 @@ export default function HomePage() {
               <VerifySignal text="Automated payout execution" />
             </div>
           </div>
+          <div className="hp-verify__visual">
+            <div className="hp-verify__glyph">
+              <Shield size={28} />
+            </div>
+            <div className="hp-verify__ring hp-verify__ring--1" />
+            <div className="hp-verify__ring hp-verify__ring--2" />
+            <div className="hp-verify__ring hp-verify__ring--3" />
+          </div>
         </div>
       </section>
 
-      {/* ═══════════════════════ FINAL CTA ════════════════════════════════ */}
+      {/* ═══════════════════════ FINAL CTA ══════════════════════════════════ */}
       <section className="hp-final-cta">
         <h2 className="hp-final-cta__title">Ready to compete?</h2>
         <p className="hp-final-cta__sub">

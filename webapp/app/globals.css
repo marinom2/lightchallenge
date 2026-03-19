@@ -2599,111 +2599,49 @@ html[data-theme="light"] .select-card[data-selected] {
 /* ── Homepage ──────────────────────────────────────────────────────────────── */
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   HOMEPAGE — Scroll-driven cinematic hero with frame animations
+   HOMEPAGE — Arena-centered, split hero with Competitive Orbit
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .hp {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: clamp(64px, 10vw, 120px);
 }
 
-/* ── ScrollCanvas (reusable) ──────────────────────────────────────────── */
+/* ── Hero (split layout) ──────────────────────────────────────────────── */
 
-.scroll-canvas {
+.hp-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: var(--lc-space-8);
+  padding-top: clamp(32px, 6vw, 72px);
+  padding-bottom: var(--lc-space-6);
   position: relative;
 }
 
-.scroll-canvas__sticky {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
+@media (max-width: 1024px) {
+  .hp-hero {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
 }
-
-.scroll-canvas__canvas {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-/* ── Scroll Hero (orbit animation) ────────────────────────────────────── */
-
-.hp-scroll-hero {
-  position: relative;
-}
-
-.hp-scroll-hero__canvas {
-  background: #080a12;
-}
-
-.hp-scroll-hero__overlay {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  pointer-events: none;
-  z-index: 5;
-  margin-top: -100vh;
-  padding-bottom: clamp(40px, 8vh, 100px);
-}
-
-.hp-scroll-hero__content {
-  pointer-events: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: var(--lc-space-4);
-  max-width: 640px;
-  padding: 0 var(--lc-space-4);
-}
-
-/* ── Scroll Verify (logo → card animation) ────────────────────────────── */
-
-.hp-scroll-verify {
-  position: relative;
-}
-
-.hp-scroll-verify__canvas {
-  background: #0d0f18;
-}
-
-.hp-scroll-verify__overlay {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  pointer-events: none;
-  z-index: 5;
-  margin-top: -100vh;
-  padding-bottom: clamp(40px, 8vh, 80px);
-}
-
-.hp-scroll-verify__content {
-  pointer-events: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: var(--lc-space-4);
-  max-width: 600px;
-  padding: 0 var(--lc-space-4);
-}
-
-/* ── Hero content (shared between scroll-hero overlay and old layout) ── */
 
 .hp-hero__content {
   display: flex;
   flex-direction: column;
   gap: var(--lc-space-5);
+}
+
+@media (max-width: 1024px) {
+  .hp-hero__content {
+    align-items: center;
+  }
+}
+
+.hp-hero__visual {
+  display: flex;
+  justify-content: center;
   align-items: center;
 }
 
@@ -2947,9 +2885,6 @@ html[data-theme="light"] .select-card[data-selected] {
 .hp-section {
   display: flex;
   flex-direction: column;
-  padding: clamp(48px, 8vw, 96px) var(--lc-space-4);
-  align-items: center;
-  text-align: center;
 }
 
 .hp-section__label {
@@ -3066,12 +3001,51 @@ html[data-theme="light"] .select-card[data-selected] {
 
 /* ── Verify section ───────────────────────────────────────────────────── */
 
-/* Verify signals (used inside scroll-verify overlay) */
+.hp-verify {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--lc-space-10);
+  align-items: center;
+  padding: var(--lc-space-10) var(--lc-space-8);
+  border-radius: var(--lc-radius-xl);
+  background: var(--lc-glass);
+  border: 1px solid var(--lc-glass-border);
+  backdrop-filter: blur(var(--lc-glass-blur)) saturate(1.15);
+  -webkit-backdrop-filter: blur(var(--lc-glass-blur)) saturate(1.15);
+  overflow: hidden;
+  position: relative;
+}
+
+.hp-verify::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(60% 60% at 100% 100%, rgba(95, 134, 255, 0.06), transparent),
+    radial-gradient(40% 40% at 0% 0%, rgba(185, 167, 255, 0.04), transparent);
+  pointer-events: none;
+}
+
+@media (max-width: 767px) {
+  .hp-verify {
+    grid-template-columns: 1fr;
+    padding: var(--lc-space-6);
+  }
+}
+
+.hp-verify__content {
+  position: relative;
+  z-index: 1;
+}
+.hp-verify__content .hp-section__label { margin-bottom: var(--lc-space-2); }
+.hp-verify__content .hp-section__title { margin-bottom: var(--lc-space-3); }
+.hp-verify__content .hp-section__sub { margin-bottom: var(--lc-space-6); }
+
 .hp-verify__signals {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--lc-space-3) var(--lc-space-5);
+  flex-direction: column;
+  gap: var(--lc-space-3);
 }
 
 .hp-verify__signal {
@@ -3087,6 +3061,66 @@ html[data-theme="light"] .select-card[data-selected] {
   flex-shrink: 0;
 }
 
+.hp-verify__visual {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .hp-verify__visual {
+    display: none;
+  }
+}
+
+.hp-verify__glyph {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--lc-bg-inset);
+  border: 1px solid var(--lc-border);
+  color: var(--lc-grad-2);
+  box-shadow: 0 0 24px rgba(95, 134, 255, 0.12);
+}
+
+.hp-verify__ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(95, 134, 255, 0.08);
+}
+
+.hp-verify__ring--1 {
+  width: 100px; height: 100px;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  animation: lc-pulse-glow 4s ease-in-out infinite;
+}
+
+.hp-verify__ring--2 {
+  width: 140px; height: 140px;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  animation: lc-pulse-glow 4s ease-in-out infinite 1s;
+  opacity: 0.5;
+}
+
+.hp-verify__ring--3 {
+  width: 180px; height: 180px;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  animation: lc-pulse-glow 4s ease-in-out infinite 2s;
+  opacity: 0.3;
+}
+
 /* ── Final CTA ────────────────────────────────────────────────────────── */
 
 .hp-final-cta {
@@ -3096,7 +3130,6 @@ html[data-theme="light"] .select-card[data-selected] {
   text-align: center;
   gap: var(--lc-space-5);
   padding: var(--lc-space-12) var(--lc-space-6);
-  margin: clamp(48px, 8vw, 96px) 0;
   border-radius: var(--lc-radius-xl);
   position: relative;
   overflow: hidden;
@@ -3143,71 +3176,201 @@ html[data-theme="light"] .select-card[data-selected] {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   BRAND LOGOS
+   COMPETITIVE ORBIT — Animated hero visual
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.hp-brands {
-  padding: var(--lc-space-8) var(--lc-space-4);
-  text-align: center;
-}
-
-.hp-brands__label {
-  font-size: var(--lc-text-caption);
-  font-weight: var(--lc-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--lc-text-muted);
-  margin-bottom: var(--lc-space-5);
-}
-
-.hp-brands__row {
+.orbit {
+  position: relative;
+  width: 420px;
+  height: 360px;
   display: flex;
-  justify-content: center;
   align-items: center;
-  gap: clamp(24px, 5vw, 56px);
-  flex-wrap: wrap;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.hp-brands__item {
+@media (max-width: 1024px) {
+  .orbit {
+    transform: scale(0.82);
+    transform-origin: center center;
+  }
+}
+
+@media (max-width: 640px) {
+  .orbit {
+    transform: scale(0.65);
+    transform-origin: center center;
+  }
+}
+
+/* Orbit rings — elliptical for 3D depth */
+.orbit__ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  border: 1px solid rgba(95, 134, 255, 0.06);
+  pointer-events: none;
+}
+
+.orbit__ring--1 {
+  width: 180px;
+  height: 72px;
+  transform: translate(-50%, -50%);
+}
+
+.orbit__ring--2 {
+  width: 280px;
+  height: 112px;
+  transform: translate(-50%, -50%);
+}
+
+.orbit__ring--3 {
+  width: 380px;
+  height: 152px;
+  transform: translate(-50%, -50%);
+  opacity: 0.5;
+}
+
+/* Central core */
+.orbit__core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(95, 134, 255, 0.15), rgba(95, 134, 255, 0.04));
+  border: 1px solid rgba(95, 134, 255, 0.12);
+  z-index: 5;
+  transition: transform 0.3s var(--lc-ease);
+}
+
+.orbit__core--pulse {
+  transform: translate(-50%, -50%) scale(1.12);
+}
+
+.orbit__core-glow {
+  position: absolute;
+  inset: -24px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(95, 134, 255, 0.1), transparent 65%);
+  pointer-events: none;
+}
+
+/* Pulse ring (on challenge activation) */
+.orbit__pulse-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 52px;
+  height: 52px;
+  margin-top: -26px;
+  margin-left: -26px;
+  border-radius: 50%;
+  border: 1px solid rgba(95, 134, 255, 0.3);
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* Orbiting game nodes */
+.orbit__node {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin-top: -22px;
+  margin-left: -22px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--lc-space-2);
-  opacity: 0.6;
-  transition: opacity var(--lc-dur-base) var(--lc-ease);
+  gap: 3px;
+  will-change: transform, opacity;
+  pointer-events: none;
 }
 
-.hp-brands__item:hover {
-  opacity: 1;
+.orbit__node-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--lc-bg-raised);
+  border: 1px solid var(--lc-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lc-text);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
 }
 
-.hp-brands__logo {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
-  filter: grayscale(1) brightness(1.4);
-  transition: filter var(--lc-dur-base) var(--lc-ease);
-}
-
-.hp-brands__item:hover .hp-brands__logo {
-  filter: grayscale(0) brightness(1);
-}
-
-.hp-brands__name {
-  font-size: 11px;
-  font-weight: var(--lc-weight-medium);
+.orbit__node-tag {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   color: var(--lc-text-muted);
-  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
-@media (max-width: 480px) {
-  .hp-brands__logo {
-    width: 36px;
-    height: 36px;
-  }
-  .hp-brands__name {
-    font-size: 9px;
-  }
+/* Floating challenge card */
+.orbit__card {
+  position: absolute;
+  bottom: 24px;
+  right: 16px;
+  width: 194px;
+  padding: 14px 16px;
+  border-radius: var(--lc-radius-lg);
+  background: var(--lc-bg-raised);
+  border: 1px solid var(--lc-border);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  z-index: 20;
+}
+
+.orbit__card-game {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.orbit__card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lc-text);
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+
+.orbit__card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.orbit__card-prize {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--lc-text-secondary);
+}
+
+.orbit__card-joined {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--lc-text-muted);
+}
+
+.orbit__card-dots {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.orbit__card-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--lc-border-strong);
 }
 
 /* ── Homepage: Light theme refinements ─────────────────────────────────── */
@@ -3250,22 +3413,34 @@ html[data-theme="light"] .hp-path__link {
   color: var(--lc-accent);
 }
 
+html[data-theme="light"] .hp-verify {
+  background: var(--lc-glass);
+  border-color: var(--lc-border);
+  box-shadow: var(--lc-shadow-sm);
+}
+
 html[data-theme="light"] .hp-final-cta {
   background: var(--lc-glass);
   box-shadow: var(--lc-shadow-md);
 }
 
-html[data-theme="light"] .hp-brands__logo {
-  filter: grayscale(1) brightness(0.8);
+html[data-theme="light"] .orbit__node-icon {
+  background: var(--lc-bg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-html[data-theme="light"] .hp-brands__item:hover .hp-brands__logo {
-  filter: grayscale(0) brightness(1);
+html[data-theme="light"] .orbit__card {
+  background: var(--lc-bg);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
-html[data-theme="light"] .hp-scroll-hero__canvas,
-html[data-theme="light"] .hp-scroll-verify__canvas {
-  filter: brightness(1.05);
+html[data-theme="light"] .orbit__ring {
+  border-color: rgba(0, 0, 0, 0.04);
+}
+
+html[data-theme="light"] .orbit__core {
+  background: radial-gradient(circle, rgba(95, 134, 255, 0.08), rgba(95, 134, 255, 0.02));
+  border-color: rgba(95, 134, 255, 0.08);
 }
 
 /* ── Underline Tabs (pilltabs) ─────────────────────────────────────────────── */
