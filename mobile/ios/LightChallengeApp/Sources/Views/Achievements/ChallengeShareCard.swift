@@ -1,6 +1,6 @@
 // ChallengeShareCard.swift
 // Shareable result card for challenge wins/losses — social proof.
-// Shows challenge title, result, earnings, avatar, and branding.
+// Shows challenge title, result, key stats, activity, timeline, and branding.
 
 import SwiftUI
 import UIKit
@@ -11,6 +11,10 @@ struct ChallengeShareSheet: View {
     let passed: Bool
     let earnings: String?
     let reputation: Reputation
+    let detail: ChallengeDetail?
+    let participantStatus: ParticipantStatus?
+    let progress: ChallengeProgress?
+    let tokenPrice: Double?
 
     @EnvironmentObject private var avatarService: AvatarService
     @EnvironmentObject private var appState: AppState
@@ -18,32 +22,45 @@ struct ChallengeShareSheet: View {
     @Environment(\.colorScheme) private var scheme
     @State private var shareImage: UIImage?
 
+    private var theme: ActivityTheme? {
+        guard let d = detail else { return nil }
+        return ActivityTheme.from(detail: d)
+    }
+
+    private var accentColors: [Color] {
+        passed
+            ? [LC.accent, Color(hex: 0x3B82F6)]
+            : [Color(hex: 0x6B7280), Color(hex: 0x9CA3AF)]
+    }
+
     var body: some View {
         NavigationStack {
-            VStack(spacing: LC.space24) {
-                resultPreview
+            ScrollView {
+                VStack(spacing: LC.space20) {
+                    resultPreview
 
-                if shareImage != nil {
-                    Button {
-                        shareToSocial()
-                    } label: {
-                        Label("Share Result", systemImage: "square.and.arrow.up")
-                            .font(.headline.weight(.semibold))
+                    if shareImage != nil {
+                        Button {
+                            shareToSocial()
+                        } label: {
+                            Label("Share Result", systemImage: "square.and.arrow.up")
+                                .font(.headline.weight(.semibold))
+                        }
+                        .buttonStyle(LCGoldButton())
+                        .frame(maxWidth: .infinity)
+                    } else {
+                        ProgressView("Generating card...")
                     }
-                    .buttonStyle(LCGoldButton())
-                    .frame(maxWidth: .infinity)
-                } else {
-                    ProgressView("Generating card...")
-                }
 
-                Text("Share your result to social media, messages, or save to photos.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                    Text("Share your result to social media, messages, or save to photos.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(LC.space20)
             }
-            .padding(LC.space24)
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Share Result")
+            .navigationTitle("Challenge Result")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -53,94 +70,212 @@ struct ChallengeShareSheet: View {
             }
             .task { generateCard() }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.large])
         .presentationDragIndicator(.visible)
     }
 
     // MARK: - Preview
 
     private var resultPreview: some View {
-        VStack(spacing: LC.space16) {
-            // Result badge
+        VStack(spacing: 0) {
+            // Header gradient banner
             ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: passed
-                                ? [LC.accent, Color(hex: 0x3B82F6)]
-                                : [LC.danger, LC.danger.opacity(0.7)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+                LinearGradient(
+                    colors: accentColors,
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
+                VStack(spacing: LC.space8) {
+                    Image(systemName: passed ? "trophy.fill" : "flag.checkered")
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundStyle(.white)
+
+                    Text(passed ? "Challenge Won!" : "Challenge Complete")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(.white)
+
+                    Text(title)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .padding(.horizontal, LC.space16)
+                }
+                .padding(.vertical, LC.space24)
+            }
+            .frame(maxWidth: .infinity)
+            .clipShape(UnevenRoundedRectangle(topLeadingRadius: LC.radiusLG, topTrailingRadius: LC.radiusLG))
+
+            // Body content
+            VStack(spacing: LC.space16) {
+                // Activity type + duration row
+                if let t = theme {
+                    HStack(spacing: LC.space8) {
+                        Image(systemName: t.icon)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(t.figureTint)
+                        Text(t.label)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(t.figureTint)
+
+                        if let duration = challengeDuration {
+                            Text("·")
+                                .foregroundStyle(.tertiary)
+                            Text(duration)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.horizontal, LC.space12)
+                    .padding(.vertical, LC.space6)
+                    .background(
+                        Capsule().fill(t.figureTint.opacity(0.1))
                     )
-                    .frame(width: 80, height: 80)
-                    .shadow(color: (passed ? LC.accent : LC.danger).opacity(0.4), radius: 12, y: 6)
+                }
 
-                Image(systemName: passed ? "trophy.fill" : "xmark.circle.fill")
-                    .font(.system(size: 36, weight: .bold))
-                    .foregroundStyle(.white)
-            }
+                // Key stats grid
+                statsGrid
 
-            VStack(spacing: LC.space4) {
-                Text(passed ? "Challenge Won!" : "Challenge Complete")
-                    .font(.title3.weight(.bold))
+                // Avatar + level row
+                HStack(spacing: LC.space12) {
+                    AvatarView(size: 36, walletAddress: appState.walletAddress)
 
-                Text(title)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Lvl \(reputation.level) · \(reputation.levelName)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(LC.textPrimary(scheme))
+                        Text(appState.walletAddress.prefix(6) + "..." + appState.walletAddress.suffix(4))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
 
-            // Avatar + stats
-            HStack(spacing: LC.space16) {
-                AvatarView(size: 44, walletAddress: appState.walletAddress)
+                    Spacer()
 
-                if passed, let earnings {
-                    VStack {
-                        Text(earnings)
-                            .font(.headline.weight(.bold).monospacedDigit())
-                            .foregroundStyle(LC.success)
-                        Text("Earned")
+                    // Verdict reasons summary
+                    if !passed, let reasons = participantStatus?.verdictReasons, let first = reasons.first {
+                        Text(first)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .frame(maxWidth: 140, alignment: .trailing)
                     }
                 }
 
-                Rectangle()
-                    .fill(.separator)
-                    .frame(width: 1, height: 30)
+                // Branding
+                HStack(spacing: LC.space4) {
+                    Image(systemName: "bolt.shield.fill")
+                        .font(.system(size: 9))
+                    Text("Verified on LightChallenge")
+                        .font(.caption2.weight(.semibold))
+                }
+                .foregroundStyle(.tertiary)
+            }
+            .padding(LC.space16)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: LC.radiusLG, bottomTrailingRadius: LC.radiusLG))
+        }
+        .shadow(color: .black.opacity(0.08), radius: 16, y: 8)
+    }
 
-                VStack {
-                    Text("Lvl \(reputation.level)")
-                        .font(.headline.weight(.bold).monospacedDigit())
-                        .foregroundStyle(LC.accent)
-                    Text(reputation.levelName)
+    // MARK: - Stats Grid
+
+    private var statsGrid: some View {
+        let items = buildStatItems()
+        return LazyVGrid(columns: [
+            GridItem(.flexible(), spacing: LC.space8),
+            GridItem(.flexible(), spacing: LC.space8),
+            GridItem(.flexible(), spacing: LC.space8)
+        ], spacing: LC.space8) {
+            ForEach(items, id: \.label) { item in
+                VStack(spacing: LC.space4) {
+                    Image(systemName: item.icon)
+                        .font(.system(size: 14))
+                        .foregroundStyle(item.color)
+                    Text(item.value)
+                        .font(.subheadline.weight(.bold).monospacedDigit())
+                        .foregroundStyle(LC.textPrimary(scheme))
+                    Text(item.label)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, LC.space8)
+                .background(
+                    RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous)
+                        .fill(item.color.opacity(0.06))
+                )
             }
-
-            // Branding
-            HStack(spacing: LC.space4) {
-                Image(systemName: "bolt.shield.fill")
-                    .font(.system(size: 10))
-                Text("Verified on LightChallenge")
-                    .font(.caption2.weight(.semibold))
-            }
-            .foregroundStyle(.tertiary)
         }
-        .padding(LC.space24)
-        .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
+    }
+
+    private struct StatItem {
+        let icon: String
+        let value: String
+        let label: String
+        let color: Color
+    }
+
+    private func buildStatItems() -> [StatItem] {
+        var items: [StatItem] = []
+
+        // Prize pool or earnings
+        if passed, let e = earnings {
+            items.append(StatItem(icon: "trophy.fill", value: e, label: "Earned", color: LC.success))
+        } else if let pool = detail?.poolDisplayUSD(tokenPrice: tokenPrice) {
+            items.append(StatItem(icon: "banknote.fill", value: pool, label: "Prize Pool", color: LC.accent))
+        } else if let pool = detail?.poolDisplay {
+            items.append(StatItem(icon: "banknote.fill", value: pool, label: "Prize Pool", color: LC.accent))
+        }
+
+        // Participants
+        if let count = progress?.participantCount ?? detail?.participantsCount, count > 0 {
+            items.append(StatItem(icon: "person.2.fill", value: "\(count)", label: "Participants", color: Color(hex: 0x8B5CF6)))
+        }
+
+        // Pass rate
+        if let total = progress?.participantCount, total > 0, let passCount = progress?.passCount {
+            let rate = Int(Double(passCount) / Double(total) * 100)
+            items.append(StatItem(icon: "chart.bar.fill", value: "\(rate)%", label: "Pass Rate", color: Color(hex: 0x06B6D4)))
+        }
+
+        // Goal if present
+        if let rules = detail?.rules, rules.goalValue > 0 {
+            let formatted = rules.goalValue >= 1000
+                ? String(format: "%.0f", rules.goalValue)
+                : String(format: "%.1f", rules.goalValue)
+            items.append(StatItem(icon: "target", value: "\(formatted) \(rules.metricLabel)", label: "Goal", color: theme?.figureTint ?? LC.accent))
+        }
+
+        // Ensure we have at least 3 items for a nice grid
+        if items.count < 3 {
+            items.append(StatItem(
+                icon: passed ? "checkmark.seal.fill" : "xmark.circle.fill",
+                value: passed ? "Passed" : "Failed",
+                label: "Result",
+                color: passed ? LC.success : LC.danger
+            ))
+        }
+
+        return Array(items.prefix(3))
+    }
+
+    // MARK: - Duration
+
+    private var challengeDuration: String? {
+        guard let start = detail?.startDate, let end = detail?.endsDate else { return nil }
+        let days = Int(end.timeIntervalSince(start) / 86400)
+        if days >= 7 { return "\(days / 7) week\(days / 7 > 1 ? "s" : "")" }
+        if days > 0 { return "\(days) day\(days > 1 ? "s" : "")" }
+        let hours = Int(end.timeIntervalSince(start) / 3600)
+        if hours > 0 { return "\(hours) hour\(hours > 1 ? "s" : "")" }
+        return nil
     }
 
     // MARK: - Image Generation
 
     private func generateCard() {
-        let size = CGSize(width: 600, height: 600)
+        let size = CGSize(width: 600, height: 700)
         let renderer = UIGraphicsImageRenderer(size: size)
 
         shareImage = renderer.image { ctx in
@@ -150,49 +285,110 @@ struct ChallengeShareSheet: View {
             UIColor.systemBackground.setFill()
             ctx.fill(rect)
 
-            // Gradient band
-            let colors = passed
+            // Gradient banner (top 220px)
+            let gradColors = passed
                 ? [UIColor(LC.accent).cgColor, UIColor(Color(hex: 0x3B82F6)).cgColor]
-                : [UIColor(LC.danger).cgColor, UIColor(LC.danger.opacity(0.7)).cgColor]
+                : [UIColor(Color(hex: 0x6B7280)).cgColor, UIColor(Color(hex: 0x9CA3AF)).cgColor]
             let gradient = CGGradient(
                 colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                colors: colors as CFArray,
+                colors: gradColors as CFArray,
                 locations: [0, 1]
             )!
-            ctx.cgContext.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: size.width, y: 180), options: [])
+            ctx.cgContext.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: size.width, y: 220), options: [])
+
+            // Result icon (trophy or flag)
+            let iconStr = (passed ? "\u{1F3C6}" : "\u{1F3C1}") as NSString
+            let iconAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 48),
+            ]
+            let iconSize = iconStr.size(withAttributes: iconAttrs)
+            iconStr.draw(at: CGPoint(x: (size.width - iconSize.width) / 2, y: 40), withAttributes: iconAttrs)
 
             // Result text
             let resultAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 28, weight: .bold),
+                .font: UIFont.systemFont(ofSize: 24, weight: .bold),
                 .foregroundColor: UIColor.white,
             ]
-            let resultStr = (passed ? "VICTORY" : "COMPLETE") as NSString
+            let resultStr = (passed ? "Challenge Won!" : "Challenge Complete") as NSString
             let resultSize = resultStr.size(withAttributes: resultAttrs)
-            resultStr.draw(at: CGPoint(x: (size.width - resultSize.width) / 2, y: 80), withAttributes: resultAttrs)
+            resultStr.draw(at: CGPoint(x: (size.width - resultSize.width) / 2, y: 105), withAttributes: resultAttrs)
 
             // Title
             let titleAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 20, weight: .semibold),
-                .foregroundColor: UIColor.label,
+                .font: UIFont.systemFont(ofSize: 18, weight: .semibold),
+                .foregroundColor: UIColor.white.withAlphaComponent(0.9),
             ]
             let titleStr = title as NSString
             let titleSize = titleStr.size(withAttributes: titleAttrs)
-            titleStr.draw(at: CGPoint(x: (size.width - titleSize.width) / 2, y: 240), withAttributes: titleAttrs)
+            titleStr.draw(at: CGPoint(x: (size.width - titleSize.width) / 2, y: 145), withAttributes: titleAttrs)
 
-            // Earnings
+            // Activity type pill
+            if let t = theme {
+                let pillStr = t.label as NSString
+                let pillAttrs: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 14, weight: .semibold),
+                    .foregroundColor: UIColor.secondaryLabel,
+                ]
+                let pillSize = pillStr.size(withAttributes: pillAttrs)
+                pillStr.draw(at: CGPoint(x: (size.width - pillSize.width) / 2, y: 240), withAttributes: pillAttrs)
+            }
+
+            // Stats section (y: 280)
+            let stats = buildStatItems()
+            let statWidth: CGFloat = 170
+            let statSpacing: CGFloat = (size.width - statWidth * CGFloat(stats.count)) / CGFloat(stats.count + 1)
+            for (i, stat) in stats.enumerated() {
+                let x = statSpacing + CGFloat(i) * (statWidth + statSpacing)
+                let y: CGFloat = 290
+
+                // Stat box background
+                let boxRect = CGRect(x: x, y: y, width: statWidth, height: 80)
+                let boxPath = UIBezierPath(roundedRect: boxRect, cornerRadius: 10)
+                UIColor.secondarySystemGroupedBackground.setFill()
+                boxPath.fill()
+
+                // Value
+                let valueAttrs: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.monospacedDigitSystemFont(ofSize: 20, weight: .bold),
+                    .foregroundColor: UIColor.label,
+                ]
+                let valueStr = stat.value as NSString
+                let valueSize = valueStr.size(withAttributes: valueAttrs)
+                valueStr.draw(at: CGPoint(x: x + (statWidth - valueSize.width) / 2, y: y + 14), withAttributes: valueAttrs)
+
+                // Label
+                let labelAttrs: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 12, weight: .medium),
+                    .foregroundColor: UIColor.secondaryLabel,
+                ]
+                let labelStr = stat.label as NSString
+                let labelSize = labelStr.size(withAttributes: labelAttrs)
+                labelStr.draw(at: CGPoint(x: x + (statWidth - labelSize.width) / 2, y: y + 48), withAttributes: labelAttrs)
+            }
+
+            // Earnings highlight (for winners)
             if passed, let earnings {
                 let earnAttrs: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.monospacedDigitSystemFont(ofSize: 32, weight: .bold),
+                    .font: UIFont.monospacedDigitSystemFont(ofSize: 28, weight: .bold),
                     .foregroundColor: UIColor(LC.success),
                 ]
                 let earnStr = earnings as NSString
                 let earnSize = earnStr.size(withAttributes: earnAttrs)
-                earnStr.draw(at: CGPoint(x: (size.width - earnSize.width) / 2, y: 290), withAttributes: earnAttrs)
+                earnStr.draw(at: CGPoint(x: (size.width - earnSize.width) / 2, y: 410), withAttributes: earnAttrs)
+
+                let earnLabel = "Total Earned" as NSString
+                let earnLabelAttrs: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 13, weight: .medium),
+                    .foregroundColor: UIColor.secondaryLabel,
+                ]
+                let earnLabelSize = earnLabel.size(withAttributes: earnLabelAttrs)
+                earnLabel.draw(at: CGPoint(x: (size.width - earnLabelSize.width) / 2, y: 445), withAttributes: earnLabelAttrs)
             }
 
             // Avatar
+            let avatarY: CGFloat = passed && earnings != nil ? 500 : 420
             if let avatar = avatarService.avatarImage {
-                let avatarRect = CGRect(x: (size.width - 60) / 2, y: 370, width: 60, height: 60)
+                let avatarRect = CGRect(x: (size.width - 56) / 2, y: avatarY, width: 56, height: 56)
                 ctx.cgContext.saveGState()
                 ctx.cgContext.addEllipse(in: avatarRect)
                 ctx.cgContext.clip()
@@ -200,14 +396,23 @@ struct ChallengeShareSheet: View {
                 ctx.cgContext.restoreGState()
             }
 
+            // Level
+            let levelStr = "Lvl \(reputation.level) · \(reputation.levelName)" as NSString
+            let levelAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 13, weight: .semibold),
+                .foregroundColor: UIColor(LC.accent),
+            ]
+            let levelSize = levelStr.size(withAttributes: levelAttrs)
+            levelStr.draw(at: CGPoint(x: (size.width - levelSize.width) / 2, y: avatarY + 64), withAttributes: levelAttrs)
+
             // Branding
             let brandAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 14, weight: .bold),
+                .font: UIFont.systemFont(ofSize: 13, weight: .bold),
                 .foregroundColor: UIColor.tertiaryLabel,
             ]
-            let brandStr = "LightChallenge • Stake. Prove. Earn." as NSString
+            let brandStr = "LightChallenge · Stake. Prove. Earn." as NSString
             let brandSize = brandStr.size(withAttributes: brandAttrs)
-            brandStr.draw(at: CGPoint(x: (size.width - brandSize.width) / 2, y: size.height - 50), withAttributes: brandAttrs)
+            brandStr.draw(at: CGPoint(x: (size.width - brandSize.width) / 2, y: size.height - 40), withAttributes: brandAttrs)
         }
     }
 

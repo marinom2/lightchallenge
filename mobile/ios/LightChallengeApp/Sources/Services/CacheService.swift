@@ -68,6 +68,18 @@ actor CacheService {
         return Dictionary(uniqueKeysWithValues: pairs.map { ($0.id, $0.meta) })
     }
 
+    // MARK: - Participant Status Cache
+
+    func cacheParticipantStatus(_ status: ParticipantStatus, challengeId: String, wallet: String) {
+        guard let data = try? JSONEncoder().encode(status) else { return }
+        write(data, key: "participant_\(challengeId)_\(wallet.prefix(10))")
+    }
+
+    func loadCachedParticipantStatus(challengeId: String, wallet: String) -> ParticipantStatus? {
+        guard let data = read(key: "participant_\(challengeId)_\(wallet.prefix(10))") else { return nil }
+        return try? JSONDecoder().decode(ParticipantStatus.self, from: data)
+    }
+
     // MARK: - Evidence Queue (offline submission)
 
     func queueEvidence(_ submission: PendingSubmission) {

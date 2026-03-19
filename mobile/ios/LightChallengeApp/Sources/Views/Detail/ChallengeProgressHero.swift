@@ -462,9 +462,18 @@ struct ChallengeProgressHero: View {
 
     /// Resolved status: prefer user state when evidence is in play.
     private var resolvedStatusLabel: String {
-        // Don't show state-dependent labels until participant data has loaded,
-        // to avoid a "Awaiting Proof" flash before auto-proof status arrives.
-        guard participantLoaded else { return phase.statusLabel }
+        // When participant data hasn't loaded, use neutral phase labels
+        // that don't commit to a user-specific state (avoids "Awaiting Proof" flash).
+        guard participantLoaded else {
+            switch phase {
+            case .proofWindow: return "Proof Window"
+            case .ended: return "Ended"
+            case .finalized(let p):
+                if let p { return p ? "Completed" : "Failed" }
+                return "Finalized"
+            default: return phase.statusLabel
+            }
+        }
         switch userState {
         case .awaitingVerdict, .submitted, .completed, .failed:
             return userState.label
@@ -485,7 +494,13 @@ struct ChallengeProgressHero: View {
     }
 
     private var resolvedStatusIcon: String {
-        guard participantLoaded else { return "circle" }
+        guard participantLoaded else {
+            switch phase {
+            case .proofWindow: return "clock.badge.exclamationmark"
+            case .ended: return "flag.checkered"
+            default: return "circle"
+            }
+        }
         switch userState {
         case .active: return "bolt.fill"
         case .awaitingProof: return "doc.text.magnifyingglass"
@@ -616,46 +631,98 @@ struct ChallengeProgressHero: View {
     // MARK: - Prize Section
 
     private var prizeSection: some View {
-        HStack(spacing: LC.space16) {
-            // Prize pool
+        HStack(spacing: LC.space12) {
+            // Prize pool tile
             if let pool = detail.poolDisplayUSD(tokenPrice: tokenPrice) {
-                VStack(alignment: .leading, spacing: LC.space2) {
-                    Text("Prize Pool")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(LC.textTertiary(scheme))
-                    Text(pool)
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(LC.accent)
-                }
+                prizeTile(
+                    icon: "banknote.fill",
+                    iconColor: LC.accent,
+                    value: pool,
+                    label: "Prize Pool",
+                    lcaiValue: detail.poolDisplay
+                )
             } else if let stake = detail.stakeDisplayUSD(tokenPrice: tokenPrice) {
-                VStack(alignment: .leading, spacing: LC.space2) {
-                    Text("Stake")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(LC.textTertiary(scheme))
-                    Text(stake)
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(LC.accent)
-                }
+                prizeTile(
+                    icon: "lock.fill",
+                    iconColor: LC.accent,
+                    value: stake,
+                    label: "Stake",
+                    lcaiValue: detail.stakeDisplay
+                )
             }
 
-            Spacer()
-
-            // Participants
+            // Participants tile
             if let count = detail.participantsCount, count > 0 {
-                VStack(alignment: .trailing, spacing: LC.space2) {
-                    Text("Participants")
+                HStack(spacing: LC.space8) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: 0x8B5CF6).opacity(0.1))
+                            .frame(width: 32, height: 32)
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color(hex: 0x8B5CF6))
+                    }
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("\(count)")
+                            .font(.subheadline.weight(.bold).monospacedDigit())
+                            .foregroundStyle(LC.textPrimary(scheme))
+                        Text("Participants")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(LC.textTertiary(scheme))
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+                .background(
+                    RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
+                        .fill(Color(hex: 0x8B5CF6).opacity(0.04))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
+                        .stroke(Color(hex: 0x8B5CF6).opacity(0.1), lineWidth: 1)
+                )
+            }
+        }
+    }
+
+    private func prizeTile(icon: String, iconColor: Color, value: String, label: String, lcaiValue: String?) -> some View {
+        HStack(spacing: LC.space8) {
+            ZStack {
+                Circle()
+                    .fill(iconColor.opacity(0.1))
+                    .frame(width: 32, height: 32)
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(iconColor)
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(value)
+                    .font(.subheadline.weight(.bold).monospacedDigit())
+                    .foregroundStyle(LC.accent)
+                HStack(spacing: 3) {
+                    Text(label)
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(LC.textTertiary(scheme))
-                    Text("\(count)")
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(LC.textPrimary(scheme))
+                    if let lcai = lcaiValue {
+                        Text("·")
+                            .font(.caption2)
+                            .foregroundStyle(LC.textTertiary(scheme))
+                        Text(lcai)
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(LC.textTertiary(scheme))
+                    }
                 }
             }
         }
-        .padding(LC.space12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
         .background(
             RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
-                .fill(LC.cardBgElevated(scheme))
+                .fill(iconColor.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
+                .stroke(iconColor.opacity(0.1), lineWidth: 1)
         )
     }
 

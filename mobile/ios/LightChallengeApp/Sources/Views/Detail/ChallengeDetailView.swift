@@ -127,7 +127,11 @@ struct ChallengeDetailView: View {
                     title: detail?.displayTitle ?? "",
                     passed: participantStatus?.verdictPass == true,
                     earnings: participantStatus?.verdictPass == true ? detail?.poolDisplay : nil,
-                    reputation: rep
+                    reputation: rep,
+                    detail: detail,
+                    participantStatus: participantStatus,
+                    progress: progress,
+                    tokenPrice: tokenPrice
                 )
             }
         }
@@ -1064,6 +1068,14 @@ struct ChallengeDetailView: View {
             detail = cached
         }
 
+        // Pre-populate participant status from cache to avoid status flash
+        if !participantLoaded, appState.hasWallet,
+           let cachedParticipant = await CacheService.shared.loadCachedParticipantStatus(
+               challengeId: challengeId, wallet: appState.walletAddress) {
+            participantStatus = cachedParticipant
+            participantLoaded = true
+        }
+
         let metaTask = Task { try? await APIClient.shared.fetchChallengeMeta(baseURL: appState.serverURL, id: challengeId) }
 
         do {
@@ -1131,6 +1143,10 @@ struct ChallengeDetailView: View {
             subject: appState.walletAddress
         )
         participantLoaded = true
+        // Cache for instant display on next open
+        if let ps = participantStatus {
+            await CacheService.shared.cacheParticipantStatus(ps, challengeId: challengeId, wallet: appState.walletAddress)
+        }
         // Only show victory celebration after proof deadline has passed.
         // During the proof window the verdict is preliminary — the pipeline
         // hasn't finalized yet and the user can't claim rewards.
