@@ -195,3 +195,21 @@ export function LoLIcon({ size = 20, className, style }: IconProps) {
     </svg>
   );
 }
+
+/* ── Valorant ────────────────────────────────────────────────────────────── */
+
+export function ValorantIcon({ size = 20, className, style }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      style={style}
+      aria-hidden="true"
+    >
+      <path d="M2.2 4.2L13.1 19.8H8L2.2 11.6V4.2ZM12.5 4.2L21.8 17.5V19.8H17.5L12.5 12.7V4.2Z" />
+    </svg>
+  );
+}
