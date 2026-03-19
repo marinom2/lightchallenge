@@ -575,8 +575,9 @@ function ChallengeCard({
     return null;
   })();
 
-  // Verdict context
+  // Verdict context — only show after challenge has ended (RULE 1: ACTIVE dominates)
   const verdictCtx = (() => {
+    if (lc.stage === "ACTIVE") return null;
     if (row.verdict_pass === true) return { text: "Verdict: Passed", cls: "mc-card__verdict--pass" };
     if (row.verdict_pass === false) {
       const reasons = row.verdict_reasons?.length ? ` — ${row.verdict_reasons[0]}` : "";

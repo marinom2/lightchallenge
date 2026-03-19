@@ -400,9 +400,8 @@ export default function PlayerProfilePage() {
                         <> &middot; Joined {shortDate(c.joined_at)}</>
                       )}
                     </div>
-                    {c.verdict_pass !== null && (
+                    {c.verdict_pass !== null && c.challenge_status?.toLowerCase() !== "active" && (
                       <div className={`text-caption ${c.verdict_pass ? "color-success" : "color-danger"}`} style={{ marginTop: 4 }}>
-
                         Verdict: {c.verdict_pass ? "Passed" : "Failed"}
                         {!c.verdict_pass &&
                           c.verdict_reasons?.length &&

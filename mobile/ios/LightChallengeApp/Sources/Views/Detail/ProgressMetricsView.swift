@@ -558,8 +558,7 @@ struct ProgressMetricsView: View {
             return "You achieved \(fmtCurrent) \(metricName), exceeding the goal of \(fmtGoal). Well done!"
         }
 
-        // Failed — explain the shortfall
-        let shortfall = goal - currentValue
+        // Failed — explain the shortfall or mismatch
         let pct = goal > 0 ? Int((currentValue / goal) * 100) : 0
 
         if currentValue <= 0 {
@@ -567,6 +566,12 @@ struct ProgressMetricsView: View {
             return "No \(metricName) were recorded \(periodStr). The goal was \(fmtGoal) \(metricName)."
         }
 
+        if currentValue >= goal {
+            // Met the total but failed on streak/consecutive-days requirement
+            return "You recorded \(fmtCurrent) \(metricName) (\(pct)% of target) but didn't meet the daily streak requirement."
+        }
+
+        let shortfall = goal - currentValue
         return "You recorded \(fmtCurrent) \(metricName) but needed \(fmtGoal) — that's \(formatValue(shortfall)) short (\(pct)% of target)."
     }
 
@@ -756,12 +761,13 @@ struct ProgressMetricsView: View {
         guard end >= start else { return }
 
         await healthService.ensureAuthorization()
-        await healthService.collectEvidence(from: start, to: end)
 
         if let r = rules, r.goalValue > 0 {
-            // Focused mode: known rules → show progress toward specific goal
+            // Focused mode: standalone query for this challenge's specific period.
+            // Uses queryDailyMetric() which does NOT mutate shared healthService state,
+            // so multiple challenges can query independently without overwriting each other.
             goalValue = r.goalValue
-            let daily = dailyValuesForMetric(r.metric)
+            let daily = await healthService.queryDailyMetric(r.metric ?? "steps", from: start, to: end)
 
             currentValue = daily.reduce(0) { $0 + $1.value }
 
@@ -782,54 +788,18 @@ struct ProgressMetricsView: View {
                 animatedProgress = goalValue > 0 ? min(1.0, currentValue / goalValue) : 0
             }
         } else {
-            // Discovery mode: no rules → show all HealthKit activity
-            var metrics: [(label: String, icon: String, value: Double, unit: String, daily: [(date: String, value: Double)])] = []
+            // Discovery mode: standalone query for all activity
+            let allActivity = await healthService.queryAllActivity(from: start, to: end)
 
-            let stepDaily = healthService.stepDays.map { ($0.date, Double($0.steps)) }
-            let totalSteps = stepDaily.reduce(0) { $0 + $1.1 }
-            if totalSteps > 0 {
-                metrics.append(("Steps", "figure.walk", totalSteps, "steps", stepDaily.filter { $0.1 > 0 }))
-            }
-
-            let distDaily = healthService.distanceDays.map { ($0.date, $0.distanceMeters / 1000.0) }
-            let totalDist = distDaily.reduce(0) { $0 + $1.1 }
-            if totalDist > 0.01 {
-                metrics.append(("Distance", "point.bottomleft.forward.to.point.topright.scurvepath", totalDist, "km", distDaily.filter { $0.1 > 0 }))
-            }
-
-            let cycleDaily = healthService.cyclingDays.map { ($0.date, $0.distanceMeters / 1000.0) }
-            let totalCycling = cycleDaily.reduce(0) { $0 + $1.1 }
-            if totalCycling > 0.01 {
-                metrics.append(("Cycling", "figure.outdoor.cycle", totalCycling, "km", cycleDaily.filter { $0.1 > 0 }))
-            }
-
-            let swimDaily = healthService.swimmingDays.map { ($0.date, $0.distanceMeters / 1000.0) }
-            let totalSwimming = swimDaily.reduce(0) { $0 + $1.1 }
-            if totalSwimming > 0.01 {
-                metrics.append(("Swimming", "figure.pool.swim", totalSwimming, "km", swimDaily.filter { $0.1 > 0 }))
-            }
-
-            let workoutDaily = healthService.allWorkoutDays.map { ($0.date, $0.totalMinutes) }
-            let totalWorkouts = workoutDaily.reduce(0) { $0 + $1.1 }
-            if totalWorkouts > 0 {
-                metrics.append(("Workouts", "figure.strengthtraining.traditional", totalWorkouts, "min", workoutDaily.filter { $0.1 > 0 }))
-            }
-
-            let energyDaily = healthService.activeEnergyDays.map { ($0.date, $0.kilocalories) }
-            let totalEnergy = energyDaily.reduce(0) { $0 + $1.1 }
-            if totalEnergy > 0 {
-                metrics.append(("Energy", "flame.fill", totalEnergy, "kcal", energyDaily.filter { $0.1 > 0 }))
-            }
-
-            activityMetrics = metrics
+            activityMetrics = allActivity.map { ($0.label, $0.icon, $0.total, $0.unit, $0.daily) }
 
             // Pick the primary metric for the daily breakdown (inferred from theme)
-            if let primary = metrics.first {
-                currentValue = primary.value
+            if let primary = allActivity.first {
+                currentValue = primary.total
                 dailyValues = primary.daily
             }
 
-            if !metrics.isEmpty {
+            if !allActivity.isEmpty {
                 withAnimation(.easeInOut(duration: 0.8)) {
                     animatedProgress = 0.15  // subtle activity indicator
                 }
@@ -837,52 +807,7 @@ struct ProgressMetricsView: View {
         }
     }
 
-    /// Map a rule metric to daily HealthKit values.
-    /// Uses workout-level data for type-specific metrics (running vs walking isolation).
-    private func dailyValuesForMetric(_ metric: String?) -> [(date: String, value: Double)] {
-        switch metric {
-        case "steps":
-            return healthService.stepDays.map { ($0.date, Double($0.steps)) }
-        case "distance", "distance_km":
-            // Running distance from actual running workouts
-            return healthService.runningWorkoutDays.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
-        case "walking_km":
-            // Walking distance from walking workouts only
-            return healthService.walkingWorkoutDays.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
-        case "cycling_km":
-            return healthService.cyclingDays.map { ($0.date, $0.distanceMeters / 1000.0) }
-        case "swimming_km":
-            return healthService.swimmingDays.map { ($0.date, $0.distanceMeters / 1000.0) }
-        case "hiking_km":
-            return healthService.hikingWorkoutDays.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
-        case "elev_gain_m":
-            // Real elevation from HKMetadataKeyElevationAscended + flights climbed proxy
-            var elevByDate: [String: Double] = [:]
-            for day in healthService.hikingWorkoutDays where day.totalElevationMeters > 0 {
-                elevByDate[day.date, default: 0] += day.totalElevationMeters
-            }
-            for day in healthService.flightsClimbedDays where day.flights > 0 {
-                elevByDate[day.date, default: 0] += Double(day.flights) * 3.0
-            }
-            return elevByDate.map { ($0.key, $0.value) }.sorted { $0.0 < $1.0 }
-        case "active_minutes":
-            return healthService.allWorkoutDays.map { ($0.date, $0.totalMinutes) }
-        case "strength_sessions":
-            return healthService.strengthWorkoutDays.map { ($0.date, Double($0.count)) }
-        case "yoga_min":
-            return healthService.yogaWorkoutDays.map { ($0.date, $0.totalMinutes) }
-        case "hiit_min":
-            return healthService.hiitWorkoutDays.map { ($0.date, $0.totalMinutes) }
-        case "rowing_km":
-            return healthService.rowingWorkoutDays.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
-        case "exercise_time":
-            return healthService.exerciseTimeDays.map { ($0.date, $0.minutes) }
-        case "calories":
-            return healthService.activeEnergyDays.map { ($0.date, $0.kilocalories) }
-        default:
-            return [] // Unknown metric — don't fake data
-        }
-    }
+    // dailyValuesForMetric removed — now uses healthService.queryDailyMetric() standalone queries
 
     // MARK: - Formatters
 

@@ -302,6 +302,100 @@ class HealthKitService: ObservableObject {
         return raw.map { DailyExerciseTime(date: $0.date, minutes: $0.value) }
     }
 
+    // MARK: - Standalone Per-Challenge Queries
+    //
+    // These methods return data for a specific date range WITHOUT mutating the
+    // shared @Published properties. This is critical when multiple challenge
+    // views are visible simultaneously — each needs its own independent data.
+
+    /// Query daily values for a specific metric and date range.
+    /// Returns (date, value) pairs without affecting shared state.
+    func queryDailyMetric(_ metric: String, from start: Date, to end: Date) async -> [(date: String, value: Double)] {
+        guard isAuthorized else { return [] }
+        do {
+            switch metric {
+            case "steps":
+                return try await fetchDailyCumulative(type: HKQuantityType(.stepCount), unit: .count(), from: start, to: end)
+            case "distance", "distance_km":
+                let workouts = try await fetchDailyWorkouts(from: start, to: end, activityTypes: [.running])
+                return workouts.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
+            case "walking_km":
+                let workouts = try await fetchDailyWorkouts(from: start, to: end, activityTypes: [.walking])
+                return workouts.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
+            case "cycling_km":
+                return try await fetchDailyCumulative(type: HKQuantityType(.distanceCycling), unit: .meter(), from: start, to: end)
+                    .map { ($0.0, $0.1 / 1000.0) }
+            case "swimming_km":
+                return try await fetchDailyCumulative(type: HKQuantityType(.distanceSwimming), unit: .meter(), from: start, to: end)
+                    .map { ($0.0, $0.1 / 1000.0) }
+            case "hiking_km":
+                let workouts = try await fetchDailyWorkouts(from: start, to: end, activityTypes: [.hiking])
+                return workouts.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
+            case "elev_gain_m":
+                let hiking = try await fetchDailyWorkouts(from: start, to: end, activityTypes: [.hiking])
+                let flights = try await fetchDailyCumulative(type: HKQuantityType(.flightsClimbed), unit: .count(), from: start, to: end)
+                var byDate: [String: Double] = [:]
+                for h in hiking { byDate[h.date, default: 0] += h.totalElevationMeters }
+                for f in flights { byDate[f.0, default: 0] += f.1 * 3.0 }
+                return byDate.sorted { $0.key < $1.key }.map { ($0.key, $0.value) }
+            case "active_minutes":
+                let workouts = try await fetchDailyWorkouts(from: start, to: end, activityTypes: nil)
+                return workouts.map { ($0.date, $0.totalMinutes) }
+            case "strength_sessions":
+                let workouts = try await fetchDailyWorkouts(from: start, to: end, activityTypes: [.traditionalStrengthTraining, .functionalStrengthTraining])
+                return workouts.map { ($0.date, Double($0.count)) }
+            case "yoga_min":
+                let workouts = try await fetchDailyWorkouts(from: start, to: end, activityTypes: [.yoga])
+                return workouts.map { ($0.date, $0.totalMinutes) }
+            case "hiit_min":
+                let workouts = try await fetchDailyWorkouts(from: start, to: end, activityTypes: [.highIntensityIntervalTraining, .crossTraining, .mixedCardio])
+                return workouts.map { ($0.date, $0.totalMinutes) }
+            case "rowing_km":
+                let workouts = try await fetchDailyWorkouts(from: start, to: end, activityTypes: [.rowing])
+                return workouts.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
+            case "exercise_time":
+                return try await fetchDailyCumulative(type: HKQuantityType(.appleExerciseTime), unit: .minute(), from: start, to: end)
+            case "calories":
+                return try await fetchDailyCumulative(type: HKQuantityType(.activeEnergyBurned), unit: .kilocalorie(), from: start, to: end)
+            default:
+                return []
+            }
+        } catch {
+            return []
+        }
+    }
+
+    /// Query the total value for a metric in a date range (standalone, no shared state mutation).
+    func queryMetricTotal(_ metric: String, from start: Date, to end: Date) async -> Double {
+        let daily = await queryDailyMetric(metric, from: start, to: end)
+        return daily.reduce(0) { $0 + $1.value }
+    }
+
+    /// Query all activity metrics for discovery mode (no rules).
+    /// Returns an array of (label, icon, total, unit, daily) tuples.
+    func queryAllActivity(from start: Date, to end: Date) async -> [(label: String, icon: String, total: Double, unit: String, daily: [(date: String, value: Double)])] {
+        guard isAuthorized else { return [] }
+        var metrics: [(label: String, icon: String, total: Double, unit: String, daily: [(date: String, value: Double)])] = []
+
+        let stepDaily = await queryDailyMetric("steps", from: start, to: end)
+        let totalSteps = stepDaily.reduce(0) { $0 + $1.value }
+        if totalSteps > 0 { metrics.append(("Steps", "figure.walk", totalSteps, "steps", stepDaily.filter { $0.value > 0 })) }
+
+        let distDaily = await queryDailyMetric("cycling_km", from: start, to: end)
+        let totalCycling = distDaily.reduce(0) { $0 + $1.value }
+        if totalCycling > 0.01 { metrics.append(("Cycling", "figure.outdoor.cycle", totalCycling, "km", distDaily.filter { $0.value > 0 })) }
+
+        let swimDaily = await queryDailyMetric("swimming_km", from: start, to: end)
+        let totalSwimming = swimDaily.reduce(0) { $0 + $1.value }
+        if totalSwimming > 0.01 { metrics.append(("Swimming", "figure.pool.swim", totalSwimming, "km", swimDaily.filter { $0.value > 0 })) }
+
+        let calDaily = await queryDailyMetric("calories", from: start, to: end)
+        let totalCals = calDaily.reduce(0) { $0 + $1.value }
+        if totalCals > 0 { metrics.append(("Energy", "flame.fill", totalCals, "kcal", calDaily.filter { $0.value > 0 })) }
+
+        return metrics
+    }
+
     // MARK: - Heart Rate (discrete average)
 
     private func fetchDailyHeartRate(from start: Date, to end: Date) async throws -> [DailyHeartRate] {

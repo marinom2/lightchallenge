@@ -1871,34 +1871,36 @@ const primaryAction = React.useMemo(() => {
             <div className="min-w-0">
               <div className="text-sm font-semibold">Your verification status</div>
             </div>
-            {participantStatus.verdict_pass === true &&
+            {/* Verdict chips only shown after challenge has ended — during active period,
+                evidence is incomplete and any premature verdict is unreliable. */}
+            {challengeEnded && participantStatus.verdict_pass === true &&
               participantStatus.challenge_status?.toLowerCase() === "finalized" && (
                 <span className="chip chip--ok">Claimable</span>
             )}
-            {participantStatus.verdict_pass === true &&
+            {challengeEnded && participantStatus.verdict_pass === true &&
               participantStatus.challenge_status?.toLowerCase() !== "finalized" &&
               ["requested", "committed", "revealed"].includes(
                 participantStatus.aivm_verification_status ?? ""
               ) && (
                 <span className="chip chip--info">Network pending</span>
             )}
-            {participantStatus.verdict_pass === true &&
+            {challengeEnded && participantStatus.verdict_pass === true &&
               !["requested", "committed", "revealed"].includes(
                 participantStatus.aivm_verification_status ?? ""
               ) &&
               participantStatus.challenge_status?.toLowerCase() !== "finalized" && (
                 <span className="chip chip--ok">Passed</span>
             )}
-            {participantStatus.verdict_pass === false && (
+            {challengeEnded && participantStatus.verdict_pass === false && (
               <span className="chip chip--bad">Failed</span>
             )}
-            {participantStatus.verdict_pass === null && participantStatus.has_evidence && (
+            {challengeEnded && participantStatus.verdict_pass === null && participantStatus.has_evidence && (
               <span className="chip chip--warn">Evaluating…</span>
             )}
-            {participantStatus.verdict_pass === null && !participantStatus.has_evidence && !challengeEnded && (
+            {!challengeEnded && (
               <span className="chip chip--info">In progress</span>
             )}
-            {participantStatus.verdict_pass === null && !participantStatus.has_evidence && challengeEnded && (
+            {challengeEnded && participantStatus.verdict_pass === null && !participantStatus.has_evidence && (
               <span className="chip chip--soft">No evidence yet</span>
             )}
           </div>
@@ -1920,7 +1922,7 @@ const primaryAction = React.useMemo(() => {
                   : "Not submitted"}
               </span>
             </div>
-            {participantStatus.verdict_pass === false && participantStatus.verdict_reasons?.length ? (
+            {challengeEnded && participantStatus.verdict_pass === false && participantStatus.verdict_reasons?.length ? (
               <div className="flex gap-2">
                 <span className="text-(--text-muted) w-32 shrink-0">Reason</span>
                 <span className="text-red-400">

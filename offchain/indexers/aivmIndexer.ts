@@ -609,6 +609,7 @@ type ChallengeForFinalization = {
   model_hash: string | null;
   proof: Record<string, any> | null;
   params: Record<string, any> | null;
+  timeline: Record<string, any> | null;
 };
 
 type VerdictForFinalization = {
@@ -628,7 +629,8 @@ async function getChallengeByTaskId(
       c.subject,
       c.model_hash,
       c.proof,
-      c.params
+      c.params,
+      c.timeline
     from public.challenges c
     where
       lower(coalesce(c.proof->'taskBinding'->>'taskId', '')) = lower($1::text)
@@ -766,6 +768,7 @@ async function recordFinalizationError(challengeId: string, error: string) {
 async function retryPendingFinalizations(): Promise<void> {
   if (!FINALIZATION_ENABLED) return;
 
+  const nowSec = Math.floor(Date.now() / 1000);
   const res = await pool.query<{ id: string }>(`
     select id::text
     from public.challenges
@@ -773,6 +776,13 @@ async function retryPendingFinalizations(): Promise<void> {
       proof->>'verificationStatus' = 'finalized'
       and (proof->>'finalizationAttempted') is null
       and status not in ('Canceled')
+      -- Only retry after proof deadline has passed
+      and COALESCE(
+        CASE WHEN timeline->>'proofDeadline' ~ '^[0-9]+$'
+             THEN (timeline->>'proofDeadline')::bigint
+             ELSE EXTRACT(EPOCH FROM (timeline->>'proofDeadline')::timestamptz)::bigint
+        END, 0
+      ) <= ${nowSec}
     limit 10
   `);
 
@@ -819,13 +829,33 @@ async function attemptFinalizationBridge(taskId: string): Promise<void> {
     return;
   }
 
-  const { id: challengeId, subject, model_hash, proof } = challenge;
+  const { id: challengeId, subject, model_hash, proof, timeline } = challenge;
   if (!subject || !/^0x[0-9a-fA-F]{40}$/i.test(subject)) {
     console.log(
       "[aivmIndexer] finalization: invalid subject for challenge",
       challengeId
     );
     return;
+  }
+
+  // ── Timing guard: don't attempt finalize before proofDeadline has passed ──
+  if (timeline) {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const deadlineRaw = timeline.proofDeadline ?? timeline.proofDeadlineTs;
+    if (deadlineRaw) {
+      const deadlineSec = typeof deadlineRaw === "number"
+        ? deadlineRaw
+        : typeof deadlineRaw === "string" && /^\d+$/.test(deadlineRaw)
+          ? Number(deadlineRaw)
+          : Math.floor(new Date(String(deadlineRaw)).getTime() / 1000);
+      if (deadlineSec > nowSec) {
+        console.log(
+          "[aivmIndexer] finalization: skipping — proofDeadline not reached",
+          { challengeId, deadlineSec, nowSec, delta: deadlineSec - nowSec }
+        );
+        return;
+      }
+    }
   }
 
   if (proof?.finalizationAttempted) {

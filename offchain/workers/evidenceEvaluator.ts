@@ -70,7 +70,13 @@ import type { EvidenceRow } from "../db/evidence";
 // ─── Pending evidence query ───────────────────────────────────────────────────
 
 /**
- * Fetch evidence rows that have no corresponding verdict yet.
+ * Fetch evidence rows that have no corresponding verdict yet AND whose
+ * challenge period has ended (endsAt <= now).
+ *
+ * We must NOT evaluate evidence while the challenge is still active because
+ * the data is incomplete — the user is still accumulating steps/activity.
+ * Evaluating early produces wrong verdicts (e.g. "752 steps" at 6 AM when
+ * the user will have 2800 by end of day).
  *
  * LEFT JOIN on (challenge_id, lower(subject)) mirrors the dispatcher's gate
  * query so that exactly the rows the dispatcher would care about are processed.
@@ -80,6 +86,7 @@ import type { EvidenceRow } from "../db/evidence";
  * the dispatcher will never pick them up since no challenge has id = 0.
  */
 async function fetchPendingEvidence(): Promise<EvidenceRow[]> {
+  const nowSec = Math.floor(Date.now() / 1000);
   const res = await pool.query<EvidenceRow>(
     `
     SELECT  e.*
@@ -87,11 +94,27 @@ async function fetchPendingEvidence(): Promise<EvidenceRow[]> {
     LEFT    JOIN public.verdicts v
               ON  v.challenge_id = e.challenge_id
              AND  lower(v.subject) = lower(e.subject)
+    LEFT    JOIN public.challenges c
+              ON  c.id = e.challenge_id
     WHERE   v.id IS NULL
+      AND   (
+              -- Always evaluate preview evidence (challenge_id = 0)
+              e.challenge_id = 0
+              -- Or challenge period has ended (endsAt <= now)
+              OR c.id IS NULL
+              OR c.timeline IS NULL
+              OR c.timeline->>'endsAt' IS NULL
+              OR COALESCE(
+                   CASE WHEN c.timeline->>'endsAt' ~ '^[0-9]+$'
+                        THEN (c.timeline->>'endsAt')::bigint
+                        ELSE EXTRACT(EPOCH FROM (c.timeline->>'endsAt')::timestamptz)::bigint
+                   END, 0
+                 ) <= $2
+            )
     ORDER   BY e.created_at ASC
     LIMIT   $1
     `,
-    [BATCH],
+    [BATCH, nowSec],
   );
   return res.rows;
 }

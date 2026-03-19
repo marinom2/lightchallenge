@@ -279,8 +279,15 @@ enum UserChallengeState {
         // This matches the webapp's hasJoined logic.
         let joined = detail.youJoined == true
 
-        // Verdict takes precedence — terminal states
-        if let pass = participantStatus?.verdictPass {
+        // Verdict takes precedence — but ONLY after the challenge has ended.
+        // During active phase, evidence data is incomplete (user is still
+        // accumulating steps/activity), so any premature verdict is unreliable.
+        let challengeEnded: Bool = {
+            if case .active = phase { return false }
+            if case .upcoming = phase { return false }
+            return true
+        }()
+        if challengeEnded, let pass = participantStatus?.verdictPass {
             return pass ? .completed : .failed
         }
 
@@ -814,12 +821,11 @@ struct ChallengeProgressHero: View {
         guard end >= start else { return }
 
         await healthService.ensureAuthorization()
-        await healthService.collectEvidence(from: start, to: end)
 
         if let r = rules, r.goalValue > 0 {
-            // Focused mode: known rules → show progress toward specific goal
+            // Focused mode: known rules → standalone query for this challenge's period
             goalValue = r.goalValue
-            let hkValue = healthValueForMetric(r.metric)
+            let hkValue = await healthService.queryMetricTotal(r.metric ?? "steps", from: start, to: end)
 
             // Check server value too
             var serverValue: Double = 0
@@ -838,75 +844,14 @@ struct ChallengeProgressHero: View {
             currentValue = value
             animatedProgress = goalValue > 0 ? min(1.0, value / goalValue) : 0
         } else {
-            // Discovery mode: no rules → show all HealthKit activity
-            var summary: [(label: String, value: Double, unit: String)] = []
-
-            let totalSteps = Double(healthService.stepDays.reduce(0) { $0 + $1.steps })
-            if totalSteps > 0 { summary.append(("Steps", totalSteps, "steps")) }
-
-            let totalDist = healthService.distanceDays.reduce(0) { $0 + $1.distanceMeters } / 1000.0
-            if totalDist > 0.01 { summary.append(("Distance", totalDist, "km")) }
-
-            let totalCycling = healthService.cyclingDays.reduce(0) { $0 + $1.distanceMeters } / 1000.0
-            if totalCycling > 0.01 { summary.append(("Cycling", totalCycling, "km")) }
-
-            let totalSwimming = healthService.swimmingDays.reduce(0) { $0 + $1.distanceMeters } / 1000.0
-            if totalSwimming > 0.01 { summary.append(("Swimming", totalSwimming, "km")) }
-
-            let totalWorkouts = healthService.allWorkoutDays.reduce(0) { $0 + $1.totalMinutes }
-            if totalWorkouts > 0 { summary.append(("Workouts", totalWorkouts, "min")) }
-
-            let totalEnergy = healthService.activeEnergyDays.reduce(0) { $0 + $1.kilocalories }
-            if totalEnergy > 0 { summary.append(("Energy", totalEnergy, "kcal")) }
-
-            activitySummary = summary
+            // Discovery mode: standalone query for all activity
+            let allActivity = await healthService.queryAllActivity(from: start, to: end)
+            activitySummary = allActivity.map { ($0.label, $0.total, $0.unit) }
 
             // Show activity-present state on ring (no percentage since no goal)
-            if !summary.isEmpty {
+            if !activitySummary.isEmpty {
                 animatedProgress = 0.15 // subtle activity indicator
             }
-        }
-    }
-
-    /// Map a rule metric to the correct HealthKit data.
-    /// Uses workout-level data for type-specific metrics (running vs walking isolation).
-    private func healthValueForMetric(_ metric: String?) -> Double {
-        switch metric {
-        case "steps":
-            return Double(healthService.stepDays.reduce(0) { $0 + $1.steps })
-        case "distance", "distance_km":
-            // Running distance from actual running workouts (not combined walking+running)
-            return healthService.runningWorkoutDays.reduce(0) { $0 + $1.totalDistanceMeters } / 1000.0
-        case "walking_km":
-            // Walking distance from walking workouts only
-            return healthService.walkingWorkoutDays.reduce(0) { $0 + $1.totalDistanceMeters } / 1000.0
-        case "cycling_km":
-            return healthService.cyclingDays.reduce(0) { $0 + $1.distanceMeters } / 1000.0
-        case "swimming_km":
-            return healthService.swimmingDays.reduce(0) { $0 + $1.distanceMeters } / 1000.0
-        case "hiking_km":
-            return healthService.hikingWorkoutDays.reduce(0) { $0 + $1.totalDistanceMeters } / 1000.0
-        case "elev_gain_m":
-            // Real elevation from HKMetadataKeyElevationAscended + flights climbed proxy
-            let workoutElev = healthService.hikingWorkoutDays.reduce(0) { $0 + $1.totalElevationMeters }
-            let flightsElev = Double(healthService.flightsClimbedDays.reduce(0) { $0 + $1.flights }) * 3.0
-            return workoutElev + flightsElev
-        case "active_minutes":
-            return healthService.allWorkoutDays.reduce(0) { $0 + $1.totalMinutes }
-        case "strength_sessions":
-            return Double(healthService.strengthWorkoutDays.reduce(0) { $0 + $1.count })
-        case "yoga_min":
-            return healthService.yogaWorkoutDays.reduce(0) { $0 + $1.totalMinutes }
-        case "hiit_min":
-            return healthService.hiitWorkoutDays.reduce(0) { $0 + $1.totalMinutes }
-        case "rowing_km":
-            return healthService.rowingWorkoutDays.reduce(0) { $0 + $1.totalDistanceMeters } / 1000.0
-        case "exercise_time":
-            return healthService.exerciseTimeDays.reduce(0) { $0 + $1.minutes }
-        case "calories":
-            return healthService.activeEnergyDays.reduce(0) { $0 + $1.kilocalories }
-        default:
-            return 0 // Unknown metric — don't fake data
         }
     }
 
