@@ -1,57 +1,67 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
+import Badge from "./components/ui/Badge";
 import {
-  ArrowRight,
-  Zap,
   Shield,
+  Cpu,
+  Globe,
+  Zap,
   Trophy,
-  Gamepad2,
-  Heart,
-  Users,
+  ArrowRight,
+  Code,
+  ExternalLink,
   CheckCircle2,
+  Target,
   Sparkles,
 } from "lucide-react";
-import { motion, useScroll, useTransform, useInView } from "framer-motion";
 import { useTokenPrice } from "@/lib/useTokenPrice";
 import { formatLCAIAsUSD } from "@/lib/tokenPrice";
-import {
-  AppleIcon,
-  GarminIcon,
-  DotaIcon,
-  CS2Icon,
-} from "./components/icons/BrandIcons";
+import { SteamIcon, StravaIcon, AppleIcon, GarminIcon } from "./components/icons/BrandIcons";
 
 /* ── Data hooks ────────────────────────────────────────────────────────────── */
 
-type Stats = {
-  totalChallenges: number;
-  validatorStake: string;
-  modelsCount: number;
-};
+type Stats = { totalChallenges: number; validatorStake: string; modelsCount: number };
 
 function useStats() {
   const [stats, setStats] = useState<Stats | null>(null);
   useEffect(() => {
     fetch("/api/stats", { cache: "no-store" })
       .then((r) => r.json())
-      .then((d) => {
-        if (d?.ok) setStats(d);
-      })
+      .then((d) => { if (d?.ok) setStats(d); })
       .catch(() => {});
   }, []);
   return stats;
 }
 
-type Health = {
-  status: string;
-  rpc: boolean;
-  db: boolean;
-  blockNumber: string;
-  blockAge: number;
+type ChallengeMeta = {
+  id: string;
+  title?: string;
+  description?: string;
+  status?: string;
+  intent?: string;
+  stake?: string;
+  category?: string;
+  deadline?: string;
+  participants_count?: number;
 };
+
+function useRecentChallenges() {
+  const [challenges, setChallenges] = useState<ChallengeMeta[]>([]);
+  useEffect(() => {
+    fetch("/api/challenges?limit=6", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.items) setChallenges(d.items.slice(0, 6));
+      })
+      .catch(() => {});
+  }, []);
+  return challenges;
+}
+
+type Health = { status: string; rpc: boolean; db: boolean; blockNumber: string; blockAge: number };
 
 function useHealth() {
   const [health, setHealth] = useState<Health | null>(null);
@@ -76,474 +86,355 @@ function fmtNumber(n?: number) {
   return String(n);
 }
 
-/* ── Animation variants ───────────────────────────────────────────────────── */
+function fmtStake(s?: string) {
+  if (!s) return "\u2014";
+  const n = parseFloat(s);
+  if (isNaN(n)) return s;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return n.toFixed(0);
+}
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 32 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.1, duration: 0.7, ease: [0.2, 0.8, 0.2, 1] },
-  }),
-};
-
-const staggerContainer = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.12 } },
-};
-
-const cardReveal = {
-  hidden: { opacity: 0, y: 40, scale: 0.97 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { duration: 0.6, ease: [0.2, 0.8, 0.2, 1] as const },
-  },
-};
+function inferCategory(c: ChallengeMeta): string {
+  const t = `${c.title || ""} ${c.description || ""} ${c.intent || ""} ${c.category || ""}`.toLowerCase();
+  if (/(dota|cs|valorant|league|lol|game|gaming|esport|match|kills|win)/.test(t)) return "Gaming";
+  if (/(step|run|fitness|garmin|strava|cycle|hike|walk|apple.*health)/.test(t)) return "Fitness";
+  return "Custom";
+}
 
 /* ── Page ──────────────────────────────────────────────────────────────────── */
 
 export default function HomePage() {
   useAccount();
   const stats = useStats();
+  const challenges = useRecentChallenges();
   const health = useHealth();
   const tokenPrice = useTokenPrice();
 
-  const heroRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: heroRef,
-    offset: ["start start", "end start"],
-  });
-
-  const heroScale = useTransform(scrollYProgress, [0, 1], [1, 0.92]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
-  const heroY = useTransform(scrollYProgress, [0, 1], [0, 80]);
-
   return (
     <div className="hp">
-      {/* ═══════════════════════════════ HERO ═══════════════════════════════ */}
-      <section className="hp-hero" ref={heroRef}>
-        <motion.div
-          className="hp-hero__inner"
-          style={{ scale: heroScale, opacity: heroOpacity, y: heroY }}
-        >
-          {/* Video centerpiece */}
-          <div className="hp-hero__video-wrap">
-            <video
-              className="hp-hero__video"
-              autoPlay
-              loop
-              muted
-              playsInline
-              preload="auto"
-              poster="/art/background_no_text.webp"
-            >
-              <source src="/video/hero.mp4" type="video/mp4" />
-            </video>
-            <div className="hp-hero__video-glow" />
-          </div>
+      {/* ─────────────────────────────── HERO ─────────────────────────────── */}
+      <section className="hp-hero">
+        {/* Tagline pill */}
+        <div className="hp-hero__pill">
+          <span className="hp-hero__pill-brand">LightChallenge</span>
+          <span className="hp-hero__pill-sep" />
+          ON-CHAIN &middot; AI-VERIFIED &middot; REWARDED
+        </div>
 
-          {/* Copy overlay */}
-          <div className="hp-hero__copy">
-            <motion.div
-              className="hp-hero__pill"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.6 }}
-            >
-              <span className="hp-hero__pill-dot" />
-              One system. Gaming + Fitness.
-            </motion.div>
+        {/* Headline */}
+        <h1 className="hp-hero__headline">
+          Stake your reputation.
+          <br />
+          <span className="hp-hero__headline-accent">Prove it on-chain.</span>
+        </h1>
 
-            <motion.h1
-              className="hp-hero__headline"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35, duration: 0.7 }}
-            >
-              Compete. Verify.{" "}
-              <span className="hp-hero__headline-accent">Earn.</span>
-            </motion.h1>
-
-            <motion.p
-              className="hp-hero__sub"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.7 }}
-            >
-              Turn real activity and gameplay into verified rewards
-              through one structured competition system.
-            </motion.p>
-
-            <motion.div
-              className="hp-hero__cta"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.65, duration: 0.6 }}
-            >
-              <Link href="/explore" className="btn btn-primary btn-lg">
-                Explore Challenges <ArrowRight size={16} />
-              </Link>
-              <a href="#how-it-works" className="btn btn-outline btn-lg">
-                How It Works
-              </a>
-            </motion.div>
-          </div>
-
-          {/* Platform indicators */}
-          <motion.div
-            className="hp-hero__platforms"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.9, duration: 0.8 }}
-          >
-            <PlatformPill icon={<AppleIcon size={14} />} label="Apple Health" />
-            <PlatformPill icon={<GarminIcon size={14} />} label="Garmin" />
-            <PlatformPill icon={<DotaIcon size={14} />} label="Dota 2" />
-            <PlatformPill icon={<CS2Icon size={14} />} label="Counter-Strike" />
-            <PlatformPill icon={<ValorantMark size={14} />} label="Valorant" />
-          </motion.div>
-        </motion.div>
-
-        {/* Metrics bar */}
-        <motion.div
-          className="hp-metrics"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.1, duration: 0.7 }}
-        >
-          <MetricCell
-            value={fmtNumber(stats?.totalChallenges)}
-            label="Challenges"
-          />
-          <MetricCell
-            value={
-              stats?.validatorStake
-                ? formatLCAIAsUSD(
-                    parseFloat(stats.validatorStake),
-                    tokenPrice
-                  )
-                : "\u2014"
-            }
-            label="Total Staked"
-          />
-          <MetricCell
-            value={stats ? String(stats.modelsCount) : "\u2014"}
-            label="AI Verifiers"
-          />
-          <MetricCell
-            value={
-              health?.status === "healthy"
-                ? "Live"
-                : health?.status === "degraded"
-                  ? "Degraded"
-                  : "\u2014"
-            }
-            label="Network"
-            dot={health?.status === "healthy"}
-          />
-        </motion.div>
-      </section>
-
-      {/* ═════════════════════════ HOW IT WORKS ═════════════════════════════ */}
-      <ScrollSection id="how-it-works">
-        <SectionLabel>How it works</SectionLabel>
-        <h2 className="hp-section__title">
-          Three steps to verified rewards
-        </h2>
-        <p className="hp-section__sub">
-          Pick a challenge, complete the work, and let the system handle the rest.
+        {/* Subtext */}
+        <p className="hp-hero__sub">
+          LightChallenge lets you put real stake behind real goals. Win your match,
+          hit your step count, crush your PR &mdash; then submit proof and the AI
+          verifier confirms it on-chain. No trust required.
         </p>
 
-        <motion.div
-          className="hp-steps"
-          variants={staggerContainer}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-80px" }}
-        >
+        {/* CTA */}
+        <div className="hp-hero__cta">
+          <Link href="/explore" className="btn btn-primary btn-lg">
+            Browse challenges <ArrowRight size={16} />
+          </Link>
+          <Link href="/challenges/create" className="btn btn-outline btn-lg">
+            Create one
+          </Link>
+          <Link href="/me/challenges" className="btn btn-outline btn-lg">
+            My challenges
+          </Link>
+        </div>
+
+        {/* Metrics */}
+        <div className="hp-metrics">
+          {[
+            { value: fmtNumber(stats?.totalChallenges), label: "Challenges", sub: "Created on-chain" },
+            { value: stats?.validatorStake ? formatLCAIAsUSD(parseFloat(stats.validatorStake), tokenPrice) : "\u2014", label: "Staked", sub: "Validator pool" },
+            { value: stats ? String(stats.modelsCount) : "\u2014", label: "Verifiers", sub: "AI models" },
+            {
+              value: health?.status === "healthy" ? "Live" : health?.status === "degraded" ? "Degraded" : "\u2014",
+              label: "Network",
+              sub: "Lightchain testnet",
+              dot: health?.status === "healthy",
+            },
+          ].map((s, i, arr) => (
+            <div key={s.label} className="hp-metric">
+              <div className="hp-metric__value">
+                {s.dot && <span className="hp-metric__live-dot" />}
+                {s.value}
+              </div>
+              <div className="hp-metric__label">{s.label}</div>
+              <div className="hp-metric__sub">{s.sub}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ──────────────────────── TRUST / SOCIAL PROOF ────────────────────── */}
+      <section className="hp-section">
+        <SectionLabel>Why LightChallenge</SectionLabel>
+        <h2 className="hp-section__title">
+          Verified results. Real stakes. No trust required.
+        </h2>
+        <p className="hp-section__sub">
+          Every challenge outcome is verified by AI models and recorded immutably on-chain.
+          No central authority decides who wins.
+        </p>
+
+        <div className="hp-trust-grid">
+          <TrustCard
+            icon={<Cpu size={20} />}
+            title="AI Verification"
+            desc="Specialized models analyze your fitness data, match results, or activity logs to verify challenge completion."
+            href="/learn/verification/ai-verification"
+          />
+          <TrustCard
+            icon={<Shield size={20} />}
+            title="On-chain Proof"
+            desc="Verification results are recorded on Lightchain. Transparent, tamper-proof, and auditable by anyone."
+            href="/learn/verification/on-chain-proof"
+          />
+          <TrustCard
+            icon={<Globe size={20} />}
+            title="Decentralized Validation"
+            desc="Lightchain AIVM validators reach consensus on inference results. No single point of failure."
+            href="/learn/verification/decentralized-validation"
+          />
+        </div>
+      </section>
+
+      {/* ─────────────────────────── HOW IT WORKS ─────────────────────────── */}
+      <section className="hp-section">
+        <SectionLabel>How it works</SectionLabel>
+
+        <div className="hp-steps">
           <StepCard
             step="01"
-            icon={<Zap size={20} />}
-            title="Do the work"
-            desc="Run the miles. Win the match. Hit the target. Pick your challenge, stake LCAI, and get it done before the deadline."
+            icon={<Target size={20} />}
+            title="Pick your challenge"
+            desc="Set the goal, stake LCAI, and lock the deadline. Anyone can join by putting their own stake on the line."
           />
           <StepCard
             step="02"
-            icon={<Shield size={20} />}
-            title="We verify it"
-            desc="Submit your evidence. AI models on the Lightchain network analyze your data and produce a tamper-proof verification result."
+            icon={<Zap size={20} />}
+            title="Do the work"
+            desc="Run the miles. Win the match. Hit the target. Your deadline is immutable — the chain doesn't care about excuses."
           />
           <StepCard
             step="03"
             icon={<Trophy size={20} />}
-            title="You get rewarded"
-            desc="Pass verification and your reward is unlocked on-chain. No middlemen, no disputes, no trust required."
+            title="Prove it, get paid"
+            desc="Submit evidence. The Lightchain AI network verifies it. Pass the check and claim your reward."
           />
-        </motion.div>
-      </ScrollSection>
+        </div>
+      </section>
 
-      {/* ═══════════════════════ ECOSYSTEM ══════════════════════════════════ */}
-      <ScrollSection>
-        <SectionLabel>Ecosystem</SectionLabel>
-        <h2 className="hp-section__title">
-          One platform. Every competition.
-        </h2>
+      {/* ────────────────────── EXPLORE CHALLENGES ────────────────────────── */}
+      {challenges.length > 0 && (
+        <section className="hp-section">
+          <div className="hp-section__header-row">
+            <div>
+              <SectionLabel>Explore</SectionLabel>
+              <h2 className="hp-section__title" style={{ marginBottom: 0 }}>
+                Active challenges
+              </h2>
+            </div>
+            <Link href="/explore" className="hp-view-all">
+              View all <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          <div className="hp-challenge-grid">
+            {challenges.map((c) => (
+              <ChallengePreviewCard key={c.id} c={c} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ─────────────────────── INTEGRATIONS ─────────────────────────────── */}
+      <section className="hp-section">
+        <SectionLabel>Integrations</SectionLabel>
+        <h2 className="hp-section__title">Connect your platforms</h2>
         <p className="hp-section__sub">
-          Gaming and fitness challenges run through the same verification
-          infrastructure, the same staking model, the same payout logic.
+          Link your accounts and we'll pull your data automatically.
+          No screenshots. No manual entry.
         </p>
 
-        <motion.div
-          className="hp-ecosystem"
-          variants={staggerContainer}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-80px" }}
-        >
-          <EcosystemCard
-            icon={<Gamepad2 size={22} />}
-            title="Gaming"
-            desc="Dota 2, Counter-Strike, Valorant. Win conditions verified through match data and replay analysis."
-            accent="blue"
-          />
-          <EcosystemCard
-            icon={<Heart size={22} />}
-            title="Fitness"
-            desc="Steps, runs, cycling, workouts. Activity verified through Apple Health, Garmin, and connected devices."
-            accent="green"
-          />
-          <EcosystemCard
-            icon={<Users size={22} />}
-            title="Teams & Tournaments"
-            desc="Group challenges, head-to-head matchups, and multi-round tournaments with pooled stakes."
-            accent="purple"
-          />
-          <EcosystemCard
-            icon={<Sparkles size={22} />}
-            title="Unified System"
-            desc="Same smart contracts, same AI verification, same on-chain settlement. One ecosystem for all challenge types."
-            accent="gold"
-          />
-        </motion.div>
-      </ScrollSection>
+        <div className="hp-integrations">
+          <IntegrationCard icon={<SteamIcon size={24} />} name="Steam" desc="Dota 2, CS2, and more" href="/learn/platforms/steam" />
+          <IntegrationCard icon={<StravaIcon size={24} />} name="Strava" desc="Running, cycling, swimming" href="/learn/platforms/strava" />
+          <IntegrationCard icon={<AppleIcon size={24} />} name="Apple Health" desc="Steps, workouts, activity" href="/learn/platforms/apple-health" />
+          <IntegrationCard icon={<GarminIcon size={24} />} name="Garmin" desc="GPS activities and fitness" href="/learn/platforms/garmin" />
+        </div>
+      </section>
 
-      {/* ═════════════════════ TRUST / PROOF ════════════════════════════════ */}
-      <ScrollSection>
-        <div className="hp-proof">
-          <motion.div
-            className="hp-proof__content"
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.7, ease: [0.2, 0.8, 0.2, 1] }}
-          >
-            <SectionLabel>Built on proof</SectionLabel>
+      {/* ──────────────────────── AI VERIFICATION ─────────────────────────── */}
+      <section className="hp-section">
+        <div className="hp-aivm">
+          <div className="hp-aivm__content">
+            <SectionLabel>Powered by Lightchain AIVM</SectionLabel>
             <h2 className="hp-section__title">
-              Structured challenges. Verified progress. Automated payouts.
+              AI that verifies. A network that validates.
             </h2>
             <p className="hp-section__sub" style={{ maxWidth: "none" }}>
-              Every challenge has immutable rules, a locked deadline, and
-              AI-powered verification. Results are written on-chain and
-              payouts execute automatically. No human judgment. No appeals.
+              When you submit evidence, a specialized AI model analyzes it and produces a
+              verification result. Lightchain AIVM validators independently attest to
+              the inference through Proof-of-Intelligence consensus. The result is recorded
+              on-chain — transparent and immutable.
             </p>
 
-            <div className="hp-proof__features">
-              <ProofFeature text="Challenge rules locked at creation" />
-              <ProofFeature text="Evidence analyzed by specialized AI models" />
-              <ProofFeature text="Validator consensus via Proof-of-Intelligence" />
-              <ProofFeature text="Results immutable on Lightchain" />
-              <ProofFeature text="Payouts execute automatically on verification" />
+            <div className="hp-aivm__features">
+              <AivmFeature text="Evidence analyzed by specialized AI models" />
+              <AivmFeature text="Validator consensus via Proof-of-Intelligence" />
+              <AivmFeature text="Results recorded on-chain for full transparency" />
+              <AivmFeature text="No human judgment — algorithmic and deterministic" />
             </div>
-          </motion.div>
-
-          <motion.div
-            className="hp-proof__visual"
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
-          >
-            <div className="hp-proof__glyph">
-              <Shield size={28} />
+          </div>
+          <div className="hp-aivm__visual">
+            <div className="hp-aivm__glyph">
+              <Sparkles size={32} />
             </div>
-            <div className="hp-proof__ring hp-proof__ring--1" />
-            <div className="hp-proof__ring hp-proof__ring--2" />
-            <div className="hp-proof__ring hp-proof__ring--3" />
-          </motion.div>
+            <div className="hp-aivm__ring hp-aivm__ring--1" />
+            <div className="hp-aivm__ring hp-aivm__ring--2" />
+            <div className="hp-aivm__ring hp-aivm__ring--3" />
+          </div>
         </div>
-      </ScrollSection>
+      </section>
 
-      {/* ═══════════════════════ FINAL CTA ══════════════════════════════════ */}
-      <ScrollSection>
-        <div className="hp-final-cta">
-          <motion.h2
-            className="hp-final-cta__title"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7 }}
-          >
-            Ready to prove yourself?
-          </motion.h2>
-          <motion.p
-            className="hp-final-cta__sub"
-            initial={{ opacity: 0, y: 14 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1, duration: 0.7 }}
-          >
-            Create a challenge, stake your claim, and let AI be the judge.
-          </motion.p>
-          <motion.div
-            className="hp-hero__cta"
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-          >
-            <Link href="/challenges/create" className="btn btn-primary btn-lg">
-              Create a Challenge <ArrowRight size={16} />
-            </Link>
-            <Link href="/explore" className="btn btn-ghost btn-lg">
-              Browse Challenges
-            </Link>
-          </motion.div>
+      {/* ──────────────────────────── DEVELOPERS ──────────────────────────── */}
+      <section className="hp-section">
+        <div className="hp-dev">
+          <div className="hp-dev__text">
+            <SectionLabel>Developers</SectionLabel>
+            <h2 className="hp-section__title">Build on LightChallenge</h2>
+            <p className="hp-section__sub" style={{ maxWidth: "none" }}>
+              Explore the protocol, integrate AI verification, or build your own challenge types.
+              Full documentation and smart contract references available.
+            </p>
+          </div>
+          <div className="hp-dev__actions">
+            <a
+              href="https://uat.docs.lightchallenge.app"
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-outline btn-lg"
+            >
+              <Code size={16} />
+              Documentation
+              <ExternalLink size={12} style={{ opacity: 0.5 }} />
+            </a>
+          </div>
         </div>
-      </ScrollSection>
+      </section>
+
+      {/* ───────────────────────────── FINAL CTA ──────────────────────────── */}
+      <section className="hp-final-cta">
+        <h2 className="hp-final-cta__title">
+          Ready to prove yourself?
+        </h2>
+        <p className="hp-final-cta__sub">
+          Create a challenge, stake your claim, and let AI be the judge.
+        </p>
+        <div className="hp-hero__cta">
+          <Link href="/challenges/create" className="btn btn-primary btn-lg">
+            Create a Challenge <ArrowRight size={16} />
+          </Link>
+          <Link href="/explore" className="btn btn-ghost btn-lg">
+            Browse Challenges
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }
 
 /* ── Sub-components ────────────────────────────────────────────────────────── */
 
-function ScrollSection({
-  children,
-  id,
-}: {
-  children: React.ReactNode;
-  id?: string;
-}) {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-60px" });
-
-  return (
-    <motion.section
-      ref={ref}
-      id={id}
-      className="hp-section"
-      initial={{ opacity: 0, y: 48 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
-    >
-      {children}
-    </motion.section>
-  );
-}
-
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <div className="hp-section__label">{children}</div>;
-}
-
-function PlatformPill({
-  icon,
-  label,
-}: {
-  icon: React.ReactNode;
-  label: string;
-}) {
   return (
-    <div className="hp-platform-pill">
-      {icon}
-      <span>{label}</span>
-    </div>
+    <div className="hp-section__label">{children}</div>
   );
 }
 
-function MetricCell({
-  value,
-  label,
-  dot,
-}: {
-  value: string;
-  label: string;
-  dot?: boolean;
-}) {
+function TrustCard({ icon, title, desc, href }: { icon: React.ReactNode; title: string; desc: string; href: string }) {
   return (
-    <div className="hp-metric">
-      <div className="hp-metric__value">
-        {dot && <span className="hp-metric__live-dot" />}
-        {value}
-      </div>
-      <div className="hp-metric__label">{label}</div>
-    </div>
+    <Link href={href} className="hp-trust-card hp-trust-card--link">
+      <div className="hp-trust-card__icon">{icon}</div>
+      <h3 className="hp-trust-card__title">{title}</h3>
+      <p className="hp-trust-card__desc">{desc}</p>
+      <div className="hp-trust-card__arrow"><ArrowRight size={14} /></div>
+    </Link>
   );
 }
 
-function StepCard({
-  step,
-  icon,
-  title,
-  desc,
-}: {
-  step: string;
-  icon: React.ReactNode;
-  title: string;
-  desc: string;
-}) {
+function StepCard({ step, icon, title, desc }: { step: string; icon: React.ReactNode; title: string; desc: string }) {
   return (
-    <motion.div className="hp-step" variants={cardReveal}>
+    <div className="hp-step">
       <div className="hp-step__number">{step}</div>
       <div className="hp-step__icon">{icon}</div>
       <h3 className="hp-step__title">{title}</h3>
       <p className="hp-step__desc">{desc}</p>
-    </motion.div>
+    </div>
   );
 }
 
-function EcosystemCard({
-  icon,
-  title,
-  desc,
-  accent,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  desc: string;
-  accent: "blue" | "green" | "purple" | "gold";
-}) {
+function IntegrationCard({ icon, name, desc, href }: { icon: React.ReactNode; name: string; desc: string; href: string }) {
   return (
-    <motion.div
-      className={`hp-eco-card hp-eco-card--${accent}`}
-      variants={cardReveal}
-    >
-      <div className="hp-eco-card__icon">{icon}</div>
-      <h3 className="hp-eco-card__title">{title}</h3>
-      <p className="hp-eco-card__desc">{desc}</p>
-    </motion.div>
+    <Link href={href} className="hp-integration hp-integration--link">
+      <div className="hp-integration__icon">{icon}</div>
+      <div className="hp-integration__name">{name}</div>
+      <div className="hp-integration__desc">{desc}</div>
+      <div className="hp-integration__arrow"><ArrowRight size={14} /></div>
+    </Link>
   );
 }
 
-function ProofFeature({ text }: { text: string }) {
+function AivmFeature({ text }: { text: string }) {
   return (
-    <div className="hp-proof__feature">
+    <div className="hp-aivm__feature">
       <CheckCircle2 size={16} />
       <span>{text}</span>
     </div>
   );
 }
 
-function ValorantMark({ size = 20 }: { size?: number }) {
+function ChallengePreviewCard({ c }: { c: ChallengeMeta }) {
+  const category = inferCategory(c);
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path d="M2.2 4.2L13.1 19.8H8L2.2 11.6V4.2ZM12.5 4.2L21.8 17.5V19.8H17.5L12.5 12.7V4.2Z" />
-    </svg>
+    <Link href={`/challenge/${c.id}`} className="hp-challenge">
+      <div className="hp-challenge__top">
+        <Badge variant="category" size="sm">{category}</Badge>
+        <Badge
+          variant="status"
+          status={(c.status as "Active" | "Finalized" | "Canceled") || "Active"}
+          dot
+          size="sm"
+        >
+          {c.status || "\u2014"}
+        </Badge>
+      </div>
+
+      <div className="hp-challenge__title">
+        {c.title || `Challenge #${c.id}`}
+      </div>
+
+      {c.description && (
+        <p className="hp-challenge__desc">{c.description}</p>
+      )}
+
+      <div className="hp-challenge__meta">
+        {c.intent && <span style={{ textTransform: "capitalize" }}>{c.intent.replace(/-/g, " ")}</span>}
+        {c.stake && (
+          <span>
+            <strong>{c.stake}</strong>
+          </span>
+        )}
+      </div>
+    </Link>
   );
 }
