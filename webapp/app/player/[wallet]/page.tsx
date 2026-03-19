@@ -198,8 +198,8 @@ export default function PlayerProfilePage() {
   /* ── Derived stats ───────────────────────────────────────────────── */
 
   const stats = useMemo(() => {
-    const wins = challenges.filter((c) => c.verdict_pass === true).length;
-    const losses = challenges.filter((c) => c.verdict_pass === false).length;
+    const wins = challenges.filter((c) => c.verdict_pass === true && c.challenge_status?.toLowerCase() !== "active").length;
+    const losses = challenges.filter((c) => c.verdict_pass === false && c.challenge_status?.toLowerCase() !== "active").length;
     return {
       entered: challenges.length,
       wins,
