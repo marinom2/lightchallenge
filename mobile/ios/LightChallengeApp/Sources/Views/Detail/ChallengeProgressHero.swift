@@ -409,8 +409,11 @@ struct ChallengeProgressHero: View {
             .contentShape(Rectangle())
             .onTapGesture { onAction(.viewProgress) }
 
-            // Reward + participants — clean inline, no boxes
+            // Reward + participants — clean inline
             rewardLine
+
+            // Inline state message (replaces separate cards)
+            stateMessage
 
             // Primary action
             actionButton
@@ -426,6 +429,28 @@ struct ChallengeProgressHero: View {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.15)) {
                 figureAppeared = true
             }
+        }
+    }
+
+    // MARK: - Inline State Message
+
+    @ViewBuilder
+    private var stateMessage: some View {
+        switch userState {
+        case .awaitingVerdict:
+            AnimatedVerifyingText()
+        case .submitted:
+            Text("Evidence submitted — awaiting finalization")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(LC.textSecondary(scheme))
+                .frame(maxWidth: .infinity, alignment: .leading)
+        case .ended:
+            Text("This challenge has ended")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(LC.textTertiary(scheme))
+                .frame(maxWidth: .infinity, alignment: .leading)
+        default:
+            EmptyView()
         }
     }
 
@@ -792,4 +817,26 @@ enum HeroAction {
     case viewResults
     case viewProgress
     case share
+}
+
+// MARK: - Animated Verifying Text
+
+/// Subtle "Verifying your activity..." with cycling ellipsis.
+struct AnimatedVerifyingText: View {
+    @State private var dotCount = 0
+    @Environment(\.colorScheme) private var scheme
+
+    private var dots: String {
+        String(repeating: ".", count: (dotCount % 3) + 1)
+    }
+
+    var body: some View {
+        Text("Verifying your activity\(dots)")
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(LC.textSecondary(scheme))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .onReceive(Timer.publish(every: 0.6, on: .main, in: .common).autoconnect()) { _ in
+                dotCount += 1
+            }
+    }
 }

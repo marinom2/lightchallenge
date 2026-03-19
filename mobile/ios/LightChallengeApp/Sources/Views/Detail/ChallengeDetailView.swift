@@ -252,20 +252,15 @@ struct ChallengeDetailView: View {
         case .awaitingProof:
             proofCard(detail)
 
-        case .awaitingVerdict:
-            verdictCard
-
-        case .submitted:
-            submittedCard
-
         case .completed:
             completedCard(detail)
 
         case .failed:
             failedCard
 
-        case .ended:
-            endedCard
+        // awaitingVerdict, submitted, ended — handled inline in hero card
+        default:
+            EmptyView()
         }
     }
 
@@ -496,44 +491,7 @@ struct ChallengeDetailView: View {
         .lcCard()
     }
 
-    private var verdictCard: some View {
-        HStack(spacing: LC.space12) {
-            Image(systemName: "hourglass")
-                .font(.system(size: 18))
-                .foregroundStyle(LC.warning)
-                .symbolEffect(.pulse)
-                .frame(width: 28)
-            VStack(alignment: .leading, spacing: LC.space2) {
-                Text("Proof Under Review")
-                    .font(.subheadline.weight(.semibold))
-                Text("Your evidence is being verified by AI")
-                    .font(.caption)
-                    .foregroundStyle(LC.textSecondary(scheme))
-            }
-            Spacer()
-        }
-        .padding(LC.space16)
-        .lcCard()
-    }
-
-    private var submittedCard: some View {
-        HStack(spacing: LC.space12) {
-            Image(systemName: "checkmark.circle")
-                .font(.system(size: 18))
-                .foregroundStyle(.blue)
-                .frame(width: 28)
-            VStack(alignment: .leading, spacing: LC.space2) {
-                Text("Evidence Submitted")
-                    .font(.subheadline.weight(.semibold))
-                Text("Challenge ended — awaiting on-chain finalization")
-                    .font(.caption)
-                    .foregroundStyle(LC.textSecondary(scheme))
-            }
-            Spacer()
-        }
-        .padding(LC.space16)
-        .lcCard()
-    }
+    // verdictCard and submittedCard removed — now inline in hero card stateMessage
 
     private func completedCard(_ detail: ChallengeDetail) -> some View {
         VStack(spacing: LC.space12) {
@@ -691,20 +649,7 @@ struct ChallengeDetailView: View {
         .lcCard()
     }
 
-    private var endedCard: some View {
-        HStack(spacing: LC.space12) {
-            Image(systemName: "flag.checkered")
-                .font(.system(size: 18))
-                .foregroundStyle(LC.textTertiary(scheme))
-                .frame(width: 28)
-            Text("This challenge has ended")
-                .font(.caption)
-                .foregroundStyle(LC.textSecondary(scheme))
-            Spacer()
-        }
-        .padding(LC.space16)
-        .lcCard()
-    }
+    // endedCard removed — now inline in hero card stateMessage
 
     // MARK: - Auto-Proof Status Row
 
@@ -738,29 +683,31 @@ struct ChallengeDetailView: View {
         return AnyView(
             VStack(alignment: .leading, spacing: 0) {
                 Text("Timeline")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(LC.textTertiary(scheme))
+                    .textCase(.uppercase)
+                    .kerning(0.5)
                     .padding(.bottom, LC.space12)
 
                 ForEach(Array(milestones.enumerated()), id: \.element.id) { index, milestone in
                     HStack(alignment: .top, spacing: LC.space12) {
-                        // Stepper line + dot
                         VStack(spacing: 0) {
                             Circle()
-                                .fill(milestone.isCompleted ? LC.accent : LC.textTertiary(scheme).opacity(0.3))
-                                .frame(width: 8, height: 8)
+                                .fill(milestone.isCompleted ? LC.accent.opacity(0.7) : LC.textTertiary(scheme).opacity(0.2))
+                                .frame(width: 6, height: 6)
                             if index < milestones.count - 1 {
                                 Rectangle()
-                                    .fill(milestone.isCompleted ? LC.accent.opacity(0.3) : LC.textTertiary(scheme).opacity(0.15))
+                                    .fill(milestone.isCompleted ? LC.accent.opacity(0.15) : LC.textTertiary(scheme).opacity(0.08))
                                     .frame(width: 1)
                                     .frame(maxHeight: .infinity)
                             }
                         }
-                        .frame(width: 8)
+                        .frame(width: 6)
 
-                        VStack(alignment: .leading, spacing: LC.space2) {
+                        VStack(alignment: .leading, spacing: 1) {
                             Text(milestone.label)
                                 .font(.caption.weight(.medium))
-                                .foregroundStyle(milestone.isCompleted ? LC.textPrimary(scheme) : LC.textTertiary(scheme))
+                                .foregroundStyle(milestone.isCompleted ? LC.textSecondary(scheme) : LC.textTertiary(scheme))
                             if let date = milestone.date {
                                 Text(date.formatted(date: .abbreviated, time: .shortened))
                                     .font(.caption2)
@@ -773,8 +720,8 @@ struct ChallengeDetailView: View {
                     }
                 }
             }
-            .padding(LC.space16)
-            .lcCard()
+            .padding(.horizontal, LC.space4)
+            .padding(.vertical, LC.space16)
         )
     }
 
@@ -800,8 +747,11 @@ struct ChallengeDetailView: View {
             milestones.append(Milestone(id: "joinCloses", label: "Registration Closes", date: joinClosesDate, isCompleted: joinClosesDate <= now))
         }
 
-        // You Joined — only when the API confirms join (on-chain Joined event)
-        if detail.youJoined == true {
+        // You Joined — on-chain event OR evidence/verdict presence
+        let hasJoined = detail.youJoined == true
+            || participantStatus?.hasEvidence == true
+            || participantStatus?.verdictPass != nil
+        if hasJoined {
             milestones.append(Milestone(id: "joined", label: "You Joined", date: nil, isCompleted: true))
         }
 
