@@ -325,6 +325,61 @@ export function resolveLifecycle(input: LifecycleInput, now?: number): ResolvedL
     });
   }
 
+  // ── PROOF WINDOW: challenge ended but proof deadline not reached ──
+  // During the proof window, verdicts are preliminary (pipeline hasn't
+  // finalized). Show evidence-based status, not verdict-based.
+  const inProofWindow = challengeHasEnded(input, t) && !proofDeadlinePassed
+    && !!input.proofDeadline && input.proofDeadline > t;
+
+  if (inProofWindow) {
+    if (input.has_evidence) {
+      if (AIVM_IN_PROGRESS.includes(aivm)) {
+        return makeResult("SUBMITTED", {
+          label: "Verifying",
+          description: `Evidence submitted — AIVM verification: ${aivm}`,
+          badgeVariant: "info",
+          accent: "progress",
+          proofDeadlinePassed,
+        });
+      }
+      return makeResult("SUBMITTED", {
+        label: "Verifying",
+        description: input.evidence_provider
+          ? `Evidence submitted via ${input.evidence_provider} — awaiting finalization.`
+          : "Evidence submitted — awaiting finalization.",
+        badgeVariant: "info",
+        accent: "progress",
+        proofDeadlinePassed,
+      });
+    }
+    // No evidence yet during proof window → needs proof
+    const proofTl = input.proofDeadline ? formatTimeLeft(input.proofDeadline, t) : null;
+    const hoursLeft = input.proofDeadline ? (input.proofDeadline - t) / 3600 : Infinity;
+    const isUrgent = hoursLeft <= 24 && hoursLeft > 0;
+    if (isUrgent) {
+      return makeResult("NEEDS_PROOF_URGENT", {
+        label: "Proof Urgent",
+        description: `Evidence deadline: ${proofTl ?? "soon"} — submit now.`,
+        badgeVariant: "action",
+        accent: "action",
+        canSubmitProof: true,
+        proofTimeLeft: proofTl,
+        proofDeadlinePassed,
+      });
+    }
+    return makeResult("NEEDS_PROOF", {
+      label: "Needs Proof",
+      description: proofTl
+        ? `Evidence window open — ${proofTl}.`
+        : "Submit your evidence.",
+      badgeVariant: "action",
+      accent: "action",
+      canSubmitProof: true,
+      proofTimeLeft: proofTl,
+      proofDeadlinePassed,
+    });
+  }
+
   // ── PASSED (verdict_pass=true but not yet finalized) ──
   if (input.verdict_pass === true && challengeHasEnded(input, t)) {
     return makeResult("PASSED", {

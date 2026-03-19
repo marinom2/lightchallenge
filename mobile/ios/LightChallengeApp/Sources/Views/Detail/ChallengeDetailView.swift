@@ -1131,8 +1131,21 @@ struct ChallengeDetailView: View {
             subject: appState.walletAddress
         )
         participantLoaded = true
-        if prevPass == nil, participantStatus?.verdictPass == true {
-            await MainActor.run { showingVictory = true }
+        // Only show victory celebration after proof deadline has passed.
+        // During the proof window the verdict is preliminary — the pipeline
+        // hasn't finalized yet and the user can't claim rewards.
+        if prevPass == nil, participantStatus?.verdictPass == true,
+           let d = detail {
+            let phase = ChallengePhase.from(detail: d, verdictPass: participantStatus?.verdictPass)
+            let deadlinePassed: Bool = {
+                if case .active = phase { return false }
+                if case .upcoming = phase { return false }
+                if case .proofWindow = phase { return false }
+                return true
+            }()
+            if deadlinePassed {
+                await MainActor.run { showingVictory = true }
+            }
         }
     }
 

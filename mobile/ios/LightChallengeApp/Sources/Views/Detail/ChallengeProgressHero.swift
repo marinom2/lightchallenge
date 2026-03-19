@@ -278,15 +278,16 @@ enum UserChallengeState {
         // This matches the webapp's hasJoined logic.
         let joined = detail.youJoined == true
 
-        // Verdict takes precedence — but ONLY after the challenge has ended.
-        // During active phase, evidence data is incomplete (user is still
-        // accumulating steps/activity), so any premature verdict is unreliable.
-        let challengeEnded: Bool = {
+        // Verdict takes precedence — but ONLY after the proof deadline has passed.
+        // During active phase and proof window, the pipeline hasn't finalized,
+        // so any premature verdict is unreliable and should not drive the UI.
+        let proofDeadlinePassed: Bool = {
             if case .active = phase { return false }
             if case .upcoming = phase { return false }
+            if case .proofWindow = phase { return false }
             return true
         }()
-        if challengeEnded, let pass = participantStatus?.verdictPass {
+        if proofDeadlinePassed, let pass = participantStatus?.verdictPass {
             return pass ? .completed : .failed
         }
 

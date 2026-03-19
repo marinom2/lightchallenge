@@ -1285,6 +1285,11 @@ const shouldShowVoteTopic = false;
 const shouldShowVote = false;
 // Only show proof submission after the challenge period has ended
 const challengeEnded = !!endSec && Math.floor(Date.now() / 1000) >= endSec;
+// Verdicts are only authoritative after the proof deadline has passed.
+// During the proof window the pipeline hasn't finalized yet.
+const proofDeadlinePassed = challengeEnded && (
+  !proofDeadlineSec || Math.floor(Date.now() / 1000) >= proofDeadlineSec
+);
 const shouldShowProofs = Boolean(data?.proofRequired) && challengeEnded && !(participantStatus?.verdict_pass === true);
 
 // Completion moment: show once when status flips into Completed
@@ -1871,36 +1876,42 @@ const primaryAction = React.useMemo(() => {
             <div className="min-w-0">
               <div className="text-sm font-semibold">Your verification status</div>
             </div>
-            {/* Verdict chips only shown after challenge has ended — during active period,
-                evidence is incomplete and any premature verdict is unreliable. */}
-            {challengeEnded && participantStatus.verdict_pass === true &&
+            {/* Verdict chips only shown after proof deadline has passed — during active
+                period and proof window, the pipeline hasn't finalized yet. */}
+            {proofDeadlinePassed && participantStatus.verdict_pass === true &&
               participantStatus.challenge_status?.toLowerCase() === "finalized" && (
                 <span className="chip chip--ok">Claimable</span>
             )}
-            {challengeEnded && participantStatus.verdict_pass === true &&
+            {proofDeadlinePassed && participantStatus.verdict_pass === true &&
               participantStatus.challenge_status?.toLowerCase() !== "finalized" &&
               ["requested", "committed", "revealed"].includes(
                 participantStatus.aivm_verification_status ?? ""
               ) && (
                 <span className="chip chip--info">Network pending</span>
             )}
-            {challengeEnded && participantStatus.verdict_pass === true &&
+            {proofDeadlinePassed && participantStatus.verdict_pass === true &&
               !["requested", "committed", "revealed"].includes(
                 participantStatus.aivm_verification_status ?? ""
               ) &&
               participantStatus.challenge_status?.toLowerCase() !== "finalized" && (
                 <span className="chip chip--ok">Passed</span>
             )}
-            {challengeEnded && participantStatus.verdict_pass === false && (
+            {proofDeadlinePassed && participantStatus.verdict_pass === false && (
               <span className="chip chip--bad">Failed</span>
             )}
-            {challengeEnded && participantStatus.verdict_pass === null && participantStatus.has_evidence && (
+            {proofDeadlinePassed && participantStatus.verdict_pass === null && participantStatus.has_evidence && (
               <span className="chip chip--warn">Evaluating…</span>
+            )}
+            {!proofDeadlinePassed && challengeEnded && participantStatus.has_evidence && (
+              <span className="chip chip--info">Verifying</span>
+            )}
+            {!proofDeadlinePassed && challengeEnded && !participantStatus.has_evidence && (
+              <span className="chip chip--warn">Proof needed</span>
             )}
             {!challengeEnded && (
               <span className="chip chip--info">In progress</span>
             )}
-            {challengeEnded && participantStatus.verdict_pass === null && !participantStatus.has_evidence && (
+            {proofDeadlinePassed && participantStatus.verdict_pass === null && !participantStatus.has_evidence && (
               <span className="chip chip--soft">No evidence yet</span>
             )}
           </div>
@@ -1922,7 +1933,7 @@ const primaryAction = React.useMemo(() => {
                   : "Not submitted"}
               </span>
             </div>
-            {challengeEnded && participantStatus.verdict_pass === false && participantStatus.verdict_reasons?.length ? (
+            {proofDeadlinePassed && participantStatus.verdict_pass === false && participantStatus.verdict_reasons?.length ? (
               <div className="flex gap-2">
                 <span className="text-(--text-muted) w-32 shrink-0">Reason</span>
                 <span className="text-red-400">

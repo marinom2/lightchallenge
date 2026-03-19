@@ -638,10 +638,14 @@ struct MyChallenge: Codable, Identifiable {
     }
 
     /// Timeline-aware status label. When a ChallengeMeta is available, verdicts
-    /// and evidence states are suppressed while the challenge is still active.
+    /// are suppressed until the proof deadline has passed (not just challenge end).
     func statusLabel(meta: ChallengeMeta?) -> String {
-        if isActive(meta: meta) {
+        if isChallengeActive(meta: meta) {
             return "Active"
+        }
+        if isInProofWindow(meta: meta) {
+            if hasEvidence == true { return "Verifying" }
+            return "Proof needed"
         }
         if let pass = verdictPass {
             return pass ? "Passed" : "Failed"
@@ -655,8 +659,12 @@ struct MyChallenge: Codable, Identifiable {
     }
 
     func statusColor(meta: ChallengeMeta?) -> String {
-        if isActive(meta: meta) {
+        if isChallengeActive(meta: meta) {
             return "green"
+        }
+        if isInProofWindow(meta: meta) {
+            if hasEvidence == true { return "amber" }
+            return "blue"
         }
         if let pass = verdictPass {
             return pass ? "green" : "red"
@@ -666,12 +674,21 @@ struct MyChallenge: Codable, Identifiable {
     }
 
     /// Whether the challenge is still in its active period (before endsAt).
-    private func isActive(meta: ChallengeMeta?) -> Bool {
+    private func isChallengeActive(meta: ChallengeMeta?) -> Bool {
         if let ts = meta?.endsAt, ts > 0 {
             return Date(timeIntervalSince1970: ts) > Date()
         }
-        // Fallback: on-chain status "Active" with no timeline
         return challengeStatus == "Active"
+    }
+
+    /// Whether the challenge has ended but the proof deadline hasn't passed yet.
+    private func isInProofWindow(meta: ChallengeMeta?) -> Bool {
+        guard let endTs = meta?.endsAt, endTs > 0,
+              Date(timeIntervalSince1970: endTs) <= Date() else { return false }
+        if let deadlineTs = meta?.proofDeadline, deadlineTs > 0 {
+            return Date(timeIntervalSince1970: deadlineTs) > Date()
+        }
+        return false
     }
 }
 
