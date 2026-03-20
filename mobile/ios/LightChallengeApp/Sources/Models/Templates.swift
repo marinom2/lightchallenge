@@ -46,9 +46,9 @@ struct ChallengeTemplate: Identifiable {
 
 enum FitnessTemplates {
     static let all: [ChallengeTemplate] = [
-        stepsDailyTemplate,
-        runningDistanceTemplate,
+        walkingDailyTemplate,
         walkingDistanceTemplate,
+        runningDistanceTemplate,
         cyclingDistanceTemplate,
         hikingElevationTemplate,
         swimmingLapsTemplate,
@@ -58,7 +58,7 @@ enum FitnessTemplates {
         rowingDistanceTemplate,
         calorieBurnTemplate,
         exerciseTimeTemplate,
-        stepsCompetitiveTemplate,
+        walkingCompetitiveTemplate,
         distanceCompetitiveTemplate,
         durationThresholdTemplate,
     ]
@@ -67,13 +67,13 @@ enum FitnessTemplates {
         all.filter { $0.fitnessKind == kind }
     }
 
-    // MARK: - Steps
+    // MARK: - Walking
 
-    private static let stepsDailyTemplate = ChallengeTemplate(
-        id: "steps_daily",
-        name: "Steps — Every Day",
+    private static let walkingDailyTemplate = ChallengeTemplate(
+        id: "walking_daily",
+        name: "Walking — Every Day",
         hint: "Hit a daily step target for a number of consecutive days",
-        fitnessKind: "steps",
+        fitnessKind: "walking",
         kindId: .steps,
         modelId: "fitness.steps@1",
         modelHash: ServerConfig.fitnessStepsHash,
@@ -89,7 +89,7 @@ enum FitnessTemplates {
         },
         ruleBuilder: { args, start, end in
             [
-                "challengeType": "steps",
+                "challengeType": "walking",
                 "period": [
                     "start": ISO8601DateFormatter().string(from: start),
                     "end": ISO8601DateFormatter().string(from: end),
@@ -105,11 +105,44 @@ enum FitnessTemplates {
         }
     )
 
-    private static let stepsCompetitiveTemplate = ChallengeTemplate(
-        id: "steps_competitive",
-        name: "Steps Competition",
+    private static let walkingDistanceTemplate = ChallengeTemplate(
+        id: "walking_distance",
+        name: "Walking — Distance Target",
+        hint: "Accumulate walking distance within the challenge window",
+        fitnessKind: "walking",
+        kindId: .fitnessGeneral,
+        modelId: "fitness.walking@1",
+        modelHash: ServerConfig.fitnessWalkingHash,
+        fields: [
+            TemplateField(key: "distanceKm", label: "Target Distance (km)", kind: .number(min: 0.5, max: nil, step: 0.5, defaultValue: 5)),
+        ],
+        paramsBuilder: { args in
+            let km = args["distanceKm"] as? Double ?? 5.0
+            return [
+                "minMeters": Int(km * 1000),
+                "types": "walk",
+            ]
+        },
+        ruleBuilder: { args, start, end in
+            let km = args["distanceKm"] as? Double ?? 5.0
+            return [
+                "challengeType": "walk",
+                "period": [
+                    "start": ISO8601DateFormatter().string(from: start),
+                    "end": ISO8601DateFormatter().string(from: end),
+                ],
+                "conditions": [
+                    ["metric": "walking_km", "op": ">=", "value": km]
+                ],
+            ]
+        }
+    )
+
+    private static let walkingCompetitiveTemplate = ChallengeTemplate(
+        id: "walking_competitive",
+        name: "Walking Competition",
         hint: "Compete for the highest step count. Top finishers win.",
-        fitnessKind: "steps",
+        fitnessKind: "walking",
         kindId: .steps,
         modelId: "fitness.steps@1",
         modelHash: ServerConfig.fitnessStepsHash,
@@ -125,7 +158,7 @@ enum FitnessTemplates {
         },
         ruleBuilder: { args, start, end in
             [
-                "challengeType": "steps",
+                "challengeType": "walking",
                 "mode": "competitive",
                 "metric": "steps_count",
                 "period": [
@@ -322,40 +355,6 @@ enum FitnessTemplates {
         }
     )
 
-    // MARK: - Walking
-
-    private static let walkingDistanceTemplate = ChallengeTemplate(
-        id: "walking_distance",
-        name: "Walking — Distance Target",
-        hint: "Accumulate walking distance within the challenge window",
-        fitnessKind: "walking",
-        kindId: .fitnessGeneral,
-        modelId: "fitness.walking@1",
-        modelHash: ServerConfig.fitnessWalkingHash,
-        fields: [
-            TemplateField(key: "distanceKm", label: "Target Distance (km)", kind: .number(min: 0.5, max: nil, step: 0.5, defaultValue: 5)),
-        ],
-        paramsBuilder: { args in
-            let km = args["distanceKm"] as? Double ?? 5.0
-            return [
-                "minMeters": Int(km * 1000),
-                "types": "walk",
-            ]
-        },
-        ruleBuilder: { args, start, end in
-            let km = args["distanceKm"] as? Double ?? 5.0
-            return [
-                "challengeType": "walk",
-                "period": [
-                    "start": ISO8601DateFormatter().string(from: start),
-                    "end": ISO8601DateFormatter().string(from: end),
-                ],
-                "conditions": [
-                    ["metric": "walking_km", "op": ">=", "value": km]
-                ],
-            ]
-        }
-    )
 
     // MARK: - Strength
 

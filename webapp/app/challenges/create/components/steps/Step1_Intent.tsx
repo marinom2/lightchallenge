@@ -114,9 +114,8 @@ const GAME_OPTIONS: Array<{ value: GameId; label: string; sub: string }> = [
 ];
 
 const FITNESS_OPTIONS: Array<{ value: FitnessKind; label: string; sub: string }> = [
-  { value: "steps", label: "Steps", sub: "Apple Health, Garmin, Fitbit, Google Fit" },
-  { value: "running", label: "Running", sub: "Apple Health, Strava, Garmin, Fitbit, Google Fit" },
   { value: "walking", label: "Walking", sub: "Apple Health, Garmin, Fitbit, Google Fit" },
+  { value: "running", label: "Running", sub: "Apple Health, Strava, Garmin, Fitbit, Google Fit" },
   { value: "cycling", label: "Cycling", sub: "Apple Health, Strava, Garmin, Fitbit, Google Fit" },
   { value: "hiking", label: "Hiking / Elevation", sub: "Apple Health, Strava, Garmin" },
   { value: "swimming", label: "Swimming", sub: "Apple Health, Strava, Garmin" },
@@ -155,7 +154,7 @@ export default function Step1_Intent({
       dispatch({
         type: "SET_INTENT",
         payload: {
-          fitnessKind: state.intent.fitnessKind || "steps",
+          fitnessKind: state.intent.fitnessKind || "walking",
           gameId: null,
           gameMode: null,
         },

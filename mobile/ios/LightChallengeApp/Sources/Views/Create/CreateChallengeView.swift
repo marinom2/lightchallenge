@@ -12,7 +12,7 @@ struct CreateChallengeView: View {
     @Environment(\.colorScheme) private var scheme
 
     @State private var step = 1
-    @State private var fitnessKind: String = "steps"
+    @State private var fitnessKind: String = "walking"
     @State private var selectedTemplate: ChallengeTemplate?
     @State private var title: String = ""
     @State private var tags: String = ""
@@ -28,9 +28,8 @@ struct CreateChallengeView: View {
     @State private var tokenPrice: Double?
 
     private let fitnessKinds: [(key: String, label: String, icon: String)] = [
-        ("steps", "Steps", "figure.walk"),
+        ("walking", "Walking", "figure.walk"),
         ("running", "Running", "figure.run"),
-        ("walking", "Walking", "figure.walk.motion"),
         ("cycling", "Cycling", "bicycle"),
         ("hiking", "Hiking", "mountain.2.fill"),
         ("swimming", "Swimming", "figure.pool.swim"),
@@ -858,6 +857,7 @@ struct CreateChallengeView: View {
             let meta = CreateChallengeMeta(
                 title: title,
                 description: autoDescription.isEmpty ? nil : autoDescription,
+                category: fitnessKind,
                 tags: parsedTags + [fitnessKind],
                 modelId: template.modelId,
                 modelHash: template.modelHash,

@@ -208,22 +208,34 @@ export function resolvePrimaryAction(ctx: {
   if (isCompleted) {
     return {
       kind: "done",
-      title: "Completed",
-      desc: "Challenge finalized",
-      cta: "Explore",
+      title: "Challenge complete",
+      desc: "Results have been finalized",
+      cta: "View results",
       icon: CheckCircle2,
       onClick: onExplore,
     };
   }
 
-  if (isInProgress) {
+  if (isInProgress && hasJoined) {
     return {
       kind: "active",
-      title: "In progress",
-      desc: "Challenge is running",
-      cta: "Explore",
+      title: "Keep going",
+      desc: "Your activity is being tracked automatically",
+      cta: "View progress",
       icon: Clock,
-      onClick: onExplore,
+      onClick: onRefresh,
+    };
+  }
+
+  if (isInProgress && !hasJoined) {
+    return {
+      kind: "join",
+      title: "Join the challenge",
+      desc: "Commit stake to participate",
+      cta: "Join",
+      icon: Users,
+      disabled: false,
+      disabledReason: joinDisabledReason,
     };
   }
 
@@ -231,8 +243,8 @@ export function resolvePrimaryAction(ctx: {
     return {
       kind: "upcoming",
       title: "Upcoming",
-      desc: joinWindowOpen ? "Join is open" : "Join closed",
-      cta: "Explore",
+      desc: joinWindowOpen ? "Join window is open — secure your spot" : "Join window closed",
+      cta: joinWindowOpen ? "Join" : "View details",
       icon: Calendar,
       onClick: onExplore,
     };
@@ -242,7 +254,7 @@ export function resolvePrimaryAction(ctx: {
     kind: "neutral",
     title: "Challenge",
     desc: "Review details below",
-    cta: "Explore",
+    cta: "View details",
     icon: Info,
     onClick: onExplore,
   };

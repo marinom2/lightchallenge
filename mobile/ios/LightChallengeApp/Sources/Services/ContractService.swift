@@ -288,7 +288,7 @@ class ContractService: ObservableObject {
             "description": meta.description ?? "",
             "subject": WalletManager.shared.connectedAddress,
             "txHash": txHash,
-            "category": "fitness",
+            "category": meta.category,
             "status": "Active",
             "tags": meta.tags,
             "modelId": meta.modelId,
@@ -398,6 +398,7 @@ class ContractService: ObservableObject {
 struct CreateChallengeMeta {
     let title: String
     let description: String?
+    let category: String
     let tags: [String]
     let modelId: String
     let modelHash: String

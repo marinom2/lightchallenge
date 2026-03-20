@@ -14,7 +14,7 @@ type Row = {
   txHash: `0x${string}`;
   status: Status;
   badges?: Record<string, unknown>;
-  category: "all" | "gaming" | "fitness" | "social" | "custom";
+  category: string;
   title?: string;
   description?: string;
   startTs?: bigint;

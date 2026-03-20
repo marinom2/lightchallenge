@@ -199,10 +199,12 @@ export default function Explore() {
 
   function inferCategoryFromTextAndMeta(m?: ChallengeMeta, title?: string, desc?: string): Exclude<Category, "all"> {
     const cat = (m?.category || "").toLowerCase();
-    if (["gaming","fitness","social","custom"].includes(cat)) return cat as any;
+    if (["gaming","social","custom"].includes(cat)) return cat as any;
+    if (["fitness","walking","running","cycling","hiking","swimming","strength","yoga","hiit","rowing","calories","exercise"].includes(cat)) return "fitness";
     const game = normalizeGame(m?.game);
     if (game && ["Dota 2","CS2","League of Legends","Valorant"].includes(game)) return "gaming";
-    if (game && ["Running","Cycling","Hiking","Steps"].includes(game)) return "fitness";
+    if (["dota","lol","cs"].includes(cat)) return "gaming";
+    if (game && ["Running","Cycling","Hiking","Walking"].includes(game)) return "fitness";
     const t = `${title || ""} ${desc || ""}`.toLowerCase();
     if (/(dota|dota 2|league|lol|cs:?go|cs2|counter[- ]?strike|valorant|esports)/.test(t)) return "gaming";
     if (/(run|running|cycle|cycling|bike|steps|walk|hike|hiking|garmin|strava|fit)/.test(t)) return "fitness";
@@ -418,13 +420,23 @@ export default function Explore() {
     for (const r of filtered) {
       const g = normalizeGame(r.game || "");
       if (g && ["Dota 2", "CS2", "Valorant", "League of Legends"].includes(g)) push(g, r);
-      else if (r.category === "fitness") {
-        const t = (r.tags || []).join(" ").toLowerCase();
-        if (/run|running/.test(t)) push("Running", r);
-        else if (/hike|hiking/.test(t)) push("Hiking", r);
-        else if (/cycle|cycling|bike/.test(t)) push("Cycling", r);
-        else if (/walk|steps/.test(t)) push("Steps", r);
-        else push("Fitness", r);
+      else if (["fitness","walking","running","cycling","hiking","swimming","strength","yoga","hiit","rowing","calories","exercise"].includes((r.category ?? "").toLowerCase())) {
+        const cat = (r.category ?? "").toLowerCase();
+        if (cat === "running") push("Running", r);
+        else if (cat === "hiking") push("Hiking", r);
+        else if (cat === "cycling") push("Cycling", r);
+        else if (cat === "walking") push("Walking", r);
+        else if (cat === "swimming") push("Swimming", r);
+        else if (cat !== "fitness") push(cat.charAt(0).toUpperCase() + cat.slice(1), r);
+        else {
+          // Legacy "fitness" — fall back to tag sniffing
+          const t = (r.tags || []).join(" ").toLowerCase();
+          if (/run|running/.test(t)) push("Running", r);
+          else if (/hike|hiking/.test(t)) push("Hiking", r);
+          else if (/cycle|cycling|bike/.test(t)) push("Cycling", r);
+          else if (/walk|steps/.test(t)) push("Walking", r);
+          else push("Fitness", r);
+        }
       } else push("Other", r);
     }
     for (const k of Object.keys(by)) by[k].sort((a, b) => Number(b.blockNumber - a.blockNumber));

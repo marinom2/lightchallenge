@@ -406,9 +406,13 @@ export function VerificationExplainer({
 }) {
   let text: string;
 
-  if (category === "Fitness") {
+  const FITNESS_CATS = new Set(["fitness","walking","running","cycling","hiking","swimming","strength","yoga","hiit","rowing","calories","exercise"]);
+  const GAMING_CATS = new Set(["gaming","dota","lol","cs"]);
+  const catLower = (category ?? "").toLowerCase();
+
+  if (FITNESS_CATS.has(catLower)) {
     text = "Distance and activity tracked via Apple Health, Strava, or connected fitness devices. Results are verified automatically.";
-  } else if (category === "Gaming") {
+  } else if (GAMING_CATS.has(catLower)) {
     text = "Game results are verified through platform integration. Play on the supported platform and results sync automatically.";
   } else {
     text = "Results are verified on-chain through the LightChallenge verification network.";

@@ -407,7 +407,7 @@ export function useCreateChallenge() {
           id: String(challengeId),
           title: state.essentials.title,
           description: buildAutoDescription(state) || state.essentials.description || "",
-          category: state.intent.type === "FITNESS" ? "fitness" : "gaming",
+          category: state.intent.type === "FITNESS" ? (state.intent.fitnessKind ?? "fitness") : (state.intent.gameId ?? "gaming"),
           params: aivmMeta.params,
           tags: [...(state.essentials.tags ?? []), "aivm", "lightchain-poi"],
           game: state.intent.gameId ?? null,

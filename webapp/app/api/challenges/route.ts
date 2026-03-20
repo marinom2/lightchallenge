@@ -18,7 +18,10 @@ export const dynamic = "force-dynamic";
 // V1 on-chain status enum: Active=0, Finalized=1, Canceled=2
 type UiStatus = "Active" | "Finalized" | "Canceled";
 
-type Category = "gaming" | "fitness" | "social" | "custom";
+type Category = "gaming" | "fitness" | "social" | "custom"
+  | "walking" | "running" | "cycling" | "hiking" | "swimming"
+  | "strength" | "yoga" | "hiit" | "rowing" | "calories" | "exercise"
+  | "dota" | "lol" | "cs";
 
 export type ChallengeMeta = {
   id: string;
@@ -159,10 +162,17 @@ function normalizeStatus(s?: string): UiStatus {
   return "Active";
 }
 
+const VALID_CATEGORIES = new Set([
+  "gaming", "fitness", "social", "custom",
+  "walking", "running", "cycling", "hiking", "swimming",
+  "strength", "yoga", "hiit", "rowing", "calories", "exercise",
+  "dota", "lol", "cs",
+]);
+
 function normalizeCategory(c?: string): Category | undefined {
   if (!c) return undefined;
   const k = c.toLowerCase().trim();
-  if (["gaming", "fitness", "social", "custom"].includes(k)) return k as Category;
+  if (VALID_CATEGORIES.has(k)) return k as Category;
   return undefined;
 }
 

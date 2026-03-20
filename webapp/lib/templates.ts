@@ -40,7 +40,7 @@ export type TemplateField =
     };
 
 /** Supported kinds across Fitness & Gaming */
-export type FitnessKind = "steps" | "running" | "walking" | "cycling" | "hiking" | "swimming" | "strength" | "yoga" | "hiit" | "rowing" | "calories" | "exercise";
+export type FitnessKind = "walking" | "running" | "cycling" | "hiking" | "swimming" | "strength" | "yoga" | "hiit" | "rowing" | "calories" | "exercise";
 export type GameId = "dota" | "lol" | "cs";
 
 /** A template line item used by the renderer */
@@ -88,10 +88,10 @@ const localTz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 /*                                  FITNESS                                   */
 /* -------------------------------------------------------------------------- */
 
-const FITNESS_STEPS: Template = {
-  id: "steps_daily",
-  kind: "steps",
-  name: "Steps • Every day",
+const FITNESS_WALKING_DAILY: Template = {
+  id: "walking_daily",
+  kind: "walking",
+  name: "Walking • Every day",
   hint: "Complete X steps each day for N days.",
   modelId: "fitness.steps@1",
   fields: [
@@ -103,7 +103,7 @@ const FITNESS_STEPS: Template = {
     minSteps: Number(aivm(state).minSteps ?? 8000),
   }),
   ruleBuilder: ({ state }) => ({
-    challengeType: "steps",
+    challengeType: "walking",
     period: {
       start: isoOrNow(state.timeline.starts),
       end: isoOrNow(state.timeline.ends),
@@ -115,6 +115,31 @@ const FITNESS_STEPS: Template = {
         { metric: "steps_count", op: ">=", value: Number(aivm(state).minSteps ?? 8000) },
       ],
     },
+  }),
+};
+
+const FITNESS_WALKING_DISTANCE: Template = {
+  id: "walking_distance",
+  kind: "walking",
+  name: "Walking — Distance Target",
+  hint: "Accumulate walking distance within the challenge window.",
+  modelId: "fitness.walking@1",
+  fields: [{ kind: "number", key: "distanceKm", label: "Distance (km)", min: 0.5, step: 0.5, default: 5 }],
+  paramsBuilder: ({ state }) => ({
+    start_ts: ts(state.timeline.starts),
+    end_ts: ts(state.timeline.ends),
+    min_distance_m: Math.round(Number(aivm(state).distanceKm ?? 5) * 1000),
+  }),
+  ruleBuilder: ({ state }) => ({
+    challengeType: "walk",
+    period: {
+      start: isoOrNow(state.timeline.starts),
+      end: isoOrNow(state.timeline.ends),
+      timezone: localTz(),
+    },
+    conditions: [
+      { metric: "walking_km", op: ">=", value: Number(aivm(state).distanceKm ?? 5) },
+    ],
   }),
 };
 
@@ -248,10 +273,10 @@ const FITNESS_STRENGTH_WORKOUTS: Template = {
   },
 };
 
-const FITNESS_STEPS_COMPETITIVE: Template = {
-  id: "steps_competitive",
-  kind: "steps",
-  name: "Steps Competition",
+const FITNESS_WALKING_COMPETITIVE: Template = {
+  id: "walking_competitive",
+  kind: "walking",
+  name: "Walking Competition",
   hint: "Compete: whoever accumulates the most steps wins.",
   modelId: "fitness.steps@1",
   fields: [
@@ -263,7 +288,7 @@ const FITNESS_STEPS_COMPETITIVE: Template = {
     topN: Number(aivm(state).topN ?? 1),
   }),
   ruleBuilder: ({ state }) => ({
-    challengeType: "steps",
+    challengeType: "walking",
     mode: "competitive",
     competitiveMetric: "steps_count",
     topN: Number(aivm(state).topN ?? 1),
@@ -316,30 +341,6 @@ const FITNESS_DISTANCE_COMPETITIVE: Template = {
   },
 };
 
-const FITNESS_WALKING_DISTANCE: Template = {
-  id: "walking_distance",
-  kind: "walking",
-  name: "Walking — Distance Target",
-  hint: "Accumulate walking distance within the challenge window.",
-  modelId: "fitness.walking@1",
-  fields: [{ kind: "number", key: "distanceKm", label: "Distance (km)", min: 0.5, step: 0.5, default: 5 }],
-  paramsBuilder: ({ state }) => ({
-    start_ts: ts(state.timeline.starts),
-    end_ts: ts(state.timeline.ends),
-    min_distance_m: Math.round(Number(aivm(state).distanceKm ?? 5) * 1000),
-  }),
-  ruleBuilder: ({ state }) => ({
-    challengeType: "walk",
-    period: {
-      start: isoOrNow(state.timeline.starts),
-      end: isoOrNow(state.timeline.ends),
-      timezone: localTz(),
-    },
-    conditions: [
-      { metric: "walking_km", op: ">=", value: Number(aivm(state).distanceKm ?? 5) },
-    ],
-  }),
-};
 
 const FITNESS_YOGA_DURATION: Template = {
   id: "yoga_duration",
@@ -511,9 +512,9 @@ const FITNESS_DURATION_THRESHOLD: Template = {
 
 /** Fitness registry (code-side defaults) */
 const FITNESS: Template[] = [
-  FITNESS_STEPS,
-  FITNESS_RUNNING_DISTANCE_WINDOW,
+  FITNESS_WALKING_DAILY,
   FITNESS_WALKING_DISTANCE,
+  FITNESS_RUNNING_DISTANCE_WINDOW,
   FITNESS_CYCLING_DISTANCE_WINDOW,
   FITNESS_HIKING_ELEVATION_WINDOW,
   FITNESS_SWIMMING_LAPS_WINDOW,
@@ -523,7 +524,7 @@ const FITNESS: Template[] = [
   FITNESS_ROWING_DISTANCE,
   FITNESS_CALORIE_BURN,
   FITNESS_EXERCISE_TIME,
-  FITNESS_STEPS_COMPETITIVE,
+  FITNESS_WALKING_COMPETITIVE,
   FITNESS_DISTANCE_COMPETITIVE,
   FITNESS_DURATION_THRESHOLD,
 ];
@@ -973,11 +974,17 @@ export function buildAutoDescription(state: ChallengeFormState): string {
     km === Math.round(km) ? `${km} km` : `${km.toFixed(1)} km`;
 
   switch (template.id) {
+    case "walking_daily":
     case "steps_daily": {
       const steps = Number(form.minSteps ?? 8000);
       const days = Number(form.days ?? 7);
       return `Walk at least ${fmtNum(steps)} steps every day for ${days} consecutive days.`;
     }
+    case "walking_distance": {
+      const km = Number(form.distanceKm ?? 5);
+      return `Walk at least ${fmtKm(km)} total within ${dur}.`;
+    }
+    case "walking_competitive":
     case "steps_competitive": {
       const topN = Number(form.topN ?? 3);
       return `Compete for the highest step count over ${dur}. Top ${topN} win.`;
@@ -991,10 +998,6 @@ export function buildAutoDescription(state: ChallengeFormState): string {
     case "running_window": {
       const km = Number(form.distanceKm ?? 5);
       return `Run at least ${fmtKm(km)} total within ${dur}.`;
-    }
-    case "walking_distance": {
-      const km = Number(form.distanceKm ?? 5);
-      return `Walk at least ${fmtKm(km)} total within ${dur}.`;
     }
     case "cycling_window": {
       const km = Number(form.distanceKm ?? 20);

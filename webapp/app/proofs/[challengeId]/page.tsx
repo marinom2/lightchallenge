@@ -103,7 +103,8 @@ function ChallengeProofInner() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Fitness provider picker ──
-  const isFitness = meta?.category?.toLowerCase() === "fitness";
+  const FITNESS_CATS = new Set(["fitness","walking","running","cycling","hiking","swimming","strength","yoga","hiit","rowing","calories","exercise"]);
+  const isFitness = FITNESS_CATS.has((meta?.category ?? "").toLowerCase());
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [providerPickerOpen, setProviderPickerOpen] = useState(false);
 

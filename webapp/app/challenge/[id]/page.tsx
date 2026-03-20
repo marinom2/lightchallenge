@@ -43,6 +43,14 @@ import { ActivityFigure, detectActivity, ACTIVITY_LABELS, getActivityColor } fro
 import { formatWeiDual } from "@/lib/tokenPrice";
 
 
+const FITNESS_CATEGORIES = new Set([
+  "fitness", "walking", "running", "cycling", "hiking", "swimming",
+  "strength", "yoga", "hiit", "rowing", "calories", "exercise",
+]);
+function isFitnessCategory(c?: string | null): boolean {
+  return !!c && FITNESS_CATEGORIES.has(c.toLowerCase());
+}
+
 type LI = Lucide.LucideIcon;
 const {
   ArrowLeft,
@@ -808,7 +816,7 @@ export default function ChallengePage() {
       setChallengeProgress(null);
       return;
     }
-    if (data?.category !== "Fitness") return;
+    if (!isFitnessCategory(data?.category)) return;
 
     fetch(
       `/api/challenge/${challengeId}/my-progress?subject=${encodeURIComponent(address)}`,
@@ -1478,24 +1486,36 @@ const primaryAction = React.useMemo(() => {
   if (isCompleted) {
     return {
       kind: "done" as const,
-      title: "Completed",
-      desc: "Challenge finalized",
-      cta: "Explore",
+      title: "Challenge complete",
+      desc: "Results have been finalized",
+      cta: "View results",
       icon: CheckCircle2,
       disabled: false,
-      onClick: () => router.push("/explore"),
+      onClick: fetchOnce,
     };
   }
 
-  if (isInProgress) {
+  if (isInProgress && hasJoined) {
     return {
       kind: "active" as const,
-      title: "In progress",
-      desc: "Challenge is running",
-      cta: "Explore",
+      title: "Keep going",
+      desc: "Your activity is being tracked automatically",
+      cta: "View progress",
       icon: Clock,
       disabled: false,
-      onClick: () => router.push("/explore"),
+      onClick: fetchOnce,
+    };
+  }
+
+  if (isInProgress && !hasJoined) {
+    return {
+      kind: "join" as const,
+      title: "Join the challenge",
+      desc: "Commit stake to participate",
+      cta: "Join",
+      icon: Users,
+      disabled: false,
+      disabledReason: joinDisabledReason || undefined,
     };
   }
 
@@ -1503,11 +1523,11 @@ const primaryAction = React.useMemo(() => {
     return {
       kind: "upcoming" as const,
       title: "Upcoming",
-      desc: joinWindowOpen ? "Join is open" : "Join closed",
-      cta: "Explore",
+      desc: joinWindowOpen ? "Join window is open — secure your spot" : "Join window closed",
+      cta: joinWindowOpen ? "Join" : "View details",
       icon: Calendar,
       disabled: false,
-      onClick: () => router.push("/explore"),
+      onClick: fetchOnce,
     };
   }
 
@@ -1515,10 +1535,10 @@ const primaryAction = React.useMemo(() => {
     kind: "neutral" as const,
     title: "Challenge",
     desc: "Review details below",
-    cta: "Explore",
+    cta: "View details",
     icon: Info,
     disabled: false,
-    onClick: () => router.push("/explore"),
+    onClick: fetchOnce,
   };
 }, [
   shouldShowClaims,
@@ -1562,7 +1582,7 @@ const primaryAction = React.useMemo(() => {
 
   // Activity type (memoized, used in hero + action card)
   const activityType = React.useMemo(() => {
-    if (data?.category !== "Fitness") return null;
+    if (!isFitnessCategory(data?.category)) return null;
     const paramsObj = typeof data?.params === "object" && data?.params ? data.params : {};
     const proofParams = data?.proof?.params;
     const metricField = (proofParams as any)?.rules?.metric ?? (proofParams as any)?.metric ?? (paramsObj as any)?.rules?.metric ?? (paramsObj as any)?.metric ?? null;
@@ -1611,8 +1631,9 @@ const primaryAction = React.useMemo(() => {
 
   // Verification data source label
   const verificationSource = React.useMemo(() => {
-    if (data?.category === "Fitness") return "Apple Health / Strava";
-    if (data?.category === "Gaming") return "Platform integration";
+    if (isFitnessCategory(data?.category)) return "Apple Health / Strava";
+    const gc = (data?.category ?? "").toLowerCase();
+    if (["gaming","dota","lol","cs"].includes(gc)) return "Platform integration";
     return "On-chain verification";
   }, [data?.category]);
 
@@ -1692,87 +1713,88 @@ const primaryAction = React.useMemo(() => {
               </>
             )}
 
-            {/* Status pill — single clear signal */}
-            {!isInitialLoading && publicStatus.label && (
-              <div className="cd-status-line">
-                <span className={`cd-status-line__dot ${
-                  publicStatus.label === "In progress" ? "cd-status-line__dot--active" :
-                  publicStatus.label === "Upcoming" ? "cd-status-line__dot--upcoming" :
-                  publicStatus.label === "Completed" ? "cd-status-line__dot--active" :
-                  "cd-status-line__dot--ended"
-                }`} />
-                <span>
-                  {publicStatus.label === "In progress" ? "In progress" :
-                   publicStatus.label === "Upcoming" ? "Upcoming" :
-                   publicStatus.label === "Completed" ? "Completed" :
-                   publicStatus.label === "Finalizing" ? "Processing results" :
-                   publicStatus.label === "Canceled" ? "Canceled" :
-                   publicStatus.label}
-                </span>
-              </div>
-            )}
+            {/* Status pill — prefers server-resolved label */}
+            {!isInitialLoading && (() => {
+              const resolvedLabel = (participantStatus as any)?.resolved?.label;
+              const resolvedStage = (participantStatus as any)?.resolved?.stage;
+              const label = (hasJoined && resolvedLabel) ? resolvedLabel : publicStatus.label;
+              const dotClass =
+                resolvedStage === "ACTIVE" || publicStatus.label === "In progress" ? "cd-status-line__dot--active" :
+                resolvedStage === "PASSED" || resolvedStage === "REWARD_EARNED" || resolvedStage === "CLAIMABLE" || resolvedStage === "CLAIMED" || publicStatus.label === "Completed" ? "cd-status-line__dot--active" :
+                resolvedStage === "NEEDS_PROOF" || resolvedStage === "NEEDS_PROOF_URGENT" ? "cd-status-line__dot--upcoming" :
+                resolvedStage === "FAILED" ? "cd-status-line__dot--ended" :
+                publicStatus.label === "Upcoming" ? "cd-status-line__dot--upcoming" :
+                "cd-status-line__dot--ended";
+              return label ? (
+                <div className="cd-status-line">
+                  <span className={`cd-status-line__dot ${dotClass}`} />
+                  <span>{label}</span>
+                </div>
+              ) : null;
+            })()}
 
-            {/* ── Progress visualization: ring + metric numbers ── */}
+            {/* ── Progress visualization: ring + metric + remaining + bar ── */}
             {!isInitialLoading && challengeProgress && challengeProgress.goalValue > 0 ? (
               <div className="cd-progress-hero">
-                {/* SVG progress ring */}
-                <div className="cd-progress-hero__ring-wrap">
-                  <svg width="140" height="140" viewBox="0 0 140 140" style={{ transform: "rotate(-90deg)" }}>
-                    {/* Track */}
-                    <circle cx="70" cy="70" r="58" fill="none" stroke="var(--progress-track, rgba(128,128,128,0.15))" strokeWidth="10" />
-                    {/* Fill */}
-                    <circle
-                      cx="70" cy="70" r="58"
-                      fill="none"
-                      stroke={decodedSnapshot?.set && !decodedSnapshot?.success ? "var(--lc-danger, #ef4444)" :
-                              (progressPct ?? 0) >= 100 ? "var(--lc-success, #22c55e)" :
-                              "var(--progress-fill, #6366f1)"}
-                      strokeWidth="10"
-                      strokeLinecap="round"
-                      strokeDasharray={`${2 * Math.PI * 58}`}
-                      strokeDashoffset={`${2 * Math.PI * 58 * (1 - Math.min(1, challengeProgress.progress))}`}
-                      style={{ transition: "stroke-dashoffset 800ms cubic-bezier(0.4, 0, 0.2, 1)" }}
-                    />
-                  </svg>
-                  {/* Center text (overlaid) */}
-                  <div className="cd-progress-hero__ring-inner" style={{ position: "absolute" }}>
-                    <div className="cd-progress-hero__ring-pct">{progressPct ?? 0}%</div>
-                    <div className="cd-progress-hero__ring-label">
-                      {(progressPct ?? 0) >= 100 ? "Goal reached" : "of goal"}
+                <div className="cd-progress-hero__main">
+                  {/* SVG progress ring */}
+                  <div className="cd-progress-hero__ring-wrap">
+                    <svg width="160" height="160" viewBox="0 0 160 160" style={{ transform: "rotate(-90deg)" }}>
+                      <circle cx="80" cy="80" r="66" fill="none" stroke="var(--progress-track, rgba(128,128,128,0.12))" strokeWidth="12" />
+                      <circle
+                        cx="80" cy="80" r="66"
+                        fill="none"
+                        stroke={decodedSnapshot?.set && !decodedSnapshot?.success ? "var(--lc-danger, #ef4444)" :
+                                (progressPct ?? 0) >= 100 ? "var(--lc-success, #22c55e)" :
+                                "var(--progress-fill, #6366f1)"}
+                        strokeWidth="12"
+                        strokeLinecap="round"
+                        strokeDasharray={`${2 * Math.PI * 66}`}
+                        strokeDashoffset={`${2 * Math.PI * 66 * (1 - Math.min(1, challengeProgress.progress))}`}
+                        style={{ transition: "stroke-dashoffset 800ms cubic-bezier(0.4, 0, 0.2, 1)" }}
+                      />
+                    </svg>
+                    <div className="cd-progress-hero__ring-inner" style={{ position: "absolute" }}>
+                      <div className="cd-progress-hero__ring-pct">{progressPct ?? 0}%</div>
+                      <div className="cd-progress-hero__ring-label">
+                        {(progressPct ?? 0) >= 100 ? "Goal reached" : "complete"}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Metric numbers */}
-                <div className="cd-progress-hero__metric">
-                  {challengeProgress.currentValue.toLocaleString()} / {challengeProgress.goalValue.toLocaleString()} {challengeProgress.metricLabel}
-                </div>
+                  {/* Right side: metric breakdown */}
+                  <div className="cd-progress-hero__details">
+                    <div className="cd-progress-hero__metric">
+                      <span className="cd-progress-hero__metric-current">{challengeProgress.currentValue.toLocaleString()}</span>
+                      <span className="cd-progress-hero__metric-sep"> / </span>
+                      <span className="cd-progress-hero__metric-goal">{challengeProgress.goalValue.toLocaleString()}</span>
+                      <span className="cd-progress-hero__metric-unit"> {challengeProgress.metricLabel}</span>
+                    </div>
 
-                {/* Difference from goal */}
-                {progressDiff ? (
-                  <div className={`cd-progress-hero__diff ${progressDiff.positive ? "cd-progress-hero__diff--positive" : "cd-progress-hero__diff--negative"}`}>
-                    {progressDiff.positive ? "+" : "−"}{progressDiff.value.toLocaleString()} {challengeProgress.metricLabel} {progressDiff.positive ? "above target" : "remaining"}
+                    {progressDiff ? (
+                      <div className={`cd-progress-hero__diff ${progressDiff.positive ? "cd-progress-hero__diff--positive" : "cd-progress-hero__diff--negative"}`}>
+                        {progressDiff.positive
+                          ? `+${progressDiff.value.toLocaleString()} ${challengeProgress.metricLabel} above target`
+                          : `${progressDiff.value.toLocaleString()} ${challengeProgress.metricLabel} to go`}
+                      </div>
+                    ) : null}
+
+                    {/* Progress bar */}
+                    <div className="cd-progress-hero__bar">
+                      <div className={progressBarClass} style={{ width: `${Math.min(100, challengeProgress.progress * 100)}%` }} />
+                      <div className="cd-progress-hero__sheen" style={{ width: `${Math.min(100, challengeProgress.progress * 100)}%` }} />
+                    </div>
+
+                    {/* Time remaining */}
+                    {endSec && Math.floor(Date.now() / 1000) < endSec ? (
+                      <div className="cd-progress-hero__time">
+                        <Clock size={12} style={{ opacity: 0.5 }} /> <CountdownDisplay targetSec={endSec} /> remaining
+                      </div>
+                    ) : endSec && Math.floor(Date.now() / 1000) >= endSec ? (
+                      <div className="cd-progress-hero__time cd-progress-hero__time--ended">Challenge ended</div>
+                    ) : null}
                   </div>
-                ) : null}
-
-                {/* Progress bar (secondary — reinforces ring) */}
-                <div className="cd-progress-hero__bar">
-                  <div
-                    className={progressBarClass}
-                    style={{ width: `${Math.min(100, challengeProgress.progress * 100)}%` }}
-                  />
-                  <div
-                    className="cd-progress-hero__sheen"
-                    style={{ width: `${Math.min(100, challengeProgress.progress * 100)}%` }}
-                  />
                 </div>
-
-                {/* Time remaining */}
-                {endSec && Math.floor(Date.now() / 1000) < endSec ? (
-                  <div className="cd-progress-hero__time">
-                    <CountdownDisplay targetSec={endSec} /> left
-                  </div>
-                ) : null}
               </div>
             ) : !isInitialLoading && startSec && endSec ? (
               /* Time-based progress when no metric available */
@@ -1786,14 +1808,8 @@ const primaryAction = React.useMemo(() => {
                     const finished = decodedSnapshot?.set;
                     return (
                       <>
-                        <div
-                          className={progressBarClass}
-                          style={{ width: `${finished ? 100 : pct}%` }}
-                        />
-                        <div
-                          className="cd-progress-hero__sheen"
-                          style={{ width: `${finished ? 100 : pct}%` }}
-                        />
+                        <div className={progressBarClass} style={{ width: `${finished ? 100 : pct}%` }} />
+                        <div className="cd-progress-hero__sheen" style={{ width: `${finished ? 100 : pct}%` }} />
                       </>
                     );
                   })()}
@@ -1822,7 +1838,7 @@ const primaryAction = React.useMemo(() => {
                   </div>
                   {data?.category ? (
                     <div className="cd-quick-stat">
-                      <div className="cd-quick-stat__value">{data.category}</div>
+                      <div className="cd-quick-stat__value">{data.category.charAt(0).toUpperCase() + data.category.slice(1)}</div>
                       <div className="cd-quick-stat__label">Category</div>
                     </div>
                   ) : null}
@@ -1887,37 +1903,7 @@ const primaryAction = React.useMemo(() => {
             </AnimatePresence>
           </div>
 
-          {/* ═══════════════════════════════════════════════════════════════════
-              SECTION B — YOUR PERFORMANCE (metric cards)
-              ═══════════════════════════════════════════════════════════════════ */}
-          {!isInitialLoading && hasJoined && challengeProgress && challengeProgress.goalValue > 0 ? (
-            <div className="cd-perf">
-              <div className="cd-perf__title">
-                <Lucide.Activity size={16} style={{ color: "var(--lc-accent, #6366f1)" }} />
-                Your performance
-              </div>
-              <div className="cd-perf__grid">
-                <div className="cd-perf__card">
-                  <div className="cd-perf__card-label">Recorded</div>
-                  <div className="cd-perf__card-value">{challengeProgress.currentValue.toLocaleString()} {challengeProgress.metricLabel}</div>
-                </div>
-                <div className="cd-perf__card">
-                  <div className="cd-perf__card-label">Goal</div>
-                  <div className="cd-perf__card-value">{challengeProgress.goalValue.toLocaleString()} {challengeProgress.metricLabel}</div>
-                </div>
-                <div className="cd-perf__card">
-                  <div className="cd-perf__card-label">Progress</div>
-                  <div className={`cd-perf__card-value ${(progressPct ?? 0) >= 100 ? "cd-perf__card-value--success" : ""}`}>{progressPct ?? 0}%</div>
-                </div>
-                <div className="cd-perf__card">
-                  <div className="cd-perf__card-label">{progressDiff?.positive ? "Above target" : "Remaining"}</div>
-                  <div className={`cd-perf__card-value ${progressDiff?.positive ? "cd-perf__card-value--success" : "cd-perf__card-value--danger"}`}>
-                    {progressDiff ? `${progressDiff.positive ? "+" : ""}${progressDiff.value.toLocaleString()}` : "0"}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
+          {/* Section B removed — progress metrics now shown in hero above */}
 
           {/* ═══════════════════════════════════════════════════════════════════
               SECTION C — OUTCOME (success/failure + payout summary)
@@ -1981,32 +1967,7 @@ const primaryAction = React.useMemo(() => {
             </div>
           ) : null}
 
-          {/* Your status (only when no outcome card shown) */}
-          {!isInitialLoading && hasJoined && participantStatus && !data?.snapshot?.set ? (() => {
-            const statusChip = (() => {
-              if (proofDeadlinePassed && participantStatus.verdict_pass === true) {
-                return <span className="chip chip--ok">Passed</span>;
-              }
-              if (proofDeadlinePassed && participantStatus.verdict_pass === false)
-                return <span className="chip chip--bad">Did not pass</span>;
-              if (challengeEnded && participantStatus.has_evidence)
-                return <span className="chip chip--info">Being verified</span>;
-              if (challengeEnded && !participantStatus.has_evidence)
-                return <span className="chip chip--warn">Evidence needed</span>;
-              if (!challengeEnded)
-                return <span className="chip chip--info">In progress</span>;
-              return <span className="chip chip--soft">Pending</span>;
-            })();
-
-            return (
-              <div className="panel">
-                <div className="panel-header">
-                  <div className="text-sm font-semibold">Your status</div>
-                  {statusChip}
-                </div>
-              </div>
-            );
-          })() : null}
+          {/* Your status panel removed — status shown via resolved label in hero pill */}
 
           {/* ═══════════════════════════════════════════════════════════════════
               SECTION D — ACTION CARDS
@@ -2097,7 +2058,7 @@ const primaryAction = React.useMemo(() => {
           <CollapsiblePanel title="Details" defaultOpen={false} icon={Info}>
             <DLGrid
               rows={[
-                ...(data?.category ? [["Category", safe(data.category, "General")] as [string, string]] : []),
+                ...(data?.category ? [["Category", data.category.charAt(0).toUpperCase() + data.category.slice(1)] as [string, string]] : []),
                 ...(data?.game ? [["Game", prettyGame(data.game) || safe(data.game)] as [string, string]] : []),
                 ...(data?.mode ? [["Mode", safe(data.mode)] as [string, string]] : []),
                 ["Participants", `${fmtNum(participantsCountFromChain)} / ${formatMaxParticipants(maxParticipantsFromChain)}`],
