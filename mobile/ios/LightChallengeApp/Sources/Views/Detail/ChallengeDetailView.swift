@@ -56,6 +56,7 @@ struct ChallengeDetailView: View {
     @State private var isClaiming = false
     @State private var claimError: String?
     @State private var claimSuccess = false
+    @State private var showingVerification = false
     @Environment(\.colorScheme) private var scheme
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -173,6 +174,13 @@ struct ChallengeDetailView: View {
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showingVerification) {
+            if let tl = detail?.timeline, !tl.isEmpty {
+                VerificationSheet(timeline: tl, challengeId: challengeId)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            }
+        }
     }
 
     // MARK: - Detail Content
@@ -245,6 +253,9 @@ struct ChallengeDetailView: View {
             } else if let stake = detail.stakeDisplayUSD(tokenPrice: tokenPrice) {
                 stakeInfoCard(stake)
             }
+
+        case .upcoming:
+            upcomingCard(detail)
 
         case .active:
             activeCard(detail)
@@ -358,6 +369,95 @@ struct ChallengeDetailView: View {
         // Fallback: join open if challenge hasn't started yet or is active
         if let start = detail.startDate, start > Date() { return true }
         return detail.isActive
+    }
+
+    private func upcomingCard(_ detail: ChallengeDetail) -> some View {
+        VStack(spacing: LC.space12) {
+            HStack(spacing: LC.space12) {
+                Image(systemName: "clock")
+                    .font(.system(size: 18))
+                    .foregroundStyle(LC.accent.opacity(0.7))
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: LC.space2) {
+                    Text("Upcoming challenge")
+                        .font(.subheadline.weight(.semibold))
+                    if let startDate = detail.startDate {
+                        let remaining = startDate.timeIntervalSince(Date())
+                        if remaining > 0 && remaining < 86400 {
+                            let h = Int(remaining) / 3600
+                            let m = (Int(remaining) % 3600) / 60
+                            if h > 0 {
+                                Text("Starts in \(h)h \(m)m")
+                                    .font(.caption)
+                                    .foregroundStyle(LC.textSecondary(scheme))
+                            } else {
+                                Text("Starts in \(m)m")
+                                    .font(.caption)
+                                    .foregroundStyle(LC.textSecondary(scheme))
+                            }
+                        } else {
+                            Text("Starts on \(startDate.formatted(date: .abbreviated, time: .shortened))")
+                                .font(.caption)
+                                .foregroundStyle(LC.textSecondary(scheme))
+                        }
+                    }
+                }
+                Spacer()
+
+                Text("Waiting to start")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(LC.textTertiary(scheme))
+                    .padding(.horizontal, LC.space8)
+                    .padding(.vertical, LC.space4)
+                    .background(LC.textTertiary(scheme).opacity(0.1))
+                    .clipShape(Capsule())
+            }
+
+            // Top up — available before start if join window open
+            if detail.youJoined == true && isJoinWindowOpen {
+                Button {
+                    showingTopUp = true
+                } label: {
+                    HStack(spacing: LC.space8) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Top Up Stake")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
+                    .background(
+                        LinearGradient(
+                            colors: [LC.accent, LC.accent.opacity(0.85)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous))
+                }
+
+                ShareLink(
+                    item: URL(string: "\(appState.serverURL)/challenge/\(challengeId)")!,
+                    subject: Text("Join my challenge"),
+                    message: Text("Think you can beat me? Join \"\(detail.displayTitle)\" on LightChallenge!")
+                ) {
+                    HStack(spacing: LC.space8) {
+                        Image(systemName: "person.badge.plus")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Invite a Friend")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .foregroundStyle(LC.accent)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(LC.accent.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous))
+                }
+            }
+        }
+        .padding(LC.space16)
+        .lcCard()
     }
 
     private func activeCard(_ detail: ChallengeDetail) -> some View {
@@ -495,23 +595,7 @@ struct ChallengeDetailView: View {
 
     private func completedCard(_ detail: ChallengeDetail) -> some View {
         VStack(spacing: LC.space12) {
-            HStack(spacing: LC.space12) {
-                Image(systemName: "checkmark.seal.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(LC.success)
-                    .frame(width: 28)
-                VStack(alignment: .leading, spacing: LC.space2) {
-                    Text("Challenge Passed")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(LC.success)
-                    Text("You completed this challenge successfully")
-                        .font(.caption)
-                        .foregroundStyle(LC.textSecondary(scheme))
-                }
-                Spacer()
-            }
-
-            // Claim status
+            // Claim action
             if let elig = claimEligibility {
                 if elig.hasAnyClaim && !claimSuccess {
                     Button {
@@ -520,35 +604,20 @@ struct ChallengeDetailView: View {
                         HStack(spacing: LC.space8) {
                             if isClaiming {
                                 ProgressView().tint(.white).controlSize(.small)
-                            } else {
-                                Image(systemName: "trophy.fill")
-                                    .font(.system(size: 14))
                             }
                             Text(isClaiming ? "Claiming..." : "Claim Reward")
-                                .font(.subheadline.weight(.bold))
                         }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(
-                            RoundedRectangle(cornerRadius: LC.radiusMD, style: .continuous)
-                                .fill(LC.success)
-                        )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(LCGoldButton(isDisabled: isClaiming))
                     .disabled(isClaiming)
                 } else if claimSuccess {
                     HStack(spacing: LC.space8) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(LC.success)
-                        Text("Reward claimed!")
-                            .font(.caption.weight(.semibold))
+                        Text("Reward claimed")
+                            .font(.caption.weight(.medium))
                             .foregroundStyle(LC.success)
                     }
-                } else {
-                    Text("No on-chain reward available for this challenge")
-                        .font(.caption)
-                        .foregroundStyle(LC.textTertiary(scheme))
                 }
             }
 
@@ -564,77 +633,38 @@ struct ChallengeDetailView: View {
                 Label("Share", systemImage: "square.and.arrow.up")
             }
             .buttonStyle(LCSecondaryButton())
+
+            // Verification trust layer
+            VerificationBadge(timeline: detail.timeline) {
+                showingVerification = true
+            }
         }
         .padding(LC.space16)
         .lcCard()
     }
 
     private var failedCard: some View {
-        VStack(alignment: .leading, spacing: LC.space8) {
-            HStack(spacing: LC.space12) {
-                Image(systemName: "xmark.seal.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(LC.danger)
-                    .frame(width: 28)
-                VStack(alignment: .leading, spacing: LC.space2) {
-                    Text("Challenge Failed")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(LC.danger)
-                    Text("Your activity did not meet the requirements")
-                        .font(.caption)
-                        .foregroundStyle(LC.textSecondary(scheme))
-                }
-                Spacer()
-            }
-
-            // Show verdict reasons if available
-            if let reasons = participantStatus?.verdictReasons, !reasons.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(reasons.prefix(3), id: \.self) { reason in
-                        HStack(alignment: .top, spacing: 6) {
-                            Text("\u{2022}")
-                                .font(.caption)
-                                .foregroundStyle(LC.danger.opacity(0.7))
-                            Text(reason)
-                                .font(.caption)
-                                .foregroundStyle(LC.textSecondary(scheme))
-                        }
-                    }
-                }
-                .padding(.leading, 40)
-            }
-
-            // Cashback / refund claim for failed challenges
+        VStack(spacing: LC.space12) {
+            // Stake recovery — uses system button style
             if let elig = claimEligibility, (elig.canClaimLoser || elig.canClaimTreasury) && !claimSuccess {
                 Button {
                     Task { await executeClaim() }
                 } label: {
                     HStack(spacing: LC.space8) {
                         if isClaiming {
-                            ProgressView().tint(.white).controlSize(.small)
-                        } else {
-                            Image(systemName: "banknote.fill")
-                                .font(.system(size: 14))
+                            ProgressView().tint(LC.textPrimary(scheme)).controlSize(.small)
                         }
-                        Text(isClaiming ? "Claiming..." : "Claim Cashback")
-                            .font(.caption.weight(.bold))
+                        Text(isClaiming ? "Claiming..." : "Get Stake Back")
                     }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 40)
-                    .background(
-                        RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous)
-                            .fill(LC.warning)
-                    )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(LCGoldButton(isDisabled: isClaiming))
                 .disabled(isClaiming)
             } else if claimSuccess {
                 HStack(spacing: LC.space8) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(LC.success)
-                    Text("Cashback claimed!")
-                        .font(.caption.weight(.semibold))
+                    Text("Stake returned")
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(LC.success)
                 }
             }
@@ -644,9 +674,12 @@ struct ChallengeDetailView: View {
                     .font(.caption)
                     .foregroundStyle(LC.danger)
             }
+
+            // Verification trust layer
+            VerificationBadge(timeline: detail?.timeline) {
+                showingVerification = true
+            }
         }
-        .padding(LC.space16)
-        .lcCard()
     }
 
     // endedCard removed — now inline in hero card stateMessage
@@ -693,25 +726,33 @@ struct ChallengeDetailView: View {
                     HStack(alignment: .top, spacing: LC.space12) {
                         VStack(spacing: 0) {
                             Circle()
-                                .fill(milestone.isCompleted ? LC.accent.opacity(0.7) : LC.textTertiary(scheme).opacity(0.2))
-                                .frame(width: 6, height: 6)
+                                .fill(
+                                    milestone.isCurrent ? LC.accent.opacity(0.9)
+                                    : milestone.isCompleted ? LC.accent.opacity(0.45)
+                                    : LC.textTertiary(scheme).opacity(0.18)
+                                )
+                                .frame(width: milestone.isCurrent ? 7 : 6, height: milestone.isCurrent ? 7 : 6)
                             if index < milestones.count - 1 {
                                 Rectangle()
-                                    .fill(milestone.isCompleted ? LC.accent.opacity(0.15) : LC.textTertiary(scheme).opacity(0.08))
+                                    .fill(milestone.isCompleted ? LC.accent.opacity(0.12) : LC.textTertiary(scheme).opacity(0.08))
                                     .frame(width: 1)
                                     .frame(maxHeight: .infinity)
                             }
                         }
-                        .frame(width: 6)
+                        .frame(width: 7)
 
                         VStack(alignment: .leading, spacing: 1) {
                             Text(milestone.label)
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(milestone.isCompleted ? LC.textSecondary(scheme) : LC.textTertiary(scheme))
+                                .font(.caption.weight(milestone.isCurrent ? .semibold : .medium))
+                                .foregroundStyle(
+                                    milestone.isCurrent ? LC.textPrimary(scheme)
+                                    : milestone.isCompleted ? LC.textTertiary(scheme)
+                                    : LC.textTertiary(scheme).opacity(0.7)
+                                )
                             if let date = milestone.date {
                                 Text(date.formatted(date: .abbreviated, time: .shortened))
                                     .font(.caption2)
-                                    .foregroundStyle(LC.textTertiary(scheme))
+                                    .foregroundStyle(LC.textTertiary(scheme).opacity(milestone.isCurrent ? 1.0 : 0.7))
                             }
                         }
                         .padding(.bottom, index < milestones.count - 1 ? LC.space16 : 0)
@@ -730,6 +771,7 @@ struct ChallengeDetailView: View {
         let label: String
         let date: Date?
         let isCompleted: Bool
+        var isCurrent: Bool = false
     }
 
     private func buildMilestones(_ detail: ChallengeDetail) -> [Milestone] {
@@ -773,8 +815,13 @@ struct ChallengeDetailView: View {
         // Finalized
         if detail.status == "Finalized" {
             let passed = participantStatus?.verdictPass
-            let label = passed == true ? "Finalized — Passed" : passed == false ? "Finalized — Failed" : "Finalized"
+            let label = passed == true ? "Challenge completed" : passed == false ? "Challenge failed" : "Finalized"
             milestones.append(Milestone(id: "finalized", label: label, date: nil, isCompleted: true))
+        }
+
+        // Mark the current step: last completed milestone that isn't followed by another completed one
+        if let lastCompletedIdx = milestones.lastIndex(where: { $0.isCompleted }) {
+            milestones[lastCompletedIdx].isCurrent = true
         }
 
         return milestones

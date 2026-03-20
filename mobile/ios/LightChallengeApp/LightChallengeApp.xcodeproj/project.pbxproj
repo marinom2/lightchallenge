@@ -28,6 +28,7 @@
 		4C2CEDEA49984D159380C739 /* ChallengeProgressHero.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64ACBB01A8D1FBE7224AECC3 /* ChallengeProgressHero.swift */; };
 		4F8D12FA638C484D9E08A76E /* AvatarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1C1D766527690196F6FB79F /* AvatarView.swift */; };
 		508CD9610C708386D8669B17 /* AvatarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E342EDE01313A06DD13943 /* AvatarService.swift */; };
+		5209E00AA4866040B265C68C /* VerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96B5AF38F06F161DEC37C111 /* VerificationView.swift */; };
 		54F145E38FD99962111F5ED5 /* Contracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2B368DB02FABEB0FE873AF1 /* Contracts.swift */; };
 		550797D0D12E07537CE166AB /* MyActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48C119618E8F45A5DC431D0D /* MyActivityView.swift */; };
 		5CA03EA8EC7B3568759E1ADE /* ActivitySourceNudgeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80C6CAAC08D862ACAA26049C /* ActivitySourceNudgeSheet.swift */; };
@@ -98,6 +99,7 @@
 		92616EA76D9D58987F97E9DF /* ChallengeRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeRow.swift; sourceTree = "<group>"; };
 		940344AA346043032B852F8B /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		956AFB8941781516AFD70596 /* FitnessProofView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitnessProofView.swift; sourceTree = "<group>"; };
+		96B5AF38F06F161DEC37C111 /* VerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerificationView.swift; sourceTree = "<group>"; };
 		9F80B06CE448373535FB30BB /* ProgressMetricsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressMetricsView.swift; sourceTree = "<group>"; };
 		A5F8B27098BA0AFE20E650FA /* LightChallengeApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LightChallengeApp.entitlements; sourceTree = "<group>"; };
 		A6ABAF1BACDB42FA19D56FC3 /* WalletManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletManager.swift; sourceTree = "<group>"; };
@@ -353,6 +355,7 @@
 				956AFB8941781516AFD70596 /* FitnessProofView.swift */,
 				262C604C08756AF00CE8B815 /* GamingHandoffView.swift */,
 				9F80B06CE448373535FB30BB /* ProgressMetricsView.swift */,
+				96B5AF38F06F161DEC37C111 /* VerificationView.swift */,
 				87C8F03B75271A197ACEF743 /* VictoryCelebrationView.swift */,
 			);
 			path = Detail;
@@ -481,6 +484,7 @@
 				F23286C4F4D1FBA4A08BAC95 /* SplashPortal.swift in Sources */,
 				AE34E10980EB1777EF9B796A /* Templates.swift in Sources */,
 				360DDF3AFCCAFBDAB38400AC /* TokenPriceService.swift in Sources */,
+				5209E00AA4866040B265C68C /* VerificationView.swift in Sources */,
 				455FD904AC0EA8F33266E202 /* VictoryCelebrationView.swift in Sources */,
 				1D5FFD1F3DA74E90F1820F1D /* WalletManager.swift in Sources */,
 				F2019051977E76405C534A6E /* WalletSheet.swift in Sources */,

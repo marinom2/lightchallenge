@@ -130,11 +130,23 @@ export function HeroProgress({
   end,
   joinClose,
   status,
+  snapshotSuccess,
+  snapshotSet,
+  challengeProgress,
 }: {
   start: number | null;
   end: number | null;
   joinClose?: number | null;
   status?: Status;
+  snapshotSuccess?: boolean;
+  snapshotSet?: boolean;
+  challengeProgress?: {
+    metric: string;
+    metricLabel: string;
+    currentValue: number;
+    goalValue: number;
+    progress: number;
+  } | null;
 }) {
   if (!start || !end) return null;
 
@@ -145,34 +157,67 @@ export function HeroProgress({
   }, []);
 
   const canceled = status === "Canceled";
-  const finalized = status === "Finalized";
+  const finalized = status === "Finalized" || !!snapshotSet;
+  const succeeded = finalized && snapshotSuccess === true;
+  const failed = finalized && snapshotSuccess === false;
 
   const total = Math.max(1, end - start);
   const elapsed = Math.min(Math.max(0, now - start), total);
-  const pctRaw = Math.min(100, Math.max(0, (elapsed / total) * 100));
-  const pct = Math.round(pctRaw);
+  const timePctRaw = Math.min(100, Math.max(0, (elapsed / total) * 100));
+  const timePct = Math.round(timePctRaw);
 
   const joinOpen = !!joinClose && now < joinClose && now < start;
   const preStart = now < start;
-  const active = now >= start && now < end && !canceled;
+  const active = now >= start && now < end && !canceled && !finalized;
   const finalizing = now >= end && !finalized && !canceled;
 
-  const caption =
-    finalized
-      ? "Completed"
-      : finalizing
-        ? "Finalizing…"
-        : active
-          ? `${pct}% complete`
-          : joinOpen
-            ? `Join open • closes in ${prettyCountdown(Math.max(0, (joinClose ?? 0) - now))}`
-            : preStart
-              ? `Starts in ${prettyCountdown(Math.max(0, start - now))}`
-              : canceled
-                ? "Canceled"
-                : "";
+  // Use actual metric progress when available (like iOS ring), else fall back to time
+  const hasMetricProgress = !!challengeProgress && challengeProgress.goalValue > 0;
+  const metricPctRaw = hasMetricProgress ? Math.min(100, challengeProgress!.progress * 100) : 0;
 
-  const widthPct = `${finalized ? 100 : pctRaw}%`;
+  const progressLabel = hasMetricProgress
+    ? `${challengeProgress!.currentValue} / ${challengeProgress!.goalValue} ${challengeProgress!.metricLabel}`
+    : null;
+
+  const caption =
+    succeeded
+      ? progressLabel ? `Challenge completed · ${progressLabel}` : "Challenge completed"
+      : failed
+        ? progressLabel ? `Challenge failed · ${progressLabel}` : "Challenge failed"
+        : finalized
+          ? progressLabel ?? "Completed"
+          : finalizing
+            ? progressLabel ? `Finalizing · ${progressLabel}` : "Finalizing…"
+            : active
+              ? progressLabel ? `${progressLabel} · ${Math.round(metricPctRaw)}%` : `${timePct}% complete`
+              : joinOpen
+                ? `Join open • closes in ${prettyCountdown(Math.max(0, (joinClose ?? 0) - now))}`
+                : preStart
+                  ? `Starts in ${prettyCountdown(Math.max(0, start - now))}`
+                  : canceled
+                    ? "Canceled"
+                    : "";
+
+  // Use metric progress when available, else time-based
+  const pctRaw = hasMetricProgress ? metricPctRaw : timePctRaw;
+  const widthPct = `${succeeded ? 100 : pctRaw}%`;
+
+  // Failed state: red tint for the bar
+  const fillStyle = failed
+    ? { background: "var(--lc-danger, #ef4444)" }
+    : { background: "var(--progress-fill)" };
+
+  const glowStyle = failed
+    ? {
+        boxShadow:
+          "0 0 0 1px color-mix(in oklab, var(--lc-danger, #ef4444) 30%, transparent), " +
+          "0 10px 24px color-mix(in oklab, var(--lc-danger, #ef4444) 18%, transparent)",
+      }
+    : {
+        boxShadow:
+          "0 0 0 1px var(--progress-edge, color-mix(in oklab, var(--border) 30%, transparent)), " +
+          "0 10px 24px var(--progress-glow, color-mix(in oklab, var(--accent-2) 18%, transparent))",
+      };
 
   return (
     <div className="space-y-2">
@@ -184,7 +229,7 @@ export function HeroProgress({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 3 }}
             transition={{ duration: 0.18, ease: [0.2, 0.8, 0.2, 1] }}
-            className="text-xs text-(--text-muted) tabular-nums"
+            className={`text-xs tabular-nums ${failed ? "text-red-400" : "text-(--text-muted)"}`}
           >
             {caption}
           </motion.div>
@@ -202,18 +247,13 @@ export function HeroProgress({
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-valuenow={finalized ? 100 : pct}
+        aria-valuenow={succeeded ? 100 : Math.round(pctRaw)}
       >
         <motion.div
           className="absolute inset-y-0 left-0 rounded-full"
           animate={{ width: widthPct }}
           transition={{ type: "spring", stiffness: 140, damping: 26 }}
-          style={{
-            background: "var(--progress-fill)",
-            boxShadow:
-              "0 0 0 1px var(--progress-edge, color-mix(in oklab, var(--border) 30%, transparent)), " +
-              "0 10px 24px var(--progress-glow, color-mix(in oklab, var(--accent-2) 18%, transparent))",
-          }}
+          style={{ ...fillStyle, ...glowStyle }}
         />
 
         <motion.div
@@ -223,7 +263,7 @@ export function HeroProgress({
           style={{
             background:
               "var(--progress-sheen, linear-gradient(90deg, transparent, color-mix(in oklab, white 22%, transparent), transparent))",
-            opacity: 0.55,
+            opacity: failed ? 0.3 : 0.55,
           }}
         />
       </div>

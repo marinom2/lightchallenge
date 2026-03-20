@@ -41,7 +41,7 @@ import { SkeletonLine, HeroSummarySkeleton, PrimaryActionSkeleton } from "./comp
 import { StatusCapsule, HeroProgress } from "./components/HeroSection";
 import { PrimaryActionCard, JoinCard } from "./components/ActionCards";
 import { CollapsiblePanel, ActionRow, TabBar, DLGrid, ChainTimeline } from "./components/DetailPanels";
-import { ActivityFigure, detectActivity } from "./components/ActivityFigure";
+import { ActivityFigure, detectActivity, ACTIVITY_LABELS, getActivityColor } from "./components/ActivityFigure";
 
 
 type LI = Lucide.LucideIcon;
@@ -105,7 +105,7 @@ function CountdownDisplay({ targetSec }: { targetSec: number }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Phase Banner — lifecycle-aware banner (inline)
 // ─────────────────────────────────────────────────────────────────────────────
-type PhaseKind = "join" | "active" | "proof" | "expired" | "finalized" | null;
+type PhaseKind = "upcoming" | "join" | "active" | "proof" | "expired" | "finalized" | null;
 
 function resolvePhase(input: {
   joinCloseSec: number | null;
@@ -132,9 +132,12 @@ function resolvePhase(input: {
     if (now >= startSec && now < endSec) return "active";
   }
 
-  // Join window open
-  if (joinCloseSec && Math.floor(Date.now() / 1000) < joinCloseSec) return "join";
-  if (startSec && Math.floor(Date.now() / 1000) < startSec) return "join";
+  // Before start: join window open or upcoming
+  if (startSec && now < startSec) {
+    if (joinCloseSec && now < joinCloseSec) return "join";
+    return "upcoming";
+  }
+  if (joinCloseSec && now < joinCloseSec) return "join";
 
   return null;
 }
@@ -175,6 +178,12 @@ function PhaseBanner({
       target: number | null;
     }
   > = {
+    upcoming: {
+      className: "cd-phase-banner cd-phase-banner--upcoming",
+      icon: Clock,
+      label: "Upcoming challenge",
+      target: startSec,
+    },
     join: {
       className: "cd-phase-banner cd-phase-banner--join",
       icon: DoorOpen,
@@ -202,7 +211,7 @@ function PhaseBanner({
     finalized: {
       className: "cd-phase-banner cd-phase-banner--finalized",
       icon: Trophy,
-      label: snapshotSuccess ? "Challenge passed" : "Challenge completed",
+      label: snapshotSuccess ? "Challenge completed" : "Challenge failed",
       target: null,
     },
   };
@@ -227,6 +236,122 @@ function PhaseBanner({
         </>
       ) : null}
     </motion.div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Verification Badge — lightweight blockchain trust indicator (mirrors iOS)
+// ─────────────────────────────────────────────────────────────────────────────
+function VerificationBadge({
+  timeline,
+}: {
+  timeline: Array<{ name: string; tx: string; timestamp?: number; label: string }>;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const hasTx = timeline.some((e) => e.tx);
+  if (!hasTx) return null;
+
+  // Map timeline events to human-readable verification steps (same as iOS VerificationStep)
+  const stepMapping = [
+    { name: "ChallengeCreated", label: "Challenge created" },
+    { name: "Joined", label: "Participants joined" },
+    { name: "ProofSubmitted", label: "Proof submitted" },
+    { name: "Finalized", label: "Result finalized" },
+    { name: "WinnerClaimed", label: "Rewards processed" },
+    { name: "LoserClaimed", label: "Stakes returned" },
+    { name: "RefundClaimed", label: "Refunds processed" },
+  ];
+
+  const steps = stepMapping
+    .filter(({ name }) => timeline.some((e) => e.name === name))
+    .map(({ name, label }) => {
+      const matches = timeline.filter((e) => e.name === name);
+      const latest = matches.reduce((a, b) => ((b.timestamp ?? 0) > (a.timestamp ?? 0) ? b : a), matches[0]);
+      return { name, label, tx: latest.tx, timestamp: latest.timestamp };
+    });
+
+  // Pick best tx for explorer link (priority: Finalized > claims > proof > creation)
+  const txPriority = ["Finalized", "WinnerClaimed", "LoserClaimed", "ProofSubmitted", "ChallengeCreated"];
+  const primaryTx =
+    txPriority.reduce<string | null>((found, n) => found || (steps.find((s) => s.name === n && s.tx)?.tx ?? null), null) ||
+    steps.find((s) => s.tx)?.tx ||
+    null;
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-1.5 px-4 py-2.5 w-full text-left hover:bg-white/5 transition-colors rounded-lg"
+      >
+        <Lucide.ShieldCheck size={14} className="shrink-0 text-emerald-500/70" />
+        <span className="text-xs font-medium text-[var(--text-muted)]">Verified on LightChallenge</span>
+        <span className="ml-auto text-xs font-medium text-emerald-500/70">View verification</span>
+        <Lucide.ChevronRight size={10} className="shrink-0 text-emerald-500/50" />
+      </button>
+
+      {/* Verification sheet (modal) */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm"
+            onClick={() => setOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ type: "spring", damping: 28, stiffness: 320 }}
+              className="bg-[var(--card-bg,#1a1a1a)] rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[80vh] overflow-y-auto p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-base font-semibold">Verification</h3>
+                <button onClick={() => setOpen(false)} className="text-xs font-medium text-emerald-500">Done</button>
+              </div>
+
+              {/* Steps */}
+              <div className="space-y-0">
+                {steps.map((step, i) => (
+                  <div key={step.name} className="flex items-start gap-3">
+                    <div className="flex flex-col items-center">
+                      <Lucide.CheckCircle2 size={16} className="text-emerald-500/70 shrink-0" />
+                      {i < steps.length - 1 && <div className="w-px flex-1 min-h-[24px] bg-emerald-500/10" />}
+                    </div>
+                    <div className={`pb-5 ${i === steps.length - 1 ? "pb-0" : ""}`}>
+                      <div className="text-sm font-medium">{step.label}</div>
+                      {step.timestamp ? (
+                        <div className="text-xs text-[var(--text-muted)] mt-0.5">
+                          {new Date(step.timestamp * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Explorer link */}
+              {primaryTx && (
+                <>
+                  <hr className="border-white/5 my-5" />
+                  <a
+                    href={txUrl(primaryTx)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 text-sm font-medium text-emerald-500/80 hover:text-emerald-400 transition-colors"
+                  >
+                    View on explorer
+                    <Lucide.ArrowUpRight size={12} />
+                  </a>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
@@ -586,6 +711,12 @@ export default function ChallengePage() {
   // Joined total (viewer)
   const [myJoinedTotalWei, setMyJoinedTotalWei] = React.useState<bigint | null>(null);
   const [joinedLocally, setJoinedLocally] = React.useState(false);
+
+  // Reset optimistic join flag when wallet changes — prevents stale "joined" state
+  React.useEffect(() => {
+    setJoinedLocally(false);
+  }, [address]);
+
   const [participantStatus, setParticipantStatus] = React.useState<{
     has_evidence: boolean;
     evidence_provider: string | null;
@@ -801,6 +932,33 @@ export default function ChallengePage() {
       })
       .catch(() => {});
   }, [address, challengeId, hasJoined]);
+
+  // Fetch actual challenge progress (metric-based, like iOS ring)
+  const [challengeProgress, setChallengeProgress] = React.useState<{
+    metric: string;
+    metricLabel: string;
+    currentValue: number;
+    goalValue: number;
+    progress: number;
+  } | null>(null);
+
+  React.useEffect(() => {
+    if (!address || !challengeId || !hasJoined) {
+      setChallengeProgress(null);
+      return;
+    }
+    if (data?.category !== "Fitness") return;
+
+    fetch(
+      `/api/challenge/${challengeId}/my-progress?subject=${encodeURIComponent(address)}`,
+      { cache: "no-store" }
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && typeof d === "object" && "progress" in d) setChallengeProgress(d);
+      })
+      .catch(() => {});
+  }, [address, challengeId, hasJoined, data?.category]);
 
   // Auto-proof: trigger when user views challenge in proof window
   // (challenge ended, deadline not passed, joined, no evidence yet)
@@ -1586,16 +1744,25 @@ const primaryAction = React.useMemo(() => {
         <span className="cd-id">#{id ?? "—"}</span>
       </div>
 
-      {/* Activity figure */}
-      {data?.category === "Fitness" && (
-        <div className="flex justify-center py-2">
-          <ActivityFigure
-            activity={detectActivity({ title: metaTitle, description: metaDesc, modelId: data?.modelId, game: data?.game, tags: data?.tags })}
-            size={120}
-            isActive={effectiveStatus === "Active"}
-          />
-        </div>
-      )}
+      {/* Activity figure + label */}
+      {data?.category === "Fitness" && (() => {
+        const paramsObj = typeof data?.params === "object" && data?.params ? data.params : {};
+        const proofParams = data?.proof?.params;
+        const metricField = (proofParams as any)?.rules?.metric ?? (proofParams as any)?.metric ?? (paramsObj as any)?.rules?.metric ?? (paramsObj as any)?.metric ?? null;
+        const activityType = detectActivity({ title: metaTitle, description: metaDesc, modelId: data?.modelId, game: data?.game, tags: data?.tags, metric: metricField });
+        return (
+          <div className="flex flex-col items-center gap-1.5 py-2">
+            <ActivityFigure
+              activity={activityType}
+              size={120}
+              isActive={effectiveStatus === "Active"}
+            />
+            <span className="text-sm font-medium" style={{ color: getActivityColor(activityType) }}>
+              {ACTIVITY_LABELS[activityType]}
+            </span>
+          </div>
+        );
+      })()}
 
       {isInitialLoading ? (
         <div className="cd-title-skeleton">
@@ -1645,7 +1812,7 @@ const primaryAction = React.useMemo(() => {
 
       {/* Progress bar */}
       {!isInitialLoading && (
-        <HeroProgress start={startSec ?? null} end={endSec ?? null} joinClose={joinCloseSec ?? null} status={effectiveStatus} />
+        <HeroProgress start={startSec ?? null} end={endSec ?? null} joinClose={joinCloseSec ?? null} status={effectiveStatus} snapshotSuccess={decodedSnapshot?.success} snapshotSet={snapshotSet} challengeProgress={challengeProgress} />
       )}
 
       {/* Phase banner — lifecycle countdown */}
@@ -1732,7 +1899,7 @@ const primaryAction = React.useMemo(() => {
           {data?.snapshot?.set ? (
             <div className="cd-outcome">
               <div className="cd-outcome__title">
-                Outcome: {data.snapshot.success ? "Success" : "Fail"}
+                Outcome: {data.snapshot.success ? "Challenge completed" : "Challenge failed"}
               </div>
               <div className="cd-metrics-row">
                 <div className="cd-metric-card">
@@ -1750,6 +1917,11 @@ const primaryAction = React.useMemo(() => {
               </div>
             </div>
           ) : null}
+
+          {/* Verification badge — blockchain transparency */}
+          {timeline.length > 0 && (
+            <VerificationBadge timeline={timeline as any} />
+          )}
         </div>
       )}
 

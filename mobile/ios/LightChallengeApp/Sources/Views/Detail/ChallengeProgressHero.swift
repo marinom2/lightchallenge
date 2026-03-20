@@ -242,6 +242,7 @@ enum ChallengePhase {
 
 enum UserChallengeState {
     case notJoined
+    case upcoming           // joined but challenge hasn't started
     case active
     case awaitingProof
     case awaitingVerdict
@@ -253,6 +254,7 @@ enum UserChallengeState {
     var label: String {
         switch self {
         case .notJoined: return "Not Joined"
+        case .upcoming: return "Upcoming"
         case .active: return "Active"
         case .awaitingProof: return "Awaiting Proof"
         case .awaitingVerdict: return "Verifying"
@@ -299,25 +301,26 @@ enum UserChallengeState {
             if hasEvidence {
                 // Evidence submitted but no verdict yet.
                 // Phase-aware status:
+                // - Upcoming: challenge hasn't started → show Upcoming (not Active)
                 // - Active: challenge still running → show Active (not Verifying)
                 // - ProofWindow: challenge ended, proof deadline open → Verifying
                 // - Ended/Finalized: proof deadline passed → Submitted (awaiting pipeline)
                 switch phase {
+                case .upcoming:
+                    return .upcoming
                 case .active:
                     return .active
                 case .proofWindow:
                     return .awaitingVerdict
                 case .ended, .finalized:
                     return .submitted
-                default:
-                    return .active
                 }
             }
             switch phase {
+            case .upcoming: return .upcoming
             case .active: return .active
             case .proofWindow: return .awaitingProof
             case .ended, .finalized: return .ended
-            default: return .active
             }
         }
 
@@ -367,15 +370,7 @@ struct ChallengeProgressHero: View {
 
 
     var body: some View {
-        VStack(spacing: LC.space24) {
-            // Challenge name
-            Text(detail.displayTitle)
-                .font(.title3.weight(.bold))
-                .foregroundStyle(LC.textPrimary(scheme))
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .frame(maxWidth: .infinity)
-
+        VStack(spacing: LC.space20) {
             // Progress ring — tappable for detail
             progressRing
                 .scaleEffect(figureAppeared ? 1.0 : 0.3)
@@ -383,17 +378,26 @@ struct ChallengeProgressHero: View {
                 .contentShape(Circle())
                 .onTapGesture { onAction(.viewProgress) }
 
-            // Steps + goal
-            VStack(spacing: LC.space4) {
-                if goalValue > 0 {
-                    progressLabel
-                } else if !activitySummary.isEmpty {
-                    activitySummaryLabel
+            // Status label first for ended/upcoming states (hierarchy: state → data)
+            if userState == .completed || userState == .failed || userState == .upcoming {
+                systemStateLine
+            }
+
+            // Steps + goal (hidden for upcoming — no progress yet)
+            if userState != .upcoming {
+                VStack(spacing: LC.space4) {
+                    if goalValue > 0 {
+                        progressLabel
+                    } else if !activitySummary.isEmpty {
+                        activitySummaryLabel
+                    }
                 }
             }
 
-            // System state (verifying, submitted, ended, time remaining)
-            systemStateLine
+            // System state for active states (verifying, submitted, time remaining)
+            if userState != .completed && userState != .failed && userState != .upcoming {
+                systemStateLine
+            }
 
             // Reward + participants
             rewardLine
@@ -401,12 +405,9 @@ struct ChallengeProgressHero: View {
             // Primary action
             actionButton
         }
-        .padding(LC.space24)
-        .background(
-            RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
-                .fill(LC.cardBg(scheme))
-                .shadow(color: .black.opacity(scheme == .dark ? 0.3 : 0.06), radius: 16, y: 6)
-        )
+        .padding(.horizontal, LC.space24)
+        .padding(.vertical, LC.space20)
+        .lcMaterialCard()
         .task { await loadProgress() }
         .onAppear {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.15)) {
@@ -419,63 +420,79 @@ struct ChallengeProgressHero: View {
 
     @ViewBuilder
     private var systemStateLine: some View {
-        if userState == .awaitingVerdict {
+        if userState == .upcoming, case .upcoming(let startsIn) = phase {
+            Text(upcomingCountdownText(startsIn))
+                .font(.caption.weight(.medium))
+                .foregroundStyle(LC.textTertiary(scheme))
+        } else if userState == .awaitingVerdict {
             AnimatedVerifyingText()
         } else if userState == .submitted {
             Text("Awaiting finalization")
                 .font(.caption.weight(.medium))
                 .foregroundStyle(LC.textTertiary(scheme))
-        } else if userState == .ended {
-            Text("Challenge ended")
+        } else if userState == .completed {
+            Text("Challenge completed")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(LC.textTertiary(scheme))
+        } else if userState == .failed {
+            Text("Challenge failed")
                 .font(.caption.weight(.medium))
                 .foregroundStyle(LC.textTertiary(scheme))
         } else if case .active(let remaining) = phase, remaining > 0 {
             Text(phase.label)
                 .font(.caption.weight(.medium))
-                .foregroundStyle(LC.textSecondary(scheme))
+                .foregroundStyle(LC.textTertiary(scheme))
         } else if case .proofWindow(let remaining) = phase, remaining > 0, userState == .awaitingProof {
             Text(phase.label)
                 .font(.caption.weight(.medium))
-                .foregroundStyle(LC.textSecondary(scheme))
-        } else if userState == .completed {
-            Text("Challenge passed")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(LC.success)
-        } else if userState == .failed {
-            Text("Challenge failed")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(LC.danger)
+                .foregroundStyle(LC.textTertiary(scheme))
         }
+    }
+
+    private func upcomingCountdownText(_ startsIn: TimeInterval) -> String {
+        let total = Int(max(0, startsIn))
+        let d = total / 86400
+        let h = (total % 86400) / 3600
+        let m = (total % 3600) / 60
+        if d > 0 { return "Starts in \(d)d \(h)h" }
+        if h > 0 { return "Starts in \(h)h \(m)m" }
+        if m > 0 { return "Starts in \(m)m" }
+        return "Starting soon"
     }
 
     // MARK: - Progress Ring
 
     private var ringState: RingState {
-        // User passed their verdict → always show complete ring
+        // Completed — full ring with checkmark
         if userState == .completed {
-            return .complete
+            return .completed
         }
         if case .finalized(let passed) = phase, passed == true {
-            return .complete
+            return .completed
         }
+        // Failed — dimmed ring at final progress
+        if userState == .failed {
+            return .failed(animatedProgress > 0 ? animatedProgress : phase.ringFraction)
+        }
+        // Verifying — soft pulse on arc
+        if userState == .awaitingVerdict || userState == .submitted {
+            return .verifying(animatedProgress > 0 ? animatedProgress : phase.ringFraction)
+        }
+        // Tracking — standard progress
         if animatedProgress > 0 {
-            return .progress(animatedProgress)
+            return .tracking(animatedProgress)
         }
         if phase.ringDimmed {
-            return .progress(phase.ringFraction)
+            return .tracking(phase.ringFraction)
         }
         return .empty
     }
 
     private var ringColor: Color {
-        if phase.ringDimmed { return .secondary.opacity(0.6) }
+        if phase.ringDimmed && userState != .failed { return .secondary.opacity(0.5) }
         let base = theme.barColors.first ?? theme.figureTint
-        let fraction = animatedProgress > 0 ? animatedProgress : phase.ringFraction
-        let opacity = 0.5 + (fraction * 0.5)
-        return base.opacity(opacity)
+        return base.opacity(0.85)
     }
-
-    @State private var isPulsing = false
 
     private var progressRing: some View {
         ChallengeProgressRing(
@@ -483,21 +500,8 @@ struct ChallengeProgressHero: View {
             symbol: theme.icon,
             color: ringColor,
             diameter: 110,
-            lineWidth: 8
+            lineWidth: 6
         )
-        .scaleEffect(isPulsing ? 1.02 : 1.0)
-        .animation(
-            phase.isActive
-                ? .easeInOut(duration: 2.0).repeatForever(autoreverses: true)
-                : .default,
-            value: isPulsing
-        )
-        .onAppear {
-            if phase.isActive { isPulsing = true }
-        }
-        .onChange(of: phase.isActive) { _, isActive in
-            if !isActive { isPulsing = false }
-        }
     }
 
     // MARK: - Activity Summary (no rules)
@@ -514,13 +518,22 @@ struct ChallengeProgressHero: View {
     // MARK: - Numeric Progress
 
     private var progressLabel: some View {
-        VStack(spacing: 2) {
-            Text("\(formatValueWithCommas(currentValue)) \(metricLabel)")
-                .font(.title2.weight(.bold).monospacedDigit())
-                .foregroundStyle(LC.textPrimary(scheme))
-            Text("Goal: \(formatValueWithCommas(goalValue))")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(LC.textTertiary(scheme))
+        let isEnded = userState == .completed || userState == .failed
+        return VStack(spacing: 2) {
+            if isEnded {
+                // Ended: compact "X of Y metric"
+                Text("\(formatValueWithCommas(currentValue)) of \(formatValueWithCommas(goalValue)) \(metricLabel)")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(LC.textSecondary(scheme))
+            } else {
+                // Active: large current value
+                Text("\(formatValueWithCommas(currentValue)) \(metricLabel)")
+                    .font(.title2.weight(.bold).monospacedDigit())
+                    .foregroundStyle(LC.textPrimary(scheme))
+                Text("Goal: \(formatValueWithCommas(goalValue))")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(LC.textTertiary(scheme))
+            }
         }
     }
 
@@ -534,25 +547,41 @@ struct ChallengeProgressHero: View {
 
         if hasReward || hasParticipants {
             HStack(alignment: .firstTextBaseline) {
-                // Reward
+                // Reward — clean value-first format
                 if let pool = detail.poolDisplayUSD(tokenPrice: tokenPrice) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Earn up to \(pool)")
+                        Text(pool)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(LC.textPrimary(scheme))
-                        if let lcai = detail.poolDisplay {
-                            Text("\u{2248} \(lcai)")
+                        HStack(spacing: LC.space4) {
+                            if let lcai = detail.poolDisplay {
+                                Text("\u{2248} \(lcai)")
+                                    .font(.caption2.weight(.medium))
+                                    .foregroundStyle(LC.textTertiary(scheme))
+                                Text("\u{00B7}")
+                                    .font(.caption2)
+                                    .foregroundStyle(LC.textTertiary(scheme))
+                            }
+                            Text("Potential reward")
                                 .font(.caption2.weight(.medium))
                                 .foregroundStyle(LC.textTertiary(scheme))
                         }
                     }
                 } else if let stake = detail.stakeDisplayUSD(tokenPrice: tokenPrice) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Stake \(stake)")
+                        Text(stake)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(LC.textPrimary(scheme))
-                        if let lcai = detail.stakeDisplay {
-                            Text("\u{2248} \(lcai)")
+                        HStack(spacing: LC.space4) {
+                            if let lcai = detail.stakeDisplay {
+                                Text("\u{2248} \(lcai)")
+                                    .font(.caption2.weight(.medium))
+                                    .foregroundStyle(LC.textTertiary(scheme))
+                                Text("\u{00B7}")
+                                    .font(.caption2)
+                                    .foregroundStyle(LC.textTertiary(scheme))
+                            }
+                            Text("Entry stake")
                                 .font(.caption2.weight(.medium))
                                 .foregroundStyle(LC.textTertiary(scheme))
                         }
@@ -608,6 +637,10 @@ struct ChallengeProgressHero: View {
                 .buttonStyle(LCSecondaryButton())
             }
 
+        case .upcoming:
+            // Passive pre-start — no action needed
+            EmptyView()
+
         case .active:
             if case .proofWindow = phase {
                 Button {
@@ -648,8 +681,9 @@ struct ChallengeProgressHero: View {
                 onAction(.viewResults)
             } label: {
                 Text("View Results")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(LC.textTertiary(scheme))
             }
-            .buttonStyle(LCSecondaryButton())
 
         case .ended:
             Button {

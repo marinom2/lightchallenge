@@ -154,6 +154,80 @@ struct LCCard: ViewModifier {
     }
 }
 
+// MARK: - Material Card (Apple-style depth + subtle lighting)
+
+struct LCMaterialCard: ViewModifier {
+    var radius: CGFloat = LC.radiusXL
+    var shadowRadius: CGFloat = 16
+    var shadowY: CGFloat = 6
+    @Environment(\.colorScheme) private var scheme
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                ZStack {
+                    // Base: subtle top-to-bottom gradient (barely noticeable)
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: scheme == .dark
+                                    ? [Color(hex: 0x1E293B).opacity(1.0), Color(hex: 0x172033).opacity(1.0)]
+                                    : [.white, Color(hex: 0xF8FAFC)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+
+                    // Inner depth: soft shadow at bottom interior
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [.clear, .clear, .black.opacity(scheme == .dark ? 0.08 : 0.02)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+
+                    // Top highlight: simulates light hitting the top edge
+                    VStack {
+                        RoundedRectangle(cornerRadius: radius, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(scheme == .dark ? 0.06 : 0.7),
+                                        Color.white.opacity(0)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .center
+                                )
+                            )
+                            .frame(height: 40)
+                            .mask(
+                                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                            )
+                        Spacer()
+                    }
+                }
+            )
+            // Thin, low-opacity border
+            .overlay(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: scheme == .dark
+                                ? [Color.white.opacity(0.1), Color.white.opacity(0.04)]
+                                : [Color.white.opacity(0.8), Color(hex: 0xE2E8F0).opacity(0.5)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 0.5
+                    )
+            )
+            // Outer shadow
+            .shadow(color: .black.opacity(scheme == .dark ? 0.3 : 0.06), radius: shadowRadius, y: shadowY)
+    }
+}
+
 // MARK: - Featured Card (Selected state — blue border)
 
 struct LCFeaturedCard: ViewModifier {
@@ -301,6 +375,10 @@ extension View {
 
     func lcGlass() -> some View {
         modifier(LCGlass())
+    }
+
+    func lcMaterialCard(radius: CGFloat = LC.radiusXL, shadowRadius: CGFloat = 16, shadowY: CGFloat = 6) -> some View {
+        modifier(LCMaterialCard(radius: radius, shadowRadius: shadowRadius, shadowY: shadowY))
     }
 
     /// Clean page background

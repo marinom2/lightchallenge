@@ -32,14 +32,18 @@ struct ProgressMetricsView: View {
     }
 
     private var ringState: RingState {
-        if userState == .completed { return .complete }
-        if case .finalized(let passed) = phase, passed == true { return .complete }
-        if animatedProgress > 0 { return .progress(animatedProgress) }
+        if userState == .completed { return .completed }
+        if case .finalized(let passed) = phase, passed == true { return .completed }
+        if userState == .failed { return .failed(animatedProgress > 0 ? animatedProgress : phase.ringFraction) }
+        if userState == .awaitingVerdict || userState == .submitted {
+            return .verifying(animatedProgress > 0 ? animatedProgress : phase.ringFraction)
+        }
+        if animatedProgress > 0 { return .tracking(animatedProgress) }
         return .empty
     }
 
     private var ringColor: Color {
-        if phase.ringDimmed { return .secondary.opacity(0.6) }
+        if phase.ringDimmed && userState != .failed { return .secondary.opacity(0.6) }
         return theme.barColors.first ?? theme.figureTint
     }
 
@@ -50,21 +54,19 @@ struct ProgressMetricsView: View {
                     // Large progress ring
                     ringSection
 
-                    // Verdict card — show why the user passed or failed
+                    // Ended states: single verdict line, no progress bar
                     if userState == .failed || userState == .completed {
                         verdictCard
                     }
 
-                    // Unified layout: goal/metrics → requirements → daily breakdown
-                    // Same card structure regardless of whether rules are present.
-                    if goalValue > 0 {
+                    // Active states only: goal card with progress bar
+                    if goalValue > 0 && userState != .completed && userState != .failed {
                         goalCard
                     }
 
                     if rules != nil {
                         requirementsCard
                     } else if !activityMetrics.isEmpty {
-                        // No explicit rules — show activity period info
                         activityPeriodCard
                     }
 
@@ -72,7 +74,6 @@ struct ProgressMetricsView: View {
                         dailyBreakdown
                     }
 
-                    // Show extra activity metrics below for context (both modes)
                     if !activityMetrics.isEmpty {
                         activityOverviewCard
                     } else if hasLoaded && goalValue == 0 {
@@ -104,11 +105,10 @@ struct ProgressMetricsView: View {
                 symbol: theme.icon,
                 color: ringColor,
                 diameter: 200,
-                lineWidth: 14
+                lineWidth: 10
             )
             .padding(.top, LC.space16)
 
-            // Subtle system state — progress is the hero
             if userState == .awaitingVerdict {
                 AnimatedVerifyingText()
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -116,14 +116,6 @@ struct ProgressMetricsView: View {
                 Text("Awaiting finalization")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(LC.textTertiary(scheme))
-            } else if userState == .completed {
-                Text("Challenge passed")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(LC.success.opacity(0.8))
-            } else if userState == .failed {
-                Text("Challenge failed")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(LC.danger.opacity(0.8))
             }
         }
     }
@@ -162,24 +154,13 @@ struct ProgressMetricsView: View {
             }
             .frame(height: 8)
 
-            // Percentage + remaining
-            HStack {
-                Text("\(Int(animatedProgress * 100))% complete")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(ringColor)
-
-                Spacer()
-
-                if goalValue > currentValue {
-                    let remaining = goalValue - currentValue
-                    Text("\(formatValue(remaining)) \(metricLabel) to go")
-                        .font(.caption)
-                        .foregroundStyle(LC.textTertiary(scheme))
-                } else if currentValue >= goalValue && goalValue > 0 {
-                    Label("Goal reached", systemImage: "checkmark.circle.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(LC.success)
-                }
+            // Remaining — only when not yet complete
+            if goalValue > currentValue {
+                let remaining = goalValue - currentValue
+                Text("\(formatValue(remaining)) \(metricLabel) to go")
+                    .font(.caption)
+                    .foregroundStyle(LC.textTertiary(scheme))
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(LC.space16)
@@ -406,44 +387,6 @@ struct ProgressMetricsView: View {
                 }
             }
 
-            // Current status summary
-            Divider()
-
-            HStack(spacing: LC.space12) {
-                let pct = Int(animatedProgress * 100)
-                let statusIcon: String
-                let statusColor: Color
-                let statusText: String
-
-                if userState == .completed {
-                    let _ = (statusIcon = "checkmark.circle.fill",
-                             statusColor = LC.success,
-                             statusText = "Goal achieved — you passed!")
-                } else if userState == .failed {
-                    let _ = (statusIcon = "xmark.circle.fill",
-                             statusColor = LC.danger,
-                             statusText = "Goal not met — \(formatValue(goalValue - currentValue)) \(metricLabel) short")
-                } else if animatedProgress >= 1.0 {
-                    let _ = (statusIcon = "checkmark.circle.fill",
-                             statusColor = LC.success,
-                             statusText = "Goal reached — awaiting verification")
-                } else if animatedProgress > 0 {
-                    let _ = (statusIcon = "circle.dotted.circle",
-                             statusColor = theme.figureTint,
-                             statusText = "\(pct)% done — \(formatValue(goalValue - currentValue)) \(metricLabel) to go")
-                } else {
-                    let _ = (statusIcon = "circle.dashed",
-                             statusColor = LC.textTertiary(scheme),
-                             statusText = "No activity recorded yet")
-                }
-
-                Image(systemName: statusIcon)
-                    .font(.system(size: 18))
-                    .foregroundStyle(statusColor)
-                Text(statusText)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(LC.textSecondary(scheme))
-            }
         }
         .padding(LC.space16)
         .background(
@@ -477,111 +420,52 @@ struct ProgressMetricsView: View {
     private var verdictCard: some View {
         let passed = userState == .completed
 
-        return VStack(alignment: .leading, spacing: LC.space12) {
-            // Header
-            HStack(spacing: LC.space8) {
-                Image(systemName: passed ? "checkmark.seal.fill" : "xmark.seal.fill")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(passed ? LC.success : LC.danger)
-                Text(passed ? "Challenge Passed" : "Challenge Failed")
-                    .font(.headline.weight(.bold))
-                    .foregroundStyle(passed ? LC.success : LC.danger)
-            }
+        return VStack(spacing: LC.space4) {
+            // Status
+            Text(passed ? "Challenge completed" : "Challenge failed")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(LC.textTertiary(scheme))
 
-            // Human-friendly explanation
-            Text(verdictExplanation)
-                .font(.body)
-                .foregroundStyle(LC.textPrimary(scheme))
-
-            // Verdict reasons from evaluator (if available)
-            if let reasons = participantStatus?.verdictReasons, !reasons.isEmpty {
-                VStack(alignment: .leading, spacing: LC.space6) {
-                    Text("Details")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(LC.textTertiary(scheme))
-                        .textCase(.uppercase)
-
-                    ForEach(reasons, id: \.self) { reason in
-                        HStack(alignment: .top, spacing: LC.space8) {
-                            Image(systemName: passed ? "checkmark.circle.fill" : "info.circle.fill")
-                                .font(.system(size: 12))
-                                .foregroundStyle(passed ? LC.success.opacity(0.7) : LC.danger.opacity(0.7))
-                                .padding(.top, 2)
-                            Text(reason)
-                                .font(.caption)
-                                .foregroundStyle(LC.textSecondary(scheme))
-                        }
-                    }
-                }
+            // Single numeric line
+            if goalValue > 0 {
+                Text("\(formatValueWithCommas(currentValue)) of \(formatValueWithCommas(goalValue)) \(metricLabel)")
+                    .font(.caption)
+                    .foregroundStyle(LC.textTertiary(scheme))
             }
         }
-        .padding(LC.space16)
-        .background(
-            RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
-                .fill((passed ? LC.success : LC.danger).opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: LC.radiusXL, style: .continuous)
-                .stroke((passed ? LC.success : LC.danger).opacity(0.2), lineWidth: 1)
-        )
+        .frame(maxWidth: .infinity)
     }
 
-    /// Human-friendly explanation of why the challenge was passed or failed.
+    /// Short verdict explanation — primary line only.
     private var verdictExplanation: String {
         let passed = userState == .completed
 
         guard let r = rules else {
             return passed
-                ? "You successfully completed the challenge requirements."
-                : "You did not meet the challenge requirements."
+                ? "Challenge requirements met."
+                : "You didn't reach the goal."
         }
 
         let goal = r.goalValue
-        let metric = r.metric ?? "steps"
-        let period = r.period ?? "total"
-
-        let metricName: String = {
-            switch metric {
-            case "steps": return "steps"
-            case "distance", "distance_km": return "km running"
-            case "walking_km": return "km walking"
-            case "cycling_km": return "km cycling"
-            case "swimming_km": return "km swimming"
-            case "hiking_km": return "km hiking"
-            case "elev_gain_m": return "m elevation"
-            case "rowing_km": return "km rowing"
-            case "strength_sessions": return "strength sessions"
-            case "yoga_min": return "minutes of yoga"
-            case "hiit_min": return "minutes of HIIT"
-            case "active_minutes": return "active minutes"
-            case "exercise_time": return "exercise minutes"
-            case "calories": return "calories"
-            default: return metricLabel
-            }
-        }()
-
-        let fmtGoal = formatValue(goal)
-        let fmtCurrent = formatValue(currentValue)
+        let fmtGoal = formatValueWithCommas(goal)
+        let fmtCurrent = formatValueWithCommas(currentValue)
 
         if passed {
-            return "You achieved \(fmtCurrent) \(metricName), exceeding the goal of \(fmtGoal). Well done!"
+            return "\(fmtCurrent) of \(fmtGoal) \(metricLabel)"
         }
-
-        // Failed — explain the shortfall or mismatch
-        let pct = goal > 0 ? Int((currentValue / goal) * 100) : 0
 
         if currentValue <= 0 {
-            let periodStr = period == "daily" ? "each day" : "during the challenge"
-            return "No \(metricName) were recorded \(periodStr). The goal was \(fmtGoal) \(metricName)."
+            return "You didn't reach the goal."
         }
 
-        if currentValue >= goal {
-            // Met the total but failed on streak/consecutive-days requirement
-            return "You recorded \(fmtCurrent) \(metricName) (\(pct)% of target) but didn't meet the daily streak requirement."
-        }
+        return "\(fmtCurrent) of \(fmtGoal) \(metricLabel)"
+    }
 
-        let shortfall = goal - currentValue
-        return "You recorded \(fmtCurrent) \(metricName) but needed \(fmtGoal) — that's \(formatValue(shortfall)) short (\(pct)% of target)."
+    private func formatValueWithCommas(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = value >= 100 ? 0 : (value >= 1 ? 1 : 2)
+        return formatter.string(from: NSNumber(value: value)) ?? formatValue(value)
     }
 
     // MARK: - Activity Period Card (Discovery mode — no rules)
@@ -619,20 +503,6 @@ struct ProgressMetricsView: View {
                 }
             }
 
-            Divider()
-
-            HStack(spacing: LC.space12) {
-                let statusIcon = activityMetrics.isEmpty ? "circle.dashed" : "circle.dotted.circle"
-                let statusColor = activityMetrics.isEmpty ? LC.textTertiary(scheme) : theme.figureTint
-                let statusText = activityMetrics.isEmpty ? "No activity recorded yet" : "Activity detected — keep going!"
-
-                Image(systemName: statusIcon)
-                    .font(.system(size: 18))
-                    .foregroundStyle(statusColor)
-                Text(statusText)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(LC.textSecondary(scheme))
-            }
         }
         .padding(LC.space16)
         .background(

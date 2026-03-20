@@ -18,19 +18,27 @@ struct ChallengeShareSheet: View {
 
     @EnvironmentObject private var avatarService: AvatarService
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var healthService: HealthKitService
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     @State private var shareImage: UIImage?
+    @State private var currentValue: Double = 0
+    @State private var goalValue: Double = 0
 
     private var theme: ActivityTheme? {
         guard let d = detail else { return nil }
         return ActivityTheme.from(detail: d)
     }
 
+    private var progressFraction: Double {
+        guard goalValue > 0 else { return passed ? 1.0 : 0.6 }
+        return min(1.0, currentValue / goalValue)
+    }
+
     private var accentColors: [Color] {
         passed
-            ? [LC.accent, Color(hex: 0x3B82F6)]
-            : [Color(hex: 0x6B7280), Color(hex: 0x9CA3AF)]
+            ? [LC.accent.opacity(0.75), Color(hex: 0x3B82F6).opacity(0.72)]
+            : [Color(hex: 0x6B7280).opacity(0.75), Color(hex: 0x9CA3AF).opacity(0.72)]
     }
 
     var body: some View {
@@ -68,7 +76,10 @@ struct ChallengeShareSheet: View {
                         .foregroundStyle(LC.accent)
                 }
             }
-            .task { generateCard() }
+            .task {
+                await loadProgress()
+                generateCard()
+            }
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
@@ -87,11 +98,21 @@ struct ChallengeShareSheet: View {
                 )
 
                 VStack(spacing: LC.space8) {
-                    Image(systemName: passed ? "trophy.fill" : "flag.checkered")
-                        .font(.system(size: 32, weight: .bold))
-                        .foregroundStyle(.white)
+                    if let t = theme {
+                        ChallengeProgressRing(
+                            state: passed ? .completed : .failed(progressFraction),
+                            symbol: t.icon,
+                            color: passed ? LC.accent : .secondary,
+                            diameter: 64,
+                            lineWidth: 5
+                        )
+                    } else {
+                        Image(systemName: passed ? "trophy.fill" : "flag.checkered")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
 
-                    Text(passed ? "Challenge Won!" : "Challenge Complete")
+                    Text(passed ? "Challenge completed" : "Challenge failed")
                         .font(.title3.weight(.bold))
                         .foregroundStyle(.white)
 
@@ -102,7 +123,7 @@ struct ChallengeShareSheet: View {
                         .lineLimit(2)
                         .padding(.horizontal, LC.space16)
                 }
-                .padding(.vertical, LC.space24)
+                .padding(.vertical, LC.space20)
             }
             .frame(maxWidth: .infinity)
             .clipShape(UnevenRoundedRectangle(topLeadingRadius: LC.radiusLG, topTrailingRadius: LC.radiusLG))
@@ -151,15 +172,6 @@ struct ChallengeShareSheet: View {
                     }
 
                     Spacer()
-
-                    // Verdict reasons summary
-                    if !passed, let reasons = participantStatus?.verdictReasons, let first = reasons.first {
-                        Text(first)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .frame(maxWidth: 140, alignment: .trailing)
-                    }
                 }
 
                 // Branding
@@ -272,6 +284,35 @@ struct ChallengeShareSheet: View {
         return nil
     }
 
+    // MARK: - Progress
+
+    private func loadProgress() async {
+        guard let d = detail, let rules = d.rules, rules.goalValue > 0 else { return }
+        goalValue = rules.goalValue
+
+        // HealthKit value
+        let start = d.startDate ?? Date.distantPast
+        let challengeEnd = d.endsDate ?? Date()
+        let end = challengeEnd < Date() ? challengeEnd : Date()
+        await healthService.ensureAuthorization()
+        let hkValue = await healthService.queryMetricTotal(rules.metric ?? "steps", from: start, to: end)
+
+        // Server value
+        var serverValue: Double = 0
+        if appState.hasWallet {
+            if let sp = try? await APIClient.shared.fetchMyProgress(
+                baseURL: appState.serverURL,
+                challengeId: challengeId,
+                subject: appState.walletAddress
+            ) {
+                serverValue = sp.currentValue ?? 0
+                if let sg = sp.goalValue, sg > 0 { goalValue = sg }
+            }
+        }
+
+        currentValue = max(hkValue, serverValue)
+    }
+
     // MARK: - Image Generation
 
     private func generateCard() {
@@ -285,10 +326,10 @@ struct ChallengeShareSheet: View {
             UIColor.systemBackground.setFill()
             ctx.fill(rect)
 
-            // Gradient banner (top 220px)
+            // Gradient banner (top 220px) — softened ~15%
             let gradColors = passed
-                ? [UIColor(LC.accent).cgColor, UIColor(Color(hex: 0x3B82F6)).cgColor]
-                : [UIColor(Color(hex: 0x6B7280)).cgColor, UIColor(Color(hex: 0x9CA3AF)).cgColor]
+                ? [UIColor(LC.accent).withAlphaComponent(0.75).cgColor, UIColor(Color(hex: 0x3B82F6)).withAlphaComponent(0.72).cgColor]
+                : [UIColor(Color(hex: 0x6B7280)).withAlphaComponent(0.75).cgColor, UIColor(Color(hex: 0x9CA3AF)).withAlphaComponent(0.72).cgColor]
             let gradient = CGGradient(
                 colorsSpace: CGColorSpaceCreateDeviceRGB(),
                 colors: gradColors as CFArray,
@@ -309,7 +350,7 @@ struct ChallengeShareSheet: View {
                 .font: UIFont.systemFont(ofSize: 24, weight: .bold),
                 .foregroundColor: UIColor.white,
             ]
-            let resultStr = (passed ? "Challenge Won!" : "Challenge Complete") as NSString
+            let resultStr = (passed ? "Challenge completed" : "Challenge failed") as NSString
             let resultSize = resultStr.size(withAttributes: resultAttrs)
             resultStr.draw(at: CGPoint(x: (size.width - resultSize.width) / 2, y: 105), withAttributes: resultAttrs)
 
@@ -421,7 +462,7 @@ struct ChallengeShareSheet: View {
     private func shareToSocial() {
         guard let image = shareImage else { return }
 
-        let verb = passed ? "won" : "completed"
+        let verb = passed ? "completed" : "finished"
         let earningsText = (passed && earnings != nil) ? " Earned \(earnings!)." : ""
         let text = "I \(verb) \"\(title)\" on LightChallenge!\(earningsText) #LightChallenge"
         let items: [Any] = [text, image]

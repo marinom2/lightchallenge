@@ -3877,6 +3877,11 @@ html[data-theme="light"] .orbit__core {
 .cd-phase-banner__sep {
   opacity: 0.5;
 }
+.cd-phase-banner--upcoming {
+  background: var(--lc-bg-overlay);
+  color: var(--lc-text-secondary);
+  border: 1px solid color-mix(in oklab, var(--lc-text-secondary) 15%, transparent);
+}
 .cd-phase-banner--join {
   background: var(--lc-success-muted);
   color: var(--lc-success);
