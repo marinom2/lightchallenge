@@ -115,6 +115,7 @@ export async function POST(
 
   const subject = String(body.subject ?? "").trim();
   const txHash = typeof body.txHash === "string" ? body.txHash.trim() : null;
+  const inviteId = typeof body.inviteId === "string" ? body.inviteId.trim() : null;
 
   if (!isAddress(subject as `0x${string}`)) {
     return NextResponse.json(
@@ -140,9 +141,8 @@ export async function POST(
       source: "onchain_join",
     });
 
-    // Notify the challenge creator (best-effort, non-blocking)
+    // Best-effort post-join tasks: creator notification + invite finalization
     try {
-      const { Pool } = await import("pg");
       const { getPool } = await import("../../../../../../offchain/db/pool");
       const pool = getPool();
       const chRes = await pool.query<{ title: string; creator: string }>(
@@ -150,13 +150,16 @@ export async function POST(
         [idStr]
       );
       const ch = chRes.rows[0];
+      const challengeTitle = ch?.title || `Challenge #${idStr}`;
+      const addr = subject.slice(0, 6) + "…" + subject.slice(-4);
+
+      // Notify the challenge creator
       if (ch?.creator && ch.creator.toLowerCase() !== subject.toLowerCase()) {
-        const addr = subject.slice(0, 6) + "…" + subject.slice(-4);
         await createNotification(
           ch.creator,
           "challenge_joined",
-          `New participant — ${ch.title || `Challenge #${idStr}`}`,
-          `${addr} joined "${ch.title || `Challenge #${idStr}`}".`,
+          `New participant — ${challengeTitle}`,
+          `${addr} joined "${challengeTitle}".`,
           {
             challengeId: idStr,
             tier: `joined_${subject.toLowerCase().slice(0, 10)}`,
@@ -164,8 +167,52 @@ export async function POST(
           }
         );
       }
+
+      // Finalize any matching invite: sent → joined
+      // Match by explicit inviteId OR by wallet address for wallet invites
+      const inviteRes = await pool.query<{
+        id: string;
+        inviter_wallet: string | null;
+      }>(
+        `UPDATE public.challenge_invites
+         SET status = 'joined',
+             accepted_by_wallet = $1,
+             joined_at = now(),
+             updated_at = now()
+         WHERE challenge_id = $2::bigint
+           AND status IN ('sent', 'accepted')
+           AND (
+             ($3::text IS NOT NULL AND id = $3)
+             OR (method = 'wallet' AND lower(value) = lower($1))
+           )
+         RETURNING id, inviter_wallet`,
+        [subject.toLowerCase(), idStr, inviteId]
+      );
+
+      // Notify each inviter that their invite led to a real join
+      for (const inv of inviteRes.rows) {
+        if (inv.inviter_wallet) {
+          try {
+            await createNotification(
+              inv.inviter_wallet.toLowerCase(),
+              "invite_joined",
+              `Invite accepted — ${challengeTitle}`,
+              `${addr} joined "${challengeTitle}" via your invite.`,
+              {
+                challengeId: idStr,
+                inviteId: inv.id,
+                tier: `invite_joined_${inv.id.slice(0, 8)}`,
+                deepLink: `lightchallengeapp://challenge/${idStr}`,
+              },
+              pool
+            );
+          } catch {
+            // Non-critical
+          }
+        }
+      }
     } catch {
-      // Non-critical
+      // Non-critical — participant is already recorded
     }
 
     return NextResponse.json({ ok: true, id: row.id });

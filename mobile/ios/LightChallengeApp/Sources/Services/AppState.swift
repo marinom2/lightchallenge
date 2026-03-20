@@ -22,6 +22,7 @@ class AppState: ObservableObject {
     @Published var deepLinkChallengeId: String?
     @Published var deepLinkToken: String?
     @Published var deepLinkExpires: String?
+    @Published var deepLinkInviteId: String?
 
     /// Activity detail sheet: set to show an informational notification's detail view.
     @Published var activityDetailNotification: AppNotification?
@@ -143,6 +144,7 @@ class AppState: ObservableObject {
         subject = components.queryItems?.first(where: { $0.name == "subject" })?.value
         let token = components.queryItems?.first(where: { $0.name == "token" })?.value
         let expires = components.queryItems?.first(where: { $0.name == "expires" })?.value
+        let invite = components.queryItems?.first(where: { $0.name == "invite" })?.value
 
         // Persist wallet if provided
         if let subject, !subject.isEmpty, subject.hasPrefix("0x") {
@@ -154,6 +156,7 @@ class AppState: ObservableObject {
             deepLinkChallengeId = cid
             deepLinkToken = token
             deepLinkExpires = expires
+            deepLinkInviteId = invite
             // Switch to challenges tab so the navigation push works
             selectedTab = .challenges
         }

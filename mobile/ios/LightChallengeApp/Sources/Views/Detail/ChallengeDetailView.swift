@@ -842,8 +842,10 @@ struct ChallengeDetailView: View {
             _ = try await ContractService.shared.joinChallengeNative(
                 challengeId: idNum,
                 stakeWei: detail.money?.stakeWei ?? "0",
-                baseURL: appState.serverURL
+                baseURL: appState.serverURL,
+                inviteId: appState.deepLinkInviteId
             )
+            appState.deepLinkInviteId = nil  // consumed
             await loadData()
 
             // Nudge user to connect an activity source if none are active

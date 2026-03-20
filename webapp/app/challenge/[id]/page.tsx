@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type { Abi } from "viem";
 import { parseEther, parseUnits } from "viem";
 import {
@@ -312,8 +312,14 @@ const TREAS = (ADDR?.Treasury ?? ZERO) as `0x${string}`;
 export default function ChallengePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const id = params?.id;
+
+  // Invite context: ?invite=<inviteId> in the URL means user arrived via an invite
+  const inviteId = searchParams?.get("invite") ?? null;
+  const inviteIdRef = React.useRef(inviteId);
+  React.useEffect(() => { inviteIdRef.current = inviteId; }, [inviteId]);
   const challengeId = React.useMemo(() => safeParseId(id), [id]);
   const challengeIdStr = id ? String(id) : "0";
 
@@ -603,7 +609,11 @@ export default function ChallengePage() {
       await fetch(`/api/challenge/${challengeId}/participant`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject: address, txHash }),
+        body: JSON.stringify({
+          subject: address,
+          txHash,
+          inviteId: inviteIdRef.current || undefined,
+        }),
       });
     } catch {
       // intentionally swallowed — participation is confirmed on-chain
@@ -1689,6 +1699,14 @@ const primaryAction = React.useMemo(() => {
                 {lastUpdatedAt ? `Updated ${timeAgo(lastUpdatedAt)}` : ""}
               </span>
             </div>
+
+            {/* Invite banner */}
+            {inviteId && !hasJoined ? (
+              <div className="cd-invite-banner">
+                <Lucide.Mail size={16} />
+                <span>You&apos;ve been invited — join below to accept</span>
+              </div>
+            ) : null}
 
             {/* Title + description + status pill */}
             {isInitialLoading ? (

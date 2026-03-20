@@ -35,6 +35,7 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         let challengeId = userInfo["challengeId"] as? String ?? ""
         let type = userInfo["type"] as? String ?? ""
         let deepLink = userInfo["deepLink"] as? String
+        let inviteId = userInfo["inviteId"] as? String
 
         print("[NOTIFICATION] tapped → type=\(type) challengeId=\(challengeId)")
 
@@ -45,7 +46,8 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
                 title: response.notification.request.content.title,
                 body: response.notification.request.content.body,
                 requestId: response.notification.request.identifier,
-                deepLink: deepLink
+                deepLink: deepLink,
+                inviteId: inviteId
             )
         }
         completionHandler()
@@ -59,6 +61,7 @@ struct PushTapPayload {
     let body: String
     let requestId: String
     let deepLink: String?
+    let inviteId: String?
 }
 
 @main
@@ -336,12 +339,14 @@ struct LightChallengeApp: App {
             "challenge_starting", "challenge_joined", "competition_started",
             "claim_available", "claim_reminder",
             "challenge_final_push", "challenge_behind_pace",
-            "proof_window_open", "match_upcoming"
+            "proof_window_open", "match_upcoming",
+            "invite_received", "invite_joined"
         ]
 
         if actionTypes.contains(payload.type) {
             if !challengeId.isEmpty {
                 appState.deepLinkChallengeId = challengeId
+                appState.deepLinkInviteId = payload.inviteId
                 appState.selectedTab = .challenges
             } else if let deepLink = payload.deepLink, let url = URL(string: deepLink) {
                 UIApplication.shared.open(url)

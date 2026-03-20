@@ -55,7 +55,7 @@ class ContractService: ObservableObject {
     // MARK: - Join Challenge
 
     /// Join a challenge by sending the stake amount.
-    func joinChallengeNative(challengeId: UInt64, stakeWei: String, baseURL: String) async throws -> String {
+    func joinChallengeNative(challengeId: UInt64, stakeWei: String, baseURL: String, inviteId: String? = nil) async throws -> String {
         let calldata = ABIEncoder.encodeJoinNative(challengeId: challengeId)
         let tx = TransactionRequest(
             to: ContractAddresses.challengePay,
@@ -65,12 +65,13 @@ class ContractService: ObservableObject {
 
         let txHash = try await wallet.sendTransaction(tx)
 
-        // Record participation in DB
+        // Record participation in DB (also finalizes any matching invite)
         try await recordParticipation(
             baseURL: baseURL,
             challengeId: String(challengeId),
             subject: wallet.connectedAddress,
-            txHash: txHash
+            txHash: txHash,
+            inviteId: inviteId
         )
 
         return txHash
@@ -363,14 +364,18 @@ class ContractService: ObservableObject {
         baseURL: String,
         challengeId: String,
         subject: String,
-        txHash: String
+        txHash: String,
+        inviteId: String? = nil
     ) async throws {
         guard let url = URL(string: "\(baseURL)/api/challenge/\(challengeId)/participant") else { return }
 
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "subject": subject,
             "txHash": txHash,
         ]
+        if let inviteId, !inviteId.isEmpty {
+            body["inviteId"] = inviteId
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"

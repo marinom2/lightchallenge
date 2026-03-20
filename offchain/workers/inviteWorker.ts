@@ -129,8 +129,32 @@ async function processSteamInvite(pool: Pool, invite: InviteRow) {
   await updateStatus(pool, invite.id, "sent");
 }
 
+async function expireSentInvites(pool: Pool) {
+  // Expire invites for challenges whose join window has closed
+  const { rowCount } = await pool.query(
+    `UPDATE public.challenge_invites
+     SET status = 'expired', updated_at = now()
+     WHERE status IN ('sent', 'accepted')
+       AND challenge_id IN (
+         SELECT id FROM public.challenges
+         WHERE (timeline->>'joinClosesAt')::timestamptz < now()
+            OR (timeline->>'endsAt')::timestamptz < now()
+       )`
+  );
+  if (rowCount && rowCount > 0) {
+    console.log(`[inviteWorker] Expired ${rowCount} invite(s) past join window`);
+  }
+}
+
 async function tick() {
   const pool = getPool();
+
+  // Sweep expired invites first
+  try {
+    await expireSentInvites(pool);
+  } catch (err) {
+    console.error("[inviteWorker] Expiry sweep error:", err);
+  }
 
   const { rows: invites } = await pool.query<InviteRow>(
     `SELECT id, challenge_id, method, value, inviter_wallet

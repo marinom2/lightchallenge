@@ -38,7 +38,8 @@ export type NotificationType =
   | "proof_window_open"
   // Invite events
   | "invite_received"
-  | "invite_accepted";
+  | "invite_accepted"
+  | "invite_joined";
 
 /** Shape of a row as returned from the DB. */
 export type NotificationRow = {

@@ -3,22 +3,97 @@
  *
  * POST /api/invites/{id}/accept
  *
- * Accepts a challenge invite. Auth: wallet signature required.
+ * Returns invite details so the client can navigate the user to the real
+ * challenge join flow. Does NOT mark the invite as "joined" — that happens
+ * automatically when the participant POST fires after a successful on-chain
+ * join transaction.
+ *
  * For wallet invites, the authenticated wallet must match the invite's value.
  * For email/steam invites, any authenticated wallet can accept.
  *
- * Transitions invite status: sent → accepted
- * Notifies the inviter (if stored) that their invite was accepted.
+ * Also available as GET (unauthenticated) — returns basic invite info for
+ * preview purposes (e.g., email deep links).
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { verifyWallet, requireAuth } from "@/lib/auth";
 import { getPool } from "../../../../../../offchain/db/pool";
-import { createNotification } from "../../../../../../offchain/db/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type InviteRow = {
+  id: string;
+  challenge_id: string;
+  method: string;
+  value: string;
+  status: string;
+  inviter_wallet: string | null;
+};
+
+/**
+ * GET /api/invites/{id}/accept
+ *
+ * Unauthenticated preview — returns basic invite + challenge info
+ * so the frontend can show "You've been invited to X" before the user
+ * connects a wallet.
+ */
+export async function GET(
+  _req: NextRequest,
+  ctx: { params: { id: string } }
+) {
+  const inviteId = ctx.params.id;
+  if (!inviteId || inviteId.length < 10) {
+    return NextResponse.json({ error: "Invalid invite ID" }, { status: 400 });
+  }
+
+  const pool = getPool();
+
+  try {
+    const { rows } = await pool.query<InviteRow>(
+      `SELECT id, challenge_id, method, value, status, inviter_wallet
+       FROM public.challenge_invites WHERE id = $1`,
+      [inviteId]
+    );
+
+    if (rows.length === 0) {
+      return NextResponse.json({ error: "Invite not found" }, { status: 404 });
+    }
+
+    const invite = rows[0];
+
+    // Fetch challenge title for preview
+    const chRes = await pool.query<{ title: string }>(
+      `SELECT title FROM public.challenges WHERE id = $1::bigint`,
+      [invite.challenge_id]
+    );
+    const challengeTitle = chRes.rows[0]?.title || `Challenge #${invite.challenge_id}`;
+
+    return NextResponse.json({
+      ok: true,
+      invite: {
+        id: invite.id,
+        challengeId: invite.challenge_id,
+        method: invite.method,
+        status: invite.status,
+      },
+      challengeTitle,
+    });
+  } catch (err) {
+    console.error("[invites accept GET]", err);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  }
+}
+
+/**
+ * POST /api/invites/{id}/accept
+ *
+ * Authenticated — validates the invite, returns the challenge ID so the
+ * client routes the user into the real join flow.
+ *
+ * The invite is NOT marked as "joined" here. That happens in the participant
+ * POST endpoint after the on-chain join tx succeeds.
+ */
 export async function POST(
   req: NextRequest,
   ctx: { params: { id: string } }
@@ -36,15 +111,7 @@ export async function POST(
   const pool = getPool();
 
   try {
-    // Fetch the invite
-    const { rows } = await pool.query<{
-      id: string;
-      challenge_id: string;
-      method: string;
-      value: string;
-      status: string;
-      inviter_wallet: string | null;
-    }>(
+    const { rows } = await pool.query<InviteRow>(
       `SELECT id, challenge_id, method, value, status, inviter_wallet
        FROM public.challenge_invites WHERE id = $1`,
       [inviteId]
@@ -56,13 +123,19 @@ export async function POST(
 
     const invite = rows[0];
 
-    if (invite.status === "accepted") {
-      return NextResponse.json({ ok: true, message: "Already accepted" });
+    // Already joined — success, just return the challenge ID
+    if (invite.status === "joined") {
+      return NextResponse.json({
+        ok: true,
+        alreadyJoined: true,
+        challengeId: invite.challenge_id,
+      });
     }
 
-    if (invite.status !== "sent") {
+    // Terminal states
+    if (invite.status === "expired" || invite.status === "failed") {
       return NextResponse.json(
-        { error: `Invite cannot be accepted (status: ${invite.status})` },
+        { error: `Invite is ${invite.status}` },
         { status: 409 }
       );
     }
@@ -78,47 +151,17 @@ export async function POST(
       );
     }
 
-    // Update status → accepted
-    await pool.query(
-      `UPDATE public.challenge_invites SET status = 'accepted', updated_at = now() WHERE id = $1`,
-      [inviteId]
-    );
-
-    // Notify the inviter (best-effort)
-    if (invite.inviter_wallet) {
-      try {
-        const addr = wallet!.address.slice(0, 6) + "…" + wallet!.address.slice(-4);
-        const titleRes = await pool.query<{ title: string }>(
-          `SELECT title FROM public.challenges WHERE id = $1::bigint`,
-          [invite.challenge_id]
-        );
-        const challengeTitle =
-          titleRes.rows[0]?.title || `Challenge #${invite.challenge_id}`;
-
-        await createNotification(
-          invite.inviter_wallet.toLowerCase(),
-          "invite_accepted",
-          `Invite accepted — ${challengeTitle}`,
-          `${addr} accepted your invite to "${challengeTitle}".`,
-          {
-            challengeId: invite.challenge_id,
-            inviteId: invite.id,
-            tier: `invite_accepted_${invite.id.slice(0, 8)}`,
-            deepLink: `lightchallengeapp://challenge/${invite.challenge_id}`,
-          },
-          pool
-        );
-      } catch {
-        // Non-critical
-      }
-    }
-
-    return NextResponse.json({ ok: true, challengeId: invite.challenge_id });
+    // Return challenge info — the client navigates to /challenge/{id}?invite={inviteId}
+    // where the normal join flow handles the on-chain tx
+    return NextResponse.json({
+      ok: true,
+      challengeId: invite.challenge_id,
+      inviteId: invite.id,
+      // Tell the client to navigate to the join flow
+      joinUrl: `/challenge/${invite.challenge_id}?invite=${invite.id}`,
+    });
   } catch (err) {
-    console.error("[invites accept]", err);
-    return NextResponse.json(
-      { error: "Internal error" },
-      { status: 500 }
-    );
+    console.error("[invites accept POST]", err);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

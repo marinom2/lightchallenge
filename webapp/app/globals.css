@@ -3842,6 +3842,18 @@ html[data-theme="light"] .orbit__core {
   color: var(--lc-text-muted);
   font-variant-numeric: tabular-nums;
 }
+.cd-invite-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  margin: 8px 0;
+  border-radius: var(--lc-radius-md);
+  background: var(--lc-accent-bg);
+  color: var(--lc-accent);
+  font-size: var(--lc-text-sm);
+  font-weight: 500;
+}
 
 .cd-title-row {
   display: flex;
