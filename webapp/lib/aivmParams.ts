@@ -9,7 +9,7 @@ import { keccak256, toBytes } from "viem";
  * Core kinds
  * ────────────────────────────────────────────────────────────────────────── */
 
-export type ChallengeKindKey = "steps" | "running" | "dota" | "cs" | "lol";
+export type ChallengeKindKey = "walking" | "running" | "dota" | "cs" | "lol";
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Fitness kinds
@@ -94,7 +94,7 @@ export function buildParams(
   form: Record<string, string | number>
 ): AnyParams {
   switch (kind) {
-    case "steps":
+    case "walking":
       return {
         type: "steps",
         minSteps: Number(form.minSteps || 0),

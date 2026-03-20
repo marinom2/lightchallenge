@@ -51,7 +51,7 @@ function normalizeGame(g?: string | null): string | null {
   if (t === "lol" || t === "league" || t === "league of legends") return "League of Legends";
   if (t === "valorant") return "Valorant";
   if (["run","running"].includes(t)) return "Running";
-  if (["walk","steps"].includes(t)) return "Steps";
+  if (["walk","walking","steps"].includes(t)) return "Walking";
   if (["hike","hiking"].includes(t)) return "Hiking";
   if (["cycle","cycling","bike"].includes(t)) return "Cycling";
   return g;

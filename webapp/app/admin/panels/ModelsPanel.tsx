@@ -30,7 +30,7 @@ type ModelRow = {
   active?: boolean;
 };
 
-const TEMPLATE_KINDS = ["steps", "running", "cycling", "hiking", "swimming", "dota", "cs", "lol"] as const;
+const TEMPLATE_KINDS = ["walking", "running", "cycling", "hiking", "swimming", "dota", "cs", "lol"] as const;
 type TemplateKind = (typeof TEMPLATE_KINDS)[number];
 
 type TemplateField =

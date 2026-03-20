@@ -3855,6 +3855,28 @@ html[data-theme="light"] .orbit__core {
   font-weight: 500;
 }
 
+.cd-invite-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: var(--lc-radius-lg);
+  background: var(--lc-bg-raised);
+  border: 1px dashed var(--lc-border-strong);
+  color: var(--lc-text-secondary);
+  font-size: var(--lc-text-small);
+  font-weight: var(--lc-weight-semibold);
+  cursor: pointer;
+  transition: all var(--lc-dur-fast) var(--lc-ease);
+}
+.cd-invite-btn:hover {
+  background: var(--lc-bg-inset);
+  color: var(--lc-text);
+  border-color: var(--lc-accent);
+}
+
 .cd-title-row {
   display: flex;
   align-items: center;
@@ -3995,6 +4017,9 @@ html[data-theme="light"] .orbit__core {
   font-weight: var(--lc-weight-bold);
   color: var(--lc-text);
   font-variant-numeric: tabular-nums;
+}
+.cd-metric-card__value--highlight {
+  color: var(--lc-success);
 }
 
 /* Outcome */
@@ -4318,6 +4343,14 @@ html[data-theme="light"] .orbit__core {
   font-weight: var(--lc-weight-medium);
   color: var(--lc-text-muted);
 }
+.cd-progress-hero__ring-label--failed {
+  color: var(--lc-danger);
+  font-weight: var(--lc-weight-semibold);
+}
+.cd-progress-hero__ring-label--success {
+  color: var(--lc-success);
+  font-weight: var(--lc-weight-semibold);
+}
 .cd-progress-hero__details {
   display: flex;
   flex-direction: column;
@@ -4356,7 +4389,7 @@ html[data-theme="light"] .orbit__core {
 }
 .cd-progress-hero__bar {
   position: relative;
-  height: 10px;
+  height: 14px;
   border-radius: 999px;
   background: var(--progress-track);
   box-shadow: inset 0 0 0 1px var(--progress-outline, color-mix(in oklab, var(--lc-border) 60%, transparent));
@@ -4414,6 +4447,9 @@ html[data-theme="light"] .orbit__core {
 .cd-progress-hero__time--ended {
   color: var(--lc-text-muted);
 }
+.cd-progress-hero__time--failed {
+  color: var(--lc-danger);
+}
 .cd-progress-hero__diff {
   font-size: var(--lc-text-small);
   font-weight: var(--lc-weight-semibold);
@@ -4423,6 +4459,16 @@ html[data-theme="light"] .orbit__core {
 }
 .cd-progress-hero__diff--negative {
   color: var(--lc-text-muted);
+}
+.cd-progress-hero__diff--failed {
+  color: var(--lc-danger);
+}
+.cd-progress-hero__goal-sentence {
+  font-size: var(--lc-text-small);
+  font-weight: var(--lc-weight-medium);
+  color: var(--lc-text-secondary);
+  text-align: center;
+  padding: var(--lc-space-1) 0 0;
 }
 
 /* ── Quick stats row (compact inline metrics) ──────────────────────────── */
@@ -4532,6 +4578,30 @@ html[data-theme="light"] .orbit__core {
 }
 
 /* ── Outcome card (success/failure) ────────────────────────────────────── */
+/* ── Payout summary (compact post-finalization breakdown) ─────────────── */
+.cd-payout-summary {
+  border-radius: var(--lc-radius-lg);
+  background: var(--lc-bg-raised);
+  border: 1px solid var(--lc-border);
+  box-shadow: var(--lc-shadow-sm);
+  padding: var(--lc-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lc-space-2);
+}
+.cd-payout-summary__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: var(--lc-space-2);
+}
+.cd-payout-summary__reason {
+  font-size: var(--lc-text-small);
+  color: var(--lc-danger);
+  padding-top: var(--lc-space-2);
+  border-top: 1px solid var(--lc-border);
+}
+
+/* Legacy outcome card (kept for backwards compat) */
 .cd-outcome-card {
   border-radius: var(--lc-radius-lg);
   background: var(--lc-bg-raised);
@@ -4624,6 +4694,8 @@ html[data-theme="light"] .orbit__core {
   flex-shrink: 0;
 }
 .cd-status-line__dot--active { background: var(--lc-success); }
+.cd-status-line__dot--success { background: var(--lc-success); }
+.cd-status-line__dot--failed { background: var(--lc-danger); }
 .cd-status-line__dot--upcoming { background: var(--lc-info); }
 .cd-status-line__dot--ended { background: var(--lc-text-muted); }
 .cd-status-line__dot--finalized { background: var(--lc-text-muted); }

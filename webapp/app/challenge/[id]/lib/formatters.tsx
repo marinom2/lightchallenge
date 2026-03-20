@@ -182,6 +182,8 @@ export function computePublicStatus({
   joinClose,
   adminStatus,
   snapshotSet,
+  snapshotSuccess,
+  verdictPass,
 }: {
   now: number;
   start: number | null;
@@ -189,11 +191,21 @@ export function computePublicStatus({
   joinClose?: number | null;
   adminStatus?: Status;
   snapshotSet?: boolean;
+  /** On-chain snapshot success (global challenge outcome). */
+  snapshotSuccess?: boolean | null;
+  /** Per-participant verdict from DB (personal outcome). */
+  verdictPass?: boolean | null;
 }) {
-  if (!start || !end) return { label: "Draft", note: "No schedule yet" };
+  if (!start || !end) return { label: "Draft", note: "" };
   if (adminStatus === "Canceled") return { label: "Canceled", note: "" };
   if (now >= end) {
-    if (snapshotSet || adminStatus === "Finalized") return { label: "Completed", note: "" };
+    if (snapshotSet || adminStatus === "Finalized") {
+      // Prefer per-user verdict when available, fall back to global outcome
+      const passed = verdictPass ?? snapshotSuccess;
+      if (passed === true) return { label: "Challenge completed", note: "" };
+      if (passed === false) return { label: "Challenge failed", note: "" };
+      return { label: "Completed", note: "" };
+    }
     return { label: "Finalizing", note: "" };
   }
   if (now < start) {

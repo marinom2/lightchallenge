@@ -8,6 +8,7 @@ import {
   Vote,
   Hourglass,
   CheckCircle2,
+  XCircle,
   Clock,
   Calendar,
   Info,
@@ -61,6 +62,8 @@ export function resolvePrimaryAction(ctx: {
   // Status flags
   isFinalizing: boolean;
   isCompleted: boolean;
+  isChallengeFailed?: boolean;
+  isChallengeSuccess?: boolean;
   isInProgress: boolean;
   isUpcoming: boolean;
 
@@ -95,6 +98,8 @@ export function resolvePrimaryAction(ctx: {
 
     isFinalizing,
     isCompleted,
+    isChallengeFailed,
+    isChallengeSuccess,
     isInProgress,
     isUpcoming,
 
@@ -208,11 +213,11 @@ export function resolvePrimaryAction(ctx: {
   if (isCompleted) {
     return {
       kind: "done",
-      title: "Challenge complete",
-      desc: "Results have been finalized",
-      cta: "View results",
-      icon: CheckCircle2,
-      onClick: onExplore,
+      title: isChallengeFailed ? "Challenge failed" : isChallengeSuccess ? "Challenge completed" : "Challenge complete",
+      desc: isChallengeFailed ? "You didn't reach the goal this time" : "Results have been finalized",
+      cta: "Refresh",
+      icon: isChallengeFailed ? XCircle : CheckCircle2,
+      onClick: onRefresh,
     };
   }
 
@@ -243,10 +248,10 @@ export function resolvePrimaryAction(ctx: {
     return {
       kind: "upcoming",
       title: "Upcoming",
-      desc: joinWindowOpen ? "Join window is open — secure your spot" : "Join window closed",
-      cta: joinWindowOpen ? "Join" : "View details",
+      desc: joinWindowOpen ? "Join window is open — secure your spot" : "Challenge hasn't started yet",
+      cta: "Refresh",
       icon: Calendar,
-      onClick: onExplore,
+      onClick: onRefresh,
     };
   }
 
@@ -254,8 +259,8 @@ export function resolvePrimaryAction(ctx: {
     kind: "neutral",
     title: "Challenge",
     desc: "Review details below",
-    cta: "View details",
+    cta: "Refresh",
     icon: Info,
-    onClick: onExplore,
+    onClick: onRefresh,
   };
 }

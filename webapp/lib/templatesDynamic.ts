@@ -8,7 +8,7 @@ export type TemplateFieldJson =
   export type TemplateJson = {
     id: string;
     kind:
-      | "steps"
+      | "walking"
       | "running"
       | "cycling"
       | "hiking"
@@ -74,7 +74,7 @@ type Intent =
     if (!intent) return all;
   
     if (intent.type === "FITNESS") {
-      const fitnessKinds = ["steps", "running", "cycling", "hiking", "swimming"];
+      const fitnessKinds = ["walking", "running", "cycling", "hiking", "swimming"];
       const selectedKind = (intent as any).fitnessKind as (typeof fitnessKinds)[number] | undefined;
       return selectedKind ? all.filter((t) => t.kind === selectedKind)
                           : all.filter((t) => fitnessKinds.includes(t.kind));

@@ -40,6 +40,7 @@ import { SkeletonLine, HeroSummarySkeleton } from "./components/Skeletons";
 import { PrimaryActionCard, JoinCard } from "./components/ActionCards";
 import { CollapsiblePanel, DLGrid, ChainTimeline, LifecycleTimeline, VerificationExplainer } from "./components/DetailPanels";
 import { ActivityFigure, detectActivity, ACTIVITY_LABELS, getActivityColor } from "./components/ActivityFigure";
+import { InviteSheet } from "@/app/challenges/create/components/InviteSheet";
 import { formatWeiDual } from "@/lib/tokenPrice";
 
 
@@ -570,10 +571,11 @@ export default function ChallengePage() {
       joinClose: joinCloseSec ?? undefined,
       adminStatus: effectiveStatus,
       snapshotSet,
+      snapshotSuccess: decodedSnapshot?.success ?? (data?.snapshot?.success as boolean | undefined) ?? null,
     });
-  }, [startSec, endSec, joinCloseSec, effectiveStatus]);
+  }, [startSec, endSec, joinCloseSec, effectiveStatus, snapshotSet, decodedSnapshot?.success, data?.snapshot?.success]);
 
-  const treasuryLabel = publicStatus.label === "Completed" ? "Treasury" : "Current Pot";
+  const treasuryLabel = publicStatus.label === "Completed" || publicStatus.label === "Challenge completed" || publicStatus.label === "Challenge failed" ? "Treasury" : "Current Pot";
 
   // Economics
   const stakeWei =
@@ -617,6 +619,40 @@ export default function ChallengePage() {
       });
     } catch {
       // intentionally swallowed — participation is confirmed on-chain
+    }
+  }
+
+  // Invite sheet
+  const [showInviteSheet, setShowInviteSheet] = React.useState(false);
+
+  async function handleSendInvite(method: "email" | "wallet" | "steam", value: string) {
+    if (!challengeId || !address) {
+      notify("Connect wallet to send invites");
+      return;
+    }
+    try {
+      const res = await fetch("/api/invites", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-lc-address": address,
+          "x-lc-timestamp": String(Date.now()),
+        },
+        body: JSON.stringify({
+          challengeId: Number(challengeId),
+          method,
+          value: value.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        notify("Invite sent");
+        setShowInviteSheet(false);
+      } else {
+        notify(data.error || "Failed to send invite");
+      }
+    } catch {
+      notify("Failed to send invite");
     }
   }
 
@@ -811,6 +847,17 @@ export default function ChallengePage() {
       })
       .catch(() => {});
   }, [address, challengeId, hasJoined]);
+
+  // Override publicStatus with per-participant verdict when available.
+  // publicStatus uses global snapshot success; this layers in personal verdict.
+  const publicStatusOverride = React.useMemo(() => {
+    if (!hasJoined || participantStatus?.verdict_pass == null) return publicStatus;
+    // Only override when challenge is in a "completed" state
+    if (publicStatus.label !== "Completed" && publicStatus.label !== "Challenge completed" && publicStatus.label !== "Challenge failed") return publicStatus;
+    if (participantStatus.verdict_pass === true) return { label: "Challenge completed", note: "" };
+    if (participantStatus.verdict_pass === false) return { label: "Challenge failed", note: "" };
+    return publicStatus;
+  }, [publicStatus, hasJoined, participantStatus?.verdict_pass]);
 
   // Fetch actual challenge progress (metric-based, like iOS ring)
   const [challengeProgress, setChallengeProgress] = React.useState<{
@@ -1308,10 +1355,12 @@ export default function ChallengePage() {
 // ────────────────────────────────────────────────────────────────────────────
 // Derived “what should the user do now”
 // ────────────────────────────────────────────────────────────────────────────
-const isCompleted = publicStatus.label === "Completed";
-const isFinalizing = publicStatus.label === "Finalizing";
-const isInProgress = publicStatus.label === "In progress";
-const isUpcoming = publicStatus.label === "Upcoming";
+const isCompleted = publicStatusOverride.label === "Completed" || publicStatusOverride.label === "Challenge completed" || publicStatusOverride.label === "Challenge failed";
+const isChallengeSuccess = publicStatusOverride.label === "Challenge completed";
+const isChallengeFailed = publicStatusOverride.label === "Challenge failed";
+const isFinalizing = publicStatusOverride.label === "Finalizing";
+const isInProgress = publicStatusOverride.label === "In progress";
+const isUpcoming = publicStatusOverride.label === "Upcoming";
 
 const shouldShowJoin = canInitialJoin || canTopUp;
 // Claims ONLY visible when challenge is finalized AND claimables exist
@@ -1334,15 +1383,17 @@ const prevPublicLabel = React.useRef<string | null>(null);
 const [showCompletion, setShowCompletion] = React.useState(false);
 React.useEffect(() => {
   const prev = prevPublicLabel.current;
-  const cur = publicStatus.label;
+  const cur = publicStatusOverride.label;
   prevPublicLabel.current = cur;
 
-  if (cur === "Completed" && prev !== "Completed") {
+  const isNowComplete = cur === "Completed" || cur === "Challenge completed" || cur === "Challenge failed";
+  const wasComplete = prev === "Completed" || prev === "Challenge completed" || prev === "Challenge failed";
+  if (isNowComplete && !wasComplete) {
     setShowCompletion(true);
     const t = setTimeout(() => setShowCompletion(false), 2500);
     return () => clearTimeout(t);
   }
-}, [publicStatus.label]);
+}, [publicStatusOverride.label]);
 
 // Settlement needed: challenge ended, not admin-done, and snapshot not set yet
 const needsSettlement = React.useMemo(() => {
@@ -1379,6 +1430,8 @@ const primaryAction = React.useMemo(() => {
 
       isFinalizing,
       isCompleted,
+      isChallengeFailed,
+      isChallengeSuccess,
       isInProgress,
       isUpcoming,
 
@@ -1496,10 +1549,10 @@ const primaryAction = React.useMemo(() => {
   if (isCompleted) {
     return {
       kind: "done" as const,
-      title: "Challenge complete",
-      desc: "Results have been finalized",
+      title: isChallengeFailed ? "Challenge failed" : isChallengeSuccess ? "Challenge completed" : "Challenge complete",
+      desc: isChallengeFailed ? "You didn't reach the goal this time" : "Results have been finalized",
       cta: "View results",
-      icon: CheckCircle2,
+      icon: isChallengeFailed ? Lucide.XCircle : CheckCircle2,
       disabled: false,
       onClick: fetchOnce,
     };
@@ -1566,6 +1619,8 @@ const primaryAction = React.useMemo(() => {
   undefined,
   isFinalizing,
   isCompleted,
+  isChallengeFailed,
+  isChallengeSuccess,
   isInProgress,
   isUpcoming,
   joinWindowOpen,
@@ -1731,17 +1786,20 @@ const primaryAction = React.useMemo(() => {
               </>
             )}
 
-            {/* Status pill — prefers server-resolved label */}
+            {/* Status pill — outcome-aware */}
             {!isInitialLoading && (() => {
               const resolvedLabel = (participantStatus as any)?.resolved?.label;
               const resolvedStage = (participantStatus as any)?.resolved?.stage;
-              const label = (hasJoined && resolvedLabel) ? resolvedLabel : publicStatus.label;
+              const label = (hasJoined && resolvedLabel) ? resolvedLabel : publicStatusOverride.label;
+              const pillFailed = label === "Challenge failed" || resolvedStage === "FAILED";
+              const pillSuccess = label === "Challenge completed" || resolvedStage === "PASSED" || resolvedStage === "REWARD_EARNED" || resolvedStage === "CLAIMABLE" || resolvedStage === "CLAIMED";
               const dotClass =
-                resolvedStage === "ACTIVE" || publicStatus.label === "In progress" ? "cd-status-line__dot--active" :
-                resolvedStage === "PASSED" || resolvedStage === "REWARD_EARNED" || resolvedStage === "CLAIMABLE" || resolvedStage === "CLAIMED" || publicStatus.label === "Completed" ? "cd-status-line__dot--active" :
+                pillFailed ? "cd-status-line__dot--failed" :
+                pillSuccess ? "cd-status-line__dot--success" :
+                resolvedStage === "ACTIVE" || publicStatusOverride.label === "In progress" ? "cd-status-line__dot--active" :
                 resolvedStage === "NEEDS_PROOF" || resolvedStage === "NEEDS_PROOF_URGENT" ? "cd-status-line__dot--upcoming" :
-                resolvedStage === "FAILED" ? "cd-status-line__dot--ended" :
-                publicStatus.label === "Upcoming" ? "cd-status-line__dot--upcoming" :
+                publicStatusOverride.label === "Upcoming" ? "cd-status-line__dot--upcoming" :
+                publicStatusOverride.label === "Completed" ? "cd-status-line__dot--active" :
                 "cd-status-line__dot--ended";
               return label ? (
                 <div className="cd-status-line">
@@ -1750,6 +1808,16 @@ const primaryAction = React.useMemo(() => {
                 </div>
               ) : null;
             })()}
+
+            {/* ── Goal sentence ── */}
+            {!isInitialLoading && challengeProgress && challengeProgress.goalValue > 0 && (
+              <div className="cd-progress-hero__goal-sentence">
+                Goal: {challengeProgress.goalValue.toLocaleString()} {challengeProgress.metricLabel}
+                {endSec && Math.floor(Date.now() / 1000) < endSec ? (
+                  <> in <CountdownDisplay targetSec={endSec} /></>
+                ) : null}
+              </div>
+            )}
 
             {/* ── Progress visualization: ring + metric + remaining + bar ── */}
             {!isInitialLoading && challengeProgress && challengeProgress.goalValue > 0 ? (
@@ -1774,8 +1842,8 @@ const primaryAction = React.useMemo(() => {
                     </svg>
                     <div className="cd-progress-hero__ring-inner" style={{ position: "absolute" }}>
                       <div className="cd-progress-hero__ring-pct">{progressPct ?? 0}%</div>
-                      <div className="cd-progress-hero__ring-label">
-                        {(progressPct ?? 0) >= 100 ? "Goal reached" : "complete"}
+                      <div className={`cd-progress-hero__ring-label${isChallengeFailed ? " cd-progress-hero__ring-label--failed" : isChallengeSuccess ? " cd-progress-hero__ring-label--success" : ""}`}>
+                        {isChallengeFailed ? "Failed" : isChallengeSuccess || (progressPct ?? 0) >= 100 ? "Goal reached" : "complete"}
                       </div>
                     </div>
                   </div>
@@ -1790,10 +1858,12 @@ const primaryAction = React.useMemo(() => {
                     </div>
 
                     {progressDiff ? (
-                      <div className={`cd-progress-hero__diff ${progressDiff.positive ? "cd-progress-hero__diff--positive" : "cd-progress-hero__diff--negative"}`}>
+                      <div className={`cd-progress-hero__diff ${progressDiff.positive ? "cd-progress-hero__diff--positive" : isChallengeFailed ? "cd-progress-hero__diff--failed" : "cd-progress-hero__diff--negative"}`}>
                         {progressDiff.positive
                           ? `+${progressDiff.value.toLocaleString()} ${challengeProgress.metricLabel} above target`
-                          : `${progressDiff.value.toLocaleString()} ${challengeProgress.metricLabel} to go`}
+                          : isChallengeFailed
+                            ? `${progressDiff.value.toLocaleString()} ${challengeProgress.metricLabel} short`
+                            : `${progressDiff.value.toLocaleString()} ${challengeProgress.metricLabel} to go`}
                       </div>
                     ) : null}
 
@@ -1809,7 +1879,9 @@ const primaryAction = React.useMemo(() => {
                         <Clock size={12} style={{ opacity: 0.5 }} /> <CountdownDisplay targetSec={endSec} /> remaining
                       </div>
                     ) : endSec && Math.floor(Date.now() / 1000) >= endSec ? (
-                      <div className="cd-progress-hero__time cd-progress-hero__time--ended">Challenge ended</div>
+                      <div className={`cd-progress-hero__time cd-progress-hero__time--ended${isChallengeFailed ? " cd-progress-hero__time--failed" : ""}`}>
+                        {isChallengeFailed ? "Challenge ended — goal not reached" : isChallengeSuccess ? "Challenge ended — goal reached" : "Challenge ended"}
+                      </div>
                     ) : null}
                   </div>
                 </div>
@@ -1848,7 +1920,7 @@ const primaryAction = React.useMemo(() => {
                 <div className="cd-quick-stats">
                   <div className="cd-quick-stat">
                     <div className="cd-quick-stat__value">{potLabel}</div>
-                    <div className="cd-quick-stat__label">{publicStatus.label === "Completed" ? "Final pot" : "Reward"}</div>
+                    <div className="cd-quick-stat__label">{isCompleted ? "Prize Pool" : "Reward"}</div>
                   </div>
                   <div className="cd-quick-stat">
                     <div className="cd-quick-stat__value">{fmtNum(participantsCountFromChain)}</div>
@@ -1924,29 +1996,13 @@ const primaryAction = React.useMemo(() => {
           {/* Section B removed — progress metrics now shown in hero above */}
 
           {/* ═══════════════════════════════════════════════════════════════════
-              SECTION C — OUTCOME (success/failure + payout summary)
+              SECTION C — PAYOUT BREAKDOWN (compact, only after finalization)
               ═══════════════════════════════════════════════════════════════════ */}
           {!isInitialLoading && data?.snapshot?.set ? (
-            <div className={`cd-outcome-card ${data.snapshot.success ? "cd-outcome-card--success" : "cd-outcome-card--failed"}`}>
-              <div className="cd-outcome-card__header">
-                {data.snapshot.success
-                  ? <><Lucide.Trophy size={18} className="text-emerald-500" /> Goal reached</>
-                  : <><Lucide.XCircle size={18} className="text-red-400" /> Goal not reached</>
-                }
-              </div>
-              <div className="cd-outcome-card__desc">
-                {data.snapshot.success
-                  ? challengeProgress
-                    ? `You completed ${challengeProgress.currentValue.toLocaleString()} ${challengeProgress.metricLabel}, exceeding the goal of ${challengeProgress.goalValue.toLocaleString()}.`
-                    : "You successfully completed this challenge."
-                  : challengeProgress
-                    ? `You reached ${challengeProgress.currentValue.toLocaleString()} of ${challengeProgress.goalValue.toLocaleString()} ${challengeProgress.metricLabel}.`
-                    : "The challenge goal was not met."
-                }
-              </div>
-              <div className="cd-outcome-card__breakdown">
+            <div className="cd-payout-summary">
+              <div className="cd-payout-summary__grid">
                 <div className="cd-metric-card">
-                  <div className="cd-metric-card__label">Pool</div>
+                  <div className="cd-metric-card__label">Prize Pool</div>
                   <div className="cd-metric-card__value">{formatWeiAsUSD(data.snapshot.committedPool, tokenPrice)}</div>
                 </div>
                 <div className="cd-metric-card">
@@ -1957,31 +2013,18 @@ const primaryAction = React.useMemo(() => {
                   <div className="cd-metric-card__label">Returned</div>
                   <div className="cd-metric-card__value">{formatWeiAsUSD(data.snapshot.cashback, tokenPrice)}</div>
                 </div>
-              </div>
-
-              {/* Verdict details for participant */}
-              {hasJoined && participantStatus ? (() => {
-                const showReason = proofDeadlinePassed && participantStatus.verdict_pass === false && participantStatus.verdict_reasons?.length;
-                const showClaimable = allowanceBn > 0n;
-
-                if (!showReason && !showClaimable) return null;
-
-                return (
-                  <div className="space-y-1 text-sm" style={{ paddingTop: "var(--lc-space-2)", borderTop: "1px solid var(--lc-border)" }}>
-                    {showReason ? (
-                      <div className="text-red-400 text-sm">
-                        {participantStatus.verdict_reasons!.slice(0, 2).join(" · ")}
-                      </div>
-                    ) : null}
-                    {showClaimable ? (
-                      <div className="flex gap-2">
-                        <span className="text-(--text-muted)">Your reward</span>
-                        <span className="font-semibold">{formatWeiAsUSD(allowanceBn.toString(), tokenPrice)}</span>
-                      </div>
-                    ) : null}
+                {allowanceBn > 0n ? (
+                  <div className="cd-metric-card">
+                    <div className="cd-metric-card__label">Your Reward</div>
+                    <div className="cd-metric-card__value cd-metric-card__value--highlight">{formatWeiAsUSD(allowanceBn.toString(), tokenPrice)}</div>
                   </div>
-                );
-              })() : null}
+                ) : null}
+              </div>
+              {hasJoined && participantStatus?.verdict_pass === false && proofDeadlinePassed && participantStatus?.verdict_reasons?.length ? (
+                <div className="cd-payout-summary__reason">
+                  {participantStatus.verdict_reasons.slice(0, 2).join(" · ")}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -1991,8 +2034,8 @@ const primaryAction = React.useMemo(() => {
               SECTION D — ACTION CARDS
               ═══════════════════════════════════════════════════════════════════ */}
 
-          {/* Primary action (claims, join, proofs, status) */}
-          {!isInitialLoading && (
+          {/* Primary action — only shown for truly actionable states */}
+          {!isInitialLoading && primaryAction && ["claims", "finalize", "proofs", "join", "vote"].includes((primaryAction as any).kind) && (
             <PrimaryActionCard action={primaryAction as any} busy={busy} />
           )}
 
@@ -2009,6 +2052,27 @@ const primaryAction = React.useMemo(() => {
               onJoin={smartJoin}
             />
           ) : null}
+
+          {/* ═══════════════════════════════════════════════════════════════════
+              SECTION D2 — INVITE FRIEND
+              ═══════════════════════════════════════════════════════════════════ */}
+          {!isInitialLoading && hasJoined && effectiveStatus === "Active" && (
+            <button
+              type="button"
+              className="cd-invite-btn"
+              onClick={() => setShowInviteSheet(true)}
+            >
+              <Lucide.UserPlus size={16} />
+              Invite a friend
+            </button>
+          )}
+
+          {showInviteSheet && (
+            <InviteSheet
+              onClose={() => setShowInviteSheet(false)}
+              onSendInvite={handleSendInvite}
+            />
+          )}
 
           {/* ═══════════════════════════════════════════════════════════════════
               SECTION E — TIMELINE (user-aware milestone progression)

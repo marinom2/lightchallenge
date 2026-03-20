@@ -80,7 +80,7 @@ function kindId(state: ChallengeFormState): number {
     else if (fk === "cycling") key = "cycling";
     else if (fk === "hiking") key = "hiking";
     else if (fk === "swimming") key = "swimming";
-    else if (fk === "steps") key = "steps";
+    else if (fk === "walking") key = "walking";
     else key = "fitness_general";
   } else if (state.intent.type === "GAMING") {
     const gid = state.intent.gameId;

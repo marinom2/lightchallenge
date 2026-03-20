@@ -24,7 +24,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const VALID_KINDS = new Set([
-  "steps", "running", "cycling", "hiking", "swimming",
+  "walking", "running", "cycling", "hiking", "swimming",
   "dota", "cs", "lol",
 ]);
 

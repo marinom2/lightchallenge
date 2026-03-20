@@ -69,33 +69,64 @@ export async function POST(req: NextRequest) {
     const method = body.method as InviteMethod;
     const value = String(body.value).trim();
 
+    const inviterAddr = authWallet!.address.toLowerCase();
+
+    // For wallet invites, process immediately (create notification + mark sent)
+    // instead of waiting for the background worker to poll.
+    if (method === "wallet") {
+      // Get challenge title for the notification
+      const titleRows = await sql`
+        SELECT title FROM public.challenges WHERE id = ${challengeId}
+      `;
+      const challengeTitle = (titleRows as any)[0]?.title || `Challenge #${challengeId}`;
+      const inviterLabel = `${inviterAddr.slice(0, 6)}…${inviterAddr.slice(-4)}`;
+
+      // Insert as 'sent' directly
+      await sql`
+        INSERT INTO public.challenge_invites (
+          id, challenge_id, method, value, status, inviter_wallet
+        ) VALUES (
+          ${id}, ${challengeId}, ${method}, ${value}, 'sent', ${inviterAddr}
+        )
+      `;
+
+      // Create notification for the target wallet
+      const notifId = crypto.randomUUID();
+      const notifTitle = `You've been invited to "${challengeTitle}"`;
+      const notifBody = `${inviterLabel} invited you to join "${challengeTitle}".`;
+      const notifData = JSON.stringify({
+        challengeId: String(challengeId),
+        inviteId: id,
+        deepLink: `lightchallengeapp://challenge/${challengeId}`,
+      });
+
+      await sql`
+        INSERT INTO public.notifications (
+          id, wallet, type, title, body, data, read, created_at
+        ) VALUES (
+          ${notifId}, lower(${value}), 'invite_received', ${notifTitle}, ${notifBody}, ${notifData}::jsonb, false, now()
+        )
+      `;
+
+      return NextResponse.json({
+        ok: true,
+        invite: { id, challengeId, method, value, status: "sent" },
+        message: "Invite sent.",
+      });
+    }
+
+    // For email/steam: queue for background worker
     await sql`
-      insert into public.challenge_invites (
-        id,
-        challenge_id,
-        method,
-        value,
-        status,
-        inviter_wallet
-      ) values (
-        ${id},
-        ${challengeId},
-        ${method},
-        ${value},
-        'queued',
-        ${authWallet}
+      INSERT INTO public.challenge_invites (
+        id, challenge_id, method, value, status, inviter_wallet
+      ) VALUES (
+        ${id}, ${challengeId}, ${method}, ${value}, 'queued', ${inviterAddr}
       )
     `;
 
     return NextResponse.json({
       ok: true,
-      invite: {
-        id,
-        challengeId,
-        method,
-        value,
-        status: "queued",
-      },
+      invite: { id, challengeId, method, value, status: "queued" },
       message: "Invite queued successfully.",
     });
   } catch (err) {

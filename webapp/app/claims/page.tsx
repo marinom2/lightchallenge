@@ -43,7 +43,7 @@ type ApiOut = {
   params?: string;
   category?: string;
   verifier?: `0x${string}`;
-  kindKey?: "steps" | "running" | "dota" | "cs" | "lol";
+  kindKey?: "walking" | "running" | "dota" | "cs" | "lol";
   form?: Record<string, string | number>;
   timeline: {
     name: string;

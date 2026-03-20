@@ -187,7 +187,7 @@ function filterByIntent(
       return templates.filter((t) => t.kind === intent.fitnessKind);
     }
     return templates.filter((t) =>
-      ["steps", "running", "cycling", "hiking", "swimming"].includes(t.kind)
+      ["walking", "running", "cycling", "hiking", "swimming"].includes(t.kind)
     );
   }
 

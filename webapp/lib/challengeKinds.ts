@@ -5,7 +5,7 @@
 // ID per logical category so the contract emits a meaningful ChallengeCreated event.
 
 export type ChallengeKindKey =
-  | "steps"
+  | "walking"
   | "running"
   | "dota"
   | "cycling"
@@ -23,7 +23,7 @@ export type ChallengeKind = {
 };
 
 export const CHALLENGE_KINDS: ChallengeKind[] = [
-  { key: "steps", label: "Steps", kindId: 1 },
+  { key: "walking", label: "Walking", kindId: 1 },
   { key: "running", label: "Running", kindId: 2 },
   { key: "dota", label: "Dota 2", kindId: 3 },
   { key: "cycling", label: "Cycling", kindId: 4 },
