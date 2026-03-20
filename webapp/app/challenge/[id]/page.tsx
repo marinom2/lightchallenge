@@ -15,7 +15,7 @@ import {
 } from "wagmi";
 
 import { ABI, ADDR } from "@/lib/contracts";
-import { addressUrl, blockUrl, txUrl } from "@/lib/explorer";
+import { txUrl } from "@/lib/explorer";
 import { useToasts } from "@/lib/ui/toast";
 import { prettyGame } from "@/lib/games";
 import * as Lucide from "lucide-react";
@@ -30,9 +30,8 @@ import type { Status, ApiOut } from "./lib/types";
 import { safeLower, safeBigintFrom, safeParseId, normalizeDecimalInput, toNum, fetchJson } from "./lib/utils";
 import { decodeSnapshot, decodeChallenge, normalizeApi } from "./lib/decoders";
 import {
-  safeText, code, safe, yesno, ts, fmtNum, short, shortOrDash,
-  linkAddr, linkBlock, linkTx, timeAgo,
-  formatMaxParticipants, formatDuration, enumLabel, computePublicStatus,
+  safe, ts, fmtNum, short, timeAgo,
+  formatMaxParticipants, computePublicStatus,
 } from "./lib/formatters";
 import { formatWeiAsUSD } from "@/lib/tokenPrice";
 import { useTokenPrice } from "@/lib/useTokenPrice";
@@ -40,7 +39,7 @@ import { usePullToRefresh } from "./hooks/usePullToRefresh";
 import { SkeletonLine, HeroSummarySkeleton } from "./components/Skeletons";
 import { StatusCapsule } from "./components/HeroSection";
 import { PrimaryActionCard, JoinCard } from "./components/ActionCards";
-import { CollapsiblePanel, ActionRow, DLGrid, ChainTimeline } from "./components/DetailPanels";
+import { CollapsiblePanel, DLGrid, ChainTimeline } from "./components/DetailPanels";
 import { ActivityFigure, detectActivity, ACTIVITY_LABELS, getActivityColor } from "./components/ActivityFigure";
 
 
@@ -336,11 +335,18 @@ function VerificationBadge({
                       {/* Content */}
                       <div className={isLast ? "pb-0" : "pb-6"}>
                         <div className="text-sm font-medium leading-4">{step.label}</div>
-                        {step.timestamp ? (
-                          <div className="text-[11px] text-(--text-muted) mt-1 leading-tight">
-                            {new Date(step.timestamp * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
-                          </div>
-                        ) : null}
+                        <div className="flex flex-wrap items-center gap-x-2 mt-1">
+                          {step.timestamp ? (
+                            <span className="text-[11px] text-(--text-muted) leading-tight">
+                              {timeAgo(step.timestamp * 1000)}
+                            </span>
+                          ) : null}
+                          {step.tx ? (
+                            <span className="text-[11px] text-(--text-muted) leading-tight mono">
+                              {step.tx.slice(0, 6)}…{step.tx.slice(-4)}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   );
@@ -430,27 +436,7 @@ const TREAS = (ADDR?.Treasury ?? ZERO) as `0x${string}`;
 
 // Types, utilities, decoders, and hooks are imported from ./lib/* and ./hooks/*
 
-/** Format raw modelId like "apple_health.steps@1" to human-readable "Steps (Apple Health)" */
-function formatModelDisplay(modelId: string): string {
-  const MODEL_LABELS: Record<string, string> = {
-    "apple_health.steps": "Steps (Apple Health)",
-    "garmin.steps": "Steps (Garmin)",
-    "garmin.distance_window": "Distance (Garmin)",
-    "strava.distance_in_window": "Distance (Strava)",
-    "strava.cycling_distance_in_window": "Cycling Distance (Strava)",
-    "strava.elevation_gain_window": "Elevation Gain (Strava)",
-    "strava.swimming_laps_window": "Swimming Laps (Strava)",
-    "fitbit.steps_day": "Steps (Fitbit)",
-    "fitbit.distance_window": "Distance (Fitbit)",
-    "googlefit.steps_day": "Steps (Google Fit)",
-    "googlefit.distance_window": "Distance (Google Fit)",
-    "dota.opendota_match": "Dota 2 Match (OpenDota)",
-    "lol.winrate_next_n": "LoL Win Rate",
-    "cs2.faceit_wins": "CS2 Wins (FACEIT)",
-  };
-  const base = modelId.split("@")[0] ?? modelId;
-  return MODEL_LABELS[base] ?? base.replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
+// Model labels moved to verification layer only
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Page
@@ -1704,12 +1690,11 @@ const primaryAction = React.useMemo(() => {
   // ────────────────────────────────────────────────────────────────────────────
   // Render data
   // ────────────────────────────────────────────────────────────────────────────
-  const currencyFromChain = decoded.currency ?? null;
+  // currencyFromChain removed — internal detail not shown in product UI
   const maxParticipantsFromChain = decoded.maxParticipants ?? null;
   const participantsCountFromChain = decoded.participantsCount ?? null;
 
-  const kindFromChain = decoded.kind ?? null;
-  const outcomeFromChain = decoded.outcome ?? null;
+  // kind/outcome removed from UI — available in verification layer only
 
   // ────────────────────────────────────────────────────────────────────────────
   // Computed values for render
@@ -1793,10 +1778,9 @@ const primaryAction = React.useMemo(() => {
               </span>
             </div>
 
-            {/* Status + ID row */}
+            {/* Status capsule */}
             <div className="cd-title-row" style={{ justifyContent: "center" }}>
               <StatusCapsule label={publicStatus.label} note={publicStatus.note} />
-              <span className="cd-id">#{id ?? "—"}</span>
             </div>
 
             {/* Activity figure (centered, iOS hero ring) */}
@@ -1978,93 +1962,53 @@ const primaryAction = React.useMemo(() => {
             </div>
           ) : null}
 
-          {/* Participant verification status */}
-          {hasJoined && participantStatus ? (
-            <div className="panel">
-              <div className="panel-header">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold">Your verification status</div>
+          {/* Your status — clean, human-readable */}
+          {hasJoined && participantStatus ? (() => {
+            // Derive single clean status
+            const statusChip = (() => {
+              if (proofDeadlinePassed && participantStatus.verdict_pass === true) {
+                return participantStatus.challenge_status?.toLowerCase() === "finalized"
+                  ? <span className="chip chip--ok">Reward available</span>
+                  : <span className="chip chip--ok">Passed</span>;
+              }
+              if (proofDeadlinePassed && participantStatus.verdict_pass === false)
+                return <span className="chip chip--bad">Did not pass</span>;
+              if (challengeEnded && participantStatus.has_evidence)
+                return <span className="chip chip--info">Being verified</span>;
+              if (challengeEnded && !participantStatus.has_evidence)
+                return <span className="chip chip--warn">Evidence needed</span>;
+              if (!challengeEnded)
+                return <span className="chip chip--info">In progress</span>;
+              return <span className="chip chip--soft">Pending</span>;
+            })();
+
+            const showReason = proofDeadlinePassed && participantStatus.verdict_pass === false && participantStatus.verdict_reasons?.length;
+            const showClaimable = allowanceBn > 0n;
+
+            return (
+              <div className="panel">
+                <div className="panel-header">
+                  <div className="text-sm font-semibold">Your status</div>
+                  {statusChip}
                 </div>
-                {proofDeadlinePassed && participantStatus.verdict_pass === true &&
-                  participantStatus.challenge_status?.toLowerCase() === "finalized" && (
-                    <span className="chip chip--ok">Claimable</span>
-                )}
-                {proofDeadlinePassed && participantStatus.verdict_pass === true &&
-                  participantStatus.challenge_status?.toLowerCase() !== "finalized" &&
-                  ["requested", "committed", "revealed"].includes(
-                    participantStatus.aivm_verification_status ?? ""
-                  ) && (
-                    <span className="chip chip--info">Network pending</span>
-                )}
-                {proofDeadlinePassed && participantStatus.verdict_pass === true &&
-                  !["requested", "committed", "revealed"].includes(
-                    participantStatus.aivm_verification_status ?? ""
-                  ) &&
-                  participantStatus.challenge_status?.toLowerCase() !== "finalized" && (
-                    <span className="chip chip--ok">Passed</span>
-                )}
-                {proofDeadlinePassed && participantStatus.verdict_pass === false && (
-                  <span className="chip chip--bad">Failed</span>
-                )}
-                {proofDeadlinePassed && participantStatus.verdict_pass === null && participantStatus.has_evidence && (
-                  <span className="chip chip--warn">Evaluating…</span>
-                )}
-                {!proofDeadlinePassed && challengeEnded && participantStatus.has_evidence && (
-                  <span className="chip chip--info">Verifying</span>
-                )}
-                {!proofDeadlinePassed && challengeEnded && !participantStatus.has_evidence && (
-                  <span className="chip chip--warn">Proof needed</span>
-                )}
-                {!challengeEnded && (
-                  <span className="chip chip--info">In progress</span>
-                )}
-                {proofDeadlinePassed && participantStatus.verdict_pass === null && !participantStatus.has_evidence && (
-                  <span className="chip chip--soft">No evidence yet</span>
-                )}
-              </div>
-              <div className="panel-body space-y-1 text-sm">
-                <div className="flex gap-2">
-                  <span className="text-(--text-muted) w-32 shrink-0">Evidence</span>
-                  <span>
-                    {participantStatus.has_evidence
-                      ? (() => {
-                          const p = participantStatus.evidence_provider ?? "";
-                          const autoProviders = ["strava", "opendota", "riot"];
-                          const isAuto = autoProviders.includes(p.toLowerCase());
-                          return isAuto
-                            ? `Collected automatically via ${p}`
-                            : p
-                              ? `Submitted via ${p}`
-                              : "Submitted";
-                        })()
-                      : "Not submitted"}
-                  </span>
-                </div>
-                {proofDeadlinePassed && participantStatus.verdict_pass === false && participantStatus.verdict_reasons?.length ? (
-                  <div className="flex gap-2">
-                    <span className="text-(--text-muted) w-32 shrink-0">Reason</span>
-                    <span className="text-red-400">
-                      {participantStatus.verdict_reasons.slice(0, 3).join(" · ")}
-                    </span>
+                {(showReason || showClaimable) ? (
+                  <div className="panel-body space-y-1 text-sm">
+                    {showReason ? (
+                      <div className="text-red-400 text-sm">
+                        {participantStatus.verdict_reasons!.slice(0, 2).join(" · ")}
+                      </div>
+                    ) : null}
+                    {showClaimable ? (
+                      <div className="flex gap-2">
+                        <span className="text-(--text-muted)">Claimable</span>
+                        <span className="font-semibold">{formatWeiAsUSD(allowanceBn.toString(), tokenPrice)}</span>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
-                {participantStatus.aivm_verification_status &&
-                  participantStatus.aivm_verification_status !== "finalized" &&
-                  participantStatus.verdict_pass !== false && (
-                    <div className="flex gap-2">
-                      <span className="text-(--text-muted) w-32 shrink-0">Lightchain</span>
-                      <span className="capitalize">{participantStatus.aivm_verification_status}</span>
-                    </div>
-                )}
-                {allowanceBn > 0n && (
-                  <div className="flex gap-2 mt-2">
-                    <span className="text-(--text-muted) w-32 shrink-0">Claimable</span>
-                    <span className="font-semibold">{formatWeiAsUSD(allowanceBn.toString(), tokenPrice)}</span>
-                  </div>
-                )}
               </div>
-            </div>
-          ) : null}
+            );
+          })() : null}
 
           {/* ═══════════════════════════════════════════════════════════════════
               SECTION 3 — TIMELINE + VERIFICATION
@@ -2079,96 +2023,20 @@ const primaryAction = React.useMemo(() => {
           {/* ═══════════════════════════════════════════════════════════════════
               SECTION 4 — COLLAPSIBLE DETAILS + TECHNICAL
               ═══════════════════════════════════════════════════════════════════ */}
-          <CollapsiblePanel title="Details" subtitle="Overview and economics" defaultOpen={false} icon={Info}>
-            <div className="space-y-4">
-              <DLGrid
-                rows={[
-                  ["Category", safe(data?.category, "General")],
-                  ...(data?.game ? [["Game", prettyGame(data.game) || safe(data.game)] as [string, string]] : []),
-                  ...(data?.mode ? [["Mode", safe(data.mode)] as [string, string]] : []),
-                  ["Participants", `${fmtNum(participantsCountFromChain)} / ${formatMaxParticipants(maxParticipantsFromChain)}`],
-                  ["Join closes", ts(joinCloseSec, "Open until start")],
-                  ["Your stake", myJoinedTotalWei != null ? formatWeiAsUSD(myJoinedTotalWei.toString(), tokenPrice) : "Not joined"],
-                  ["Starts", ts(startSec, "TBD")],
-                  ["Ends", ts(endSec, "TBD")],
-                ]}
-              />
-              <div className="cd-metrics-row">
-                <div className="cd-metric-card">
-                  <div className="cd-metric-card__label">{treasuryLabel}</div>
-                  <div className="cd-metric-card__value">{formatWeiAsUSD(treasuryWei, tokenPrice)}</div>
-                </div>
-                <div className="cd-metric-card">
-                  <div className="cd-metric-card__label">Creator stake</div>
-                  <div className="cd-metric-card__value">{formatWeiAsUSD(stakeWei, tokenPrice)}</div>
-                </div>
-                <div className="cd-metric-card">
-                  <div className="cd-metric-card__label">Currency</div>
-                  <div className="cd-metric-card__value">
-                    {currencyFromChain === 0 || tokenFromChain === ZERO
-                      ? "Native"
-                      : tokenFromChain ? `ERC-20 ${short(tokenFromChain)}` : "Native"}
-                  </div>
-                </div>
-              </div>
-            </div>
+          <CollapsiblePanel title="Details" defaultOpen={false} icon={Info}>
+            <DLGrid
+              rows={[
+                ...(data?.category ? [["Category", safe(data.category, "General")] as [string, string]] : []),
+                ...(data?.game ? [["Game", prettyGame(data.game) || safe(data.game)] as [string, string]] : []),
+                ...(data?.mode ? [["Mode", safe(data.mode)] as [string, string]] : []),
+                ["Participants", `${fmtNum(participantsCountFromChain)} / ${formatMaxParticipants(maxParticipantsFromChain)}`],
+                ["Join closes", ts(joinCloseSec, "Open until start")],
+                ...(myJoinedTotalWei != null && myJoinedTotalWei > 0n ? [["Your stake", formatWeiAsUSD(myJoinedTotalWei.toString(), tokenPrice)] as [string, string]] : []),
+                ["Starts", ts(startSec, "TBD")],
+                ["Ends", ts(endSec, "TBD")],
+              ]}
+            />
           </CollapsiblePanel>
-
-          <CollapsiblePanel title="Technical" subtitle="Proof and verification" defaultOpen={false} icon={Lucide.Layers}>
-            <div className="space-y-4">
-              <DLGrid
-                rows={[
-                  ["Proof required", yesno(data?.proofRequired)],
-                  ["Proof status", data?.proofOk ? "Verified" : "Pending"],
-                  ["Verifier", shortOrDash((data as any)?.verifierUsed ?? data?.verifier)],
-                  ["Verification type", safe(data?.modelKind, "Standard")],
-                  ...(data?.modelId ? [["Verification model", formatModelDisplay(data.modelId)] as [string, string]] : []),
-                  ["Challenge type", enumLabel("kind", kindFromChain)],
-                  ["Outcome", enumLabel("outcome", outcomeFromChain)],
-                  ...(decoded.duration ? [["Duration", formatDuration(decoded.duration)] as [string, string]] : []),
-                  ["Creator", linkAddr(data?.creator)],
-                  ...(data?.createdBlock ? [["Created block", linkBlock(data.createdBlock)] as [string, any]] : []),
-                  ...(data?.createdTx ? [["Created tx", linkTx(data.createdTx)] as [string, any]] : []),
-                ]}
-              />
-
-              {data?.params ? (
-                <div className="cd-params">
-                  <div className="text-xs font-semibold text-(--text-muted) uppercase tracking-wider mb-2">Parameters</div>
-                  <pre className="cd-params__pre">
-                    {typeof data.params === "string" ? data.params : JSON.stringify(data.params, null, 2)}
-                  </pre>
-                </div>
-              ) : null}
-            </div>
-          </CollapsiblePanel>
-
-          {/* Proofs (collapsible) */}
-          {shouldShowProofs ? (
-            <CollapsiblePanel
-              title="Proofs"
-              subtitle={data?.proofOk ? "Proof OK" : "Submit during the valid window"}
-              defaultOpen={false}
-              icon={BadgeCheck}
-            >
-              <div className="space-y-3">
-                <div className="text-sm">
-                  <div className="text-(--text-muted) text-xs uppercase tracking-wider">Required verifier</div>
-                  <div className="mt-1">
-                    <code className="mono">{short(String((data as any)?.verifierUsed ?? data?.verifier ?? ""))}</code>
-                  </div>
-                </div>
-                {challengeIdStr ? (
-                  <ActionRow
-                    primaryLabel="Submit proof"
-                    onPrimary={() => router.push(`/proofs/${challengeIdStr}`)}
-                    secondaryLabel="All proofs"
-                    onSecondary={() => router.push(`/proofs/${challengeIdStr}`)}
-                  />
-                ) : null}
-              </div>
-            </CollapsiblePanel>
-          ) : null}
 
           {/* Admin finalize */}
           {isAdmin && !shouldShowClaims ? (

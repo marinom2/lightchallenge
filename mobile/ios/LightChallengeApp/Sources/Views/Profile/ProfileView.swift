@@ -65,8 +65,38 @@ struct ProfileView: View {
                     Label("Activity Sources", systemImage: "heart.fill")
                 }
 
-                // Notifications
+                // Notifications & Activity
                 Section {
+                    NavigationLink {
+                        ActivityView()
+                    } label: {
+                        HStack(spacing: LC.space12) {
+                            Image(systemName: "tray.fill")
+                                .foregroundStyle(LC.accent)
+                                .frame(width: 28)
+
+                            VStack(alignment: .leading, spacing: LC.space2) {
+                                Text("Activity")
+                                    .font(.subheadline)
+                                Text("Challenge updates, results, claims")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+
+                            Spacer()
+
+                            if notificationService.unreadCount > 0 {
+                                Text("\(notificationService.unreadCount)")
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 2)
+                                    .background(LC.accent)
+                                    .clipShape(Capsule())
+                            }
+                        }
+                    }
+
                     notificationRow
                 } header: {
                     Label("Notifications", systemImage: "bell.fill")
@@ -93,7 +123,7 @@ struct ProfileView: View {
                         }
 
                         Button {
-                            if let url = URL(string: "https://testnet.lightchain.ai/address/\(appState.walletAddress)") {
+                            if let url = URL(string: "https://testnet.lightscan.app/address/\(appState.walletAddress)") {
                                 UIApplication.shared.open(url)
                             }
                         } label: {

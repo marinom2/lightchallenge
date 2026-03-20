@@ -15,8 +15,7 @@ import type { LucideIcon } from "lucide-react";
 import { GlassIcon } from "@/app/components/ui/GlassIcon";
 import UnderlineTabs, { UnderlineTab } from "@/app/components/ui/UnderlineTabs";
 import type { TabKey, ApiOut } from "../lib/types";
-import { groupByDate, timeAgo, short } from "../lib/formatters";
-import { addressUrl, blockUrl, txUrl } from "@/lib/explorer";
+import { timeAgo } from "../lib/formatters";
 
 export function CollapsiblePanel({
   title,
@@ -244,73 +243,54 @@ export function SectionPanel({
   );
 }
 
-export function ChainTimeline({ items }: { items: ApiOut["timeline"] }) {
-  const days = groupByDate(items);
+/** Human-readable event label mapping. Strips blockchain jargon. */
+const EVENT_LABELS: Record<string, string> = {
+  ChallengeCreated: "Challenge created",
+  Joined: "Participant joined",
+  ProofSubmitted: "Proof submitted",
+  Finalized: "Result finalized",
+  OutcomeSet: "Outcome recorded",
+  WinnerClaimed: "Reward claimed",
+  LoserClaimed: "Stake returned",
+  RefundClaimed: "Refund processed",
+};
 
-  const sameText = (a?: string, b?: string) => {
-    const x = (a ?? "").trim().toLowerCase();
-    const y = (b ?? "").trim().toLowerCase();
-    return !!x && !!y && x === y;
-  };
+export function ChainTimeline({ items }: { items: ApiOut["timeline"] }) {
+  if (!items || items.length === 0) return null;
+
+  // Deduplicate by event name (keep latest of each type)
+  const seen = new Set<string>();
+  const deduped = items.filter((t) => {
+    if (seen.has(t.name)) return false;
+    seen.add(t.name);
+    return true;
+  });
 
   return (
     <div className="timeline relative">
       <div aria-hidden className="timeline__spine" />
 
-      {days.map(({ date, arr }) => (
-        <div key={date} className="timeline__day space-y-3">
-          <div className="timeline__date">{date}</div>
+      <div className="timeline__list">
+        {deduped.map((t, i) => {
+          const isLast = i === deduped.length - 1;
+          const label = EVENT_LABELS[t.name] ?? t.label ?? t.name;
 
-          <div className="timeline__list">
-            {arr.map((t) => {
-              const hideLabel = sameText(t.name, t.label);
+          return (
+            <div key={`${t.name}-${t.timestamp ?? i}`} className="timeline__row">
+              <span aria-hidden className="timeline__node" />
 
-              return (
-                <div key={`${t.tx}-${t.block}`} className="timeline__row">
-                  <span aria-hidden className="timeline__node" />
-
-                  <div className="timeline__card">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="chip chip--soft py-1!">{t.name}</span>
-                      {!hideLabel ? <div className="font-medium text-sm sm:text-base">{t.label}</div> : null}
-                    </div>
-
-                    <div className="timeline__meta mt-2 text-sm">
-                      {t.timestamp ? (
-                        <>
-                          <span className="tabular-nums">{new Date(t.timestamp * 1000).toLocaleTimeString()}</span>
-                          <span> • </span>
-                          <span>{timeAgo(t.timestamp * 1000)}</span>
-                          <span> • </span>
-                        </>
-                      ) : null}
-
-                      <a className="link" target="_blank" rel="noreferrer" href={blockUrl(t.block)}>
-                        Block #{t.block}
-                      </a>
-
-                      <span> • </span>
-
-                      <a className="link" target="_blank" rel="noreferrer" href={txUrl(t.tx)}>
-                        {t.tx.slice(0, 10)}…
-                      </a>
-
-                      {t.who ? (
-                        <>
-                          <span> • </span>
-                          <a className="link" target="_blank" rel="noreferrer" href={addressUrl(t.who)}>
-                            {short(t.who)}
-                          </a>
-                        </>
-                      ) : null}
-                    </div>
+              <div className={isLast ? "timeline__card pb-0" : "timeline__card"}>
+                <div className="font-medium text-sm">{label}</div>
+                {t.timestamp ? (
+                  <div className="text-xs text-(--text-muted) mt-0.5">
+                    {timeAgo(t.timestamp * 1000)}
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

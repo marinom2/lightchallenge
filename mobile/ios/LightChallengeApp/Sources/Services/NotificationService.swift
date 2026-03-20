@@ -13,6 +13,7 @@ class NotificationService: ObservableObject {
     @Published var deviceToken: String?
     @Published var notifications: [AppNotification] = []
     @Published var unreadCount: Int = 0
+    @Published var isLoading = false
 
     // MARK: - Permission
 
@@ -64,18 +65,31 @@ class NotificationService: ObservableObject {
             return
         }
 
+        isLoading = true
+        defer { isLoading = false }
+
+        // Load from local cache first if empty
+        if notifications.isEmpty {
+            let cached = await CacheService.shared.loadCachedNotifications(wallet: wallet)
+            if let cached, !cached.isEmpty {
+                notifications = cached
+                unreadCount = cached.filter { !$0.read }.count
+            }
+        }
+
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
 
             if let items = json?["data"] as? [[String: Any]] {
                 notifications = items.compactMap { AppNotification(json: $0) }
+                await CacheService.shared.cacheNotifications(notifications, wallet: wallet)
             }
             if let unread = json?["unread"] as? Int {
                 unreadCount = unread
             }
         } catch {
-            // Silently fail
+            // Silently fail — cached data shown above
         }
     }
 
@@ -94,6 +108,26 @@ class NotificationService: ObservableObject {
         for i in notifications.indices {
             notifications[i].read = true
         }
+        await CacheService.shared.cacheNotifications(notifications, wallet: wallet)
+    }
+
+    // MARK: - Mark Single Read
+
+    func markRead(id: String, baseURL: String, wallet: String) async {
+        // Optimistic local update
+        if let idx = notifications.firstIndex(where: { $0.id == id && !$0.read }) {
+            notifications[idx].read = true
+            unreadCount = max(0, unreadCount - 1)
+            await CacheService.shared.cacheNotifications(notifications, wallet: wallet)
+        }
+
+        // Fire-and-forget to server
+        guard let url = URL(string: "\(baseURL)/api/v1/notifications/\(id)/read") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["wallet": wallet])
+        _ = try? await URLSession.shared.data(for: request)
     }
 
     // MARK: - Local Notifications
@@ -318,14 +352,17 @@ class NotificationService: ObservableObject {
 
 // MARK: - Notification Model
 
-struct AppNotification: Identifiable {
+struct AppNotification: Identifiable, Codable {
     let id: String
     let type: String
     let title: String
     let body: String?
-    let data: [String: Any]
+    let dataDict: [String: String]  // Flattened string dict for Codable
     var read: Bool
     let createdAt: Date?
+
+    /// Access data as [String: Any] for backward compatibility.
+    var data: [String: Any] { dataDict as [String: Any] }
 
     init?(json: [String: Any]) {
         guard let id = json["id"] as? String,
@@ -337,8 +374,16 @@ struct AppNotification: Identifiable {
         self.type = type
         self.title = title
         self.body = json["body"] as? String
-        self.data = json["data"] as? [String: Any] ?? [:]
         self.read = json["read"] as? Bool ?? false
+
+        // Flatten data dict to [String: String] for persistence
+        var flat: [String: String] = [:]
+        if let raw = json["data"] as? [String: Any] {
+            for (k, v) in raw {
+                flat[k] = "\(v)"
+            }
+        }
+        self.dataDict = flat
 
         if let ts = json["created_at"] as? String {
             self.createdAt = ISO8601DateFormatter().date(from: ts)

@@ -53,6 +53,18 @@ actor CacheService {
         return try? JSONDecoder().decode([MyChallenge].self, from: data)
     }
 
+    // MARK: - Notifications Cache
+
+    func cacheNotifications(_ notifications: [AppNotification], wallet: String) {
+        guard let data = try? JSONEncoder().encode(notifications) else { return }
+        write(data, key: "notifications_\(wallet.prefix(10))", ttl: 86400)  // 24h TTL
+    }
+
+    func loadCachedNotifications(wallet: String) -> [AppNotification]? {
+        guard let data = read(key: "notifications_\(wallet.prefix(10))", maxAge: 86400) else { return nil }
+        return try? JSONDecoder().decode([AppNotification].self, from: data)
+    }
+
     // MARK: - Challenge Metas Cache
 
     func cacheChallengeMetas(_ metas: [String: ChallengeMeta], wallet: String) {

@@ -17,6 +17,7 @@
 		22C7BD51A23BA1663439FA74 /* NotificationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 585BC1959D4139EB7E5DF876 /* NotificationsView.swift */; };
 		2D0FCA3E5F088B4D5B1A30B1 /* ClaimsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CED0C0C6160E432CAB20B6DC /* ClaimsView.swift */; };
 		360DDF3AFCCAFBDAB38400AC /* TokenPriceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DF25EB93B383D73BB3DCF4D /* TokenPriceService.swift */; };
+		388E877F5133BAD4AFC99A2B /* ActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F422095BABCCEAD9DF49C204 /* ActivityView.swift */; };
 		402C717303E005E670598505 /* ProgressMetricsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F80B06CE448373535FB30BB /* ProgressMetricsView.swift */; };
 		4229DDC4AB359F338A1BE4BB /* ReownAppKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1541795F8BBD0D69D53472F0 /* ReownAppKit */; };
 		43D74F474BAE2BA81DAD7ECF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64FC4B6EF61438B2E4A3AE31 /* SettingsView.swift */; };
@@ -118,6 +119,7 @@
 		ED219551AFC2F563795F7780 /* CacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheService.swift; sourceTree = "<group>"; };
 		F139A8BDB67BE8BC3F759294 /* LibraryView.swift.bak */ = {isa = PBXFileReference; path = LibraryView.swift.bak; sourceTree = "<group>"; };
 		F1C1D766527690196F6FB79F /* AvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarView.swift; sourceTree = "<group>"; };
+		F422095BABCCEAD9DF49C204 /* ActivityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -177,6 +179,7 @@
 		2A2299DCC32F1A501E300160 /* Activity */ = {
 			isa = PBXGroup;
 			children = (
+				F422095BABCCEAD9DF49C204 /* ActivityView.swift */,
 				48C119618E8F45A5DC431D0D /* MyActivityView.swift */,
 			);
 			path = Activity;
@@ -445,6 +448,7 @@
 				E8DA5005C7B7D20CEA1B862C /* AchievementsView.swift in Sources */,
 				BD50E3316C1B92770332DB70 /* ActivityFigureView.swift in Sources */,
 				5CA03EA8EC7B3568759E1ADE /* ActivitySourceNudgeSheet.swift in Sources */,
+				388E877F5133BAD4AFC99A2B /* ActivityView.swift in Sources */,
 				CF3E4B50FF79FA9FE4F9A8F3 /* AppState.swift in Sources */,
 				0CF75325BF09048735805AD1 /* AutoProofService.swift in Sources */,
 				60E3802C318601DD043D4F1E /* AvatarPickerView.swift in Sources */,
