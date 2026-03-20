@@ -80,29 +80,33 @@ struct VerificationBadge: View {
 
     var body: some View {
         if hasVerification {
-            Button(action: onTap) {
-                HStack(spacing: LC.space6) {
-                    Image(systemName: "checkmark.shield")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(LC.accent.opacity(0.7))
+            HStack(spacing: LC.space6) {
+                // Static label — informational, not interactive
+                Image(systemName: "checkmark.shield")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(LC.accent.opacity(0.7))
 
-                    Text("Verified on LightChallenge")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(LC.textTertiary(scheme))
+                Text("Verified on LightChallenge")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(LC.textTertiary(scheme))
 
-                    Spacer()
+                Spacer()
 
-                    Text("View verification")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(LC.accent.opacity(0.7))
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 8, weight: .semibold))
-                        .foregroundStyle(LC.accent.opacity(0.5))
+                // Action — only interactive element
+                Button(action: onTap) {
+                    HStack(spacing: LC.space4) {
+                        Text("View verification")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(LC.accent.opacity(0.7))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 8, weight: .semibold))
+                            .foregroundStyle(LC.accent.opacity(0.5))
+                    }
                 }
-                .padding(.vertical, LC.space12)
-                .padding(.horizontal, LC.space16)
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            .padding(.vertical, LC.space12)
+            .padding(.horizontal, LC.space16)
         }
     }
 }
@@ -141,13 +145,14 @@ struct VerificationSheet: View {
                     // Explorer link
                     if let url = explorerURL {
                         Divider()
-                            .padding(.vertical, LC.space20)
+                            .padding(.top, LC.space24)
+                            .padding(.bottom, LC.space20)
 
                         Button {
                             UIApplication.shared.open(url)
                         } label: {
                             HStack(spacing: LC.space6) {
-                                Text("View on explorer")
+                                Text("View on Lightchain Explorer")
                                     .font(.footnote.weight(.medium))
                                     .foregroundStyle(LC.accent.opacity(0.8))
                                 Image(systemName: "arrow.up.right")
@@ -194,7 +199,7 @@ struct VerificationSheet: View {
             .frame(width: 16)
 
             // Content
-            VStack(alignment: .leading, spacing: LC.space2) {
+            VStack(alignment: .leading, spacing: LC.space4) {
                 Text(step.label)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(step.isCompleted ? LC.textPrimary(scheme) : LC.textTertiary(scheme))
@@ -205,7 +210,7 @@ struct VerificationSheet: View {
                         .foregroundStyle(LC.textTertiary(scheme))
                 }
             }
-            .padding(.bottom, isLast ? 0 : LC.space20)
+            .padding(.bottom, isLast ? 0 : LC.space24)
 
             Spacer()
         }

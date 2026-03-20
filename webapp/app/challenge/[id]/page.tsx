@@ -26,7 +26,7 @@ import { useHaptics } from "./hooks/useHaptics";
 import { resolvePrimaryAction } from "./lib/PrimaryActionResolver";
 
 // Extracted modules
-import type { Status, ApiOut, TabKey } from "./lib/types";
+import type { Status, ApiOut } from "./lib/types";
 import { safeLower, safeBigintFrom, safeParseId, normalizeDecimalInput, toNum, fetchJson } from "./lib/utils";
 import { decodeSnapshot, decodeChallenge, normalizeApi } from "./lib/decoders";
 import {
@@ -37,10 +37,10 @@ import {
 import { formatWeiAsUSD } from "@/lib/tokenPrice";
 import { useTokenPrice } from "@/lib/useTokenPrice";
 import { usePullToRefresh } from "./hooks/usePullToRefresh";
-import { SkeletonLine, HeroSummarySkeleton, PrimaryActionSkeleton } from "./components/Skeletons";
-import { StatusCapsule, HeroProgress } from "./components/HeroSection";
+import { SkeletonLine, HeroSummarySkeleton } from "./components/Skeletons";
+import { StatusCapsule } from "./components/HeroSection";
 import { PrimaryActionCard, JoinCard } from "./components/ActionCards";
-import { CollapsiblePanel, ActionRow, TabBar, DLGrid, ChainTimeline } from "./components/DetailPanels";
+import { CollapsiblePanel, ActionRow, DLGrid, ChainTimeline } from "./components/DetailPanels";
 import { ActivityFigure, detectActivity, ACTIVITY_LABELS, getActivityColor } from "./components/ActivityFigure";
 
 
@@ -69,7 +69,7 @@ const {
   DoorOpen,
 } = Lucide;
 
-// NOTE: Types (Status, ApiOut, SnapshotOut, TabKey) → ./lib/types.ts
+// NOTE: Types (Status, ApiOut, SnapshotOut) → ./lib/types.ts
 // NOTE: Utilities (isHexAddress, safeLower, etc.) → ./lib/utils.ts
 // NOTE: Decoders (decodeChallenge, decodeSnapshot, normalizeApi) → ./lib/decoders.ts
 // NOTE: Formatters (formatWeiAsUSD, timeAgo, etc.) → ./lib/formatters.tsx + @/lib/tokenPrice
@@ -252,6 +252,7 @@ function VerificationBadge({
   if (!hasTx) return null;
 
   // Map timeline events to human-readable verification steps (same as iOS VerificationStep)
+  // Architecture note: each step retains its tx for future per-step explorer links
   const stepMapping = [
     { name: "ChallengeCreated", label: "Challenge created" },
     { name: "Joined", label: "Participants joined" },
@@ -279,15 +280,18 @@ function VerificationBadge({
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 px-4 py-2.5 w-full text-left hover:bg-white/5 transition-colors rounded-lg"
-      >
-        <Lucide.ShieldCheck size={14} className="shrink-0 text-emerald-500/70" />
-        <span className="text-xs font-medium text-[var(--text-muted)]">Verified on LightChallenge</span>
-        <span className="ml-auto text-xs font-medium text-emerald-500/70">View verification</span>
-        <Lucide.ChevronRight size={10} className="shrink-0 text-emerald-500/50" />
-      </button>
+      {/* Inline badge — left: static label, right: interactive action */}
+      <div className="flex items-center px-4 py-3 w-full">
+        <Lucide.ShieldCheck size={14} className="shrink-0 text-emerald-500/70 mr-1.5" />
+        <span className="text-xs font-medium text-(--text-muted)">Verified on LightChallenge</span>
+        <button
+          onClick={() => setOpen(true)}
+          className="ml-auto flex items-center gap-1 text-xs font-medium text-emerald-500/70 hover:text-emerald-400 transition-colors rounded-md px-2 py-1 -mr-2 hover:bg-white/5"
+        >
+          View verification
+          <Lucide.ChevronRight size={10} className="shrink-0 opacity-70" />
+        </button>
+      </div>
 
       {/* Verification sheet (modal) */}
       <AnimatePresence>
@@ -304,48 +308,59 @@ function VerificationBadge({
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 40, opacity: 0 }}
               transition={{ type: "spring", damping: 28, stiffness: 320 }}
-              className="bg-[var(--card-bg,#1a1a1a)] rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[80vh] overflow-y-auto p-6"
+              className="bg-(--card-bg,#1a1a1a) rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[80vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-5">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 pt-6 pb-4">
                 <h3 className="text-base font-semibold">Verification</h3>
-                <button onClick={() => setOpen(false)} className="text-xs font-medium text-emerald-500">Done</button>
+                <button
+                  onClick={() => setOpen(false)}
+                  className="text-sm font-medium text-emerald-500 hover:text-emerald-400 transition-colors px-2 py-1 -mr-2 rounded-md hover:bg-white/5"
+                >
+                  Done
+                </button>
               </div>
 
               {/* Steps */}
-              <div className="space-y-0">
-                {steps.map((step, i) => (
-                  <div key={step.name} className="flex items-start gap-3">
-                    <div className="flex flex-col items-center">
-                      <Lucide.CheckCircle2 size={16} className="text-emerald-500/70 shrink-0" />
-                      {i < steps.length - 1 && <div className="w-px flex-1 min-h-[24px] bg-emerald-500/10" />}
+              <div className="px-6 pb-2">
+                {steps.map((step, i) => {
+                  const isLast = i === steps.length - 1;
+                  return (
+                    <div key={step.name} className="flex items-start gap-3.5">
+                      {/* Indicator column */}
+                      <div className="flex flex-col items-center w-4 shrink-0">
+                        <Lucide.CheckCircle2 size={16} className="text-emerald-500/70" />
+                        {!isLast && <div className="w-px flex-1 min-h-7 bg-emerald-500/10" />}
+                      </div>
+                      {/* Content */}
+                      <div className={isLast ? "pb-0" : "pb-6"}>
+                        <div className="text-sm font-medium leading-4">{step.label}</div>
+                        {step.timestamp ? (
+                          <div className="text-[11px] text-(--text-muted) mt-1 leading-tight">
+                            {new Date(step.timestamp * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
-                    <div className={`pb-5 ${i === steps.length - 1 ? "pb-0" : ""}`}>
-                      <div className="text-sm font-medium">{step.label}</div>
-                      {step.timestamp ? (
-                        <div className="text-xs text-[var(--text-muted)] mt-0.5">
-                          {new Date(step.timestamp * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Explorer link */}
               {primaryTx && (
-                <>
-                  <hr className="border-white/5 my-5" />
+                <div className="px-6 pb-6 pt-3">
+                  <hr className="border-white/6 mb-5" />
                   <a
                     href={txUrl(primaryTx)}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center gap-1.5 text-sm font-medium text-emerald-500/80 hover:text-emerald-400 transition-colors"
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-500/80 hover:text-emerald-400 transition-colors"
                   >
-                    View on explorer
+                    View on Lightchain Explorer
                     <Lucide.ArrowUpRight size={12} />
                   </a>
-                </>
+                </div>
               )}
             </motion.div>
           </motion.div>
@@ -477,7 +492,7 @@ export default function ChallengePage() {
 
   const rootRef = React.useRef<HTMLDivElement>(null);
 
-  const [tab, setTab] = React.useState<TabKey>("overview");
+  // Tab state removed — iOS-style single-column layout replaces tabs
   const [data, setData] = React.useState<ApiOut | null>(null);
   /** Fast preview from DB meta \u2014 populated before slow RPC call completes */
   const [metaPreview, setMetaPreview] = React.useState<{ title?: string; description?: string } | null>(null);
@@ -1697,209 +1712,254 @@ const primaryAction = React.useMemo(() => {
   const outcomeFromChain = decoded.outcome ?? null;
 
   // ────────────────────────────────────────────────────────────────────────────
-  // Build extracted layout slots
+  // Computed values for render
   // ────────────────────────────────────────────────────────────────────────────
-  const header = (
-    <div className="cd-header">
-      {/* Pull-to-refresh indicator (mobile) */}
-      {ptrEnabled && (refreshing || ptr.pullPx > 2) ? (
-        <div className="cd-ptr">
-          <div className="chip chip--soft">
-            {refreshing ? (
-              <span className="inline-flex items-center gap-2">
-                <RefreshCcw size={14} className="animate-spin" /> Refreshing…
+
+  // Activity type (memoized, used in hero + action card)
+  const activityType = React.useMemo(() => {
+    if (data?.category !== "Fitness") return null;
+    const paramsObj = typeof data?.params === "object" && data?.params ? data.params : {};
+    const proofParams = data?.proof?.params;
+    const metricField = (proofParams as any)?.rules?.metric ?? (proofParams as any)?.metric ?? (paramsObj as any)?.rules?.metric ?? (paramsObj as any)?.metric ?? null;
+    return detectActivity({ title: metaTitle, description: metaDesc, modelId: data?.modelId, game: data?.game, tags: data?.tags, metric: metricField });
+  }, [data?.category, data?.params, data?.proof?.params, data?.modelId, data?.game, data?.tags, metaTitle, metaDesc]);
+
+  // User-scoped timeline (memoized, used in timeline section)
+  const myTimeline = React.useMemo(() => {
+    const me = address?.toLowerCase();
+    const globalEvents = new Set(["ChallengeCreated", "Finalized", "OutcomeSet"]);
+    return me
+      ? timeline.filter((t) => globalEvents.has(t.name) || (t.who && t.who.toLowerCase() === me))
+      : timeline.filter((t) => globalEvents.has(t.name));
+  }, [timeline, address]);
+
+  // Fitness instruction text for action card
+  const fitnessInstruction = React.useMemo(() => {
+    if (!challengeProgress || !activityType) return null;
+    const label = ACTIVITY_LABELS[activityType];
+    return `Cover ${challengeProgress.goalValue} ${challengeProgress.metricLabel} total`;
+  }, [challengeProgress, activityType]);
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Render
+  // ────────────────────────────────────────────────────────────────────────────
+
+  return (
+    <>
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {ariaStatus}
+      </div>
+
+      <div ref={rootRef}>
+        <ChallengeLayout showCompletion={showCompletion}>
+          {/* ═══════════════════════════════════════════════════════════════════
+              SECTION 1 — HERO CARD
+              ═══════════════════════════════════════════════════════════════════ */}
+          <div className="cd-header">
+            {/* Pull-to-refresh indicator (mobile) */}
+            {ptrEnabled && (refreshing || ptr.pullPx > 2) ? (
+              <div className="cd-ptr">
+                <div className="chip chip--soft">
+                  {refreshing ? (
+                    <span className="inline-flex items-center gap-2">
+                      <RefreshCcw size={14} className="animate-spin" /> Refreshing…
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-2">
+                      <ChevronDown size={14} />
+                      {ptr.armed ? "Release to refresh" : "Pull to refresh"}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Nav row */}
+            <div className="cd-nav">
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => router.push("/explore")} aria-label="Back">
+                <ArrowLeft size={16} />
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => fetchOnce()}
+                disabled={!id || refreshing}
+                aria-label="Refresh"
+              >
+                <RefreshCcw size={16} className={refreshing ? "animate-spin" : ""} />
+              </button>
+              <span className="cd-nav__updated">
+                {lastUpdatedAt ? `Updated ${timeAgo(lastUpdatedAt)}` : ""}
               </span>
-            ) : (
-              <span className="inline-flex items-center gap-2">
-                <ChevronDown size={14} />
-                {ptr.armed ? "Release to refresh" : "Pull to refresh"}
-              </span>
+            </div>
+
+            {/* Status + ID row */}
+            <div className="cd-title-row" style={{ justifyContent: "center" }}>
+              <StatusCapsule label={publicStatus.label} note={publicStatus.note} />
+              <span className="cd-id">#{id ?? "—"}</span>
+            </div>
+
+            {/* Activity figure (centered, iOS hero ring) */}
+            {!isInitialLoading && activityType && (
+              <div className="cd-hero-figure">
+                <ActivityFigure
+                  activity={activityType}
+                  size={110}
+                  isActive={effectiveStatus === "Active"}
+                />
+              </div>
             )}
+
+            {/* Large metric display (iOS-style: "0 km" + "Goal: 20") */}
+            {!isInitialLoading && challengeProgress && challengeProgress.goalValue > 0 ? (
+              <div className="cd-hero-metric">
+                <div className="cd-hero-metric__value">
+                  {challengeProgress.currentValue} {challengeProgress.metricLabel}
+                </div>
+                <div className="cd-hero-metric__goal">
+                  Goal: {challengeProgress.goalValue}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Title + description (centered) */}
+            {isInitialLoading ? (
+              <div className="cd-title-skeleton">
+                {metaPreview?.title ? (
+                  <>
+                    <h1 className="cd-title cd-title--centered">{metaPreview.title}</h1>
+                    {metaPreview.description && <p className="cd-desc cd-desc--centered">{metaPreview.description}</p>}
+                    <SkeletonLine className="h-3 w-[min(260px,50%)] opacity-40 mx-auto" />
+                  </>
+                ) : (
+                  <>
+                    <SkeletonLine className="h-7 w-[min(520px,90%)] mx-auto" />
+                    <SkeletonLine className="h-4 w-[min(680px,95%)] mx-auto" />
+                  </>
+                )}
+              </div>
+            ) : (
+              <>
+                <h1 className="cd-title cd-title--centered">{metaTitle || `Challenge #${id}`}</h1>
+                {metaDesc && <p className="cd-desc cd-desc--centered">{metaDesc}</p>}
+              </>
+            )}
+
+            {/* Phase banner — lifecycle countdown */}
+            {!isInitialLoading && (startSec || endSec) && (
+              <PhaseBanner
+                joinCloseSec={joinCloseSec ?? null}
+                startSec={startSec ?? null}
+                endSec={endSec ?? null}
+                proofDeadlineSec={proofDeadlineSec}
+                effectiveStatus={effectiveStatus}
+                snapshotSet={snapshotSet}
+                snapshotSuccess={decodedSnapshot?.success}
+              />
+            )}
+
+            {/* Reward + participants (iOS rewardLine) */}
+            {!isInitialLoading ? (
+              <div className="cd-hero-footer">
+                <div className="cd-hero-footer__reward">
+                  <span className="cd-hero-footer__amount">{formatWeiAsUSD(treasuryWei, tokenPrice)}</span>
+                  <span className="cd-hero-footer__caption">
+                    {publicStatus.label === "Completed" ? "Final pot" : "Potential reward"}
+                  </span>
+                </div>
+                <div className="cd-hero-footer__participants">
+                  {fmtNum(participantsCountFromChain)} participant{Number(participantsCountFromChain) !== 1 ? "s" : ""}
+                </div>
+              </div>
+            ) : (
+              <HeroSummarySkeleton />
+            )}
+
+            {/* Auto-proof status indicator */}
+            {hasJoined && autoProofStatus.state !== "idle" && (
+              <AnimatePresence>
+                <AutoProofIndicator status={autoProofStatus} onRetry={triggerAutoProof} />
+              </AnimatePresence>
+            )}
+
+            {/* Error */}
+            <AnimatePresence>
+              {err ? (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  className="cd-error"
+                >
+                  <div className="text-sm font-medium">Couldn’t load this challenge.</div>
+                  <div className="text-sm text-(--text-muted) mt-1">{err}</div>
+                  <button className="btn btn-primary btn-sm mt-3" onClick={() => fetchOnce()} disabled={refreshing}>
+                    {refreshing ? "Refreshing…" : "Try again"}
+                  </button>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
           </div>
-        </div>
-      ) : null}
 
-      {/* Nav row */}
-      <div className="cd-nav">
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => router.push("/explore")} aria-label="Back">
-          <ArrowLeft size={16} />
-        </button>
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          onClick={() => fetchOnce()}
-          disabled={!id || refreshing}
-          aria-label="Refresh"
-        >
-          <RefreshCcw size={16} className={refreshing ? "animate-spin" : ""} />
-        </button>
-        <span className="cd-nav__updated">
-          {lastUpdatedAt ? `Updated ${timeAgo(lastUpdatedAt)}` : ""}
-        </span>
-      </div>
+          {/* ═══════════════════════════════════════════════════════════════════
+              SECTION 2 — ACTION CARD (iOS "What You Need To Do")
+              ═══════════════════════════════════════════════════════════════════ */}
 
-      {/* Title + status */}
-      <div className="cd-title-row">
-        <StatusCapsule label={publicStatus.label} note={publicStatus.note} />
-        <span className="cd-id">#{id ?? "—"}</span>
-      </div>
-
-      {/* Activity figure + label */}
-      {data?.category === "Fitness" && (() => {
-        const paramsObj = typeof data?.params === "object" && data?.params ? data.params : {};
-        const proofParams = data?.proof?.params;
-        const metricField = (proofParams as any)?.rules?.metric ?? (proofParams as any)?.metric ?? (paramsObj as any)?.rules?.metric ?? (paramsObj as any)?.metric ?? null;
-        const activityType = detectActivity({ title: metaTitle, description: metaDesc, modelId: data?.modelId, game: data?.game, tags: data?.tags, metric: metricField });
-        return (
-          <div className="flex flex-col items-center gap-1.5 py-2">
-            <ActivityFigure
-              activity={activityType}
-              size={120}
-              isActive={effectiveStatus === "Active"}
-            />
-            <span className="text-sm font-medium" style={{ color: getActivityColor(activityType) }}>
-              {ACTIVITY_LABELS[activityType]}
-            </span>
-          </div>
-        );
-      })()}
-
-      {isInitialLoading ? (
-        <div className="cd-title-skeleton">
-          {metaPreview?.title ? (
-            <>
-              <h1 className="cd-title">{metaPreview.title}</h1>
-              {metaPreview.description && <p className="cd-desc">{metaPreview.description}</p>}
-              <SkeletonLine className="h-3 w-[min(260px,50%)] opacity-40" />
-            </>
-          ) : (
-            <>
-              <SkeletonLine className="h-7 w-[min(520px,90%)]" />
-              <SkeletonLine className="h-4 w-[min(680px,95%)]" />
-            </>
+          {/* Primary action (claims, join, proofs, status) */}
+          {!isInitialLoading && (
+            <PrimaryActionCard action={primaryAction as any} busy={busy} />
           )}
-        </div>
-      ) : (
-        <>
-          <h1 className="cd-title">{metaTitle || `Challenge #${id}`}</h1>
-          {metaDesc && <p className="cd-desc">{metaDesc}</p>}
-        </>
-      )}
 
-      {/* Key stats row */}
-      {!isInitialLoading ? (
-        <div className="cd-stats">
-          <div className="cd-stat">
-            <span className="cd-stat__label">{treasuryLabel}</span>
-            <span className="cd-stat__value">{formatWeiAsUSD(treasuryWei, tokenPrice)}</span>
-          </div>
-          <div className="cd-stat">
-            <span className="cd-stat__label">Participants</span>
-            <span className="cd-stat__value">{fmtNum(participantsCountFromChain)}</span>
-          </div>
-          <div className="cd-stat">
-            <span className="cd-stat__label">Starts</span>
-            <span className="cd-stat__value">{ts(startSec, "TBD")}</span>
-          </div>
-          <div className="cd-stat">
-            <span className="cd-stat__label">Ends</span>
-            <span className="cd-stat__value">{ts(endSec, "TBD")}</span>
-          </div>
-        </div>
-      ) : (
-        <HeroSummarySkeleton />
-      )}
+          {/* Join card */}
+          {shouldShowJoin ? (
+            <JoinCard
+              hasJoined={hasJoined}
+              canInitialJoin={canInitialJoin}
+              canTopUp={canTopUp}
+              tokenFromChain={tokenFromChain}
+              myJoinedTotalWei={myJoinedTotalWei}
+              busy={busy}
+              disabledReason={joinDisabledReason}
+              onJoin={smartJoin}
+            />
+          ) : null}
 
-      {/* Progress bar */}
-      {!isInitialLoading && (
-        <HeroProgress start={startSec ?? null} end={endSec ?? null} joinClose={joinCloseSec ?? null} status={effectiveStatus} snapshotSuccess={decodedSnapshot?.success} snapshotSet={snapshotSet} challengeProgress={challengeProgress} />
-      )}
-
-      {/* Phase banner — lifecycle countdown */}
-      {!isInitialLoading && (startSec || endSec) && (
-        <PhaseBanner
-          joinCloseSec={joinCloseSec ?? null}
-          startSec={startSec ?? null}
-          endSec={endSec ?? null}
-          proofDeadlineSec={proofDeadlineSec}
-          effectiveStatus={effectiveStatus}
-          snapshotSet={snapshotSet}
-          snapshotSuccess={decodedSnapshot?.success}
-        />
-      )}
-
-      {/* Auto-proof status indicator */}
-      {hasJoined && autoProofStatus.state !== "idle" && (
-        <AnimatePresence>
-          <AutoProofIndicator status={autoProofStatus} onRetry={triggerAutoProof} />
-        </AnimatePresence>
-      )}
-
-      {/* Error */}
-      <AnimatePresence>
-        {err ? (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            className="cd-error"
-          >
-            <div className="text-sm font-medium">Couldn’t load this challenge.</div>
-            <div className="text-sm text-(--text-muted) mt-1">{err}</div>
-            <button className="btn btn-primary btn-sm mt-3" onClick={() => fetchOnce()} disabled={refreshing}>
-              {refreshing ? "Refreshing…" : "Try again"}
-            </button>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </div>
-  );
-
-  const details = (
-    <div className="cd-details">
-      <TabBar value={tab} onChange={setTab} />
-
-      {tab === "overview" && (
-        <div className="cd-tab-content">
-          {/* Basics + Participation */}
-          <DLGrid
-            rows={[
-              ["Title", metaTitle || `Challenge #${id}`],
-              ...(metaDesc ? [["Description", metaDesc] as [string, string]] : []),
-              ["Category", safe(data?.category, "General")],
-              ...(data?.game ? [["Game", prettyGame(data.game) || safe(data.game)] as [string, string]] : []),
-              ...(data?.mode ? [["Mode", safe(data.mode)] as [string, string]] : []),
-              ["Participants", `${fmtNum(participantsCountFromChain)} / ${formatMaxParticipants(maxParticipantsFromChain)}`],
-              ["Join closes", ts(joinCloseSec, "Open until start")],
-              ["Your stake", myJoinedTotalWei != null ? formatWeiAsUSD(myJoinedTotalWei.toString(), tokenPrice) : "Not joined"],
-            ]}
-          />
-
-          {/* Economics */}
-          <div className="cd-metrics-row">
-            <div className="cd-metric-card">
-              <div className="cd-metric-card__label">{treasuryLabel}</div>
-              <div className="cd-metric-card__value">{formatWeiAsUSD(treasuryWei, tokenPrice)}</div>
-            </div>
-            <div className="cd-metric-card">
-              <div className="cd-metric-card__label">Creator stake</div>
-              <div className="cd-metric-card__value">{formatWeiAsUSD(stakeWei, tokenPrice)}</div>
-            </div>
-            <div className="cd-metric-card">
-              <div className="cd-metric-card__label">Currency</div>
-              <div className="cd-metric-card__value">
-                {currencyFromChain === 0 || tokenFromChain === ZERO
-                  ? "Native"
-                  : tokenFromChain ? `ERC-20 ${short(tokenFromChain)}` : "Native"}
+          {/* Contextual action card — fitness instruction / outcome */}
+          {!isInitialLoading && data?.category === "Fitness" && activityType && isInProgress && fitnessInstruction ? (
+            <div className="cd-action-card">
+              <div className="cd-action-card__header">
+                <Lucide.Target size={18} style={{ color: getActivityColor(activityType) }} />
+                What You Need To Do
+              </div>
+              <div className="cd-action-card__instruction">{fitnessInstruction}</div>
+              <div className="cd-action-card__meta">
+                <div className="cd-action-card__meta-row">
+                  <span className="meta-icon"><Lucide.Route size={12} className="text-(--text-muted)" /></span>
+                  <span className="meta-label">Distance</span>
+                  <span className="meta-value">{challengeProgress?.goalValue} {challengeProgress?.metricLabel}</span>
+                </div>
+                <div className="cd-action-card__meta-row">
+                  <span className="meta-icon"><Lucide.Timer size={12} className="text-(--text-muted)" /></span>
+                  <span className="meta-label">Tracking</span>
+                  <span className="meta-value">Total</span>
+                </div>
+                <div className="cd-action-card__meta-row">
+                  <span className="meta-icon"><Lucide.Calendar size={12} className="text-(--text-muted)" /></span>
+                  <span className="meta-label">Window</span>
+                  <span className="meta-value">{ts(startSec, "TBD")} – {ts(endSec, "TBD")}</span>
+                </div>
               </div>
             </div>
-          </div>
+          ) : null}
 
-          {/* Outcome snapshot */}
-          {data?.snapshot?.set ? (
-            <div className="cd-outcome">
-              <div className="cd-outcome__title">
-                Outcome: {data.snapshot.success ? "Challenge completed" : "Challenge failed"}
+          {/* Outcome card for finalized challenges */}
+          {!isInitialLoading && data?.snapshot?.set ? (
+            <div className="cd-action-card">
+              <div className="cd-action-card__header">
+                {data.snapshot.success
+                  ? <><Lucide.Trophy size={18} className="text-emerald-500" /> Challenge completed</>
+                  : <><Lucide.XCircle size={18} className="text-red-400" /> Challenge failed</>
+                }
               </div>
               <div className="cd-metrics-row">
                 <div className="cd-metric-card">
@@ -1918,260 +1978,223 @@ const primaryAction = React.useMemo(() => {
             </div>
           ) : null}
 
-          {/* Verification badge — blockchain transparency */}
-          {timeline.length > 0 && (
-            <VerificationBadge timeline={timeline as any} />
-          )}
-        </div>
-      )}
-
-      {tab === "technical" && (
-        <div className="cd-tab-content">
-          <DLGrid
-            rows={[
-              ["Proof required", yesno(data?.proofRequired)],
-              ["Proof status", data?.proofOk ? "Verified" : "Pending"],
-              ["Verifier", shortOrDash((data as any)?.verifierUsed ?? data?.verifier)],
-              ["Verification type", safe(data?.modelKind, "Standard")],
-              ...(data?.modelId ? [["Verification model", formatModelDisplay(data.modelId)] as [string, string]] : []),
-              ["Challenge type", enumLabel("kind", kindFromChain)],
-              ["Outcome", enumLabel("outcome", outcomeFromChain)],
-              ...(decoded.duration ? [["Duration", formatDuration(decoded.duration)] as [string, string]] : []),
-              ["Creator", linkAddr(data?.creator)],
-              ...(data?.createdBlock ? [["Created block", linkBlock(data.createdBlock)] as [string, any]] : []),
-              ...(data?.createdTx ? [["Created tx", linkTx(data.createdTx)] as [string, any]] : []),
-            ]}
-          />
-
-          {data?.params ? (
-            <div className="cd-params">
-              <div className="text-xs font-semibold text-(--text-muted) uppercase tracking-wider mb-2">Parameters</div>
-              <pre className="cd-params__pre">
-                {typeof data.params === "string" ? data.params : JSON.stringify(data.params, null, 2)}
-              </pre>
-            </div>
-          ) : null}
-
-          {challengeIdStr ? (
-            <ActionRow
-              primaryLabel="Submit proof"
-              onPrimary={() => router.push(`/proofs/${challengeIdStr}`)}
-              secondaryLabel="All proofs"
-              onSecondary={() => router.push(`/proofs/${challengeIdStr}`)}
-            />
-          ) : null}
-        </div>
-      )}
-
-      {tab === "activity" && (
-        <div className="cd-tab-content">
-          {!data ? (
-            <div className="empty-hint">Loading chain events…</div>
-          ) : (() => {
-            // Filter timeline to show only current user's events + challenge-wide events (Created, Finalized)
-            const me = address?.toLowerCase();
-            const globalEvents = new Set(["ChallengeCreated", "Finalized", "OutcomeSet"]);
-            const myTimeline = me
-              ? timeline.filter(
-                  (t) =>
-                    globalEvents.has(t.name) ||
-                    (t.who && t.who.toLowerCase() === me)
-                )
-              : timeline.filter((t) => globalEvents.has(t.name));
-            return myTimeline.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-state__title">No activity yet</div>
-                <div className="empty-state__sub">Your on-chain actions will appear here as you participate.</div>
-              </div>
-            ) : (
-              <ChainTimeline items={myTimeline} />
-            );
-          })()}
-        </div>
-      )}
-    </div>
-  );
-
-  const join = shouldShowJoin ? (
-    <JoinCard
-      hasJoined={hasJoined}
-      canInitialJoin={canInitialJoin}
-      canTopUp={canTopUp}
-      tokenFromChain={tokenFromChain}
-      myJoinedTotalWei={myJoinedTotalWei}
-      busy={busy}
-      disabledReason={joinDisabledReason}
-      onJoin={smartJoin}
-    />
-  ) : null;
-
-  const primaryActionNode = (
-    <div className="space-y-4">
-      {isInitialLoading ? (
-        <PrimaryActionSkeleton />
-      ) : (
-        <PrimaryActionCard action={primaryAction as any} busy={busy} />
-      )}
-
-      {/* Proofs */}
-      {shouldShowProofs ? (
-        <CollapsiblePanel
-          title="Proofs"
-          subtitle={data?.proofOk ? "Proof OK" : "Submit during the valid window"}
-          defaultOpen={false}
-          icon={BadgeCheck}
-        >
-          <div className="space-y-3">
-            <div className="text-sm">
-              <div className="text-(--text-muted) text-xs uppercase tracking-wider">Required verifier</div>
-              <div className="mt-1">
-                <code className="mono">{short(String((data as any)?.verifierUsed ?? data?.verifier ?? ""))}</code>
-              </div>
-            </div>
-
-            {challengeIdStr ? (
-              <ActionRow
-                primaryLabel="Submit proof"
-                onPrimary={() => router.push(`/proofs/${challengeIdStr}`)}
-                secondaryLabel="All proofs"
-                onSecondary={() => router.push(`/proofs/${challengeIdStr}`)}
-              />
-            ) : null}
-          </div>
-        </CollapsiblePanel>
-      ) : null}
-
-      {/* Participant verification status */}
-      {hasJoined && participantStatus ? (
-        <div className="panel">
-          <div className="panel-header">
-            <div className="min-w-0">
-              <div className="text-sm font-semibold">Your verification status</div>
-            </div>
-            {/* Verdict chips only shown after proof deadline has passed — during active
-                period and proof window, the pipeline hasn't finalized yet. */}
-            {proofDeadlinePassed && participantStatus.verdict_pass === true &&
-              participantStatus.challenge_status?.toLowerCase() === "finalized" && (
-                <span className="chip chip--ok">Claimable</span>
-            )}
-            {proofDeadlinePassed && participantStatus.verdict_pass === true &&
-              participantStatus.challenge_status?.toLowerCase() !== "finalized" &&
-              ["requested", "committed", "revealed"].includes(
-                participantStatus.aivm_verification_status ?? ""
-              ) && (
-                <span className="chip chip--info">Network pending</span>
-            )}
-            {proofDeadlinePassed && participantStatus.verdict_pass === true &&
-              !["requested", "committed", "revealed"].includes(
-                participantStatus.aivm_verification_status ?? ""
-              ) &&
-              participantStatus.challenge_status?.toLowerCase() !== "finalized" && (
-                <span className="chip chip--ok">Passed</span>
-            )}
-            {proofDeadlinePassed && participantStatus.verdict_pass === false && (
-              <span className="chip chip--bad">Failed</span>
-            )}
-            {proofDeadlinePassed && participantStatus.verdict_pass === null && participantStatus.has_evidence && (
-              <span className="chip chip--warn">Evaluating…</span>
-            )}
-            {!proofDeadlinePassed && challengeEnded && participantStatus.has_evidence && (
-              <span className="chip chip--info">Verifying</span>
-            )}
-            {!proofDeadlinePassed && challengeEnded && !participantStatus.has_evidence && (
-              <span className="chip chip--warn">Proof needed</span>
-            )}
-            {!challengeEnded && (
-              <span className="chip chip--info">In progress</span>
-            )}
-            {proofDeadlinePassed && participantStatus.verdict_pass === null && !participantStatus.has_evidence && (
-              <span className="chip chip--soft">No evidence yet</span>
-            )}
-          </div>
-          <div className="panel-body space-y-1 text-sm">
-            <div className="flex gap-2">
-              <span className="text-(--text-muted) w-32 shrink-0">Evidence</span>
-              <span>
-                {participantStatus.has_evidence
-                  ? (() => {
-                      const p = participantStatus.evidence_provider ?? "";
-                      const autoProviders = ["strava", "opendota", "riot"];
-                      const isAuto = autoProviders.includes(p.toLowerCase());
-                      return isAuto
-                        ? `Collected automatically via ${p}`
-                        : p
-                          ? `Submitted via ${p}`
-                          : "Submitted";
-                    })()
-                  : "Not submitted"}
-              </span>
-            </div>
-            {proofDeadlinePassed && participantStatus.verdict_pass === false && participantStatus.verdict_reasons?.length ? (
-              <div className="flex gap-2">
-                <span className="text-(--text-muted) w-32 shrink-0">Reason</span>
-                <span className="text-red-400">
-                  {participantStatus.verdict_reasons.slice(0, 3).join(" · ")}
-                </span>
-              </div>
-            ) : null}
-            {participantStatus.aivm_verification_status &&
-              participantStatus.aivm_verification_status !== "finalized" &&
-              participantStatus.verdict_pass !== false && (
-                <div className="flex gap-2">
-                  <span className="text-(--text-muted) w-32 shrink-0">Lightchain</span>
-                  <span className="capitalize">{participantStatus.aivm_verification_status}</span>
+          {/* Participant verification status */}
+          {hasJoined && participantStatus ? (
+            <div className="panel">
+              <div className="panel-header">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold">Your verification status</div>
                 </div>
-            )}
-            {allowanceBn > 0n && (
-              <div className="flex gap-2 mt-2">
-                <span className="text-(--text-muted) w-32 shrink-0">Claimable</span>
-                <span className="font-semibold">{formatWeiAsUSD(allowanceBn.toString(), tokenPrice)}</span>
+                {proofDeadlinePassed && participantStatus.verdict_pass === true &&
+                  participantStatus.challenge_status?.toLowerCase() === "finalized" && (
+                    <span className="chip chip--ok">Claimable</span>
+                )}
+                {proofDeadlinePassed && participantStatus.verdict_pass === true &&
+                  participantStatus.challenge_status?.toLowerCase() !== "finalized" &&
+                  ["requested", "committed", "revealed"].includes(
+                    participantStatus.aivm_verification_status ?? ""
+                  ) && (
+                    <span className="chip chip--info">Network pending</span>
+                )}
+                {proofDeadlinePassed && participantStatus.verdict_pass === true &&
+                  !["requested", "committed", "revealed"].includes(
+                    participantStatus.aivm_verification_status ?? ""
+                  ) &&
+                  participantStatus.challenge_status?.toLowerCase() !== "finalized" && (
+                    <span className="chip chip--ok">Passed</span>
+                )}
+                {proofDeadlinePassed && participantStatus.verdict_pass === false && (
+                  <span className="chip chip--bad">Failed</span>
+                )}
+                {proofDeadlinePassed && participantStatus.verdict_pass === null && participantStatus.has_evidence && (
+                  <span className="chip chip--warn">Evaluating…</span>
+                )}
+                {!proofDeadlinePassed && challengeEnded && participantStatus.has_evidence && (
+                  <span className="chip chip--info">Verifying</span>
+                )}
+                {!proofDeadlinePassed && challengeEnded && !participantStatus.has_evidence && (
+                  <span className="chip chip--warn">Proof needed</span>
+                )}
+                {!challengeEnded && (
+                  <span className="chip chip--info">In progress</span>
+                )}
+                {proofDeadlinePassed && participantStatus.verdict_pass === null && !participantStatus.has_evidence && (
+                  <span className="chip chip--soft">No evidence yet</span>
+                )}
               </div>
-            )}
-          </div>
-        </div>
-      ) : null}
+              <div className="panel-body space-y-1 text-sm">
+                <div className="flex gap-2">
+                  <span className="text-(--text-muted) w-32 shrink-0">Evidence</span>
+                  <span>
+                    {participantStatus.has_evidence
+                      ? (() => {
+                          const p = participantStatus.evidence_provider ?? "";
+                          const autoProviders = ["strava", "opendota", "riot"];
+                          const isAuto = autoProviders.includes(p.toLowerCase());
+                          return isAuto
+                            ? `Collected automatically via ${p}`
+                            : p
+                              ? `Submitted via ${p}`
+                              : "Submitted";
+                        })()
+                      : "Not submitted"}
+                  </span>
+                </div>
+                {proofDeadlinePassed && participantStatus.verdict_pass === false && participantStatus.verdict_reasons?.length ? (
+                  <div className="flex gap-2">
+                    <span className="text-(--text-muted) w-32 shrink-0">Reason</span>
+                    <span className="text-red-400">
+                      {participantStatus.verdict_reasons.slice(0, 3).join(" · ")}
+                    </span>
+                  </div>
+                ) : null}
+                {participantStatus.aivm_verification_status &&
+                  participantStatus.aivm_verification_status !== "finalized" &&
+                  participantStatus.verdict_pass !== false && (
+                    <div className="flex gap-2">
+                      <span className="text-(--text-muted) w-32 shrink-0">Lightchain</span>
+                      <span className="capitalize">{participantStatus.aivm_verification_status}</span>
+                    </div>
+                )}
+                {allowanceBn > 0n && (
+                  <div className="flex gap-2 mt-2">
+                    <span className="text-(--text-muted) w-32 shrink-0">Claimable</span>
+                    <span className="font-semibold">{formatWeiAsUSD(allowanceBn.toString(), tokenPrice)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : null}
 
-      {/* Admin finalize */}
-      {isAdmin && !shouldShowClaims ? (
-        <CollapsiblePanel title="Admin" subtitle="Finalize and settle" defaultOpen={false} icon={Sparkles}>
-          <button
-            className="btn btn-primary w-full"
-            disabled={!canFinalize || busy !== null}
-            onClick={finalize}
-            aria-busy={busy === "finalize" ? "true" : "false"}
-          >
-            {busy === "finalize" ? "Finalizing…" : "Finalize challenge"}
-            {busy === "finalize" ? <span className="btn__spinner" aria-hidden /> : null}
-          </button>
-          <div className="mt-2 text-xs text-(--text-muted)">Finalizing settles the outcome and enables claims.</div>
-        </CollapsiblePanel>
-      ) : null}
+          {/* ═══════════════════════════════════════════════════════════════════
+              SECTION 3 — TIMELINE + VERIFICATION
+              ═══════════════════════════════════════════════════════════════════ */}
+          {myTimeline.length > 0 && (
+            <div className="cd-timeline-section">
+              <ChainTimeline items={myTimeline} />
+              <VerificationBadge timeline={timeline as any} />
+            </div>
+          )}
 
-      {/* Achievement claims */}
-      <AchievementClaim
-        challengeId={Number(challengeId ?? 0)}
-        address={address}
-        isFinalized={effectiveStatus === "Finalized"}
-        isParticipant={hasJoined}
-        isWinner={shouldShowClaims && (claimables?.some((c: any) => c.functionName === "claimWinner") ?? false)}
-      />
-    </div>
-  );
+          {/* ═══════════════════════════════════════════════════════════════════
+              SECTION 4 — COLLAPSIBLE DETAILS + TECHNICAL
+              ═══════════════════════════════════════════════════════════════════ */}
+          <CollapsiblePanel title="Details" subtitle="Overview and economics" defaultOpen={false} icon={Info}>
+            <div className="space-y-4">
+              <DLGrid
+                rows={[
+                  ["Category", safe(data?.category, "General")],
+                  ...(data?.game ? [["Game", prettyGame(data.game) || safe(data.game)] as [string, string]] : []),
+                  ...(data?.mode ? [["Mode", safe(data.mode)] as [string, string]] : []),
+                  ["Participants", `${fmtNum(participantsCountFromChain)} / ${formatMaxParticipants(maxParticipantsFromChain)}`],
+                  ["Join closes", ts(joinCloseSec, "Open until start")],
+                  ["Your stake", myJoinedTotalWei != null ? formatWeiAsUSD(myJoinedTotalWei.toString(), tokenPrice) : "Not joined"],
+                  ["Starts", ts(startSec, "TBD")],
+                  ["Ends", ts(endSec, "TBD")],
+                ]}
+              />
+              <div className="cd-metrics-row">
+                <div className="cd-metric-card">
+                  <div className="cd-metric-card__label">{treasuryLabel}</div>
+                  <div className="cd-metric-card__value">{formatWeiAsUSD(treasuryWei, tokenPrice)}</div>
+                </div>
+                <div className="cd-metric-card">
+                  <div className="cd-metric-card__label">Creator stake</div>
+                  <div className="cd-metric-card__value">{formatWeiAsUSD(stakeWei, tokenPrice)}</div>
+                </div>
+                <div className="cd-metric-card">
+                  <div className="cd-metric-card__label">Currency</div>
+                  <div className="cd-metric-card__value">
+                    {currencyFromChain === 0 || tokenFromChain === ZERO
+                      ? "Native"
+                      : tokenFromChain ? `ERC-20 ${short(tokenFromChain)}` : "Native"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CollapsiblePanel>
 
-  return (
-    <>
-      <div className="sr-only" aria-live="polite" aria-atomic="true">
-        {ariaStatus}
-      </div>
+          <CollapsiblePanel title="Technical" subtitle="Proof and verification" defaultOpen={false} icon={Lucide.Layers}>
+            <div className="space-y-4">
+              <DLGrid
+                rows={[
+                  ["Proof required", yesno(data?.proofRequired)],
+                  ["Proof status", data?.proofOk ? "Verified" : "Pending"],
+                  ["Verifier", shortOrDash((data as any)?.verifierUsed ?? data?.verifier)],
+                  ["Verification type", safe(data?.modelKind, "Standard")],
+                  ...(data?.modelId ? [["Verification model", formatModelDisplay(data.modelId)] as [string, string]] : []),
+                  ["Challenge type", enumLabel("kind", kindFromChain)],
+                  ["Outcome", enumLabel("outcome", outcomeFromChain)],
+                  ...(decoded.duration ? [["Duration", formatDuration(decoded.duration)] as [string, string]] : []),
+                  ["Creator", linkAddr(data?.creator)],
+                  ...(data?.createdBlock ? [["Created block", linkBlock(data.createdBlock)] as [string, any]] : []),
+                  ...(data?.createdTx ? [["Created tx", linkTx(data.createdTx)] as [string, any]] : []),
+                ]}
+              />
 
-      <div ref={rootRef} className="space-y-5">
-        <ChallengeLayout
-          header={header}
-          primaryAction={primaryActionNode}
-          join={join}
-          details={details}
-          showCompletion={showCompletion}
-        />
+              {data?.params ? (
+                <div className="cd-params">
+                  <div className="text-xs font-semibold text-(--text-muted) uppercase tracking-wider mb-2">Parameters</div>
+                  <pre className="cd-params__pre">
+                    {typeof data.params === "string" ? data.params : JSON.stringify(data.params, null, 2)}
+                  </pre>
+                </div>
+              ) : null}
+            </div>
+          </CollapsiblePanel>
+
+          {/* Proofs (collapsible) */}
+          {shouldShowProofs ? (
+            <CollapsiblePanel
+              title="Proofs"
+              subtitle={data?.proofOk ? "Proof OK" : "Submit during the valid window"}
+              defaultOpen={false}
+              icon={BadgeCheck}
+            >
+              <div className="space-y-3">
+                <div className="text-sm">
+                  <div className="text-(--text-muted) text-xs uppercase tracking-wider">Required verifier</div>
+                  <div className="mt-1">
+                    <code className="mono">{short(String((data as any)?.verifierUsed ?? data?.verifier ?? ""))}</code>
+                  </div>
+                </div>
+                {challengeIdStr ? (
+                  <ActionRow
+                    primaryLabel="Submit proof"
+                    onPrimary={() => router.push(`/proofs/${challengeIdStr}`)}
+                    secondaryLabel="All proofs"
+                    onSecondary={() => router.push(`/proofs/${challengeIdStr}`)}
+                  />
+                ) : null}
+              </div>
+            </CollapsiblePanel>
+          ) : null}
+
+          {/* Admin finalize */}
+          {isAdmin && !shouldShowClaims ? (
+            <CollapsiblePanel title="Admin" subtitle="Finalize and settle" defaultOpen={false} icon={Sparkles}>
+              <button
+                className="btn btn-primary w-full"
+                disabled={!canFinalize || busy !== null}
+                onClick={finalize}
+                aria-busy={busy === "finalize" ? "true" : "false"}
+              >
+                {busy === "finalize" ? "Finalizing…" : "Finalize challenge"}
+                {busy === "finalize" ? <span className="btn__spinner" aria-hidden /> : null}
+              </button>
+              <div className="mt-2 text-xs text-(--text-muted)">Finalizing settles the outcome and enables claims.</div>
+            </CollapsiblePanel>
+          ) : null}
+
+          {/* Achievement claims */}
+          <AchievementClaim
+            challengeId={Number(challengeId ?? 0)}
+            address={address}
+            isFinalized={effectiveStatus === "Finalized"}
+            isParticipant={hasJoined}
+            isWinner={shouldShowClaims && (claimables?.some((c: any) => c.functionName === "claimWinner") ?? false)}
+          />
+        </ChallengeLayout>
       </div>
     </>
   );

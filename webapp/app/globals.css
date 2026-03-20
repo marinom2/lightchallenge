@@ -3863,6 +3863,155 @@ html[data-theme="light"] .orbit__core {
   word-break: break-all;
 }
 
+/* ── iOS-style page layout ────────────────────────────────────────────────── */
+.cd-page {
+  max-width: 44rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lc-space-4);
+  padding-bottom: var(--lc-space-8);
+}
+
+/* ── Hero metric display (iOS-style centered) ─────────────────────────────── */
+.cd-hero-figure {
+  display: flex;
+  justify-content: center;
+  padding: var(--lc-space-2) 0 0;
+}
+
+.cd-hero-metric {
+  text-align: center;
+  padding: var(--lc-space-1) 0;
+}
+
+.cd-hero-metric__value {
+  font-size: clamp(1.75rem, 5vw, 2.25rem);
+  font-weight: var(--lc-weight-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--lc-text);
+  line-height: 1.1;
+}
+
+.cd-hero-metric__goal {
+  font-size: var(--lc-text-small);
+  font-weight: var(--lc-weight-medium);
+  color: var(--lc-text-muted);
+  margin-top: 4px;
+}
+
+.cd-title--centered {
+  text-align: center;
+  white-space: normal;
+}
+
+.cd-desc--centered {
+  text-align: center;
+}
+
+/* Reward + participants inline row (iOS rewardLine) */
+.cd-hero-footer {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lc-space-3);
+  padding: var(--lc-space-2) 0 0;
+}
+
+.cd-hero-footer__reward {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cd-hero-footer__amount {
+  font-size: var(--lc-text-body);
+  font-weight: var(--lc-weight-semibold);
+  color: var(--lc-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.cd-hero-footer__caption {
+  font-size: var(--lc-text-caption);
+  font-weight: var(--lc-weight-medium);
+  color: var(--lc-text-muted);
+}
+
+.cd-hero-footer__participants {
+  font-size: var(--lc-text-small);
+  font-weight: var(--lc-weight-medium);
+  color: var(--lc-text-muted);
+  text-align: right;
+}
+
+/* ── Action card (iOS "What You Need To Do") ──────────────────────────────── */
+.cd-action-card {
+  border-radius: var(--lc-radius-lg);
+  background: var(--lc-bg-raised);
+  border: 1px solid var(--lc-border);
+  box-shadow: var(--lc-shadow-sm);
+  padding: var(--lc-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lc-space-3);
+}
+
+.cd-action-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--lc-space-2);
+  font-size: var(--lc-text-body);
+  font-weight: var(--lc-weight-bold);
+  color: var(--lc-text);
+}
+
+.cd-action-card__instruction {
+  font-size: var(--lc-text-body);
+  color: var(--lc-text);
+  line-height: var(--lc-leading-normal);
+}
+
+.cd-action-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lc-space-2);
+}
+
+.cd-action-card__meta-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lc-space-2);
+  font-size: var(--lc-text-small);
+}
+
+.cd-action-card__meta-row .meta-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--lc-radius-sm);
+  background: var(--lc-bg-inset);
+  flex-shrink: 0;
+}
+
+.cd-action-card__meta-row .meta-label {
+  color: var(--lc-text-muted);
+  min-width: 72px;
+}
+
+.cd-action-card__meta-row .meta-value {
+  font-weight: var(--lc-weight-semibold);
+  color: var(--lc-text);
+}
+
+/* ── Lightweight timeline section ─────────────────────────────────────────── */
+.cd-timeline-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lc-space-3);
+}
+
 /* ── Phase Banner (cd-phase-banner) ──────────────────────────────────────── */
 .cd-phase-banner {
   display: flex;
