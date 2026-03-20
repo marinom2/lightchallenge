@@ -23,6 +23,9 @@ class AppState: ObservableObject {
     @Published var deepLinkToken: String?
     @Published var deepLinkExpires: String?
 
+    /// Activity detail sheet: set to show an informational notification's detail view.
+    @Published var activityDetailNotification: AppNotification?
+
     /// Active tab selection.
     @Published var selectedTab: Tab = .explore
 

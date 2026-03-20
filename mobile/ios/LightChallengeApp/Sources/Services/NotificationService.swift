@@ -1,7 +1,9 @@
 // NotificationService.swift
 // APNS registration and notification management.
+// Read/unread state persisted locally via UserDefaults (survives app restarts).
 
 import Foundation
+import SwiftUI
 import UserNotifications
 import UIKit
 
@@ -14,6 +16,45 @@ class NotificationService: ObservableObject {
     @Published var notifications: [AppNotification] = []
     @Published var unreadCount: Int = 0
     @Published var isLoading = false
+
+    /// Pending push notification tap payload, set by NotificationDelegate, consumed by app struct.
+    @Published var pendingPushTap: PushTapPayload?
+
+    /// Persistent set of notification IDs the user has read.
+    /// Stored in UserDefaults — survives app restarts, independent of server sync.
+    private var readIDs: Set<String> {
+        didSet { persistReadIDs() }
+    }
+
+    private static let readIDsKey = "lc_activity_read_ids"
+
+    private init() {
+        // Restore persisted read IDs
+        let stored = UserDefaults.standard.stringArray(forKey: Self.readIDsKey) ?? []
+        self.readIDs = Set(stored)
+    }
+
+    private func persistReadIDs() {
+        // Cap at 500 most recent to prevent unbounded growth
+        let capped = readIDs.count > 500
+            ? Set(readIDs.suffix(500))
+            : readIDs
+        UserDefaults.standard.set(Array(capped), forKey: Self.readIDsKey)
+    }
+
+    /// Recompute unread count from current notifications + persisted read IDs.
+    private func recomputeUnreadCount() {
+        unreadCount = notifications.filter { !$0.read }.count
+    }
+
+    /// Apply persisted read IDs to a notification array (mutating).
+    private func applyReadState(_ items: inout [AppNotification]) {
+        for i in items.indices {
+            if readIDs.contains(items[i].id) {
+                items[i].read = true
+            }
+        }
+    }
 
     // MARK: - Permission
 
@@ -46,15 +87,10 @@ class NotificationService: ObservableObject {
     func setDeviceToken(_ tokenData: Data) {
         let token = tokenData.map { String(format: "%02x", $0) }.joined()
         deviceToken = token
-        // Send to backend for push delivery
         Task { await registerTokenWithBackend(token) }
     }
 
     private func registerTokenWithBackend(_ token: String) async {
-        // Backend endpoint for device token registration
-        // This would need a new API endpoint: POST /api/v1/devices
-        // For now, store locally — the backend notification system
-        // uses polling, not push delivery yet.
         UserDefaults.standard.set(token, forKey: "apns_device_token")
     }
 
@@ -71,9 +107,10 @@ class NotificationService: ObservableObject {
         // Load from local cache first if empty
         if notifications.isEmpty {
             let cached = await CacheService.shared.loadCachedNotifications(wallet: wallet)
-            if let cached, !cached.isEmpty {
+            if var cached, !cached.isEmpty {
+                applyReadState(&cached)
                 notifications = cached
-                unreadCount = cached.filter { !$0.read }.count
+                recomputeUnreadCount()
             }
         }
 
@@ -82,42 +119,50 @@ class NotificationService: ObservableObject {
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
 
             if let items = json?["data"] as? [[String: Any]] {
-                notifications = items.compactMap { AppNotification(json: $0) }
+                var fresh = items.compactMap { AppNotification(json: $0) }
+                // Merge: apply locally persisted read state on top of server data
+                applyReadState(&fresh)
+                notifications = fresh
+                recomputeUnreadCount()
                 await CacheService.shared.cacheNotifications(notifications, wallet: wallet)
-            }
-            if let unread = json?["unread"] as? Int {
-                unreadCount = unread
             }
         } catch {
             // Silently fail — cached data shown above
         }
     }
 
-    // MARK: - Mark Read
+    // MARK: - Mark All Read
 
     func markAllRead(baseURL: String, wallet: String) async {
-        guard let url = URL(string: "\(baseURL)/api/v1/notifications/read-all") else { return }
+        // Persist all current IDs as read
+        for n in notifications {
+            readIDs.insert(n.id)
+        }
+        for i in notifications.indices {
+            notifications[i].read = true
+        }
+        unreadCount = 0
+        await CacheService.shared.cacheNotifications(notifications, wallet: wallet)
 
+        // Fire-and-forget to server
+        guard let url = URL(string: "\(baseURL)/api/v1/notifications/read-all") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["wallet": wallet])
-
         _ = try? await URLSession.shared.data(for: request)
-        unreadCount = 0
-        for i in notifications.indices {
-            notifications[i].read = true
-        }
-        await CacheService.shared.cacheNotifications(notifications, wallet: wallet)
     }
 
     // MARK: - Mark Single Read
 
     func markRead(id: String, baseURL: String, wallet: String) async {
+        // Persist this ID as read
+        readIDs.insert(id)
+
         // Optimistic local update
         if let idx = notifications.firstIndex(where: { $0.id == id && !$0.read }) {
             notifications[idx].read = true
-            unreadCount = max(0, unreadCount - 1)
+            recomputeUnreadCount()
             await CacheService.shared.cacheNotifications(notifications, wallet: wallet)
         }
 
@@ -130,9 +175,24 @@ class NotificationService: ObservableObject {
         _ = try? await URLSession.shared.data(for: request)
     }
 
+    // MARK: - Mark Read by Challenge ID (for push tap routing)
+
+    func markReadByChallengeId(_ challengeId: String, baseURL: String, wallet: String) async {
+        let matching = notifications.filter { $0.challengeId == challengeId && !$0.read }
+        for n in matching {
+            readIDs.insert(n.id)
+        }
+        for i in notifications.indices {
+            if notifications[i].challengeId == challengeId {
+                notifications[i].read = true
+            }
+        }
+        recomputeUnreadCount()
+        await CacheService.shared.cacheNotifications(notifications, wallet: wallet)
+    }
+
     // MARK: - Local Notifications
 
-    /// Schedule a local notification (e.g., challenge deadline reminder).
     func scheduleLocalReminder(title: String, body: String, date: Date, identifier: String) {
         let content = UNMutableNotificationContent()
         content.title = title
@@ -150,26 +210,19 @@ class NotificationService: ObservableObject {
 
     // MARK: - Proof Window Reminder
 
-    /// Schedule a local notification when a challenge ends (proof window opens).
-    /// This is informational only — server-side evidence collection handles auto-proof independently.
-    /// When tapped, the notification deep links to the challenge detail.
     func scheduleProofWindowReminder(challengeId: String, title: String, endDate: Date) {
-        // Only schedule if the end date is in the future
         guard endDate > Date() else { return }
 
         let identifier = "proof-window-\(challengeId)"
-
-        // Remove any existing notification for this challenge to avoid duplicates
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [identifier])
 
         let content = UNMutableNotificationContent()
-        content.title = "Proof Window Open"
-        content.body = "Your challenge '\(title)' has ended — proof submission is now open!"
+        content.title = "Challenge ended"
+        content.body = "Your challenge '\(title)' has ended — results are being processed."
         content.sound = .default
-
-        // Deep link to challenge detail when tapped
         content.userInfo = [
             "challengeId": challengeId,
+            "type": "proof_window_open",
             "deepLink": "lightchallengeapp://challenge/\(challengeId)"
         ]
 
@@ -184,16 +237,6 @@ class NotificationService: ObservableObject {
 
     // MARK: - Smart Challenge Alerts
 
-    /// Evaluate a challenge's progress and schedule local "at risk" notifications.
-    /// Called during foreground progress checks and background task execution.
-    ///
-    /// Tiers:
-    ///   - 50% time elapsed, <25% progress → gentle nudge
-    ///   - 75% time elapsed, <50% progress → warning
-    ///   - 90% time elapsed, <75% progress → urgent
-    ///   - ≤24h remaining, <100% progress → final push
-    ///   - ≤6h remaining, <100% progress → last chance
-    ///   - Goal reached → celebration
     func evaluateAndScheduleAlerts(
         challengeId: String,
         title: String,
@@ -213,83 +256,80 @@ class NotificationService: ObservableObject {
         let progress = min(1.0, currentValue / goalValue)
         let pct = Int(progress * 100)
 
-        // Goal reached — schedule immediate celebration (if not already sent)
+        // Goal reached
         if progress >= 1.0 {
             scheduleAlertOnce(
                 id: "goal-reached-\(challengeId)",
-                title: "Target reached!",
-                body: "You hit your goal for \"\(title)\". Your proof will be submitted automatically.",
+                title: "Goal reached!",
+                body: "You hit your target for \"\(title)\". Your activity will be verified automatically.",
                 delay: 1,
-                challengeId: challengeId
+                challengeId: challengeId,
+                type: "challenge_goal_reached"
             )
             return
         }
 
         let remainingText = Self.formatRemaining(remaining)
 
-        // Final push: ≤6h
         if remaining <= 6 * 3600 {
             scheduleAlertOnce(
                 id: "final-6h-\(challengeId)",
                 title: "Final hours — \(title)",
                 body: "Only \(remainingText) left at \(pct)% of \(metricLabel). Give it one last push!",
                 delay: 1,
-                challengeId: challengeId
+                challengeId: challengeId,
+                type: "challenge_final_push"
             )
-        }
-        // Final push: ≤24h
-        else if remaining <= 24 * 3600 {
+        } else if remaining <= 24 * 3600 {
             scheduleAlertOnce(
                 id: "final-24h-\(challengeId)",
                 title: "Last day — \(title)",
                 body: "\(remainingText) remaining with \(pct)% progress on \(metricLabel). Finish strong!",
                 delay: 1,
-                challengeId: challengeId
+                challengeId: challengeId,
+                type: "challenge_final_push"
             )
         }
 
-        // Behind pace: 90%+ time, <75% progress
         if timeFraction >= 0.9 && progress < 0.75 {
             scheduleAlertOnce(
                 id: "behind-90-\(challengeId)",
                 title: "Almost over — \(title)",
                 body: "90% done but only \(pct)% progress. \(remainingText) left for \(metricLabel).",
                 delay: 1,
-                challengeId: challengeId
+                challengeId: challengeId,
+                type: "challenge_behind_pace"
             )
-        }
-        // Behind pace: 75%+ time, <50% progress
-        else if timeFraction >= 0.75 && progress < 0.50 {
+        } else if timeFraction >= 0.75 && progress < 0.50 {
             scheduleAlertOnce(
                 id: "behind-75-\(challengeId)",
                 title: "Falling behind — \(title)",
                 body: "Three-quarters through with only \(pct)% progress. Pick up the pace — \(remainingText) left!",
                 delay: 1,
-                challengeId: challengeId
+                challengeId: challengeId,
+                type: "challenge_behind_pace"
             )
-        }
-        // Behind pace: 50%+ time, <25% progress
-        else if timeFraction >= 0.50 && progress < 0.25 {
+        } else if timeFraction >= 0.50 && progress < 0.25 {
             scheduleAlertOnce(
                 id: "behind-50-\(challengeId)",
                 title: "Halfway check — \(title)",
                 body: "You're halfway through but only at \(pct)% of \(metricLabel). \(remainingText) to go.",
                 delay: 1,
-                challengeId: challengeId
+                challengeId: challengeId,
+                type: "challenge_behind_pace"
             )
         }
 
-        // Also schedule a future notification for the next milestone if not yet triggered.
-        // Example: if we're at 40% time, schedule one for when we'll be at 50%.
         if timeFraction < 0.50 {
             let timeUntil50Pct = (0.50 * totalDuration) - elapsed
-            if timeUntil50Pct > 60 { // Only if >1 min away
+            if timeUntil50Pct > 60 {
                 scheduleAlertOnce(
                     id: "reminder-50-\(challengeId)",
                     title: "Halfway mark — \(title)",
                     body: "You're halfway through \"\(title)\". Check your progress!",
                     delay: timeUntil50Pct,
-                    challengeId: challengeId
+                    challengeId: challengeId,
+                    type: "challenge_behind_pace"
                 )
             }
         } else if timeFraction < 0.75 {
@@ -300,21 +340,20 @@ class NotificationService: ObservableObject {
                     title: "75% mark — \(title)",
                     body: "Three-quarters of \"\(title)\" is done. How's your progress?",
                     delay: timeUntil75Pct,
-                    challengeId: challengeId
+                    challengeId: challengeId,
+                    type: "challenge_behind_pace"
                 )
             }
         }
     }
 
-    /// Schedule a local notification only if one with the same identifier doesn't already exist.
-    private func scheduleAlertOnce(id: String, title: String, body: String, delay: TimeInterval, challengeId: String) {
+    private func scheduleAlertOnce(id: String, title: String, body: String, delay: TimeInterval, challengeId: String, type: String) {
         let center = UNUserNotificationCenter.current()
 
         center.getPendingNotificationRequests { existing in
             let alreadyScheduled = existing.contains { $0.identifier == id }
             if alreadyScheduled { return }
 
-            // Also check delivered notifications to avoid re-firing
             center.getDeliveredNotifications { delivered in
                 let alreadyDelivered = delivered.contains { $0.request.identifier == id }
                 if alreadyDelivered { return }
@@ -325,6 +364,7 @@ class NotificationService: ObservableObject {
                 content.sound = .default
                 content.userInfo = [
                     "challengeId": challengeId,
+                    "type": type,
                     "deepLink": "lightchallengeapp://challenge/\(challengeId)"
                 ]
 
@@ -352,7 +392,11 @@ class NotificationService: ObservableObject {
 
 // MARK: - Notification Model
 
-struct AppNotification: Identifiable, Codable {
+struct AppNotification: Identifiable, Codable, Equatable {
+    static func == (lhs: AppNotification, rhs: AppNotification) -> Bool {
+        lhs.id == rhs.id
+    }
+
     let id: String
     let type: String
     let title: String
@@ -363,6 +407,11 @@ struct AppNotification: Identifiable, Codable {
 
     /// Access data as [String: Any] for backward compatibility.
     var data: [String: Any] { dataDict as [String: Any] }
+
+    /// Extract challengeId from data dict.
+    var challengeId: String? {
+        dataDict["challengeId"] ?? dataDict["challenge_id"]
+    }
 
     init?(json: [String: Any]) {
         guard let id = json["id"] as? String,
@@ -376,7 +425,6 @@ struct AppNotification: Identifiable, Codable {
         self.body = json["body"] as? String
         self.read = json["read"] as? Bool ?? false
 
-        // Flatten data dict to [String: String] for persistence
         var flat: [String: String] = [:]
         if let raw = json["data"] as? [String: Any] {
             for (k, v) in raw {
@@ -392,31 +440,180 @@ struct AppNotification: Identifiable, Codable {
         }
     }
 
-    var icon: String {
+    // MARK: - Interaction Model
+
+    /// Whether tapping this item should navigate directly (action) or show detail sheet (informational).
+    var isActionEvent: Bool {
         switch type {
-        // Competition / match
-        case "match_result": "trophy.fill"
-        case "match_upcoming": "calendar.badge.clock"
-        case "competition_started": "flag.fill"
-        case "competition_completed": "checkmark.seal.fill"
-        case "registration_confirmed": "person.badge.plus"
-        case "achievement_earned": "star.fill"
-        // Progress alerts
-        case "challenge_behind_pace": "exclamationmark.triangle.fill"
-        case "challenge_final_push": "flame.fill"
-        case "challenge_goal_reached": "checkmark.circle.fill"
-        // Lifecycle events
-        case "challenge_finalized": "flag.checkered"
-        case "claim_available": "banknote.fill"
-        case "claim_reminder": "bell.badge.fill"
-        case "challenge_joined": "person.badge.plus"
-        case "proof_submitted": "arrow.up.doc.fill"
-        case "challenge_starting": "play.circle.fill"
-        case "proof_window_open": "clock.badge.exclamationmark.fill"
-        // Disputes
-        case "dispute_filed": "exclamationmark.bubble.fill"
-        case "dispute_resolved": "checkmark.bubble.fill"
-        default: "bell.fill"
+        case "challenge_starting", "challenge_joined", "competition_started",
+             "claim_available", "claim_reminder",
+             "challenge_final_push", "challenge_behind_pace",
+             "proof_window_open", "match_upcoming":
+            return true
+        default:
+            return false
         }
     }
+
+    // MARK: - Human-Readable Display
+
+    /// Clean, outcome-focused title. No technical jargon.
+    var displayTitle: String {
+        switch type {
+        case "challenge_goal_reached": return "Goal reached"
+        case "challenge_finalized": return "Challenge result ready"
+        case "proof_submitted": return "Activity verified"
+        case "competition_completed": return "Challenge completed"
+        case "challenge_starting": return "Challenge starting soon"
+        case "challenge_joined": return "You're in"
+        case "claim_available": return "Reward ready"
+        case "claim_reminder": return "Don't forget your reward"
+        case "challenge_behind_pace": return "You're falling behind"
+        case "challenge_final_push": return "Last chance"
+        case "proof_window_open": return "Challenge ended"
+        case "match_result": return "Match result"
+        case "match_upcoming": return "Match coming up"
+        case "registration_confirmed": return "You're registered"
+        case "achievement_earned": return "Achievement unlocked"
+        case "dispute_filed": return "Dispute opened"
+        case "dispute_resolved": return "Dispute resolved"
+        default: return title
+        }
+    }
+
+    /// Human-readable body text. Falls back to server body if no override.
+    var displayBody: String? {
+        switch type {
+        case "challenge_goal_reached":
+            return body ?? "You completed the challenge. Your activity will be verified automatically."
+        case "challenge_finalized":
+            return body ?? "The results have been finalized. Check your outcome."
+        case "proof_submitted":
+            return body ?? "Your activity has been verified successfully."
+        case "competition_completed":
+            return body ?? "This challenge is now complete. See the final results."
+        case "challenge_starting":
+            return body ?? "Get ready — your challenge is about to begin."
+        case "challenge_joined":
+            return body ?? "You've joined the challenge. Good luck!"
+        case "claim_available":
+            return body ?? "Your reward is ready to claim."
+        case "claim_reminder":
+            return body ?? "You have an unclaimed reward waiting for you."
+        case "challenge_behind_pace":
+            return body ?? "You're behind your target. Pick up the pace!"
+        case "challenge_final_push":
+            return body ?? "Time is almost up. Give it everything you've got."
+        case "proof_window_open":
+            return body ?? "The challenge has ended. Results are being processed."
+        default:
+            return body
+        }
+    }
+
+    /// Human-readable state label for the detail sheet.
+    var stateLabel: String? {
+        switch type {
+        case "challenge_goal_reached": return "Awaiting verification"
+        case "challenge_finalized": return "Result finalized"
+        case "proof_submitted": return "Verified"
+        case "competition_completed": return "Completed"
+        case "claim_available", "claim_reminder": return "Ready to claim"
+        case "challenge_behind_pace": return "In progress"
+        case "challenge_final_push": return "Ending soon"
+        case "challenge_starting": return "Starting soon"
+        case "challenge_joined": return "Joined"
+        case "proof_window_open": return "Processing results"
+        default: return nil
+        }
+    }
+
+    /// State chip color for the detail sheet.
+    var stateColor: Color {
+        switch type {
+        case "challenge_goal_reached", "proof_submitted", "competition_completed":
+            return LC.success
+        case "claim_available", "claim_reminder":
+            return LC.accent
+        case "challenge_behind_pace", "challenge_final_push":
+            return LC.warning
+        case "challenge_finalized", "proof_window_open":
+            return LC.info
+        case "challenge_joined", "challenge_starting":
+            return LC.accent
+        default:
+            return Color(.secondaryLabel)
+        }
+    }
+
+    // MARK: - Semantic Icon System
+
+    /// Structured icon: SF Symbol name + semantic color.
+    struct IconStyle {
+        let name: String
+        let color: Color
+    }
+
+    /// Semantic icon matched to event meaning.
+    var iconStyle: IconStyle {
+        switch type {
+        // Success / Goal
+        case "challenge_goal_reached":
+            return IconStyle(name: "checkmark.circle.fill", color: LC.success)
+        case "proof_submitted":
+            return IconStyle(name: "checkmark.shield.fill", color: LC.success)
+        case "competition_completed":
+            return IconStyle(name: "checkmark.seal.fill", color: LC.success)
+
+        // Failure / Warning
+        case "challenge_behind_pace":
+            return IconStyle(name: "exclamationmark.triangle.fill", color: LC.warning)
+        case "challenge_final_push":
+            return IconStyle(name: "flame.fill", color: Color(hex: 0xF97316))
+
+        // Time / Progress
+        case "challenge_starting":
+            return IconStyle(name: "play.circle.fill", color: LC.accent)
+        case "proof_window_open":
+            return IconStyle(name: "hourglass", color: LC.info)
+        case "challenge_finalized":
+            return IconStyle(name: "flag.checkered.2.crossed", color: LC.info)
+
+        // Reward
+        case "claim_available":
+            return IconStyle(name: "gift.fill", color: LC.accent)
+        case "claim_reminder":
+            return IconStyle(name: "gift.fill", color: LC.warning)
+
+        // Participation
+        case "challenge_joined":
+            return IconStyle(name: "person.fill.checkmark", color: LC.accent)
+        case "registration_confirmed":
+            return IconStyle(name: "person.fill.checkmark", color: LC.accent)
+
+        // Competition
+        case "match_result":
+            return IconStyle(name: "trophy.fill", color: Color(hex: 0xF59E0B))
+        case "match_upcoming":
+            return IconStyle(name: "calendar.badge.clock", color: LC.info)
+        case "competition_started":
+            return IconStyle(name: "play.circle.fill", color: LC.accent)
+
+        // Achievement
+        case "achievement_earned":
+            return IconStyle(name: "star.fill", color: Color(hex: 0xF59E0B))
+
+        // Dispute
+        case "dispute_filed":
+            return IconStyle(name: "exclamationmark.bubble.fill", color: LC.danger)
+        case "dispute_resolved":
+            return IconStyle(name: "checkmark.bubble.fill", color: LC.success)
+
+        default:
+            return IconStyle(name: "bell.fill", color: Color(.secondaryLabel))
+        }
+    }
+
+    /// Legacy icon name (kept for compatibility).
+    var icon: String { iconStyle.name }
 }

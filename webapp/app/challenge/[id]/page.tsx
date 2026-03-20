@@ -37,10 +37,10 @@ import { formatWeiAsUSD } from "@/lib/tokenPrice";
 import { useTokenPrice } from "@/lib/useTokenPrice";
 import { usePullToRefresh } from "./hooks/usePullToRefresh";
 import { SkeletonLine, HeroSummarySkeleton } from "./components/Skeletons";
-import { StatusCapsule } from "./components/HeroSection";
 import { PrimaryActionCard, JoinCard } from "./components/ActionCards";
-import { CollapsiblePanel, DLGrid, ChainTimeline } from "./components/DetailPanels";
+import { CollapsiblePanel, DLGrid, ChainTimeline, LifecycleTimeline, VerificationExplainer } from "./components/DetailPanels";
 import { ActivityFigure, detectActivity, ACTIVITY_LABELS, getActivityColor } from "./components/ActivityFigure";
+import { formatWeiDual } from "@/lib/tokenPrice";
 
 
 type LI = Lucide.LucideIcon;
@@ -59,13 +59,8 @@ const {
   CheckCircle2,
   Vote,
   Receipt,
-  Timer,
   Loader2,
   AlertCircle,
-  Trophy,
-  XCircle,
-  Play,
-  DoorOpen,
 } = Lucide;
 
 // NOTE: Types (Status, ApiOut, SnapshotOut) → ./lib/types.ts
@@ -101,142 +96,7 @@ function CountdownDisplay({ targetSec }: { targetSec: number }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Phase Banner — lifecycle-aware banner (inline)
-// ─────────────────────────────────────────────────────────────────────────────
-type PhaseKind = "upcoming" | "join" | "active" | "proof" | "expired" | "finalized" | null;
-
-function resolvePhase(input: {
-  joinCloseSec: number | null;
-  startSec: number | null;
-  endSec: number | null;
-  proofDeadlineSec: number | null;
-  effectiveStatus?: string;
-  snapshotSet?: boolean;
-}): PhaseKind {
-  const now = Math.floor(Date.now() / 1000);
-  const { joinCloseSec, startSec, endSec, proofDeadlineSec, effectiveStatus, snapshotSet } = input;
-
-  if (effectiveStatus === "Canceled") return null;
-  if (effectiveStatus === "Finalized" || snapshotSet) return "finalized";
-
-  if (startSec && endSec) {
-    // Proof window: challenge ended, deadline not passed
-    if (now >= endSec && proofDeadlineSec && now < proofDeadlineSec) return "proof";
-    // Proof deadline passed
-    if (now >= endSec && proofDeadlineSec && now >= proofDeadlineSec) return "expired";
-    // Challenge ended but no proof deadline set
-    if (now >= endSec) return "expired";
-    // Challenge in progress
-    if (now >= startSec && now < endSec) return "active";
-  }
-
-  // Before start: join window open or upcoming
-  if (startSec && now < startSec) {
-    if (joinCloseSec && now < joinCloseSec) return "join";
-    return "upcoming";
-  }
-  if (joinCloseSec && now < joinCloseSec) return "join";
-
-  return null;
-}
-
-function PhaseBanner({
-  joinCloseSec,
-  startSec,
-  endSec,
-  proofDeadlineSec,
-  effectiveStatus,
-  snapshotSet,
-  snapshotSuccess,
-}: {
-  joinCloseSec: number | null;
-  startSec: number | null;
-  endSec: number | null;
-  proofDeadlineSec: number | null;
-  effectiveStatus?: string;
-  snapshotSet?: boolean;
-  snapshotSuccess?: boolean;
-}) {
-  // Force re-render every second so phase transitions are detected
-  const [, setTick] = React.useState(0);
-  React.useEffect(() => {
-    const t = setInterval(() => setTick((x) => x + 1), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  const phase = resolvePhase({ joinCloseSec, startSec, endSec, proofDeadlineSec, effectiveStatus, snapshotSet });
-  if (!phase) return null;
-
-  const bannerConfig: Record<
-    Exclude<PhaseKind, null>,
-    {
-      className: string;
-      icon: typeof Clock;
-      label: string;
-      target: number | null;
-    }
-  > = {
-    upcoming: {
-      className: "cd-phase-banner cd-phase-banner--upcoming",
-      icon: Clock,
-      label: "Upcoming challenge",
-      target: startSec,
-    },
-    join: {
-      className: "cd-phase-banner cd-phase-banner--join",
-      icon: DoorOpen,
-      label: "Join window open",
-      target: joinCloseSec ?? startSec,
-    },
-    active: {
-      className: "cd-phase-banner cd-phase-banner--active",
-      icon: Play,
-      label: "Challenge in progress",
-      target: endSec,
-    },
-    proof: {
-      className: "cd-phase-banner cd-phase-banner--proof",
-      icon: Timer,
-      label: "Proof submission open",
-      target: proofDeadlineSec,
-    },
-    expired: {
-      className: "cd-phase-banner cd-phase-banner--expired",
-      icon: XCircle,
-      label: "Proof deadline has passed",
-      target: null,
-    },
-    finalized: {
-      className: "cd-phase-banner cd-phase-banner--finalized",
-      icon: Trophy,
-      label: snapshotSuccess ? "Challenge completed" : "Challenge failed",
-      target: null,
-    },
-  };
-
-  const cfg = bannerConfig[phase];
-  const Icon = cfg.icon;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: [0.2, 0.8, 0.2, 1] }}
-      className={cfg.className}
-      role="status"
-    >
-      <Icon size={16} className="shrink-0" />
-      <span>{cfg.label}</span>
-      {cfg.target ? (
-        <>
-          <span className="cd-phase-banner__sep">—</span>
-          <CountdownDisplay targetSec={cfg.target} />
-        </>
-      ) : null}
-    </motion.div>
-  );
-}
+// PhaseBanner removed — replaced by inline cd-status-line
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Verification Badge — lightweight blockchain trust indicator (mirrors iOS)
@@ -1778,31 +1638,80 @@ const primaryAction = React.useMemo(() => {
               </span>
             </div>
 
-            {/* Status capsule */}
-            <div className="cd-title-row" style={{ justifyContent: "center" }}>
-              <StatusCapsule label={publicStatus.label} note={publicStatus.note} />
-            </div>
-
-            {/* Activity figure (centered, iOS hero ring) */}
-            {!isInitialLoading && activityType && (
-              <div className="cd-hero-figure">
-                <ActivityFigure
-                  activity={activityType}
-                  size={110}
-                  isActive={effectiveStatus === "Active"}
-                />
+            {/* Status line — clean, single signal */}
+            {!isInitialLoading && publicStatus.label && (
+              <div className="cd-status-line">
+                <span className={`cd-status-line__dot ${
+                  publicStatus.label === "In progress" ? "cd-status-line__dot--active" :
+                  publicStatus.label === "Upcoming" ? "cd-status-line__dot--upcoming" :
+                  "cd-status-line__dot--ended"
+                }`} />
+                <span>
+                  {publicStatus.label === "In progress" ? "Challenge is active" :
+                   publicStatus.label === "Upcoming" ? "Challenge is upcoming" :
+                   publicStatus.label === "Completed" ? "Challenge completed" :
+                   publicStatus.label === "Finalizing" ? "Results being processed" :
+                   publicStatus.label === "Canceled" ? "Challenge canceled" :
+                   publicStatus.label}
+                  {publicStatus.note ? ` · ${publicStatus.note}` : ""}
+                </span>
               </div>
             )}
 
-            {/* Large metric display (iOS-style: "0 km" + "Goal: 20") */}
+            {/* ── Progress hero: large metric + bar + time remaining ── */}
             {!isInitialLoading && challengeProgress && challengeProgress.goalValue > 0 ? (
-              <div className="cd-hero-metric">
-                <div className="cd-hero-metric__value">
+              <div className="cd-progress-hero">
+                <div className="cd-progress-hero__metric">
                   {challengeProgress.currentValue} {challengeProgress.metricLabel}
                 </div>
-                <div className="cd-hero-metric__goal">
-                  Goal: {challengeProgress.goalValue}
+                <div className="cd-progress-hero__goal">
+                  Goal: {challengeProgress.goalValue} {challengeProgress.metricLabel}
                 </div>
+                <div className="cd-progress-hero__bar">
+                  <div
+                    className={`cd-progress-hero__fill${decodedSnapshot?.set && !decodedSnapshot?.success ? " cd-progress-hero__fill--failed" : ""}`}
+                    style={{ width: `${Math.min(100, challengeProgress.progress * 100)}%` }}
+                  />
+                  <div
+                    className="cd-progress-hero__sheen"
+                    style={{ width: `${Math.min(100, challengeProgress.progress * 100)}%` }}
+                  />
+                </div>
+                {endSec && Math.floor(Date.now() / 1000) < endSec ? (
+                  <div className="cd-progress-hero__time">
+                    <CountdownDisplay targetSec={endSec} /> left
+                  </div>
+                ) : null}
+              </div>
+            ) : !isInitialLoading && startSec && endSec ? (
+              /* Time-based progress when no metric available */
+              <div className="cd-progress-hero">
+                <div className="cd-progress-hero__bar">
+                  {(() => {
+                    const now = Math.floor(Date.now() / 1000);
+                    const total = Math.max(1, endSec - startSec);
+                    const elapsed = Math.min(Math.max(0, now - startSec), total);
+                    const pct = Math.min(100, (elapsed / total) * 100);
+                    const finished = decodedSnapshot?.set;
+                    return (
+                      <>
+                        <div
+                          className={`cd-progress-hero__fill${decodedSnapshot?.set && !decodedSnapshot?.success ? " cd-progress-hero__fill--failed" : ""}`}
+                          style={{ width: `${finished ? 100 : pct}%` }}
+                        />
+                        <div
+                          className="cd-progress-hero__sheen"
+                          style={{ width: `${finished ? 100 : pct}%` }}
+                        />
+                      </>
+                    );
+                  })()}
+                </div>
+                {endSec && Math.floor(Date.now() / 1000) < endSec ? (
+                  <div className="cd-progress-hero__time">
+                    <CountdownDisplay targetSec={endSec} /> left
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -1829,33 +1738,37 @@ const primaryAction = React.useMemo(() => {
               </>
             )}
 
-            {/* Phase banner — lifecycle countdown */}
-            {!isInitialLoading && (startSec || endSec) && (
-              <PhaseBanner
-                joinCloseSec={joinCloseSec ?? null}
-                startSec={startSec ?? null}
-                endSec={endSec ?? null}
-                proofDeadlineSec={proofDeadlineSec}
-                effectiveStatus={effectiveStatus}
-                snapshotSet={snapshotSet}
-                snapshotSuccess={decodedSnapshot?.success}
-              />
+            {/* Ends in / countdown — only when active */}
+            {!isInitialLoading && endSec && Math.floor(Date.now() / 1000) < endSec && !(challengeProgress && challengeProgress.goalValue > 0) && (
+              <div className="cd-status-line" style={{ marginTop: "var(--lc-space-1)" }}>
+                Ends in <CountdownDisplay targetSec={endSec} />
+              </div>
             )}
 
-            {/* Reward + participants (iOS rewardLine) */}
-            {!isInitialLoading ? (
-              <div className="cd-hero-footer">
-                <div className="cd-hero-footer__reward">
-                  <span className="cd-hero-footer__amount">{formatWeiAsUSD(treasuryWei, tokenPrice)}</span>
-                  <span className="cd-hero-footer__caption">
-                    {publicStatus.label === "Completed" ? "Final pot" : "Potential reward"}
-                  </span>
+            {/* Financial display — USD + LCAI dual */}
+            {!isInitialLoading ? (() => {
+              const dual = formatWeiDual(treasuryWei, tokenPrice);
+              return (
+                <div className="cd-finance">
+                  <div className="cd-finance__primary">
+                    {dual.usd ? (
+                      <>
+                        <div className="cd-finance__usd">{dual.usd}</div>
+                        <div className="cd-finance__lcai">{dual.lcai}</div>
+                      </>
+                    ) : (
+                      <div className="cd-finance__usd">{dual.lcai}</div>
+                    )}
+                    <div className="cd-finance__label">
+                      {publicStatus.label === "Completed" ? "Final pot" : "Potential reward"}
+                    </div>
+                  </div>
+                  <div className="cd-finance__participants">
+                    {fmtNum(participantsCountFromChain)} participant{Number(participantsCountFromChain) !== 1 ? "s" : ""}
+                  </div>
                 </div>
-                <div className="cd-hero-footer__participants">
-                  {fmtNum(participantsCountFromChain)} participant{Number(participantsCountFromChain) !== 1 ? "s" : ""}
-                </div>
-              </div>
-            ) : (
+              );
+            })() : (
               <HeroSummarySkeleton />
             )}
 
@@ -2011,11 +1924,19 @@ const primaryAction = React.useMemo(() => {
           })() : null}
 
           {/* ═══════════════════════════════════════════════════════════════════
-              SECTION 3 — TIMELINE + VERIFICATION
+              SECTION 3 — LIFECYCLE TIMELINE + VERIFICATION
               ═══════════════════════════════════════════════════════════════════ */}
-          {myTimeline.length > 0 && (
-            <div className="cd-timeline-section">
-              <ChainTimeline items={myTimeline} />
+          {!isInitialLoading && (startSec || endSec || joinCloseSec) && (
+            <div className="cd-section">
+              <div className="text-sm font-semibold" style={{ color: "var(--lc-text)" }}>Timeline</div>
+              <LifecycleTimeline
+                joinCloseSec={joinCloseSec ?? null}
+                startSec={startSec ?? null}
+                endSec={endSec ?? null}
+                proofDeadlineSec={proofDeadlineSec}
+                hasJoined={hasJoined}
+              />
+              <VerificationExplainer category={data?.category} modelId={data?.modelId} />
               <VerificationBadge timeline={timeline as any} />
             </div>
           )}

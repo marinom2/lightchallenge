@@ -12,9 +12,9 @@ import UserNotifications
 
 // MARK: - Notification Delegate (handles notification taps → deep links)
 
-/// Bridges UNUserNotificationCenter delegate callbacks to SwiftUI's onOpenURL.
-/// When a user taps a notification with a deepLink in userInfo, this delegate
-/// extracts the URL and opens it, triggering the app's standard deep link flow.
+/// Bridges UNUserNotificationCenter delegate callbacks to SwiftUI.
+/// Contextual routing: action events → navigate to challenge, informational → detail sheet.
+/// Routes through NotificationService.pendingPushTap → consumed by the app struct.
 class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     /// Show banners even when the app is in the foreground.
     func userNotificationCenter(
@@ -25,22 +25,40 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         completionHandler([.banner, .sound, .badge])
     }
 
-    /// Handle notification tap: extract deepLink from userInfo and open it.
+    /// Handle notification tap: store payload on NotificationService for contextual routing.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let userInfo = response.notification.request.content.userInfo
-        if let deepLink = userInfo["deepLink"] as? String,
-           let url = URL(string: deepLink) {
-            print("[NOTIFICATION] tapped → opening deep link: \(deepLink)")
-            DispatchQueue.main.async {
-                UIApplication.shared.open(url)
-            }
+        let challengeId = userInfo["challengeId"] as? String ?? ""
+        let type = userInfo["type"] as? String ?? ""
+        let deepLink = userInfo["deepLink"] as? String
+
+        print("[NOTIFICATION] tapped → type=\(type) challengeId=\(challengeId)")
+
+        Task { @MainActor in
+            NotificationService.shared.pendingPushTap = PushTapPayload(
+                challengeId: challengeId,
+                type: type,
+                title: response.notification.request.content.title,
+                body: response.notification.request.content.body,
+                requestId: response.notification.request.identifier,
+                deepLink: deepLink
+            )
         }
         completionHandler()
     }
+}
+
+struct PushTapPayload {
+    let challengeId: String
+    let type: String
+    let title: String
+    let body: String
+    let requestId: String
+    let deepLink: String?
 }
 
 @main
@@ -96,8 +114,6 @@ struct LightChallengeApp: App {
                 }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active && appState.hasWallet {
-                        // Refresh linked accounts when app comes to foreground
-                        // (catches OAuth callbacks even if deep link handling fails)
                         Task {
                             await oauthService.refreshLinkedAccounts(
                                 baseURL: appState.serverURL,
@@ -106,16 +122,17 @@ struct LightChallengeApp: App {
                             oauthService.isAuthenticating = false
                         }
 
-                        // Check pending challenges for auto-proof submission
                         Task {
                             await checkPendingAutoProofs()
                         }
                     }
 
                     if phase == .background && appState.hasWallet {
-                        // Schedule background auto-proof check
                         Self.scheduleAutoProofTask()
                     }
+                }
+                .onReceive(notificationService.$pendingPushTap) { payload in
+                    if payload != nil { processPendingPush() }
                 }
                 .onChange(of: walletManager.isConnected) { _, connected in
                     if connected {
@@ -294,6 +311,67 @@ struct LightChallengeApp: App {
         }
 
         appState.onboardingActivityProvider = ""
+    }
+
+    /// Process a pending push notification tap with contextual routing.
+    private func processPendingPush() {
+        guard let payload = notificationService.pendingPushTap else { return }
+        notificationService.pendingPushTap = nil
+
+        let challengeId = payload.challengeId
+
+        // Mark related activity items as read
+        if !challengeId.isEmpty {
+            Task {
+                await notificationService.markReadByChallengeId(
+                    challengeId,
+                    baseURL: appState.serverURL,
+                    wallet: appState.walletAddress
+                )
+            }
+        }
+
+        // Action types → navigate directly to challenge
+        let actionTypes: Set<String> = [
+            "challenge_starting", "challenge_joined", "competition_started",
+            "claim_available", "claim_reminder",
+            "challenge_final_push", "challenge_behind_pace",
+            "proof_window_open", "match_upcoming"
+        ]
+
+        if actionTypes.contains(payload.type) {
+            if !challengeId.isEmpty {
+                appState.deepLinkChallengeId = challengeId
+                appState.selectedTab = .challenges
+            } else if let deepLink = payload.deepLink, let url = URL(string: deepLink) {
+                UIApplication.shared.open(url)
+            }
+        } else {
+            // Informational → show detail sheet
+            if !challengeId.isEmpty {
+                // Try to find matching notification in local store
+                if let existing = notificationService.notifications.first(where: {
+                    $0.challengeId == challengeId && $0.type == payload.type
+                }) {
+                    appState.activityDetailNotification = existing
+                } else {
+                    // Build from push payload
+                    let json: [String: Any] = [
+                        "id": payload.requestId,
+                        "type": payload.type,
+                        "title": payload.title,
+                        "body": payload.body,
+                        "read": true,
+                        "data": ["challengeId": challengeId]
+                    ]
+                    if let notification = AppNotification(json: json) {
+                        appState.activityDetailNotification = notification
+                    }
+                }
+            } else if let deepLink = payload.deepLink, let url = URL(string: deepLink) {
+                UIApplication.shared.open(url)
+            }
+        }
     }
 
     private func propagateToHealthService(_ url: URL) {

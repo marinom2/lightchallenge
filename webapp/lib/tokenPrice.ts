@@ -133,6 +133,26 @@ export function formatWeiAsUSD(weiStr: string | null | undefined, tokenPrice: nu
   }
 }
 
+/** Return both USD and LCAI strings for dual display. */
+export function formatWeiDual(weiStr: string | null | undefined, tokenPrice: number | null): { usd: string | null; lcai: string } {
+  if (!weiStr) return { usd: null, lcai: "0 LCAI" };
+  try {
+    const wei = BigInt(weiStr);
+    const lcaiAmt = Number(wei) / 1e18;
+    const lcaiStr = formatLCAIValue(lcaiAmt);
+    if (lcaiAmt === 0) return { usd: null, lcai: "0 LCAI" };
+    if (tokenPrice && tokenPrice > 0) {
+      const usd = lcaiAmt * tokenPrice;
+      if (usd >= 0.00005) {
+        return { usd: `≈ $${usd < 1 ? usd.toFixed(4) : usd < 100 ? usd.toFixed(2) : usd.toFixed(0)}`, lcai: lcaiStr };
+      }
+    }
+    return { usd: null, lcai: lcaiStr };
+  } catch {
+    return { usd: null, lcai: "0 LCAI" };
+  }
+}
+
 /** Format a plain LCAI amount as USDC. */
 export function formatLCAIAsUSD(lcai: number, tokenPrice: number | null): string {
   if (tokenPrice && tokenPrice > 0) {

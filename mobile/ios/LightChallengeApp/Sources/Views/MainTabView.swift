@@ -10,11 +10,32 @@ struct MainTabView: View {
     @EnvironmentObject private var notificationService: NotificationService
     @Environment(\.horizontalSizeClass) private var sizeClass
 
+    @State private var pushDetailNotification: AppNotification?
+
     var body: some View {
-        if sizeClass == .regular {
-            iPadLayout
-        } else {
-            iPhoneLayout
+        Group {
+            if sizeClass == .regular {
+                iPadLayout
+            } else {
+                iPhoneLayout
+            }
+        }
+        .sheet(item: $pushDetailNotification) { notification in
+            ActivityDetailSheet(notification: notification) {
+                if let challengeId = notification.challengeId, !challengeId.isEmpty {
+                    appState.deepLinkChallengeId = challengeId
+                    appState.selectedTab = .challenges
+                }
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.hidden)
+            .presentationCornerRadius(24)
+        }
+        .onChange(of: appState.activityDetailNotification) { _, notification in
+            if let notification {
+                pushDetailNotification = notification
+                appState.activityDetailNotification = nil
+            }
         }
     }
 

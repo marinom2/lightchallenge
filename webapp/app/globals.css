@@ -3865,12 +3865,18 @@ html[data-theme="light"] .orbit__core {
 
 /* ── iOS-style page layout ────────────────────────────────────────────────── */
 .cd-page {
-  max-width: 44rem;
+  max-width: 64rem;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: var(--lc-space-4);
-  padding-bottom: var(--lc-space-8);
+  padding: 0 var(--lc-space-4) var(--lc-space-8);
+}
+
+@media (min-width: 768px) {
+  .cd-page {
+    padding: 0 var(--lc-space-3) var(--lc-space-8);
+  }
 }
 
 /* ── Hero metric display (iOS-style centered) ─────────────────────────────── */
@@ -4080,6 +4086,276 @@ html[data-theme="light"] .orbit__core {
 .cd-auto-proof__row--error {
   background: var(--lc-danger-muted);
   color: var(--lc-danger);
+}
+
+/* ── Section hover elevation ───────────────────────────────────────────── */
+.cd-section {
+  border-radius: var(--lc-radius-lg);
+  background: var(--lc-bg-raised);
+  border: 1px solid var(--lc-border);
+  box-shadow: var(--lc-shadow-sm);
+  padding: var(--lc-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lc-space-3);
+  transition: box-shadow var(--lc-duration-md) var(--lc-ease),
+              border-color var(--lc-duration-md) var(--lc-ease);
+}
+.cd-section:hover {
+  box-shadow: var(--lc-shadow-md);
+  border-color: color-mix(in oklab, var(--lc-border) 100%, var(--lc-text) 6%);
+}
+
+/* ── Progress hero (large metric + bar + time) ─────────────────────────── */
+.cd-progress-hero {
+  text-align: center;
+  padding: var(--lc-space-4) 0 var(--lc-space-2);
+}
+.cd-progress-hero__metric {
+  font-size: clamp(2rem, 6vw, 3rem);
+  font-weight: var(--lc-weight-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--lc-text);
+  line-height: 1.1;
+}
+.cd-progress-hero__goal {
+  font-size: var(--lc-text-small);
+  font-weight: var(--lc-weight-medium);
+  color: var(--lc-text-muted);
+  margin-top: 6px;
+}
+.cd-progress-hero__bar {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--progress-track);
+  box-shadow: inset 0 0 0 1px var(--progress-outline, color-mix(in oklab, var(--lc-border) 60%, transparent));
+  margin: var(--lc-space-3) 0;
+  overflow: hidden;
+}
+.cd-progress-hero__fill {
+  position: absolute;
+  inset: 0;
+  right: auto;
+  border-radius: 999px;
+  background: var(--progress-fill);
+  box-shadow:
+    0 0 0 1px var(--progress-edge, color-mix(in oklab, var(--lc-border) 30%, transparent)),
+    0 6px 16px var(--progress-glow, color-mix(in oklab, var(--accent-2, #6366f1) 18%, transparent));
+  transition: width 600ms var(--lc-ease);
+}
+.cd-progress-hero__fill--failed {
+  background: var(--lc-danger, #ef4444);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--lc-danger, #ef4444) 30%, transparent),
+    0 6px 16px color-mix(in oklab, var(--lc-danger, #ef4444) 18%, transparent);
+}
+.cd-progress-hero__sheen {
+  position: absolute;
+  inset: 0;
+  right: auto;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, white 22%, transparent), transparent);
+  opacity: 0.55;
+  pointer-events: none;
+  transition: width 600ms var(--lc-ease);
+}
+.cd-progress-hero__time {
+  font-size: var(--lc-text-small);
+  font-weight: var(--lc-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--lc-text-secondary);
+}
+
+/* ── Status line (replaces capsule) ──────────────────────────────────── */
+.cd-status-line {
+  text-align: center;
+  font-size: var(--lc-text-small);
+  font-weight: var(--lc-weight-medium);
+  color: var(--lc-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lc-space-2);
+}
+.cd-status-line__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.cd-status-line__dot--active { background: var(--lc-success); }
+.cd-status-line__dot--upcoming { background: var(--lc-info); }
+.cd-status-line__dot--ended { background: var(--lc-text-muted); }
+.cd-status-line__dot--finalized { background: var(--lc-text-muted); }
+
+/* ── Financial display (USD + LCAI dual) ───────────────────────────────── */
+.cd-finance {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lc-space-3);
+  padding: var(--lc-space-3) 0;
+}
+.cd-finance__primary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cd-finance__usd {
+  font-size: var(--lc-text-heading);
+  font-weight: var(--lc-weight-bold);
+  color: var(--lc-text);
+  font-variant-numeric: tabular-nums;
+}
+.cd-finance__lcai {
+  font-size: var(--lc-text-small);
+  font-weight: var(--lc-weight-medium);
+  color: var(--lc-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.cd-finance__label {
+  font-size: var(--lc-text-caption);
+  font-weight: var(--lc-weight-medium);
+  color: var(--lc-text-muted);
+}
+.cd-finance__participants {
+  font-size: var(--lc-text-small);
+  font-weight: var(--lc-weight-medium);
+  color: var(--lc-text-muted);
+  text-align: right;
+}
+
+/* ── Lifecycle timeline ─────────────────────────────────────────────────── */
+.cd-lifecycle {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.cd-lifecycle__step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lc-space-3);
+  position: relative;
+  padding-bottom: var(--lc-space-4);
+  transition: opacity var(--lc-duration-md) var(--lc-ease);
+}
+.cd-lifecycle__step:last-child {
+  padding-bottom: 0;
+}
+/* Spine */
+.cd-lifecycle__step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 26px;
+  bottom: 0;
+  width: 2px;
+  background: var(--lc-border);
+}
+/* Node */
+.cd-lifecycle__node {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 2px solid var(--lc-border);
+  background: var(--lc-bg);
+  transition: all var(--lc-duration-md) var(--lc-ease);
+}
+.cd-lifecycle__step--done .cd-lifecycle__node {
+  background: var(--lc-success);
+  border-color: var(--lc-success);
+}
+.cd-lifecycle__step--done:not(:last-child)::after {
+  background: var(--lc-success);
+}
+.cd-lifecycle__step--current .cd-lifecycle__node {
+  background: var(--lc-info);
+  border-color: var(--lc-info);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--lc-info) 20%, transparent);
+}
+.cd-lifecycle__step--current:not(:last-child)::after {
+  background: linear-gradient(to bottom, var(--lc-info), var(--lc-border));
+}
+.cd-lifecycle__step--future {
+  opacity: 0.5;
+}
+.cd-lifecycle__step--future .cd-lifecycle__node {
+  background: var(--lc-bg-inset);
+  border-color: var(--lc-border);
+}
+/* Content */
+.cd-lifecycle__content {
+  min-width: 0;
+  flex: 1;
+  padding-top: 2px;
+}
+.cd-lifecycle__label {
+  font-size: var(--lc-text-small);
+  font-weight: var(--lc-weight-semibold);
+  color: var(--lc-text);
+}
+.cd-lifecycle__time {
+  font-size: var(--lc-text-caption);
+  color: var(--lc-text-muted);
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.cd-lifecycle__step:hover .cd-lifecycle__label {
+  color: var(--lc-accent, var(--lc-text));
+}
+
+/* ── Verification explainer ────────────────────────────────────────────── */
+.cd-verify-explain {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lc-space-3);
+  padding: var(--lc-space-3) 0;
+  font-size: var(--lc-text-small);
+  color: var(--lc-text-secondary);
+  line-height: var(--lc-leading-normal);
+}
+.cd-verify-explain__icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--lc-radius-sm);
+  background: var(--lc-bg-inset);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lc-text-muted);
+}
+
+/* ── Two-column grid for desktop (action sidebar) ──────────────────────── */
+.cd-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lc-space-4);
+}
+@media (min-width: 1024px) {
+  .cd-grid {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: var(--lc-space-5);
+    align-items: start;
+  }
+  .cd-grid__main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lc-space-4);
+  }
+  .cd-grid__side {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lc-space-4);
+    position: sticky;
+    top: calc(var(--navbar-top, 64px) + 16px);
+  }
 }
 
 /* ── Create Wizard (cw-*) ─────────────────────────────────────────────────── */
@@ -6077,6 +6353,13 @@ html[data-theme="light"] .cd-params {
 
 html[data-theme="light"] .cd-error {
   background: rgba(239, 68, 68, 0.06);
+}
+
+html[data-theme="light"] .cd-section {
+  background: var(--lc-glass);
+}
+html[data-theme="light"] .cd-section:hover {
+  box-shadow: var(--lc-shadow-md);
 }
 
 /* ── Challenge Card (explore page) ───────────────────────────────────────── */
