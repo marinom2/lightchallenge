@@ -596,6 +596,18 @@ struct ServerProgress: Codable {
     let updatedAt: String?
 }
 
+// MARK: - Resolved Stage (server-computed lifecycle, from resolveLifecycle())
+
+struct ResolvedStage: Codable {
+    let stage: String?
+    let label: String?
+    let description: String?
+    let canSubmitProof: Bool?
+    let canClaim: Bool?
+    let proofDeadlinePassed: Bool?
+    let proofTimeLeft: Int?
+}
+
 // MARK: - Participant Status (from GET /api/challenge/[id]/participant)
 
 struct ParticipantStatus: Codable {
@@ -606,6 +618,7 @@ struct ParticipantStatus: Codable {
     let verdictReasons: [String]?
     let verdictEvaluator: String?
     let verdictUpdatedAt: String?
+    let resolved: ResolvedStage?
 }
 
 // MARK: - My Challenges (from GET /api/me/challenges)
@@ -621,6 +634,8 @@ struct MyChallenge: Codable, Identifiable {
     let source: String?
     /// On-chain challenge status: Active | Finalized | Canceled
     let challengeStatus: String?
+    /// Server-computed lifecycle state (from resolveLifecycle)
+    let resolved: ResolvedStage?
 
     var id: String { challengeId }
 
@@ -637,9 +652,12 @@ struct MyChallenge: Codable, Identifiable {
         statusLabel(meta: nil)
     }
 
-    /// Timeline-aware status label. When a ChallengeMeta is available, verdicts
-    /// are suppressed until the proof deadline has passed (not just challenge end).
+    /// Timeline-aware status label. Prefers server-computed `resolved.label`
+    /// when available, falls back to local derivation.
     func statusLabel(meta: ChallengeMeta?) -> String {
+        if let label = resolved?.label, !label.isEmpty {
+            return label
+        }
         if isChallengeActive(meta: meta) {
             return "Active"
         }
@@ -659,6 +677,17 @@ struct MyChallenge: Codable, Identifiable {
     }
 
     func statusColor(meta: ChallengeMeta?) -> String {
+        if let stage = resolved?.stage {
+            switch stage {
+            case "ACTIVE": return "green"
+            case "NEEDS_PROOF", "NEEDS_PROOF_URGENT": return "blue"
+            case "SUBMITTED", "VERIFIED": return "amber"
+            case "PASSED", "REWARD_EARNED", "CLAIMABLE", "CLAIMED": return "green"
+            case "FAILED": return "red"
+            case "ENDED": return "gray"
+            default: break
+            }
+        }
         if isChallengeActive(meta: meta) {
             return "green"
         }

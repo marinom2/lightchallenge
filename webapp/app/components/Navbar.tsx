@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import ThemeSwitcher from "./theme/ThemeIconToggle";
 import NetworkStatus from "./NetworkStatus";
+import NotificationBell from "./NotificationBell";
 import { ADDR, ABI, ZERO_ADDR } from "@/lib/contracts";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -731,12 +732,14 @@ export default function Navbar() {
           {/* Desktop right controls */}
           <div className="hidden md:flex items-center gap-3 shrink-0">
             <NetworkStatus />
+            <NotificationBell />
             <WalletButton />
             <ProfileDropdown isAdmin={isAdmin} />
           </div>
 
           {/* Mobile right controls */}
           <div className="md:hidden flex items-center gap-2 shrink-0">
+            <NotificationBell />
             <WalletButton onConnect={() => setMobileOpen(false)} />
 
             {/* Hamburger */}

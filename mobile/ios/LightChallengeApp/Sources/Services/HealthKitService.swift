@@ -317,8 +317,8 @@ class HealthKitService: ObservableObject {
             case "steps":
                 return try await fetchDailyCumulative(type: HKQuantityType(.stepCount), unit: .count(), from: start, to: end)
             case "distance", "distance_km":
-                let workouts = try await fetchDailyWorkouts(from: start, to: end, activityTypes: [.running])
-                return workouts.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
+                return try await fetchDailyCumulative(type: HKQuantityType(.distanceWalkingRunning), unit: .meter(), from: start, to: end)
+                    .map { ($0.0, $0.1 / 1000.0) }
             case "walking_km":
                 let workouts = try await fetchDailyWorkouts(from: start, to: end, activityTypes: [.walking])
                 return workouts.map { ($0.date, $0.totalDistanceMeters / 1000.0) }

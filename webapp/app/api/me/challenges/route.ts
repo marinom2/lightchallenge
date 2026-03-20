@@ -23,6 +23,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAddress } from "viem";
 import { getChallengesForSubject } from "../../../../../offchain/db/participants";
+import { resolveLifecycle, type LifecycleInput } from "../../../../lib/challenges/lifecycle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,7 +39,42 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const challenges = await getChallengesForSubject(subject);
+    const rows = await getChallengesForSubject(subject);
+    const now = Math.floor(Date.now() / 1000);
+
+    const challenges = rows.map((row) => {
+      const input: LifecycleInput = {
+        challenge_id: row.challenge_id,
+        challenge_status: row.challenge_status,
+        endsAt: row.ends_at_unix,
+        proofDeadline: row.proof_deadline_unix,
+        has_evidence: row.has_evidence,
+        evidence_submitted_at: row.evidence_submitted_at,
+        evidence_provider: row.evidence_provider,
+        verdict_pass: row.verdict_pass,
+        verdict_reasons: row.verdict_reasons,
+        verdict_evaluator: row.verdict_evaluator,
+        verdict_updated_at: row.verdict_updated_at,
+        aivm_verification_status: row.aivm_verification_status,
+        chainOutcome: row.chain_outcome,
+        hasClaim: row.has_claim,
+        claimedTotalWei: row.claimed_total_wei,
+      };
+      const lc = resolveLifecycle(input, now);
+      return {
+        ...row,
+        resolved: {
+          stage: lc.stage,
+          label: lc.label,
+          description: lc.description,
+          canSubmitProof: lc.canSubmitProof,
+          canClaim: lc.canClaim,
+          proofDeadlinePassed: lc.proofDeadlinePassed,
+          proofTimeLeft: lc.proofTimeLeft ?? null,
+        },
+      };
+    });
+
     return NextResponse.json({ ok: true, challenges });
   } catch (e: any) {
     console.error("[me/challenges]", e);

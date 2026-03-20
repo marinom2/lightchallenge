@@ -75,13 +75,15 @@ export async function POST(req: NextRequest) {
         challenge_id,
         method,
         value,
-        status
+        status,
+        inviter_wallet
       ) values (
         ${id},
         ${challengeId},
         ${method},
         ${value},
-        'queued'
+        'queued',
+        ${authWallet}
       )
     `;
 

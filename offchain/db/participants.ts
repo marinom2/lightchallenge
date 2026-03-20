@@ -68,6 +68,10 @@ export type ParticipantWithStatus = {
   has_claim: boolean;
   /** Total claimed amount in wei (as string) across all claim types. */
   claimed_total_wei: string | null;
+  /** Challenge end time (unix seconds) extracted from timeline JSONB. */
+  ends_at_unix: number | null;
+  /** Proof deadline (unix seconds) extracted from timeline JSONB. */
+  proof_deadline_unix: number | null;
 };
 
 // ─── Queries ────────────────────────────────────────────────────────────────
@@ -153,7 +157,9 @@ export async function getChallengesForSubject(
       c.status                             AS challenge_status,
       c.chain_outcome                      AS chain_outcome,
       (cl.total_claims > 0)               AS has_claim,
-      cl.total_wei                         AS claimed_total_wei
+      cl.total_wei                         AS claimed_total_wei,
+      extract(epoch from (c.timeline->>'endsAt')::timestamptz)::bigint     AS ends_at_unix,
+      extract(epoch from (c.timeline->>'proofDeadline')::timestamptz)::bigint AS proof_deadline_unix
     FROM   public.participants p
     LEFT   JOIN LATERAL (
                   SELECT id, created_at, provider
@@ -212,8 +218,11 @@ export async function getParticipantStatus(
       v.updated_at                         AS verdict_updated_at,
       c.proof->>'verificationStatus'       AS aivm_verification_status,
       c.status                             AS challenge_status,
+      c.chain_outcome                      AS chain_outcome,
       (cl.total_claims > 0)               AS has_claim,
-      cl.total_wei                         AS claimed_total_wei
+      cl.total_wei                         AS claimed_total_wei,
+      extract(epoch from (c.timeline->>'endsAt')::timestamptz)::bigint     AS ends_at_unix,
+      extract(epoch from (c.timeline->>'proofDeadline')::timestamptz)::bigint AS proof_deadline_unix
     FROM   public.participants p
     LEFT   JOIN LATERAL (
                   SELECT id, created_at, provider

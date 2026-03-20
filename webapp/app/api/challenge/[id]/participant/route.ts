@@ -17,6 +17,7 @@ import { upsertParticipant, getParticipantStatus } from "../../../../../../offch
 import { createNotification } from "../../../../../../offchain/db/notifications";
 import { verifyWallet, requireAuth, verifyByTxReceipt } from "@/lib/auth";
 import { ADDR } from "@/lib/contracts";
+import { resolveLifecycle, type LifecycleInput } from "@/lib/challenges/lifecycle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,7 +55,39 @@ export async function GET(
       });
     }
 
-    return NextResponse.json(status);
+    // Compute canonical lifecycle state server-side
+    const now = Math.floor(Date.now() / 1000);
+    const input: LifecycleInput = {
+      challenge_id: status.challenge_id,
+      challenge_status: status.challenge_status,
+      endsAt: status.ends_at_unix,
+      proofDeadline: status.proof_deadline_unix,
+      has_evidence: status.has_evidence,
+      evidence_submitted_at: status.evidence_submitted_at,
+      evidence_provider: status.evidence_provider,
+      verdict_pass: status.verdict_pass,
+      verdict_reasons: status.verdict_reasons,
+      verdict_evaluator: status.verdict_evaluator,
+      verdict_updated_at: status.verdict_updated_at,
+      aivm_verification_status: status.aivm_verification_status,
+      chainOutcome: status.chain_outcome,
+      hasClaim: status.has_claim,
+      claimedTotalWei: status.claimed_total_wei,
+    };
+    const lc = resolveLifecycle(input, now);
+
+    return NextResponse.json({
+      ...status,
+      resolved: {
+        stage: lc.stage,
+        label: lc.label,
+        description: lc.description,
+        canSubmitProof: lc.canSubmitProof,
+        canClaim: lc.canClaim,
+        proofDeadlinePassed: lc.proofDeadlinePassed,
+        proofTimeLeft: lc.proofTimeLeft ?? null,
+      },
+    });
   } catch (e: any) {
     console.error("[participant GET]", e);
     return NextResponse.json(

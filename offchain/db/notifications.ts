@@ -35,7 +35,10 @@ export type NotificationType =
   | "challenge_joined"
   | "proof_submitted"
   | "challenge_starting"
-  | "proof_window_open";
+  | "proof_window_open"
+  // Invite events
+  | "invite_received"
+  | "invite_accepted";
 
 /** Shape of a row as returned from the DB. */
 export type NotificationRow = {

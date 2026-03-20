@@ -154,13 +154,21 @@ struct ProgressMetricsView: View {
             }
             .frame(height: 8)
 
-            // Remaining — only when not yet complete
-            if goalValue > currentValue {
-                let remaining = goalValue - currentValue
-                Text("\(formatValue(remaining)) \(metricLabel) to go")
-                    .font(.caption)
-                    .foregroundStyle(LC.textTertiary(scheme))
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            // Percentage + remaining/above
+            if goalValue > 0 {
+                let pct = Int((currentValue / goalValue) * 100)
+                let diff = currentValue - goalValue
+                if diff >= 0 {
+                    Text("\(pct)% complete · \(formatValue(diff)) above target")
+                        .font(.caption)
+                        .foregroundStyle(LC.textTertiary(scheme))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Text("\(pct)% complete · \(formatValue(abs(diff))) to go")
+                        .font(.caption)
+                        .foregroundStyle(LC.textTertiary(scheme))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
         .padding(LC.space16)
@@ -419,6 +427,8 @@ struct ProgressMetricsView: View {
 
     private var verdictCard: some View {
         let passed = userState == .completed
+        let pct = goalValue > 0 ? Int((currentValue / goalValue) * 100) : 0
+        let diff = currentValue - goalValue
 
         return VStack(spacing: LC.space4) {
             // Status
@@ -426,11 +436,27 @@ struct ProgressMetricsView: View {
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(LC.textTertiary(scheme))
 
-            // Single numeric line
+            // Unified: current / target
             if goalValue > 0 {
-                Text("\(formatValueWithCommas(currentValue)) of \(formatValueWithCommas(goalValue)) \(metricLabel)")
-                    .font(.caption)
-                    .foregroundStyle(LC.textTertiary(scheme))
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(formatValueWithCommas(currentValue))
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(LC.textPrimary(scheme))
+                    Text("/ \(formatValueWithCommas(goalValue)) \(metricLabel)")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(LC.textSecondary(scheme))
+                }
+
+                // Percentage + above/short
+                if diff >= 0 {
+                    Text("\(pct)% · \(formatValueWithCommas(diff)) above target")
+                        .font(.caption2)
+                        .foregroundStyle(LC.textTertiary(scheme))
+                } else {
+                    Text("\(pct)% · \(formatValueWithCommas(abs(diff))) short of target")
+                        .font(.caption2)
+                        .foregroundStyle(LC.textTertiary(scheme))
+                }
             }
         }
         .frame(maxWidth: .infinity)
@@ -443,22 +469,24 @@ struct ProgressMetricsView: View {
         guard let r = rules else {
             return passed
                 ? "Challenge requirements met."
-                : "You didn't reach the goal."
+                : "You didn't reach the target."
         }
 
         let goal = r.goalValue
-        let fmtGoal = formatValueWithCommas(goal)
         let fmtCurrent = formatValueWithCommas(currentValue)
-
-        if passed {
-            return "\(fmtCurrent) of \(fmtGoal) \(metricLabel)"
-        }
+        let fmtGoal = formatValueWithCommas(goal)
+        let pct = goal > 0 ? Int((currentValue / goal) * 100) : 0
 
         if currentValue <= 0 {
-            return "You didn't reach the goal."
+            return "You didn't reach the target."
         }
 
-        return "\(fmtCurrent) of \(fmtGoal) \(metricLabel)"
+        let diff = currentValue - goal
+        if diff >= 0 {
+            return "\(fmtCurrent) / \(fmtGoal) \(metricLabel) · \(pct)% · \(formatValueWithCommas(diff)) above target"
+        } else {
+            return "\(fmtCurrent) / \(fmtGoal) \(metricLabel) · \(pct)% · \(formatValueWithCommas(abs(diff))) short of target"
+        }
     }
 
     private func formatValueWithCommas(_ value: Double) -> String {

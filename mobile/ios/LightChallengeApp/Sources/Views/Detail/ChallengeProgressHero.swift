@@ -273,6 +273,26 @@ enum UserChallengeState {
         }
     }
 
+    /// Map server-computed resolved stage to UserChallengeState.
+    /// Returns nil if the resolved field is absent or unrecognized (caller falls back to local logic).
+    static func fromResolved(_ resolved: ResolvedStage?) -> UserChallengeState? {
+        guard let stage = resolved?.stage else { return nil }
+        switch stage {
+        case "ACTIVE":              return .active
+        case "NEEDS_PROOF":         return .awaitingProof
+        case "NEEDS_PROOF_URGENT":  return .awaitingProof
+        case "SUBMITTED":           return .submitted
+        case "VERIFIED":            return .awaitingVerdict
+        case "PASSED":              return .completed
+        case "FAILED":              return .failed
+        case "REWARD_EARNED":       return .completed
+        case "CLAIMABLE":           return .completed
+        case "CLAIMED":             return .completed
+        case "ENDED":               return .ended
+        default:                    return nil
+        }
+    }
+
     static func from(detail: ChallengeDetail, participantStatus: ParticipantStatus?, phase: ChallengePhase, autoProofSubmitted: Bool = false) -> UserChallengeState {
         // Primary join signal: on-chain Joined event via the API.
         // Fallback: if the user has a participantStatus with evidence or a verdict,
@@ -363,7 +383,11 @@ struct ChallengeProgressHero: View {
         ChallengePhase.from(detail: detail, verdictPass: participantStatus?.verdictPass)
     }
     private var userState: UserChallengeState {
-        UserChallengeState.from(detail: detail, participantStatus: participantStatus, phase: phase, autoProofSubmitted: autoProofSubmitted)
+        // Prefer server-computed resolved state; fall back to local derivation
+        if let resolved = UserChallengeState.fromResolved(participantStatus?.resolved) {
+            return resolved
+        }
+        return UserChallengeState.from(detail: detail, participantStatus: participantStatus, phase: phase, autoProofSubmitted: autoProofSubmitted)
     }
     private var rules: ChallengeRules? { detail.rules }
     private var metricLabel: String { rules?.metricLabel ?? "" }
@@ -519,20 +543,31 @@ struct ChallengeProgressHero: View {
 
     private var progressLabel: some View {
         let isEnded = userState == .completed || userState == .failed
+        let pct = goalValue > 0 ? Int((currentValue / goalValue) * 100) : 0
+        let diff = currentValue - goalValue
+
         return VStack(spacing: 2) {
-            if isEnded {
-                // Ended: compact "X of Y metric"
-                Text("\(formatValueWithCommas(currentValue)) of \(formatValueWithCommas(goalValue)) \(metricLabel)")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(LC.textSecondary(scheme))
-            } else {
-                // Active: large current value
-                Text("\(formatValueWithCommas(currentValue)) \(metricLabel)")
-                    .font(.title2.weight(.bold).monospacedDigit())
+            // Primary: current / target metric
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(formatValueWithCommas(currentValue))
+                    .font(isEnded ? .subheadline.weight(.semibold).monospacedDigit() : .title2.weight(.bold).monospacedDigit())
                     .foregroundStyle(LC.textPrimary(scheme))
-                Text("Goal: \(formatValueWithCommas(goalValue))")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(LC.textTertiary(scheme))
+                Text("/ \(formatValueWithCommas(goalValue)) \(metricLabel)")
+                    .font(isEnded ? .caption.weight(.medium) : .subheadline.weight(.medium))
+                    .foregroundStyle(LC.textSecondary(scheme))
+            }
+
+            // Secondary: percentage + remaining/above/short
+            if goalValue > 0 {
+                if diff >= 0 {
+                    Text("\(pct)% · \(formatValueWithCommas(diff)) above target")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(LC.textTertiary(scheme))
+                } else {
+                    Text("\(pct)% · \(formatValueWithCommas(abs(diff))) \(isEnded ? "short of target" : "to go")")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(LC.textTertiary(scheme))
+                }
             }
         }
     }

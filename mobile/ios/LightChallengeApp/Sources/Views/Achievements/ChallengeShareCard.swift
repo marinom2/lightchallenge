@@ -251,12 +251,16 @@ struct ChallengeShareSheet: View {
             items.append(StatItem(icon: "chart.bar.fill", value: "\(rate)%", label: "Pass Rate", color: Color(hex: 0x06B6D4)))
         }
 
-        // Goal if present
+        // Progress: current / target
         if let rules = detail?.rules, rules.goalValue > 0 {
-            let formatted = rules.goalValue >= 1000
+            let fmtCurrent = currentValue >= 1000
+                ? String(format: "%.0f", currentValue)
+                : String(format: "%.1f", currentValue)
+            let fmtGoal = rules.goalValue >= 1000
                 ? String(format: "%.0f", rules.goalValue)
                 : String(format: "%.1f", rules.goalValue)
-            items.append(StatItem(icon: "target", value: "\(formatted) \(rules.metricLabel)", label: "Goal", color: theme?.figureTint ?? LC.accent))
+            let pct = Int((currentValue / rules.goalValue) * 100)
+            items.append(StatItem(icon: "target", value: "\(fmtCurrent) / \(fmtGoal) \(rules.metricLabel)", label: "\(pct)%", color: theme?.figureTint ?? LC.accent))
         }
 
         // Ensure we have at least 3 items for a nice grid
