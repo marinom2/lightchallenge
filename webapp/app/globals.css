@@ -4302,65 +4302,49 @@ html[data-theme="light"] .orbit__core {
 /* ── Progress hero (large metric + ring/bar + time) ────────────────────── */
 .cd-progress-hero {
   padding: var(--lc-space-4) 0 var(--lc-space-2);
-}
-.cd-progress-hero__main {
-  display: flex;
-  align-items: center;
-  gap: var(--lc-space-5);
-  justify-content: center;
-}
-@media (max-width: 520px) {
-  .cd-progress-hero__main {
-    flex-direction: column;
-    text-align: center;
-  }
-}
-.cd-progress-hero__ring-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 160px;
-  height: 160px;
-}
-.cd-progress-hero__ring-inner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 2px;
+  gap: var(--lc-space-3);
 }
-.cd-progress-hero__ring-pct {
-  font-size: clamp(1.75rem, 5vw, 2.25rem);
+.cd-progress-hero__numbers {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--lc-space-2);
+  text-align: center;
+}
+.cd-progress-hero__pct-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--lc-space-2);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.cd-progress-hero__pct {
+  font-size: clamp(1.5rem, 4vw, 2rem);
   font-weight: var(--lc-weight-bold);
   font-variant-numeric: tabular-nums;
   color: var(--lc-text);
   line-height: 1;
 }
-.cd-progress-hero__ring-label {
-  font-size: var(--lc-text-caption);
-  font-weight: var(--lc-weight-medium);
-  color: var(--lc-text-muted);
-}
-.cd-progress-hero__ring-label--failed {
+.cd-progress-hero__pct--failed {
   color: var(--lc-danger);
-  font-weight: var(--lc-weight-semibold);
 }
-.cd-progress-hero__ring-label--success {
+.cd-progress-hero__pct--success {
   color: var(--lc-success);
+}
+.cd-progress-hero__state {
+  font-size: var(--lc-text-small);
   font-weight: var(--lc-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
-.cd-progress-hero__details {
-  display: flex;
-  flex-direction: column;
-  gap: var(--lc-space-2);
-  min-width: 0;
+.cd-progress-hero__state--failed {
+  color: var(--lc-danger);
 }
-@media (max-width: 520px) {
-  .cd-progress-hero__details {
-    align-items: center;
-  }
+.cd-progress-hero__state--success {
+  color: var(--lc-success);
 }
 .cd-progress-hero__metric {
   font-variant-numeric: tabular-nums;

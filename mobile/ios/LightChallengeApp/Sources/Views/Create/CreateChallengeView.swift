@@ -36,6 +36,7 @@ struct CreateChallengeView: View {
         ("strength", "Strength", "figure.strengthtraining.traditional"),
         ("yoga", "Yoga", "figure.yoga"),
         ("hiit", "HIIT", "figure.highintensity.intervaltraining"),
+        ("crossfit", "CrossFit", "figure.cross.training"),
         ("rowing", "Rowing", "figure.rowing"),
         ("calories", "Calories", "flame.fill"),
         ("exercise", "Exercise", "heart.circle.fill"),

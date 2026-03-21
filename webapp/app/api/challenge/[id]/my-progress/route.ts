@@ -22,13 +22,24 @@ export const dynamic = "force-dynamic";
 
 const METRIC_LABELS: Record<string, string> = {
   steps: "Steps",
+  steps_count: "Steps",
   distance: "Distance (km)",
   distance_km: "Distance (km)",
+  walking_km: "Walking (km)",
+  running_km: "Running (km)",
   cycling_km: "Cycling (km)",
   swimming_km: "Swimming (km)",
   hiking_km: "Hiking (km)",
+  rowing_km: "Rowing (km)",
   strength_sessions: "Sessions",
   active_minutes: "Active Minutes",
+  duration_min: "Active Minutes",
+  yoga_min: "Yoga (min)",
+  hiit_min: "HIIT (min)",
+  crossfit_min: "CrossFit (min)",
+  calories: "Calories (kcal)",
+  exercise_time: "Exercise (min)",
+  elev_gain_m: "Elevation (m)",
 };
 
 /**
@@ -36,8 +47,11 @@ const METRIC_LABELS: Record<string, string> = {
  * Handles both connector-style and AIVM-adapter-style field names.
  */
 function extractMetric(record: Record<string, unknown>, metric: string): number {
+  const type = String(record.type ?? "").toLowerCase();
+
   switch (metric) {
-    case "steps": {
+    case "steps":
+    case "steps_count": {
       if (typeof record.steps === "number") return record.steps;
       if (typeof record.steps_count === "number") return record.steps_count;
       return 0;
@@ -45,13 +59,29 @@ function extractMetric(record: Record<string, unknown>, metric: string): number 
 
     case "distance":
     case "distance_km": {
+      // Sums ALL activity types — used for running (primary distance activity)
+      if (typeof record.distance_km === "number") return record.distance_km;
+      if (typeof record.distance_m === "number") return record.distance_m / 1000;
+      return 0;
+    }
+
+    case "walking_km": {
+      const isWalking = type === "walk" || type === "walking";
+      if (!isWalking) return 0;
+      if (typeof record.distance_km === "number") return record.distance_km;
+      if (typeof record.distance_m === "number") return record.distance_m / 1000;
+      return 0;
+    }
+
+    case "running_km": {
+      const isRunning = type === "run" || type === "running";
+      if (!isRunning) return 0;
       if (typeof record.distance_km === "number") return record.distance_km;
       if (typeof record.distance_m === "number") return record.distance_m / 1000;
       return 0;
     }
 
     case "cycling_km": {
-      const type = String(record.type ?? "").toLowerCase();
       const isCycling =
         type === "cycle" || type === "ride" || type === "cycling" ||
         type === "virtualride" || type === "ebikeride";
@@ -62,7 +92,6 @@ function extractMetric(record: Record<string, unknown>, metric: string): number 
     }
 
     case "swimming_km": {
-      const type = String(record.type ?? "").toLowerCase();
       const isSwimming = type === "swim" || type === "swimming";
       if (!isSwimming) return 0;
       if (typeof record.distance_km === "number") return record.distance_km;
@@ -71,7 +100,6 @@ function extractMetric(record: Record<string, unknown>, metric: string): number 
     }
 
     case "hiking_km": {
-      const type = String(record.type ?? "").toLowerCase();
       const isHiking = type === "hike" || type === "hiking" || type === "walk";
       if (!isHiking) return 0;
       if (typeof record.distance_km === "number") return record.distance_km;
@@ -79,18 +107,69 @@ function extractMetric(record: Record<string, unknown>, metric: string): number 
       return 0;
     }
 
+    case "rowing_km": {
+      const isRowing = type === "rowing" || type === "row";
+      if (!isRowing) return 0;
+      if (typeof record.distance_km === "number") return record.distance_km;
+      if (typeof record.distance_m === "number") return record.distance_m / 1000;
+      return 0;
+    }
+
     case "strength_sessions": {
-      const type = String(record.type ?? "").toLowerCase();
       const isStrength = type === "strength" || type === "weighttraining" || type === "gym";
       if (!isStrength) return 0;
-      // Each record = 1 session
       return 1;
+    }
+
+    case "yoga_min": {
+      const isYoga = type === "yoga";
+      if (!isYoga) return 0;
+      if (typeof record.duration_min === "number") return record.duration_min;
+      if (typeof record.duration_s === "number") return record.duration_s / 60;
+      return 0;
+    }
+
+    case "hiit_min": {
+      const isHiit = type === "hiit" || type === "crossfit" || type === "highintensityintervaltraining";
+      if (!isHiit) return 0;
+      if (typeof record.duration_min === "number") return record.duration_min;
+      if (typeof record.duration_s === "number") return record.duration_s / 60;
+      return 0;
+    }
+
+    case "crossfit_min": {
+      const isCrossfit = type === "crossfit" || type === "hiit" || type === "crosstraining" || type === "mixedcardio";
+      if (!isCrossfit) return 0;
+      if (typeof record.duration_min === "number") return record.duration_min;
+      if (typeof record.duration_s === "number") return record.duration_s / 60;
+      return 0;
+    }
+
+    case "calories": {
+      if (typeof record.calories === "number") return record.calories;
+      if (typeof record.active_calories === "number") return record.active_calories;
+      return 0;
+    }
+
+    case "exercise_time":
+    case "duration_min": {
+      if (typeof record.duration_min === "number") return record.duration_min;
+      if (typeof record.duration_s === "number") return record.duration_s / 60;
+      if (typeof record.active_minutes === "number") return record.active_minutes;
+      return 0;
     }
 
     case "active_minutes": {
       if (typeof record.active_minutes === "number") return record.active_minutes;
       if (typeof record.duration_min === "number") return record.duration_min;
       if (typeof record.duration_s === "number") return record.duration_s / 60;
+      return 0;
+    }
+
+    case "elev_gain_m": {
+      if (typeof record.elev_gain_m === "number") return record.elev_gain_m;
+      if (typeof record.elevation_gain_m === "number") return record.elevation_gain_m;
+      if (typeof record.total_elevation_gain === "number") return record.total_elevation_gain;
       return 0;
     }
 
@@ -172,15 +251,49 @@ export async function GET(
 
     // Extract metric + threshold from params.rules (simplified FitnessRules format)
     // or fall back to params-level metric/threshold for legacy challenges.
+    // For very old challenges that lack rules entirely, infer from known params patterns.
     const rules = (params as any)?.rules as Record<string, unknown> | undefined;
-    const metric: string =
+    let metric: string =
       (typeof rules?.metric === "string" ? rules.metric : null) ??
       (typeof (params as any)?.metric === "string" ? (params as any).metric : null) ??
-      "steps";
-    const threshold: number =
+      "";
+    let threshold: number =
       (typeof rules?.threshold === "number" ? rules.threshold : null) ??
       (typeof (params as any)?.threshold === "number" ? (params as any).threshold : null) ??
       0;
+
+    // Fallback inference for legacy challenges without explicit metric/rules
+    if (!metric) {
+      const p = params as Record<string, unknown> | null;
+      if (p && typeof p.laps === "number") {
+        // Old swimming template stored laps — treat as swimming_km with laps as rough km
+        metric = "swimming_km";
+        threshold = p.laps as number;
+      } else if (p && typeof p.min_elev_gain_m === "number") {
+        metric = "elev_gain_m";
+        threshold = p.min_elev_gain_m as number;
+      } else if (p && typeof p.min_duration_min === "number") {
+        metric = "duration_min";
+        threshold = p.min_duration_min as number;
+      } else if (p && typeof p.min_calories === "number") {
+        metric = "calories";
+        threshold = p.min_calories as number;
+      } else if (p && typeof p.min_minutes === "number") {
+        metric = "exercise_time";
+        threshold = p.min_minutes as number;
+      } else if (p && typeof p.minSessions === "number") {
+        metric = "strength_sessions";
+        threshold = p.minSessions as number;
+      } else if (p && typeof p.min_distance_m === "number") {
+        metric = "distance_km";
+        threshold = (p.min_distance_m as number) / 1000;
+      } else if (p && typeof p.minSteps === "number") {
+        metric = "steps";
+        threshold = p.minSteps as number;
+      } else {
+        metric = "steps";
+      }
+    }
 
     const metricLabel = METRIC_LABELS[metric] ?? metric;
 

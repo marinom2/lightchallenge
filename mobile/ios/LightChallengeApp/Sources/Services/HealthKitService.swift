@@ -28,8 +28,8 @@ class HealthKitService: ObservableObject {
     // Collected data preview
     @Published var stepDays: [DailySteps] = []
     @Published var distanceDays: [DailyDistance] = []
-    @Published var cyclingDays: [DailyCyclingDistance] = []
-    @Published var swimmingDays: [DailySwimmingDistance] = []
+    @Published var cyclingDays: [DailyWorkouts] = []
+    @Published var swimmingDays: [DailyWorkouts] = []
     @Published var activeEnergyDays: [DailyActiveEnergy] = []
     @Published var heartRateDays: [DailyHeartRate] = []
     @Published var flightsClimbedDays: [DailyFlightsClimbed] = []
@@ -108,8 +108,8 @@ class HealthKitService: ObservableObject {
 
         async let steps = fetchDailySteps(from: startDate, to: endDate)
         async let distances = fetchDailyDistance(from: startDate, to: endDate)
-        async let cycling = fetchDailyCyclingDistance(from: startDate, to: endDate)
-        async let swimming = fetchDailySwimmingDistance(from: startDate, to: endDate)
+        async let cycling = fetchDailyWorkouts(from: startDate, to: endDate, activityTypes: [.cycling])
+        async let swimming = fetchDailyWorkouts(from: startDate, to: endDate, activityTypes: [.swimming])
         async let energy = fetchDailyActiveEnergy(from: startDate, to: endDate)
         async let hr = fetchDailyHeartRate(from: startDate, to: endDate)
         async let flights = fetchDailyFlightsClimbed(from: startDate, to: endDate)
@@ -202,19 +202,6 @@ class HealthKitService: ObservableObject {
         return raw.map { DailyDistance(date: $0.date, distanceMeters: $0.value) }
     }
 
-    private func fetchDailyCyclingDistance(from start: Date, to end: Date) async throws -> [DailyCyclingDistance] {
-        let raw = try await fetchDailyCumulative(
-            type: HKQuantityType(.distanceCycling), unit: .meter(), from: start, to: end
-        )
-        return raw.map { DailyCyclingDistance(date: $0.date, distanceMeters: $0.value) }
-    }
-
-    private func fetchDailySwimmingDistance(from start: Date, to end: Date) async throws -> [DailySwimmingDistance] {
-        let raw = try await fetchDailyCumulative(
-            type: HKQuantityType(.distanceSwimming), unit: .meter(), from: start, to: end
-        )
-        return raw.map { DailySwimmingDistance(date: $0.date, distanceMeters: $0.value) }
-    }
 
     private func fetchDailyActiveEnergy(from start: Date, to end: Date) async throws -> [DailyActiveEnergy] {
         let raw = try await fetchDailyCumulative(
@@ -320,14 +307,15 @@ class HealthKitService: ObservableObject {
                 return try await fetchDailyCumulative(type: HKQuantityType(.distanceWalkingRunning), unit: .meter(), from: start, to: end)
                     .map { ($0.0, $0.1 / 1000.0) }
             case "walking_km":
-                let workouts = try await fetchDailyWorkouts(from: start, to: end, activityTypes: [.walking])
-                return workouts.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
+                // Walking distance is passively tracked (same as steps) — no workout needed
+                return try await fetchDailyCumulative(type: HKQuantityType(.distanceWalkingRunning), unit: .meter(), from: start, to: end)
+                    .map { ($0.0, $0.1 / 1000.0) }
             case "cycling_km":
-                return try await fetchDailyCumulative(type: HKQuantityType(.distanceCycling), unit: .meter(), from: start, to: end)
-                    .map { ($0.0, $0.1 / 1000.0) }
+                let cycleWorkouts = try await fetchDailyWorkouts(from: start, to: end, activityTypes: [.cycling])
+                return cycleWorkouts.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
             case "swimming_km":
-                return try await fetchDailyCumulative(type: HKQuantityType(.distanceSwimming), unit: .meter(), from: start, to: end)
-                    .map { ($0.0, $0.1 / 1000.0) }
+                let swimWorkouts = try await fetchDailyWorkouts(from: start, to: end, activityTypes: [.swimming])
+                return swimWorkouts.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
             case "hiking_km":
                 let workouts = try await fetchDailyWorkouts(from: start, to: end, activityTypes: [.hiking])
                 return workouts.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
@@ -350,6 +338,9 @@ class HealthKitService: ObservableObject {
             case "hiit_min":
                 let workouts = try await fetchDailyWorkouts(from: start, to: end, activityTypes: [.highIntensityIntervalTraining, .crossTraining, .mixedCardio])
                 return workouts.map { ($0.date, $0.totalMinutes) }
+            case "crossfit_min":
+                let cfWorkouts = try await fetchDailyWorkouts(from: start, to: end, activityTypes: [.crossTraining, .highIntensityIntervalTraining, .mixedCardio])
+                return cfWorkouts.map { ($0.date, $0.totalMinutes) }
             case "rowing_km":
                 let workouts = try await fetchDailyWorkouts(from: start, to: end, activityTypes: [.rowing])
                 return workouts.map { ($0.date, $0.totalDistanceMeters / 1000.0) }
@@ -465,8 +456,8 @@ class HealthKitService: ObservableObject {
         // NOTE: distanceWalkingRunning omitted — it combines walking+running into one
         // ambiguous value. Use workout-level running/walking records below for isolation.
 
-        // Cycling distance
-        for day in cyclingDays where day.distanceMeters > 0 {
+        // Cycling workouts (explicit sessions only — no passive detection)
+        for day in cyclingDays where day.count > 0 {
             let (startTs, endTs) = dayTimestamps(day.date)
             records.append([
                 "provider": "apple_health",
@@ -475,14 +466,16 @@ class HealthKitService: ObservableObject {
                 "type": "cycle",
                 "start_ts": startTs,
                 "end_ts": endTs,
-                "duration_s": 86400,
-                "distance_m": day.distanceMeters,
+                "duration_s": Int(day.totalMinutes * 60),
+                "distance_m": day.totalDistanceMeters,
+                "calories": day.totalCalories,
+                "sessions": day.count,
                 "source_device": "HealthKit",
             ])
         }
 
-        // Swimming distance
-        for day in swimmingDays where day.distanceMeters > 0 {
+        // Swimming workouts (explicit sessions only — no passive detection)
+        for day in swimmingDays where day.count > 0 {
             let (startTs, endTs) = dayTimestamps(day.date)
             records.append([
                 "provider": "apple_health",
@@ -491,8 +484,10 @@ class HealthKitService: ObservableObject {
                 "type": "swim",
                 "start_ts": startTs,
                 "end_ts": endTs,
-                "duration_s": 86400,
-                "distance_m": day.distanceMeters,
+                "duration_s": Int(day.totalMinutes * 60),
+                "distance_m": day.totalDistanceMeters,
+                "calories": day.totalCalories,
+                "sessions": day.count,
                 "source_device": "HealthKit",
             ])
         }

@@ -55,6 +55,7 @@ enum FitnessTemplates {
         strengthWorkoutTemplate,
         yogaDurationTemplate,
         hiitSessionsTemplate,
+        crossfitSessionsTemplate,
         rowingDistanceTemplate,
         calorieBurnTemplate,
         exerciseTimeTemplate,
@@ -453,6 +454,40 @@ enum FitnessTemplates {
                 ],
                 "conditions": [
                     ["metric": "hiit_min", "op": ">=", "value": minutes]
+                ],
+            ]
+        }
+    )
+
+    // MARK: - CrossFit
+
+    private static let crossfitSessionsTemplate = ChallengeTemplate(
+        id: "crossfit_sessions",
+        name: "CrossFit — Session Time",
+        hint: "Accumulate CrossFit training time",
+        fitnessKind: "crossfit",
+        kindId: .fitnessGeneral,
+        modelId: "fitness.crossfit@1",
+        modelHash: ServerConfig.fitnessHiitHash,
+        fields: [
+            TemplateField(key: "durationMin", label: "Target Minutes", kind: .number(min: 10, max: nil, step: 10, defaultValue: 60)),
+        ],
+        paramsBuilder: { args in
+            [
+                "minDurationMin": args["durationMin"] ?? 60,
+                "types": "crossfit",
+            ]
+        },
+        ruleBuilder: { args, start, end in
+            let minutes = args["durationMin"] as? Double ?? 60.0
+            return [
+                "challengeType": "crossfit",
+                "period": [
+                    "start": ISO8601DateFormatter().string(from: start),
+                    "end": ISO8601DateFormatter().string(from: end),
+                ],
+                "conditions": [
+                    ["metric": "crossfit_min", "op": ">=", "value": minutes]
                 ],
             ]
         }

@@ -15,12 +15,6 @@ struct DailyDistance: Identifiable, Codable {
     let distanceMeters: Double
 }
 
-struct DailyCyclingDistance: Identifiable, Codable {
-    var id: String { date }
-    let date: String      // "YYYY-MM-DD"
-    let distanceMeters: Double
-}
-
 struct DailyActiveEnergy: Identifiable, Codable {
     var id: String { date }
     let date: String      // "YYYY-MM-DD"
@@ -39,12 +33,6 @@ struct DailyFlightsClimbed: Identifiable, Codable {
     var id: String { date }
     let date: String      // "YYYY-MM-DD"
     let flights: Int
-}
-
-struct DailySwimmingDistance: Identifiable, Codable {
-    var id: String { date }
-    let date: String      // "YYYY-MM-DD"
-    let distanceMeters: Double
 }
 
 struct DailyWorkouts: Identifiable, Codable {

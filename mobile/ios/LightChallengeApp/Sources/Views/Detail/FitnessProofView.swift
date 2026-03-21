@@ -159,8 +159,8 @@ struct FitnessProofView: View {
 
             let totalSteps = healthService.stepDays.reduce(0) { $0 + $1.steps }
             let totalDistanceKm = healthService.distanceDays.reduce(0.0) { $0 + $1.distanceMeters } / 1000.0
-            let totalCyclingKm = healthService.cyclingDays.reduce(0.0) { $0 + $1.distanceMeters } / 1000.0
-            let totalSwimmingM = healthService.swimmingDays.reduce(0.0) { $0 + $1.distanceMeters }
+            let totalCyclingKm = healthService.cyclingDays.reduce(0.0) { $0 + $1.totalDistanceMeters } / 1000.0
+            let totalSwimmingM = healthService.swimmingDays.reduce(0.0) { $0 + $1.totalDistanceMeters }
             let totalEnergy = healthService.activeEnergyDays.reduce(0.0) { $0 + $1.kilocalories }
             let activeDays = healthService.stepDays.filter { $0.steps > 0 }.count
 

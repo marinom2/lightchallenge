@@ -40,7 +40,7 @@ export type TemplateField =
     };
 
 /** Supported kinds across Fitness & Gaming */
-export type FitnessKind = "walking" | "running" | "cycling" | "hiking" | "swimming" | "strength" | "yoga" | "hiit" | "rowing" | "calories" | "exercise";
+export type FitnessKind = "walking" | "running" | "cycling" | "hiking" | "swimming" | "strength" | "yoga" | "hiit" | "crossfit" | "rowing" | "calories" | "exercise";
 export type GameId = "dota" | "lol" | "cs";
 
 /** A template line item used by the renderer */
@@ -101,6 +101,7 @@ const FITNESS_WALKING_DAILY: Template = {
   paramsBuilder: ({ state }) => ({
     days: Number(aivm(state).days ?? 7),
     minSteps: Number(aivm(state).minSteps ?? 8000),
+    rules: { metric: "steps", threshold: Number(aivm(state).minSteps ?? 8000) },
   }),
   ruleBuilder: ({ state }) => ({
     challengeType: "walking",
@@ -129,6 +130,7 @@ const FITNESS_WALKING_DISTANCE: Template = {
     start_ts: ts(state.timeline.starts),
     end_ts: ts(state.timeline.ends),
     min_distance_m: Math.round(Number(aivm(state).distanceKm ?? 5) * 1000),
+    rules: { metric: "walking_km", threshold: Number(aivm(state).distanceKm ?? 5) },
   }),
   ruleBuilder: ({ state }) => ({
     challengeType: "walk",
@@ -154,6 +156,7 @@ const FITNESS_RUNNING_DISTANCE_WINDOW: Template = {
     start_ts: ts(state.timeline.starts),
     end_ts: ts(state.timeline.ends),
     min_distance_m: Math.round(Number(aivm(state).distanceKm ?? 5) * 1000),
+    rules: { metric: "distance_km", threshold: Number(aivm(state).distanceKm ?? 5) },
   }),
   ruleBuilder: ({ state }) => ({
     challengeType: "run",
@@ -180,6 +183,7 @@ const FITNESS_CYCLING_DISTANCE_WINDOW: Template = {
     start_ts: ts(state.timeline.starts),
     end_ts: ts(state.timeline.ends),
     min_distance_m: Math.round(Number(aivm(state).distanceKm ?? 20) * 1000),
+    rules: { metric: "cycling_km", threshold: Number(aivm(state).distanceKm ?? 20) },
   }),
   ruleBuilder: ({ state }) => ({
     challengeType: "cycle",
@@ -189,7 +193,7 @@ const FITNESS_CYCLING_DISTANCE_WINDOW: Template = {
       timezone: localTz(),
     },
     conditions: [
-      { metric: "distance_km", op: ">=", value: Number(aivm(state).distanceKm ?? 20) },
+      { metric: "cycling_km", op: ">=", value: Number(aivm(state).distanceKm ?? 20) },
     ],
     antiCheat: { minGpsContinuity: 0.5, maxTeleportJumps: 5 },
   }),
@@ -206,6 +210,7 @@ const FITNESS_HIKING_ELEVATION_WINDOW: Template = {
     start_ts: ts(state.timeline.starts),
     end_ts: ts(state.timeline.ends),
     min_elev_gain_m: Math.round(Number(aivm(state).elevGainM ?? 1000)),
+    rules: { metric: "elev_gain_m", threshold: Number(aivm(state).elevGainM ?? 1000) },
   }),
   ruleBuilder: ({ state }) => ({
     challengeType: "hike",
@@ -220,20 +225,19 @@ const FITNESS_HIKING_ELEVATION_WINDOW: Template = {
   }),
 };
 
-const FITNESS_SWIMMING_LAPS_WINDOW: Template = {
+const FITNESS_SWIMMING_DISTANCE_WINDOW: Template = {
   id: "swimming_laps_window",
   kind: "swimming",
-  name: "Swimming • Laps in window",
-  hint: "Swim at least X laps between Start and End.",
+  name: "Swimming • Distance in window",
+  hint: "Swim at least X km between Start and End.",
   modelId: "fitness.swimming@1",
-  fields: [{ kind: "number", key: "laps", label: "Laps", min: 10, step: 5, default: 40 }],
+  fields: [{ kind: "number", key: "distanceKm", label: "Distance (km)", min: 0.5, step: 0.5, default: 5 }],
   paramsBuilder: ({ state }) => ({
     start_ts: ts(state.timeline.starts),
     end_ts: ts(state.timeline.ends),
-    laps: Math.round(Number(aivm(state).laps ?? 40)),
+    min_distance_m: Math.round(Number(aivm(state).distanceKm ?? 5) * 1000),
+    rules: { metric: "swimming_km", threshold: Number(aivm(state).distanceKm ?? 5) },
   }),
-  // Laps don't map to a standard Activity metric; use period + type filter only.
-  // Any swim recorded in the window satisfies the structural rule.
   ruleBuilder: ({ state }) => ({
     challengeType: "swim",
     period: {
@@ -241,6 +245,9 @@ const FITNESS_SWIMMING_LAPS_WINDOW: Template = {
       end: isoOrNow(state.timeline.ends),
       timezone: localTz(),
     },
+    conditions: [
+      { metric: "swimming_km", op: ">=", value: Number(aivm(state).distanceKm ?? 5) },
+    ],
   }),
 };
 
@@ -256,6 +263,7 @@ const FITNESS_STRENGTH_WORKOUTS: Template = {
   paramsBuilder: ({ state }) => ({
     minSessions: Number(aivm(state).sessions ?? 5),
     types: "strength",
+    rules: { metric: "strength_sessions", threshold: Number(aivm(state).sessions ?? 5) },
   }),
   ruleBuilder: ({ state }) => {
     const sessions = Number(aivm(state).sessions ?? 5);
@@ -286,6 +294,7 @@ const FITNESS_WALKING_COMPETITIVE: Template = {
     start_ts: ts(state.timeline.starts),
     end_ts: ts(state.timeline.ends),
     topN: Number(aivm(state).topN ?? 1),
+    rules: { metric: "steps", threshold: 0 },
   }),
   ruleBuilder: ({ state }) => ({
     challengeType: "walking",
@@ -324,6 +333,7 @@ const FITNESS_DISTANCE_COMPETITIVE: Template = {
     start_ts: ts(state.timeline.starts),
     end_ts: ts(state.timeline.ends),
     topN: Number(aivm(state).topN ?? 1),
+    rules: { metric: "distance_km", threshold: 0 },
   }),
   ruleBuilder: ({ state }) => {
     const actType = String(aivm(state).activityType ?? "run");
@@ -353,6 +363,7 @@ const FITNESS_YOGA_DURATION: Template = {
     start_ts: ts(state.timeline.starts),
     end_ts: ts(state.timeline.ends),
     min_duration_min: Number(aivm(state).durationMin ?? 60),
+    rules: { metric: "yoga_min", threshold: Number(aivm(state).durationMin ?? 60) },
   }),
   ruleBuilder: ({ state }) => ({
     challengeType: "yoga",
@@ -378,6 +389,7 @@ const FITNESS_HIIT_SESSIONS: Template = {
     start_ts: ts(state.timeline.starts),
     end_ts: ts(state.timeline.ends),
     min_duration_min: Number(aivm(state).durationMin ?? 60),
+    rules: { metric: "hiit_min", threshold: Number(aivm(state).durationMin ?? 60) },
   }),
   ruleBuilder: ({ state }) => ({
     challengeType: "hiit",
@@ -388,6 +400,32 @@ const FITNESS_HIIT_SESSIONS: Template = {
     },
     conditions: [
       { metric: "hiit_min", op: ">=", value: Number(aivm(state).durationMin ?? 60) },
+    ],
+  }),
+};
+
+const FITNESS_CROSSFIT_SESSIONS: Template = {
+  id: "crossfit_sessions",
+  kind: "crossfit",
+  name: "CrossFit — Session Time",
+  hint: "Accumulate CrossFit training time.",
+  modelId: "fitness.crossfit@1",
+  fields: [{ kind: "number", key: "durationMin", label: "Target minutes", min: 10, step: 10, default: 60 }],
+  paramsBuilder: ({ state }) => ({
+    start_ts: ts(state.timeline.starts),
+    end_ts: ts(state.timeline.ends),
+    min_duration_min: Number(aivm(state).durationMin ?? 60),
+    rules: { metric: "crossfit_min", threshold: Number(aivm(state).durationMin ?? 60) },
+  }),
+  ruleBuilder: ({ state }) => ({
+    challengeType: "crossfit",
+    period: {
+      start: isoOrNow(state.timeline.starts),
+      end: isoOrNow(state.timeline.ends),
+      timezone: localTz(),
+    },
+    conditions: [
+      { metric: "crossfit_min", op: ">=", value: Number(aivm(state).durationMin ?? 60) },
     ],
   }),
 };
@@ -403,6 +441,7 @@ const FITNESS_ROWING_DISTANCE: Template = {
     start_ts: ts(state.timeline.starts),
     end_ts: ts(state.timeline.ends),
     min_distance_m: Math.round(Number(aivm(state).distanceKm ?? 5) * 1000),
+    rules: { metric: "rowing_km", threshold: Number(aivm(state).distanceKm ?? 5) },
   }),
   ruleBuilder: ({ state }) => ({
     challengeType: "rowing",
@@ -428,6 +467,7 @@ const FITNESS_CALORIE_BURN: Template = {
     start_ts: ts(state.timeline.starts),
     end_ts: ts(state.timeline.ends),
     min_calories: Number(aivm(state).calories ?? 500),
+    rules: { metric: "calories", threshold: Number(aivm(state).calories ?? 500) },
   }),
   ruleBuilder: ({ state }) => ({
     challengeType: "calories",
@@ -453,6 +493,7 @@ const FITNESS_EXERCISE_TIME: Template = {
     start_ts: ts(state.timeline.starts),
     end_ts: ts(state.timeline.ends),
     min_minutes: Number(aivm(state).minutes ?? 150),
+    rules: { metric: "exercise_time", threshold: Number(aivm(state).minutes ?? 150) },
   }),
   ruleBuilder: ({ state }) => ({
     challengeType: "exercise_time",
@@ -492,6 +533,7 @@ const FITNESS_DURATION_THRESHOLD: Template = {
     start_ts: ts(state.timeline.starts),
     end_ts: ts(state.timeline.ends),
     min_duration_min: Number(aivm(state).durationMin ?? 60),
+    rules: { metric: "duration_min", threshold: Number(aivm(state).durationMin ?? 60) },
   }),
   ruleBuilder: ({ state }) => {
     const actType = String(aivm(state).activityType ?? "run");
@@ -517,10 +559,11 @@ const FITNESS: Template[] = [
   FITNESS_RUNNING_DISTANCE_WINDOW,
   FITNESS_CYCLING_DISTANCE_WINDOW,
   FITNESS_HIKING_ELEVATION_WINDOW,
-  FITNESS_SWIMMING_LAPS_WINDOW,
+  FITNESS_SWIMMING_DISTANCE_WINDOW,
   FITNESS_STRENGTH_WORKOUTS,
   FITNESS_YOGA_DURATION,
   FITNESS_HIIT_SESSIONS,
+  FITNESS_CROSSFIT_SESSIONS,
   FITNESS_ROWING_DISTANCE,
   FITNESS_CALORIE_BURN,
   FITNESS_EXERCISE_TIME,

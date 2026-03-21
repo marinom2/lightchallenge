@@ -203,6 +203,7 @@ struct ChallengeRules: Codable {
         case "strength_sessions": return "sessions"
         case "yoga_min": return "min"
         case "hiit_min": return "min"
+        case "crossfit_min": return "min"
         case "exercise_time": return "min"
         case "calories": return "kcal"
         default: return metric ?? ""
@@ -222,6 +223,7 @@ struct ChallengeRules: Codable {
         case "strength_sessions": return "Strength"
         case "yoga_min": return "Yoga"
         case "hiit_min": return "HIIT"
+        case "crossfit_min": return "CrossFit"
         case "exercise_time": return "Exercise Time"
         case "calories": return "Calories"
         default: return metric?.capitalized ?? "Activity"
@@ -279,11 +281,12 @@ struct ChallengeParams: Codable {
         case "steps_count":    metric = "steps"
         case "distance_km":    metric = "distance_km"
         case "walking_km":     metric = "walking_km"
-        case "elev_gain_m":    metric = "hiking_km"
+        case "elev_gain_m":    metric = "elev_gain_m"
         case "active_minutes": metric = "active_minutes"
         case "duration_min":   metric = "active_minutes"
         case "yoga_min":       metric = "yoga_min"
         case "hiit_min":       metric = "hiit_min"
+        case "crossfit_min":   metric = "crossfit_min"
         case "rowing_km":      metric = "rowing_km"
         case "exercise_time":  metric = "exercise_time"
         case "calories":       metric = "calories"
@@ -422,7 +425,7 @@ struct ChallengeDetail: Codable {
         return nil
     }
 
-    /// Challenge rules: from params.rules first, then from form fields.
+    /// Challenge rules: from params.rules first, then from form fields, then inferred from category.
     var rules: ChallengeRules? {
         if let r = params?.firstRule { return r }
         // Build rules from the API's form dict (parsed params string)
@@ -433,6 +436,28 @@ struct ChallengeDetail: Codable {
             if metric != nil || threshold != nil {
                 return ChallengeRules(period: period, metric: metric, threshold: threshold)
             }
+        }
+        // Last resort: infer metric from challenge category so HealthKit queries the right data.
+        // The server's my-progress endpoint will provide the correct goalValue.
+        if let cat = category?.lowercased() {
+            let metric: String? = {
+                switch cat {
+                case "swimming":  return "swimming_km"
+                case "cycling":   return "cycling_km"
+                case "hiking":    return "elev_gain_m"
+                case "rowing":    return "rowing_km"
+                case "running":   return "distance_km"
+                case "walking":   return "steps"
+                case "yoga":      return "yoga_min"
+                case "hiit":      return "hiit_min"
+                case "crossfit":  return "crossfit_min"
+                case "strength":  return "strength_sessions"
+                case "calories":  return "calories"
+                case "exercise":  return "exercise_time"
+                default:          return nil
+                }
+            }()
+            if let metric { return ChallengeRules(period: "total", metric: metric, threshold: 0) }
         }
         return nil
     }
