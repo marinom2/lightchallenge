@@ -263,15 +263,25 @@ export async function GET(
       (typeof (params as any)?.threshold === "number" ? (params as any).threshold : null) ??
       0;
 
-    // dailyTarget.conditions format (created by current challenge flow)
+    // conditions / dailyTarget / weeklyTarget format (current challenge flow)
     if (!metric || !threshold) {
-      const dt = (params as any)?.dailyTarget;
-      if (dt && typeof dt === "object") {
-        const cond = Array.isArray(dt.conditions) ? dt.conditions[0] : null;
-        if (cond && typeof cond.value === "number" && cond.value > 0) {
-          metric = typeof cond.metric === "string" ? cond.metric : "steps";
-          // Use daily threshold (matches iOS ring behavior)
-          threshold = cond.value;
+      const pa = params as any;
+      const condSources = [
+        pa?.dailyTarget?.conditions,
+        pa?.weeklyTarget?.conditions,
+        pa?.conditions,
+        pa?.rule?.dailyTarget?.conditions,
+        pa?.rule?.weeklyTarget?.conditions,
+        pa?.rule?.conditions,
+      ];
+      for (const src of condSources) {
+        if (Array.isArray(src) && src.length > 0) {
+          const cond = src[0];
+          if (cond && typeof cond.value === "number" && cond.value > 0) {
+            metric = typeof cond.metric === "string" ? cond.metric : "steps";
+            threshold = cond.value;
+            break;
+          }
         }
       }
     }
