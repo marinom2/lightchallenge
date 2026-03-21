@@ -294,12 +294,10 @@ enum UserChallengeState {
     }
 
     static func from(detail: ChallengeDetail, participantStatus: ParticipantStatus?, phase: ChallengePhase, autoProofSubmitted: Bool = false) -> UserChallengeState {
-        // Primary join signal: on-chain Joined event via the API.
-        // Fallback: if the user has a participantStatus with evidence or a verdict,
-        // they must have joined (covers edge cases where youJoined hasn't synced yet).
+        // Join signal: on-chain Joined event via the API only.
+        // Do NOT use evidence/verdict as a proxy — those can exist for
+        // other wallets or from prior sessions, leading to false "joined" state.
         let joined = detail.youJoined == true
-            || participantStatus?.hasEvidence == true
-            || participantStatus?.verdictPass != nil
 
         // Verdict takes precedence — but ONLY after the proof deadline has passed.
         // During active phase and proof window, the pipeline hasn't finalized,

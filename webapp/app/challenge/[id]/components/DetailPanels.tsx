@@ -349,13 +349,12 @@ export function LifecycleTimeline({
     });
   }
 
-  // Challenge end
+  // Challenge end — "current" only when in proof window, not during active period
   if (endSec) {
-    const isActive = startSec && now >= startSec && now < endSec;
     steps.push({
       label: "Challenge ends",
       time: formatLifecycleTime(endSec),
-      state: now >= endSec ? "done" : isActive ? "current" : "future",
+      state: now >= endSec ? "done" : "future",
     });
   }
 

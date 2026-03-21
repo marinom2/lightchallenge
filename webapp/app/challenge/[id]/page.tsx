@@ -821,6 +821,10 @@ export default function ChallengePage() {
   const hasJoined = React.useMemo(() => {
     if (joinedLocally) return true;
     if (!address) return false;
+
+    // API-provided flag (checks on-chain Joined events server-side)
+    if ((data as any)?.youJoined === true) return true;
+
     const me = safeLower(address);
 
     const joinedEvent = data?.timeline?.some(
@@ -832,7 +836,7 @@ export default function ChallengePage() {
     if (Array.isArray(part) && part.some((p: any) => typeof p === "string" && safeLower(p) === me)) return true;
 
     return false;
-  }, [joinedLocally, data?.timeline, (data as any)?.snapshot, address]);
+  }, [joinedLocally, data, address]);
 
   // Fetch participant status (evidence + verdict) from DB when viewer has joined
   React.useEffect(() => {
@@ -894,12 +898,8 @@ export default function ChallengePage() {
   // Params-based goal fallback: extract metric/threshold from challenge params
   // so the hero can display the goal even when the API hasn't returned progress
   // (e.g., before joining, or when evidence hasn't been submitted yet).
+  // Supports both new format (params.rules.{metric,threshold}) and legacy params.
   const paramsGoal = React.useMemo(() => {
-    const rules = (data?.params as any)?.rules;
-    if (!rules || typeof rules !== "object") return null;
-    const metric = typeof rules.metric === "string" ? rules.metric : null;
-    const threshold = typeof rules.threshold === "number" ? rules.threshold : null;
-    if (!metric || !threshold || threshold <= 0) return null;
     const LABELS: Record<string, string> = {
       steps: "Steps", steps_count: "Steps",
       distance: "Distance (km)", distance_km: "Distance (km)",
@@ -910,7 +910,38 @@ export default function ChallengePage() {
       duration_min: "Active Minutes", yoga_min: "Yoga (min)", hiit_min: "HIIT (min)", crossfit_min: "CrossFit (min)",
       calories: "Calories (kcal)", exercise_time: "Exercise (min)", elev_gain_m: "Elevation (m)",
     };
-    return { metric, metricLabel: LABELS[metric] ?? metric, goalValue: threshold };
+
+    // New format: params.rules
+    const rules = (data?.params as any)?.rules;
+    if (rules && typeof rules === "object") {
+      const metric = typeof rules.metric === "string" ? rules.metric : null;
+      const threshold = typeof rules.threshold === "number" ? rules.threshold : null;
+      if (metric && threshold && threshold > 0) {
+        return { metric, metricLabel: LABELS[metric] ?? metric, goalValue: threshold };
+      }
+    }
+
+    // Legacy format: infer from known param patterns
+    const p = data?.params as Record<string, unknown> | null;
+    if (!p) return null;
+    if (typeof p.minSteps === "number" && p.minSteps > 0)
+      return { metric: "steps", metricLabel: "Steps", goalValue: p.minSteps as number };
+    if (typeof p.min_distance_m === "number" && (p.min_distance_m as number) > 0)
+      return { metric: "distance_km", metricLabel: "Distance (km)", goalValue: (p.min_distance_m as number) / 1000 };
+    if (typeof p.min_duration_min === "number" && (p.min_duration_min as number) > 0)
+      return { metric: "duration_min", metricLabel: "Active Minutes", goalValue: p.min_duration_min as number };
+    if (typeof p.min_elev_gain_m === "number" && (p.min_elev_gain_m as number) > 0)
+      return { metric: "elev_gain_m", metricLabel: "Elevation (m)", goalValue: p.min_elev_gain_m as number };
+    if (typeof p.min_calories === "number" && (p.min_calories as number) > 0)
+      return { metric: "calories", metricLabel: "Calories (kcal)", goalValue: p.min_calories as number };
+    if (typeof p.minSessions === "number" && (p.minSessions as number) > 0)
+      return { metric: "strength_sessions", metricLabel: "Sessions", goalValue: p.minSessions as number };
+    if (typeof p.laps === "number" && (p.laps as number) > 0)
+      return { metric: "swimming_km", metricLabel: "Swimming (km)", goalValue: p.laps as number };
+    if (typeof p.min_minutes === "number" && (p.min_minutes as number) > 0)
+      return { metric: "exercise_time", metricLabel: "Exercise (min)", goalValue: p.min_minutes as number };
+
+    return null;
   }, [data?.params]);
 
   // Effective progress: prefer API data, fall back to params-derived goal with 0 currentValue
