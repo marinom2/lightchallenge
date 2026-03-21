@@ -46,8 +46,25 @@ public.claims            ← written by: POST /api/me/claims (UI path), claimsIn
 | `identity_bindings` | `POST /api/auth/steam/return`, `offchain/identity/registry.ts` |
 | `indexer_state` | `aivmIndexer`, `claimsIndexer` (checkpoint writes) |
 | `reminders` | `POST /api/reminders` |
-| `challenge_invites` | `POST /api/invites` |
+| `challenge_invites` | `POST /api/invites` (wallet invites processed inline; email/steam queued for background worker) |
+| `notifications` | `POST /api/invites` (inline for wallet invites), `POST /api/v1/notifications`, offchain alert workers |
 | `openid_nonces` | `GET /api/auth/steam` |
+| `user_profiles` | `GET/PUT /api/me/profile` |
+| `competitions` | `POST /api/competitions` |
+| `competition_registrations` | `POST /api/competitions/[id]/register` |
+| `organizations` | `POST /api/org/new` |
+| `org_members` | `POST /api/org/[slug]/members` |
+| `seasons` | Competition admin API |
+| `season_competitions` | Competition admin API |
+| `season_standings` | Competition scoring worker |
+| `teams` | Organization admin API |
+| `team_roster` | Organization admin API |
+| `bracket_matches` | Competition bracket engine |
+| `match_disputes` | `POST /api/competitions/[id]/disputes` |
+| `api_keys` | Organization admin API |
+| `webhooks` | Organization admin API |
+| `webhook_deliveries` | Webhook delivery worker |
+| `whitelabel_configs` | Organization admin API |
 
 ### Table relationships
 
@@ -65,30 +82,83 @@ participants (challenge_id + subject) ← joined by evidence, verdicts, claims
 linked_accounts ── feeds ──► evidenceCollector ──► evidence
 identity_bindings ── used by ──► OpenDota / Riot adapters
 models ── referenced by ──► challenge_templates, challenge proof params
+
+notifications ── keyed by wallet ── displayed in webapp NotificationBell + iOS Activity
+
+organizations (1) ──── (N) org_members
+organizations (1) ──── (N) competitions
+organizations (1) ──── (N) teams
+organizations (1) ──── (N) api_keys
+organizations (1) ──── (N) webhooks
+organizations (1) ──── (1) whitelabel_configs
+organizations (1) ──── (N) seasons
+
+competitions (1) ──── (N) competition_registrations
+competitions (1) ──── (N) bracket_matches
+competitions (1) ──── (N) match_disputes
+
+seasons (1) ──── (N) season_competitions
+seasons (1) ──── (N) season_standings
+
+teams (1) ──── (N) team_roster
 ```
 
 ---
 
 ## Tables overview
 
+### Core challenge tables
+
 | Table | Migration | Purpose |
 |-------|-----------|---------|
 | [`evidence`](#evidence) | 001 | Raw evidence records submitted for a (challenge, subject) pair |
-| [`verdicts`](#verdicts) | 001 | Evaluation outcomes — one per (challenge, subject), upserted |
+| [`verdicts`](#verdicts) | 001, 018 | Evaluation outcomes — one per (challenge, subject), upserted. 018 adds `score`, `metadata` |
 | [`identity_bindings`](#identity_bindings) | 002 | Wallet ↔ platform account mappings (Steam, Riot, Epic) |
 | [`openid_nonces`](#openid_nonces) | 002 | Short-lived nonces for OpenID Connect replay protection |
 | [`participants`](#participants) | 003, 014 | Off-chain cache of challenge join records (014 adds `source` column) |
 | [`linked_accounts`](#linked_accounts) | 004 | OAuth tokens and external IDs for provider integrations |
-| [`challenge_templates`](#challenge_templates) | 005 | Admin-managed challenge templates (DB-backed) |
-| [`challenge_invites`](#challenge_invites) | 006 | Queued invites (email / wallet / Steam) for challenges |
+| [`challenge_templates`](#challenge_templates) | 005, 031 | Admin-managed challenge templates. 031 renames kind `steps` → `walking` |
+| [`challenge_invites`](#challenge_invites) | 006, 029, 030 | Challenge invites with inviter tracking and accept lifecycle |
 | [`models`](#models) | 007 | AIVM model registry (migrated from models.json) |
-| [`challenges`](#challenges) | 008, 013, 015 | Indexed on-chain challenge state (013 adds `chain_outcome`, 015 adds registry tracking) |
+| [`challenges`](#challenges) | 008, 013, 015 | Indexed on-chain challenge state |
 | [`aivm_jobs`](#aivm_jobs) | 009 | AIVM job queue (managed by lightchain dispatcher/worker) |
 | [`indexer_state`](#indexer_state) | 010 | Key/value checkpoint state for indexer workers |
 | [`reminders`](#reminders) | 011 | Email reminder subscriptions for challenge deadlines |
 | [`claims`](#claims) | 012 | Persisted on-chain claim events (rewards claimed by participants) |
 | [`achievement_mints`](#achievement_mints) | 016 | Soulbound achievement token mints indexed from on-chain events |
 | [`reputation`](#reputation) | 016 | Computed reputation scores and levels per wallet |
+
+### Notifications and user tables
+
+| Table | Migration | Purpose |
+|-------|-----------|---------|
+| [`notifications`](#notifications) | 021 | In-app notifications (invite received, claim available, alerts) |
+| [`user_profiles`](#user_profiles) | 022 | Display name, bio, and avatar per wallet |
+
+### Competition platform tables
+
+| Table | Migration | Purpose |
+|-------|-----------|---------|
+| [`competitions`](#competitions) | 017 | Competitions (challenge bundles, brackets, leaderboards) |
+| [`competition_registrations`](#competition_registrations) | 017 | Per-wallet or per-team registration for competitions |
+| [`organizations`](#organizations) | 017 | Organizations that own competitions and teams |
+| [`org_members`](#org_members) | 017 | Organization membership (owner, admin, member roles) |
+| [`seasons`](#seasons) | 017 | Seasons that group competitions for standings |
+| [`season_competitions`](#season_competitions) | 017 | Junction: season ↔ competition with weight |
+| [`season_standings`](#season_standings) | 017 | Aggregated standings per wallet per season |
+| [`teams`](#teams) | 017 | Teams within organizations |
+| [`team_roster`](#team_roster) | 017 | Team membership (captain, player roles) |
+| [`bracket_matches`](#bracket_matches) | 017 | Bracket/tournament match records |
+| [`match_disputes`](#match_disputes) | 021 | Dispute filings for bracket matches |
+
+### API and integration tables
+
+| Table | Migration | Purpose |
+|-------|-----------|---------|
+| [`api_keys`](#api_keys) | 017 | Scoped API keys for organizations |
+| [`webhooks`](#webhooks) | 017 | Webhook endpoint registrations per organization |
+| [`webhook_deliveries`](#webhook_deliveries) | 017 | Webhook delivery attempts and retry tracking |
+| [`whitelabel_configs`](#whitelabel_configs) | 017 | Per-org white-label branding (domain, colors, logo) |
 
 ---
 
@@ -135,6 +205,8 @@ One verdict per pair — subsequent evaluations `UPSERT` the existing row.
 | `reasons` | `text[]` NOT NULL | Human-readable failure reasons (empty array on pass) |
 | `evidence_hash` | `text` NOT NULL | Hash of the evidence that produced this verdict |
 | `evaluator` | `text` NOT NULL | Which evaluator ran: `fitness`, `gaming`, `passthrough`, etc. |
+| `score` | `numeric` | Competitive score for ranked challenges (NULL for pass/fail only) |
+| `metadata` | `jsonb` | Extra evaluator output (breakdown, daily totals, etc.) |
 | `created_at` | `timestamptz` NOT NULL | First evaluation time |
 | `updated_at` | `timestamptz` NOT NULL | Last re-evaluation time |
 
@@ -278,7 +350,7 @@ It is the backend for `GET /api/admin/templates` and `PUT /api/admin/templates`.
 | `id` | `text` PK | Matches the code-side template `id`, e.g. `running_window` |
 | `name` | `text` NOT NULL | Display name shown in the create UI |
 | `hint` | `text` | Short description shown below the name |
-| `kind` | `text` NOT NULL | `steps` \| `running` \| `cycling` \| `hiking` \| `swimming` \| `dota` \| `lol` \| `cs` |
+| `kind` | `text` NOT NULL | `walking` \| `running` \| `cycling` \| `hiking` \| `swimming` \| `strength` \| `yoga` \| `hiit` \| `rowing` \| `calories` \| `exercise` \| `dota` \| `lol` \| `cs` |
 | `model_id` | `text` NOT NULL | AIVM model identifier, e.g. `strava.distance_in_window@1` |
 | `fields_json` | `jsonb` NOT NULL | Array of `TemplateField` descriptors (serialisable subset — no function values) |
 | `rule_config` | `jsonb` | Canonical `Rule` or `GamingRule` object embedded in `proof.params.rule` |
@@ -292,13 +364,17 @@ It is the backend for `GET /api/admin/templates` and `PUT /api/admin/templates`.
 The DB row's `name`, `hint`, and `fields_json` override the code-side values;
 `paramsBuilder` and `ruleBuilder` always come from code.
 
+**Migration 031:** Renamed kind `steps` → `walking` to unify step-counting and walking-distance challenges under one kind.
+
 ---
 
 ## challenge_invites
 
-Queued invites for challenges. Created by `POST /api/invites` and listed by
-`GET /api/invites`. A background job (not yet implemented) is expected to
-process `queued` rows and transition them to `sent` / `accepted` / `failed`.
+Invites for challenges. Created by `POST /api/invites` and listed by `GET /api/invites`.
+
+**Wallet invites** are processed inline: the API creates a notification for the target wallet
+and marks the invite as `sent` immediately. **Email and Steam invites** are queued for a
+background worker (`status = 'queued'`).
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -306,11 +382,25 @@ process `queued` rows and transition them to `sent` / `accepted` / `failed`.
 | `challenge_id` | `bigint` NOT NULL | Target challenge |
 | `method` | `text` NOT NULL | `email` \| `wallet` \| `steam` |
 | `value` | `text` NOT NULL | Email address, `0x` wallet, or Steam64 ID |
-| `status` | `text` NOT NULL DEFAULT `queued` | `queued` → `sent` \| `accepted` \| `failed` |
+| `status` | `text` NOT NULL DEFAULT `queued` | `queued` → `sent` → `accepted` \| `failed` |
+| `inviter_wallet` | `text` | Lowercase `0x` wallet of the user who sent the invite |
+| `accepted_by_wallet` | `text` | Lowercase `0x` wallet that accepted the invite (set on accept) |
+| `joined_at` | `timestamptz` | Timestamp when the invitee joined the challenge |
 | `created_at` | `timestamptz` NOT NULL | |
 | `updated_at` | `timestamptz` NOT NULL | |
 
 **Indexes:** `(challenge_id)`, `(status)`
+
+**Lifecycle:**
+```
+queued ──► sent ──► accepted (invitee joined challenge)
+                └─► failed   (delivery failed or expired)
+```
+
+For wallet invites, `queued` → `sent` happens inline in the POST handler.
+For email/steam, a background worker polls `queued` rows.
+
+**Accept flow:** `POST /api/invites/[id]/accept` sets `status = 'accepted'`, `accepted_by_wallet`, `joined_at`.
 
 ---
 
@@ -372,6 +462,9 @@ events are observed on-chain. Read by evaluators, APIs, and the evidence collect
 | `options` | `jsonb` | Miscellaneous challenge options |
 | `status` | `text` | `pending` \| `approved` \| `finalized` \| `canceled` \| `rejected` — written by `statusIndexer` |
 | `chain_outcome` | `smallint` | `0`=None, `1`=Success, `2`=Fail — from `Finalized` event. NULL until finalized. **AUTHORITATIVE for reward eligibility.** |
+| `registry_status` | `text` DEFAULT `'pending'` | MetadataRegistry sync status |
+| `registry_tx_hash` | `text` | MetadataRegistry transaction hash |
+| `registry_error` | `text` | MetadataRegistry error message |
 | `aivm_request_started` | `boolean` | **Deprecated** — superseded by `aivm_jobs.status`; will be dropped |
 | `aivm_request_started_at` | `timestamptz` | **Deprecated** — superseded by `aivm_jobs.status`; will be dropped |
 | `created_at` | `timestamptz` | |
@@ -573,6 +666,331 @@ after each achievement mint. Drives the level system shown in the user profile.
 
 ---
 
+## notifications
+
+In-app notifications delivered to a wallet. Displayed in the webapp notification bell
+and the iOS Activity inbox. Created by invite handlers, alert workers, and the notification API.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK | Default `gen_random_uuid()` |
+| `wallet` | `text` NOT NULL | Lowercase `0x` wallet of the recipient |
+| `type` | `text` NOT NULL | e.g. `invite_received`, `claim_available`, `claim_reminder`, `proof_window_open`, `challenge_final_push` |
+| `title` | `text` NOT NULL | Notification title |
+| `body` | `text` | Notification body text |
+| `data` | `jsonb` NOT NULL DEFAULT `'{}'` | Structured payload: `{ challengeId, inviteId, deepLink }` |
+| `read` | `boolean` NOT NULL DEFAULT `false` | Whether the user has marked this as read |
+| `created_at` | `timestamptz` NOT NULL | |
+
+**Indexes:** `(lower(wallet), created_at DESC)`, `(lower(wallet), read)`
+
+**API:** `GET /api/v1/notifications?wallet=`, `POST /api/v1/notifications/mark-read`
+
+---
+
+## user_profiles
+
+Display name, bio, and avatar for each wallet. One row per wallet.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `wallet` | `text` PK | Lowercase `0x` wallet address |
+| `display_name` | `text` | User-chosen display name |
+| `bio` | `text` | Short bio |
+| `avatar` | `bytea` | Avatar image binary data |
+| `avatar_mime` | `text` DEFAULT `'image/jpeg'` | MIME type of avatar |
+| `avatar_hash` | `text` | Content hash for cache busting |
+| `created_at` | `timestamptz` NOT NULL | |
+| `updated_at` | `timestamptz` NOT NULL | |
+
+**API:** `GET/PUT /api/me/profile`, `GET /api/player/[wallet]`
+
+---
+
+## competitions
+
+Competitions bundle multiple challenges or bracket matches under one umbrella.
+Owned by an organization.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK | Default `gen_random_uuid()` |
+| `org_id` | `uuid` | FK → `organizations.id` |
+| `title` | `text` NOT NULL | Competition title |
+| `description` | `text` | Description |
+| `type` | `text` NOT NULL DEFAULT `'challenge'` | `challenge` \| `bracket` \| `leaderboard` |
+| `status` | `text` NOT NULL DEFAULT `'draft'` | `draft` \| `open` \| `active` \| `completed` \| `canceled` |
+| `category` | `text` | Category label (fitness, gaming, etc.) |
+| `rules` | `jsonb` NOT NULL DEFAULT `'{}'` | Competition-specific rules |
+| `prize_config` | `jsonb` NOT NULL DEFAULT `'{}'` | Prize structure and distribution |
+| `settings` | `jsonb` NOT NULL DEFAULT `'{}'` | Misc settings (max teams, format, etc.) |
+| `challenge_ids` | `bigint[]` NOT NULL DEFAULT `'{}'` | On-chain challenge IDs included in this competition |
+| `registration_opens_at` | `timestamptz` | |
+| `registration_closes_at` | `timestamptz` | |
+| `starts_at` | `timestamptz` | |
+| `ends_at` | `timestamptz` | |
+| `created_by` | `text` | Wallet that created the competition |
+| `created_at` | `timestamptz` NOT NULL | |
+| `updated_at` | `timestamptz` NOT NULL | |
+
+**API:** `GET/POST /api/competitions`, `GET /api/competitions/[id]`
+
+---
+
+## competition_registrations
+
+Per-wallet or per-team registration for a competition.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK | Default `gen_random_uuid()` |
+| `competition_id` | `uuid` NOT NULL | FK → `competitions.id` |
+| `wallet` | `text` | Registered wallet (NULL for team-only registrations) |
+| `team_id` | `uuid` | FK → `teams.id` (NULL for individual registrations) |
+| `seed` | `integer` | Seeding position for bracket tournaments |
+| `checked_in` | `boolean` NOT NULL DEFAULT `false` | Whether the participant has checked in |
+| `registered_at` | `timestamptz` NOT NULL | |
+
+---
+
+## organizations
+
+Organizations own competitions, teams, API keys, and webhooks.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK | Default `gen_random_uuid()` |
+| `name` | `text` NOT NULL | Organization name |
+| `slug` | `text` NOT NULL UNIQUE | URL-safe slug |
+| `logo_url` | `text` | Logo URL |
+| `website` | `text` | Website URL |
+| `description` | `text` | |
+| `owner_wallet` | `text` NOT NULL | Lowercase `0x` wallet of the owner |
+| `theme` | `jsonb` NOT NULL DEFAULT `'{}'` | Theme customization |
+| `created_at` | `timestamptz` NOT NULL | |
+| `updated_at` | `timestamptz` NOT NULL | |
+
+**API:** `GET/POST /api/org`, `GET /api/org/[slug]`
+
+---
+
+## org_members
+
+Organization membership. Roles: `owner`, `admin`, `member`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK | |
+| `org_id` | `uuid` NOT NULL | FK → `organizations.id` |
+| `wallet` | `text` NOT NULL | Member wallet |
+| `role` | `text` NOT NULL DEFAULT `'member'` | `owner` \| `admin` \| `member` |
+| `email` | `text` | Optional contact email |
+| `joined_at` | `timestamptz` NOT NULL | |
+
+---
+
+## seasons
+
+Seasons group competitions for aggregated standings and leaderboards.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK | |
+| `org_id` | `uuid` | FK → `organizations.id` |
+| `name` | `text` NOT NULL | Season name |
+| `description` | `text` | |
+| `status` | `text` NOT NULL DEFAULT `'active'` | `active` \| `completed` |
+| `scoring_config` | `jsonb` NOT NULL DEFAULT `'{"win":3,"draw":1,"loss":0}'` | Points per outcome |
+| `starts_at` | `timestamptz` | |
+| `ends_at` | `timestamptz` | |
+| `created_at` | `timestamptz` NOT NULL | |
+
+---
+
+## season_competitions
+
+Junction table linking seasons to competitions with a weight multiplier.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `season_id` | `uuid` NOT NULL | FK → `seasons.id` |
+| `competition_id` | `uuid` NOT NULL | FK → `competitions.id` |
+| `weight` | `float` NOT NULL DEFAULT `1.0` | Score multiplier for this competition within the season |
+
+**PK:** `(season_id, competition_id)`
+
+---
+
+## season_standings
+
+Aggregated standings per wallet per season. Updated by the competition scoring worker.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK | |
+| `season_id` | `uuid` NOT NULL | FK → `seasons.id` |
+| `wallet` | `text` NOT NULL | |
+| `points` | `integer` NOT NULL DEFAULT 0 | Total season points |
+| `wins` | `integer` NOT NULL DEFAULT 0 | |
+| `losses` | `integer` NOT NULL DEFAULT 0 | |
+| `draws` | `integer` NOT NULL DEFAULT 0 | |
+| `competitions_entered` | `integer` NOT NULL DEFAULT 0 | |
+| `updated_at` | `timestamptz` NOT NULL | |
+
+**Unique:** `(season_id, wallet)`
+
+---
+
+## teams
+
+Teams within organizations, used for team-based competitions.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK | |
+| `org_id` | `uuid` NOT NULL | FK → `organizations.id` |
+| `name` | `text` NOT NULL | Team name |
+| `tag` | `text` | Short tag / abbreviation |
+| `logo_url` | `text` | |
+| `created_at` | `timestamptz` NOT NULL | |
+
+---
+
+## team_roster
+
+Team membership. Roles: `captain`, `player`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK | |
+| `team_id` | `uuid` NOT NULL | FK → `teams.id` |
+| `wallet` | `text` NOT NULL | Player wallet |
+| `role` | `text` NOT NULL DEFAULT `'player'` | `captain` \| `player` |
+| `joined_at` | `timestamptz` NOT NULL | |
+
+---
+
+## bracket_matches
+
+Individual match records within bracket/tournament competitions.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK | |
+| `competition_id` | `uuid` NOT NULL | FK → `competitions.id` |
+| `round` | `integer` NOT NULL | Round number (1-based) |
+| `match_number` | `integer` NOT NULL | Match position within the round |
+| `bracket_type` | `text` NOT NULL DEFAULT `'winners'` | `winners` \| `losers` \| `grand_final` |
+| `participant_a` | `text` | Wallet or team ID |
+| `participant_b` | `text` | Wallet or team ID |
+| `score_a` | `integer` | |
+| `score_b` | `integer` | |
+| `winner` | `text` | Wallet or team ID of the winner |
+| `status` | `text` NOT NULL DEFAULT `'pending'` | `pending` \| `in_progress` \| `completed` \| `disputed` |
+| `challenge_id` | `bigint` | Optional on-chain challenge backing this match |
+| `scheduled_at` | `timestamptz` | |
+| `completed_at` | `timestamptz` | |
+| `created_at` | `timestamptz` NOT NULL | |
+
+---
+
+## match_disputes
+
+Dispute filings for bracket matches. Filed by participants, resolved by org admins.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK | |
+| `match_id` | `uuid` NOT NULL | FK → `bracket_matches.id` |
+| `competition_id` | `uuid` NOT NULL | FK → `competitions.id` |
+| `filed_by` | `text` NOT NULL | Wallet that filed the dispute |
+| `reason` | `text` NOT NULL | Dispute reason |
+| `evidence_url` | `text` | URL to supporting evidence |
+| `status` | `text` NOT NULL DEFAULT `'open'` | `open` \| `resolved` \| `dismissed` |
+| `resolution_note` | `text` | Admin resolution explanation |
+| `resolved_by` | `text` | Wallet of the admin who resolved |
+| `created_at` | `timestamptz` NOT NULL | |
+| `resolved_at` | `timestamptz` | |
+
+---
+
+## api_keys
+
+Scoped API keys for organizations. Keys are stored as hashed values;
+the raw key is shown once at creation time.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK | |
+| `org_id` | `uuid` NOT NULL | FK → `organizations.id` |
+| `key_hash` | `text` NOT NULL | SHA-256 hash of the API key |
+| `key_prefix` | `text` NOT NULL | First 8 chars of the key (for display) |
+| `label` | `text` NOT NULL | Human-readable label |
+| `scopes` | `text[]` NOT NULL DEFAULT `'{}'` | Granted scopes |
+| `rate_limit` | `integer` NOT NULL DEFAULT `1000` | Requests per hour |
+| `last_used_at` | `timestamptz` | |
+| `expires_at` | `timestamptz` | NULL = no expiry |
+| `created_at` | `timestamptz` NOT NULL | |
+| `revoked_at` | `timestamptz` | NULL = active; set to revoke |
+
+---
+
+## webhooks
+
+Webhook endpoint registrations per organization. Events are delivered
+to the registered URL with an HMAC signature using the shared secret.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK | |
+| `org_id` | `uuid` NOT NULL | FK → `organizations.id` |
+| `url` | `text` NOT NULL | Delivery URL |
+| `secret` | `text` NOT NULL | HMAC shared secret |
+| `events` | `text[]` NOT NULL DEFAULT `'{}'` | Subscribed event types |
+| `active` | `boolean` NOT NULL DEFAULT `true` | `false` = paused |
+| `created_at` | `timestamptz` NOT NULL | |
+
+---
+
+## webhook_deliveries
+
+Tracks individual webhook delivery attempts and retries.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK | |
+| `webhook_id` | `uuid` NOT NULL | FK → `webhooks.id` |
+| `event` | `text` NOT NULL | Event type that triggered delivery |
+| `payload` | `jsonb` NOT NULL | Full event payload sent |
+| `response_status` | `integer` | HTTP status code from target |
+| `response_body` | `text` | Truncated response body |
+| `attempt` | `integer` NOT NULL DEFAULT `1` | Attempt number |
+| `delivered_at` | `timestamptz` | Successful delivery time |
+| `next_retry_at` | `timestamptz` | Next retry time (NULL if delivered or exhausted) |
+| `created_at` | `timestamptz` NOT NULL | |
+
+---
+
+## whitelabel_configs
+
+Per-organization white-label branding configuration.
+Applied when the webapp is accessed via the organization's custom domain.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` PK | |
+| `org_id` | `uuid` NOT NULL UNIQUE | FK → `organizations.id` |
+| `custom_domain` | `text` | Custom domain (e.g. `challenges.acme.com`) |
+| `primary_color` | `text` DEFAULT `'#6B5CFF'` | Brand primary color |
+| `logo_url` | `text` | Custom logo URL |
+| `favicon_url` | `text` | Custom favicon URL |
+| `custom_css` | `text` | Additional CSS overrides |
+| `footer_text` | `text` | Custom footer text |
+| `created_at` | `timestamptz` NOT NULL | |
+| `updated_at` | `timestamptz` NOT NULL | |
+
+---
+
 ## Authoritative sources summary
 
 | Data | Authoritative source |
@@ -586,6 +1004,10 @@ after each achievement mint. Drives the level system shown in the user profile.
 | Indexer checkpoints | `public.indexer_state` |
 | Achievement mints | `public.achievement_mints` (indexed from on-chain `ChallengeAchievement` events) |
 | Reputation | `public.reputation` (computed off-chain from achievement_mints) |
+| Notifications | `public.notifications` (written by invite handler, alert workers) |
+| User profiles | `public.user_profiles` (written by user via profile API) |
+| Competition state | `public.competitions` (written by competition admin API) |
+| Organization state | `public.organizations` (written by org creation API) |
 
 ---
 
