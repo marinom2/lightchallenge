@@ -42,6 +42,7 @@ import { SkeletonLine, HeroSummarySkeleton } from "./components/Skeletons";
 import { PrimaryActionCard, JoinCard } from "./components/ActionCards";
 import { CollapsiblePanel, DLGrid, ChainTimeline, LifecycleTimeline, VerificationExplainer } from "./components/DetailPanels";
 import { ActivityFigure, detectActivity, ACTIVITY_LABELS, getActivityColor } from "./components/ActivityFigure";
+import { StatusPill, CompetitionHero, GoalHero, TimeHero, QuickStats, TrustBadges } from "./components/HeroSections";
 import { InviteSheet } from "@/app/challenges/create/components/InviteSheet";
 import { formatWeiDual } from "@/lib/tokenPrice";
 
@@ -1919,259 +1920,66 @@ const primaryAction = React.useMemo(() => {
               </>
             )}
 
-            {/* Status pill — outcome-aware */}
-            {!isInitialLoading && (() => {
-              const resolvedLabel = (participantStatus as any)?.resolved?.label;
-              const resolvedStage = (participantStatus as any)?.resolved?.stage;
-              const label = (hasJoined && resolvedLabel) ? resolvedLabel : publicStatusOverride.label;
-              const pillFailed = label === "Challenge failed" || resolvedStage === "FAILED";
-              const pillSuccess = label === "Challenge completed" || resolvedStage === "PASSED" || resolvedStage === "REWARD_EARNED" || resolvedStage === "CLAIMABLE" || resolvedStage === "CLAIMED";
-              const dotClass =
-                pillFailed ? "cd-status-line__dot--failed" :
-                pillSuccess ? "cd-status-line__dot--success" :
-                resolvedStage === "ACTIVE" || publicStatusOverride.label === "In progress" ? "cd-status-line__dot--active" :
-                resolvedStage === "NEEDS_PROOF" || resolvedStage === "NEEDS_PROOF_URGENT" ? "cd-status-line__dot--upcoming" :
-                publicStatusOverride.label === "Upcoming" ? "cd-status-line__dot--upcoming" :
-                publicStatusOverride.label === "Completed" ? "cd-status-line__dot--active" :
-                "cd-status-line__dot--ended";
-              return label ? (
-                <div className="cd-status-line">
-                  <span className={`cd-status-line__dot ${dotClass}`} />
-                  <span>{label}</span>
-                </div>
-              ) : null;
-            })()}
+            {/* ── Status pill ── */}
+            <StatusPill
+              loading={isInitialLoading}
+              hasJoined={hasJoined}
+              participantStatus={participantStatus}
+              publicLabel={publicStatusOverride.label}
+            />
 
-            {/* ── Hero: Competition vs Goal ── */}
+            {/* ── Hero: adapts to challenge type ── */}
             {!isInitialLoading && isCompetitive ? (
-              /* ═══ COMPETITIVE HERO ═══ */
-              <div className="cd-competition-hero">
-                {/* Primary: Your rank */}
-                {hasJoined && myRank ? (
-                  <div className="cd-competition-hero__rank-block">
-                    <div className="cd-competition-hero__position">
-                      <span className="cd-competition-hero__hash">#</span>
-                      <span className="cd-competition-hero__rank-num">{myRank.rank}</span>
-                      <span className="cd-competition-hero__rank-label">
-                        {myRank.rank <= competitiveTopN ? "in the money" : `of ${leaderboard.length}`}
-                      </span>
-                    </div>
-                    {myRank.score != null ? (
-                      <div className="cd-competition-hero__score">
-                        {Math.round(myRank.score * 100) / 100 !== Math.round(myRank.score)
-                          ? myRank.score.toFixed(2)
-                          : myRank.score.toLocaleString()}{" "}
-                        <span className="cd-competition-hero__score-unit">{competitiveMetric.unit}</span>
-                      </div>
-                    ) : (
-                      <div className="cd-competition-hero__score cd-competition-hero__score--pending">
-                        No score yet
-                      </div>
-                    )}
-                    {/* Gap context */}
-                    {rankContext ? (
-                      <div className="cd-competition-hero__gaps">
-                        {rankContext.gapAhead != null ? (
-                          <span className="cd-competition-hero__gap cd-competition-hero__gap--behind">
-                            {Math.round(rankContext.gapAhead * 100) / 100 !== Math.round(rankContext.gapAhead)
-                              ? rankContext.gapAhead.toFixed(2)
-                              : rankContext.gapAhead.toLocaleString()}{" "}
-                            {competitiveMetric.unit} behind #{myRank.rank - 1}
-                          </span>
-                        ) : null}
-                        {rankContext.gapBehind != null ? (
-                          <span className="cd-competition-hero__gap cd-competition-hero__gap--ahead">
-                            +{Math.round(rankContext.gapBehind * 100) / 100 !== Math.round(rankContext.gapBehind)
-                              ? rankContext.gapBehind.toFixed(2)
-                              : rankContext.gapBehind.toLocaleString()}{" "}
-                            {competitiveMetric.unit} ahead of #{myRank.rank + 1}
-                          </span>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : hasJoined ? (
-                  <div className="cd-competition-hero__rank-block">
-                    <div className="cd-competition-hero__score cd-competition-hero__score--pending">
-                      Waiting for results…
-                    </div>
-                  </div>
-                ) : (
-                  <div className="cd-competition-hero__rank-block">
-                    <div className="cd-competition-hero__position">
-                      <span className="cd-competition-hero__rank-label">Top {competitiveTopN} win</span>
-                    </div>
-                    <div className="cd-competition-hero__score cd-competition-hero__score--pending">
-                      Join to compete
-                    </div>
-                  </div>
-                )}
-
-                {/* Time remaining */}
-                {endSec && Math.floor(Date.now() / 1000) < endSec ? (
-                  <div className="cd-progress-hero__time">
-                    <Clock size={12} style={{ opacity: 0.5 }} /> <CountdownDisplay targetSec={endSec} /> remaining
-                  </div>
-                ) : endSec && Math.floor(Date.now() / 1000) >= endSec && !isCompleted ? (
-                  <div className="cd-progress-hero__time cd-progress-hero__time--ended">Competition ended</div>
-                ) : null}
-
-                {/* Mini leaderboard: top 3 */}
-                {leaderboard.length > 0 ? (
-                  <div className="cd-competition-hero__mini-board">
-                    {leaderboard.slice(0, 3).map((entry) => {
-                      const isMe = entry.subject.toLowerCase() === address?.toLowerCase();
-                      return (
-                        <div
-                          key={entry.subject}
-                          className={`cd-competition-hero__board-row ${isMe ? "cd-competition-hero__board-row--me" : ""}`}
-                        >
-                          <span className="cd-competition-hero__board-rank">#{entry.rank}</span>
-                          <span className="cd-competition-hero__board-addr">
-                            {isMe ? "You" : `${entry.subject.slice(0, 6)}…${entry.subject.slice(-4)}`}
-                          </span>
-                          <span className="cd-competition-hero__board-score">
-                            {entry.score != null ? `${entry.score.toLocaleString()} ${competitiveMetric.unit}` : "—"}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : null}
-              </div>
+              <CompetitionHero
+                hasJoined={hasJoined}
+                myRank={myRank}
+                topN={competitiveTopN}
+                totalParticipants={leaderboard.length}
+                metricUnit={competitiveMetric.unit}
+                rankContext={rankContext}
+                leaderboard={leaderboard}
+                address={address}
+                endSec={endSec ?? undefined}
+                isCompleted={isCompleted}
+              />
             ) : !isInitialLoading && effectiveProgress && effectiveProgress.goalValue > 0 ? (
-              /* ═══ GOAL-BASED HERO ═══ */
-              <div className="cd-progress-hero">
-                <div className="cd-progress-hero__numbers">
-                  <div className="cd-progress-hero__metric">
-                    <span className="cd-progress-hero__metric-current">{effectiveProgress.currentValue.toLocaleString()}</span>
-                    <span className="cd-progress-hero__metric-sep"> / </span>
-                    <span className="cd-progress-hero__metric-goal">{effectiveProgress.goalValue.toLocaleString()}</span>
-                    <span className="cd-progress-hero__metric-unit"> {effectiveProgress.metricLabel}</span>
-                  </div>
-
-                  <div className="cd-progress-hero__pct-line">
-                    <span className={`cd-progress-hero__pct ${isChallengeFailed ? "cd-progress-hero__pct--failed" : (progressPct ?? 0) >= 100 ? "cd-progress-hero__pct--success" : ""}`}>
-                      {progressPct ?? 0}%
-                    </span>
-                    {progressDiff ? (
-                      <span className={`cd-progress-hero__diff ${progressDiff.positive ? "cd-progress-hero__diff--positive" : isChallengeFailed ? "cd-progress-hero__diff--failed" : "cd-progress-hero__diff--negative"}`}>
-                        {progressDiff.positive
-                          ? `+${progressDiff.value.toLocaleString()} above target`
-                          : isChallengeFailed
-                            ? `${progressDiff.value.toLocaleString()} ${effectiveProgress.metricLabel} short`
-                            : `${progressDiff.value.toLocaleString()} ${effectiveProgress.metricLabel} to go`}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  {isChallengeFailed ? (
-                    <div className="cd-progress-hero__state cd-progress-hero__state--failed">Challenge failed</div>
-                  ) : isChallengeSuccess ? (
-                    <div className="cd-progress-hero__state cd-progress-hero__state--success">Challenge completed</div>
-                  ) : null}
-
-                  {endSec && Math.floor(Date.now() / 1000) < endSec ? (
-                    <div className="cd-progress-hero__time">
-                      <Clock size={12} style={{ opacity: 0.5 }} /> <CountdownDisplay targetSec={endSec} /> remaining
-                    </div>
-                  ) : endSec && Math.floor(Date.now() / 1000) >= endSec && !isCompleted ? (
-                    <div className="cd-progress-hero__time cd-progress-hero__time--ended">
-                      Challenge ended
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="cd-progress-hero__bar">
-                  <div className={progressBarClass} style={{ width: `${Math.min(100, (effectiveProgress.currentValue / effectiveProgress.goalValue) * 100)}%` }} />
-                  <div className="cd-progress-hero__sheen" style={{ width: `${Math.min(100, (effectiveProgress.currentValue / effectiveProgress.goalValue) * 100)}%` }} />
-                </div>
-              </div>
+              <GoalHero
+                progress={effectiveProgress}
+                progressPct={progressPct}
+                progressDiff={progressDiff}
+                barClass={progressBarClass}
+                endSec={endSec ?? undefined}
+                isCompleted={isCompleted}
+                isFailed={isChallengeFailed}
+                isSuccess={isChallengeSuccess}
+              />
             ) : !isInitialLoading && startSec && endSec ? (
-              /* Time-based progress when no metric available */
-              <div className="cd-progress-hero">
-                <div className="cd-progress-hero__bar">
-                  {(() => {
-                    const now = Math.floor(Date.now() / 1000);
-                    const total = Math.max(1, endSec - startSec);
-                    const elapsed = Math.min(Math.max(0, now - startSec), total);
-                    const pct = Math.min(100, (elapsed / total) * 100);
-                    const finished = decodedSnapshot?.set;
-                    return (
-                      <>
-                        <div className={progressBarClass} style={{ width: `${finished ? 100 : pct}%` }} />
-                        <div className="cd-progress-hero__sheen" style={{ width: `${finished ? 100 : pct}%` }} />
-                      </>
-                    );
-                  })()}
-                </div>
-                {endSec && Math.floor(Date.now() / 1000) < endSec ? (
-                  <div className="cd-progress-hero__time">
-                    Ends in <CountdownDisplay targetSec={endSec} />
-                  </div>
-                ) : null}
-              </div>
+              <TimeHero startSec={startSec} endSec={endSec} barClass={progressBarClass} finished={!!decodedSnapshot?.set} />
             ) : null}
 
-            {/* Quick stats row — context-aware */}
-            {!isInitialLoading ? (() => {
-              const dual = formatWeiDual(treasuryWei, tokenPrice);
-              const potLabel = dual.usd ? dual.usd : dual.lcai;
-              return (
-                <div className="cd-quick-stats">
-                  <div className="cd-quick-stat">
-                    <div className="cd-quick-stat__value">{potLabel}</div>
-                    <div className="cd-quick-stat__label">{isCompleted ? "Prize Pool" : "Reward"}</div>
-                  </div>
-                  <div className="cd-quick-stat">
-                    <div className="cd-quick-stat__value">{fmtNum(participantsCountFromChain)}</div>
-                    <div className="cd-quick-stat__label">Participants</div>
-                  </div>
-                  {isCompetitive ? (
-                    <div className="cd-quick-stat">
-                      <div className="cd-quick-stat__value">Top {competitiveTopN}</div>
-                      <div className="cd-quick-stat__label">Winners</div>
-                    </div>
-                  ) : (activityType || data?.category) ? (
-                    <div className="cd-quick-stat">
-                      <div className="cd-quick-stat__value">{activityType ? ACTIVITY_LABELS[activityType] : data!.category!.charAt(0).toUpperCase() + data!.category!.slice(1)}</div>
-                      <div className="cd-quick-stat__label">Activity</div>
-                    </div>
-                  ) : null}
-                  {dual.usd ? (
-                    <div className="cd-quick-stat">
-                      <div className="cd-quick-stat__value">{dual.lcai}</div>
-                      <div className="cd-quick-stat__label">LCAI</div>
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })() : (
+            {/* ── Quick stats ── */}
+            {!isInitialLoading ? (
+              <QuickStats
+                treasuryWei={treasuryWei}
+                tokenPrice={tokenPrice}
+                participantsCount={participantsCountFromChain}
+                isCompleted={isCompleted}
+                isCompetitive={isCompetitive}
+                competitiveTopN={competitiveTopN}
+                activityType={activityType}
+                category={data?.category}
+              />
+            ) : (
               <HeroSummarySkeleton />
             )}
 
-            {/* Trust indicators */}
-            {!isInitialLoading && (
-              <div className="cd-trust">
-                {participantStatus?.has_evidence ? (
-                  <div className="cd-trust__item">
-                    <Lucide.ShieldCheck size={12} className="cd-trust__icon" />
-                    Verified automatically
-                  </div>
-                ) : null}
-                {decodedSnapshot?.set ? (
-                  <div className="cd-trust__item">
-                    <Lucide.ShieldCheck size={12} className="cd-trust__icon" />
-                    Finalized on-chain
-                  </div>
-                ) : timeline.some(t => t.tx) ? (
-                  <div className="cd-trust__item">
-                    <Lucide.ShieldCheck size={12} className="cd-trust__icon" />
-                    Recorded on-chain
-                  </div>
-                ) : null}
-              </div>
-            )}
+            {/* ── Trust indicators ── */}
+            <TrustBadges
+              loading={isInitialLoading}
+              hasEvidence={!!participantStatus?.has_evidence}
+              isFinalized={!!decodedSnapshot?.set}
+              hasOnChain={timeline.some(t => t.tx)}
+            />
 
             {/* Auto-proof status indicator */}
             {hasJoined && autoProofStatus.state !== "idle" && (
