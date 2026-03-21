@@ -567,7 +567,7 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
 
             const catLower = String(out.category ?? "").toLowerCase();
             if (
-              (!catLower || !["gaming","fitness","social","custom","walking","running","cycling","hiking","swimming","strength","yoga","hiit","rowing","calories","exercise","dota","lol","cs"].includes(catLower)) &&
+              (!catLower || !["gaming","fitness","social","custom","walking","running","cycling","hiking","swimming","strength","yoga","hiit","crossfit","rowing","calories","exercise","dota","lol","cs"].includes(catLower)) &&
               (out.game || out.mode)
             ) {
               out.category = "gaming";

@@ -406,7 +406,7 @@ export function VerificationExplainer({
 }) {
   let text: string;
 
-  const FITNESS_CATS = new Set(["fitness","walking","running","cycling","hiking","swimming","strength","yoga","hiit","rowing","calories","exercise"]);
+  const FITNESS_CATS = new Set(["fitness","walking","running","cycling","hiking","swimming","strength","yoga","hiit","crossfit","rowing","calories","exercise"]);
   const GAMING_CATS = new Set(["gaming","dota","lol","cs"]);
   const catLower = (category ?? "").toLowerCase();
 

@@ -25,7 +25,7 @@ export type ActivityType =
   | "strength"
   | "hiking"
   | "yoga"
-  | "hiit"
+  | "crossfit"
   | "rowing"
   | "calories"
   | "exercise"
@@ -39,7 +39,7 @@ export const ACTIVITY_LABELS: Record<ActivityType, string> = {
   strength: "Strength",
   hiking: "Hiking",
   yoga: "Yoga",
-  hiit: "HIIT",
+  crossfit: "CrossFit / HIIT",
   rowing: "Rowing",
   calories: "Calories",
   exercise: "Exercise",
@@ -54,7 +54,7 @@ const ACTIVITY_COLORS: Record<ActivityType, string> = {
   strength: "#EF4444",
   hiking: "#8B5CF6",
   yoga: "#A855F7",
-  hiit: "#F43F5E",
+  crossfit: "#F43F5E",
   rowing: "#0EA5E9",
   calories: "#F59E0B",
   exercise: "#10B981",
@@ -69,7 +69,7 @@ const ACTIVITY_ICONS: Record<ActivityType, LucideIcon> = {
   strength: Dumbbell,
   hiking: Mountain,
   yoga: Activity,
-  hiit: Timer,
+  crossfit: Timer,
   rowing: Rows3,
   calories: Flame,
   exercise: Heart,
@@ -94,7 +94,7 @@ export function detectActivity(fields: {
   if (metric === "strength_sessions") return "strength";
   if (metric === "hiking_km") return "hiking";
   if (metric === "yoga_min") return "yoga";
-  if (metric === "hiit_min") return "hiit";
+  if (metric === "hiit_min" || metric === "crossfit_min") return "crossfit";
   if (metric === "rowing_km") return "rowing";
   if (metric === "exercise_time") return "exercise";
   if (metric === "calories") return "calories";
@@ -108,7 +108,7 @@ export function detectActivity(fields: {
   if (modelId.includes("strength")) return "strength";
   if (modelId.includes("hiking")) return "hiking";
   if (modelId.includes("yoga")) return "yoga";
-  if (modelId.includes("hiit")) return "hiit";
+  if (modelId.includes("hiit") || modelId.includes("crossfit")) return "crossfit";
   if (modelId.includes("rowing")) return "rowing";
   if (modelId.includes("calories")) return "calories";
   if (modelId.includes("exercise")) return "exercise";
@@ -123,7 +123,7 @@ export function detectActivity(fields: {
   if (tags.includes("strength")) return "strength";
   if (tags.includes("hiking")) return "hiking";
   if (tags.includes("yoga")) return "yoga";
-  if (tags.includes("hiit")) return "hiit";
+  if (tags.includes("hiit") || tags.includes("crossfit")) return "crossfit";
   if (tags.includes("rowing")) return "rowing";
   if (tags.includes("calories")) return "calories";
   if (tags.includes("walking")) return "walking";
@@ -136,7 +136,7 @@ export function detectActivity(fields: {
   if (text.includes("strength") || text.includes("lift") || text.includes("weight")) return "strength";
   if (text.includes("hik") || text.includes("trail") || text.includes("climb")) return "hiking";
   if (text.includes("yoga") || text.includes("meditat")) return "yoga";
-  if (text.includes("hiit") || text.includes("crossfit") || text.includes("interval")) return "hiit";
+  if (text.includes("hiit") || text.includes("crossfit") || text.includes("interval")) return "crossfit";
   if (text.includes("row") || text.includes("ergometer")) return "rowing";
   if (text.includes("calori") || text.includes("burn")) return "calories";
 

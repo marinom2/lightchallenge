@@ -143,7 +143,7 @@ async function parseExportXml(zipBuf: Buffer, userIdHash: `0x${string}`): Promis
           type = "yoga";
         } else if (wt === "HKWorkoutActivityTypeCrossTraining"
             || wt === "HKWorkoutActivityTypeHighIntensityIntervalTraining") {
-          type = "hiit";
+          type = "crossfit";
         } else if (wt === "HKWorkoutActivityTypeRowing") {
           type = "rowing";
         }

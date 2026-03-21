@@ -9,6 +9,7 @@ import {
   useAccount,
   usePublicClient,
   useReadContract,
+  useWalletClient,
   useWriteContract,
   useSignTypedData,
   useBlockNumber,
@@ -16,6 +17,7 @@ import {
 
 import { ABI, ADDR } from "@/lib/contracts";
 import { txUrl } from "@/lib/explorer";
+import { buildAuthHeaders } from "@/lib/authHeaders";
 import { useToasts } from "@/lib/ui/toast";
 import { prettyGame } from "@/lib/games";
 import * as Lucide from "lucide-react";
@@ -46,7 +48,7 @@ import { formatWeiDual } from "@/lib/tokenPrice";
 
 const FITNESS_CATEGORIES = new Set([
   "fitness", "walking", "running", "cycling", "hiking", "swimming",
-  "strength", "yoga", "hiit", "rowing", "calories", "exercise",
+  "strength", "yoga", "hiit", "crossfit", "rowing", "calories", "exercise",
 ]);
 function isFitnessCategory(c?: string | null): boolean {
   return !!c && FITNESS_CATEGORIES.has(c.toLowerCase());
@@ -325,6 +327,7 @@ export default function ChallengePage() {
   const challengeIdStr = id ? String(id) : "0";
 
   const { address } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const pc = usePublicClient();
   const { writeContractAsync } = useWriteContract();
   const { signTypedDataAsync } = useSignTypedData();
@@ -626,17 +629,17 @@ export default function ChallengePage() {
   const [showInviteSheet, setShowInviteSheet] = React.useState(false);
 
   async function handleSendInvite(method: "email" | "wallet" | "steam", value: string) {
-    if (!challengeId || !address) {
+    if (!challengeId || !address || !walletClient) {
       notify("Connect wallet to send invites");
       return;
     }
     try {
+      const authHeaders = await buildAuthHeaders(walletClient);
       const res = await fetch("/api/invites", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-lc-address": address,
-          "x-lc-timestamp": String(Date.now()),
+          ...authHeaders,
         },
         body: JSON.stringify({
           challengeId: Number(challengeId),
@@ -916,6 +919,74 @@ export default function ChallengePage() {
     if (paramsGoal) return { ...paramsGoal, currentValue: 0, progress: 0 };
     return null;
   }, [challengeProgress, paramsGoal]);
+
+  // ── Competitive challenge detection ──
+  const isCompetitive = React.useMemo(() => {
+    const rule = (data?.proof?.params as any)?.rule;
+    if (rule?.mode === "competitive") return true;
+    const topN = (data?.params as any)?.topN;
+    if (typeof topN === "number" && topN > 0) return true;
+    return false;
+  }, [data?.proof?.params, data?.params]);
+
+  const competitiveTopN = React.useMemo(() => {
+    const rule = (data?.proof?.params as any)?.rule;
+    if (rule?.topN) return Number(rule.topN);
+    const topN = (data?.params as any)?.topN;
+    if (typeof topN === "number" && topN > 0) return topN;
+    return 1;
+  }, [data?.proof?.params, data?.params]);
+
+  const competitiveMetric = React.useMemo(() => {
+    const rule = (data?.proof?.params as any)?.rule;
+    const m = rule?.competitiveMetric ?? (data?.params as any)?.rules?.metric ?? null;
+    const LABELS: Record<string, string> = {
+      steps: "steps", steps_count: "steps",
+      distance_km: "km", walking_km: "km", running_km: "km",
+      cycling_km: "km", swimming_km: "km", hiking_km: "km", rowing_km: "km",
+      strength_sessions: "sessions", duration_min: "min",
+      yoga_min: "min", hiit_min: "min", crossfit_min: "min",
+      calories: "kcal", exercise_time: "min", elev_gain_m: "m",
+    };
+    return { key: m, unit: m ? (LABELS[m] ?? m) : "pts" };
+  }, [data?.proof?.params, data?.params]);
+
+  // ── Leaderboard fetch for competitive challenges ──
+  type LeaderboardEntry = { subject: string; score: number | null; rank: number; hasEvidence: boolean };
+  const [leaderboard, setLeaderboard] = React.useState<LeaderboardEntry[]>([]);
+
+  React.useEffect(() => {
+    if (!isCompetitive || !challengeId) { setLeaderboard([]); return; }
+    fetch(`/api/challenge/${challengeId}/leaderboard`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.ok && Array.isArray(d.leaderboard)) {
+          // Re-rank by score descending for competitive display
+          const sorted = [...d.leaderboard]
+            .sort((a: any, b: any) => (b.score ?? -1) - (a.score ?? -1))
+            .map((entry: any, i: number) => ({ ...entry, rank: i + 1 }));
+          setLeaderboard(sorted);
+        }
+      })
+      .catch(() => {});
+  }, [isCompetitive, challengeId]);
+
+  const myRank = React.useMemo(() => {
+    if (!address || leaderboard.length === 0) return null;
+    const me = address.toLowerCase();
+    return leaderboard.find((e) => e.subject.toLowerCase() === me) ?? null;
+  }, [leaderboard, address]);
+
+  const rankContext = React.useMemo(() => {
+    if (!myRank) return null;
+    const idx = leaderboard.findIndex((e) => e.subject.toLowerCase() === (address?.toLowerCase() ?? ""));
+    if (idx < 0) return null;
+    const ahead = idx > 0 ? leaderboard[idx - 1] : null;
+    const behind = idx < leaderboard.length - 1 ? leaderboard[idx + 1] : null;
+    const gapAhead = ahead?.score != null && myRank.score != null ? Math.abs(ahead.score - myRank.score) : null;
+    const gapBehind = behind?.score != null && myRank.score != null ? Math.abs(myRank.score - behind.score) : null;
+    return { ahead, behind, gapAhead, gapBehind };
+  }, [myRank, leaderboard, address]);
 
   // Auto-proof: trigger when user views challenge in proof window
   // (challenge ended, deadline not passed, joined, no evidence yet)
@@ -1840,10 +1911,106 @@ const primaryAction = React.useMemo(() => {
               ) : null;
             })()}
 
-            {/* ── Progress hero: numbers-first layout ── */}
-            {!isInitialLoading && effectiveProgress && effectiveProgress.goalValue > 0 ? (
+            {/* ── Hero: Competition vs Goal ── */}
+            {!isInitialLoading && isCompetitive ? (
+              /* ═══ COMPETITIVE HERO ═══ */
+              <div className="cd-competition-hero">
+                {/* Primary: Your rank */}
+                {hasJoined && myRank ? (
+                  <div className="cd-competition-hero__rank-block">
+                    <div className="cd-competition-hero__position">
+                      <span className="cd-competition-hero__hash">#</span>
+                      <span className="cd-competition-hero__rank-num">{myRank.rank}</span>
+                      <span className="cd-competition-hero__rank-label">
+                        {myRank.rank <= competitiveTopN ? "in the money" : `of ${leaderboard.length}`}
+                      </span>
+                    </div>
+                    {myRank.score != null ? (
+                      <div className="cd-competition-hero__score">
+                        {Math.round(myRank.score * 100) / 100 !== Math.round(myRank.score)
+                          ? myRank.score.toFixed(2)
+                          : myRank.score.toLocaleString()}{" "}
+                        <span className="cd-competition-hero__score-unit">{competitiveMetric.unit}</span>
+                      </div>
+                    ) : (
+                      <div className="cd-competition-hero__score cd-competition-hero__score--pending">
+                        No score yet
+                      </div>
+                    )}
+                    {/* Gap context */}
+                    {rankContext ? (
+                      <div className="cd-competition-hero__gaps">
+                        {rankContext.gapAhead != null ? (
+                          <span className="cd-competition-hero__gap cd-competition-hero__gap--behind">
+                            {Math.round(rankContext.gapAhead * 100) / 100 !== Math.round(rankContext.gapAhead)
+                              ? rankContext.gapAhead.toFixed(2)
+                              : rankContext.gapAhead.toLocaleString()}{" "}
+                            {competitiveMetric.unit} behind #{myRank.rank - 1}
+                          </span>
+                        ) : null}
+                        {rankContext.gapBehind != null ? (
+                          <span className="cd-competition-hero__gap cd-competition-hero__gap--ahead">
+                            +{Math.round(rankContext.gapBehind * 100) / 100 !== Math.round(rankContext.gapBehind)
+                              ? rankContext.gapBehind.toFixed(2)
+                              : rankContext.gapBehind.toLocaleString()}{" "}
+                            {competitiveMetric.unit} ahead of #{myRank.rank + 1}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : hasJoined ? (
+                  <div className="cd-competition-hero__rank-block">
+                    <div className="cd-competition-hero__score cd-competition-hero__score--pending">
+                      Waiting for results…
+                    </div>
+                  </div>
+                ) : (
+                  <div className="cd-competition-hero__rank-block">
+                    <div className="cd-competition-hero__position">
+                      <span className="cd-competition-hero__rank-label">Top {competitiveTopN} win</span>
+                    </div>
+                    <div className="cd-competition-hero__score cd-competition-hero__score--pending">
+                      Join to compete
+                    </div>
+                  </div>
+                )}
+
+                {/* Time remaining */}
+                {endSec && Math.floor(Date.now() / 1000) < endSec ? (
+                  <div className="cd-progress-hero__time">
+                    <Clock size={12} style={{ opacity: 0.5 }} /> <CountdownDisplay targetSec={endSec} /> remaining
+                  </div>
+                ) : endSec && Math.floor(Date.now() / 1000) >= endSec && !isCompleted ? (
+                  <div className="cd-progress-hero__time cd-progress-hero__time--ended">Competition ended</div>
+                ) : null}
+
+                {/* Mini leaderboard: top 3 */}
+                {leaderboard.length > 0 ? (
+                  <div className="cd-competition-hero__mini-board">
+                    {leaderboard.slice(0, 3).map((entry) => {
+                      const isMe = entry.subject.toLowerCase() === address?.toLowerCase();
+                      return (
+                        <div
+                          key={entry.subject}
+                          className={`cd-competition-hero__board-row ${isMe ? "cd-competition-hero__board-row--me" : ""}`}
+                        >
+                          <span className="cd-competition-hero__board-rank">#{entry.rank}</span>
+                          <span className="cd-competition-hero__board-addr">
+                            {isMe ? "You" : `${entry.subject.slice(0, 6)}…${entry.subject.slice(-4)}`}
+                          </span>
+                          <span className="cd-competition-hero__board-score">
+                            {entry.score != null ? `${entry.score.toLocaleString()} ${competitiveMetric.unit}` : "—"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            ) : !isInitialLoading && effectiveProgress && effectiveProgress.goalValue > 0 ? (
+              /* ═══ GOAL-BASED HERO ═══ */
               <div className="cd-progress-hero">
-                {/* PRIMARY: Numbers — the biggest, most prominent element */}
                 <div className="cd-progress-hero__numbers">
                   <div className="cd-progress-hero__metric">
                     <span className="cd-progress-hero__metric-current">{effectiveProgress.currentValue.toLocaleString()}</span>
@@ -1852,7 +2019,6 @@ const primaryAction = React.useMemo(() => {
                     <span className="cd-progress-hero__metric-unit"> {effectiveProgress.metricLabel}</span>
                   </div>
 
-                  {/* Percentage + delta — ALWAYS visible */}
                   <div className="cd-progress-hero__pct-line">
                     <span className={`cd-progress-hero__pct ${isChallengeFailed ? "cd-progress-hero__pct--failed" : (progressPct ?? 0) >= 100 ? "cd-progress-hero__pct--success" : ""}`}>
                       {progressPct ?? 0}%
@@ -1868,14 +2034,12 @@ const primaryAction = React.useMemo(() => {
                     ) : null}
                   </div>
 
-                  {/* State label */}
                   {isChallengeFailed ? (
                     <div className="cd-progress-hero__state cd-progress-hero__state--failed">Challenge failed</div>
                   ) : isChallengeSuccess ? (
                     <div className="cd-progress-hero__state cd-progress-hero__state--success">Challenge completed</div>
                   ) : null}
 
-                  {/* Time remaining */}
                   {endSec && Math.floor(Date.now() / 1000) < endSec ? (
                     <div className="cd-progress-hero__time">
                       <Clock size={12} style={{ opacity: 0.5 }} /> <CountdownDisplay targetSec={endSec} /> remaining
@@ -1887,7 +2051,6 @@ const primaryAction = React.useMemo(() => {
                   ) : null}
                 </div>
 
-                {/* SECONDARY: Progress bar — reflects real percentage */}
                 <div className="cd-progress-hero__bar">
                   <div className={progressBarClass} style={{ width: `${Math.min(100, (effectiveProgress.currentValue / effectiveProgress.goalValue) * 100)}%` }} />
                   <div className="cd-progress-hero__sheen" style={{ width: `${Math.min(100, (effectiveProgress.currentValue / effectiveProgress.goalValue) * 100)}%` }} />
@@ -1919,7 +2082,7 @@ const primaryAction = React.useMemo(() => {
               </div>
             ) : null}
 
-            {/* Quick stats row — pot, participants, category */}
+            {/* Quick stats row — context-aware */}
             {!isInitialLoading ? (() => {
               const dual = formatWeiDual(treasuryWei, tokenPrice);
               const potLabel = dual.usd ? dual.usd : dual.lcai;
@@ -1933,10 +2096,15 @@ const primaryAction = React.useMemo(() => {
                     <div className="cd-quick-stat__value">{fmtNum(participantsCountFromChain)}</div>
                     <div className="cd-quick-stat__label">Participants</div>
                   </div>
-                  {data?.category ? (
+                  {isCompetitive ? (
                     <div className="cd-quick-stat">
-                      <div className="cd-quick-stat__value">{data.category.charAt(0).toUpperCase() + data.category.slice(1)}</div>
-                      <div className="cd-quick-stat__label">Category</div>
+                      <div className="cd-quick-stat__value">Top {competitiveTopN}</div>
+                      <div className="cd-quick-stat__label">Winners</div>
+                    </div>
+                  ) : (activityType || data?.category) ? (
+                    <div className="cd-quick-stat">
+                      <div className="cd-quick-stat__value">{activityType ? ACTIVITY_LABELS[activityType] : data!.category!.charAt(0).toUpperCase() + data!.category!.slice(1)}</div>
+                      <div className="cd-quick-stat__label">Activity</div>
                     </div>
                   ) : null}
                   {dual.usd ? (
@@ -2147,7 +2315,7 @@ const primaryAction = React.useMemo(() => {
           <CollapsiblePanel title="Details" defaultOpen={false} icon={Info}>
             <DLGrid
               rows={[
-                ...(data?.category ? [["Category", data.category.charAt(0).toUpperCase() + data.category.slice(1)] as [string, string]] : []),
+                ...(data?.category ? [["Activity", activityType ? ACTIVITY_LABELS[activityType] : data.category.charAt(0).toUpperCase() + data.category.slice(1)] as [string, string]] : []),
                 ...(data?.game ? [["Game", prettyGame(data.game) || safe(data.game)] as [string, string]] : []),
                 ...(data?.mode ? [["Mode", safe(data.mode)] as [string, string]] : []),
                 ["Participants", `${fmtNum(participantsCountFromChain)} / ${formatMaxParticipants(maxParticipantsFromChain)}`],

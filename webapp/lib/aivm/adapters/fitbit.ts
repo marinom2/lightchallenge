@@ -54,7 +54,7 @@ function normalizeFitbit(json: any, userIdHash: string): CanonicalRecord[] {
       else if (actName.includes("bike") || actName.includes("cycl") || actName.includes("spinning") || actName.includes("ride")) type = "cycle";
       else if (actName.includes("swim") || actName.includes("pool") || actName.includes("lap")) type = "swim";
       else if (actName === "yoga" || actName === "pilates") type = "yoga";
-      else if (actName === "hiit" || actName.includes("interval") || actName.includes("bootcamp")) type = "hiit";
+      else if (actName === "hiit" || actName.includes("interval") || actName.includes("bootcamp")) type = "crossfit";
       else if (actName.includes("row")) type = "rowing";
       else if (actName.includes("weight") || actName.includes("strength") || actName.includes("crossfit") || actName.includes("workout") || actName.includes("circuit")) type = "strength";
 

@@ -200,7 +200,7 @@ export default function Explore() {
   function inferCategoryFromTextAndMeta(m?: ChallengeMeta, title?: string, desc?: string): Exclude<Category, "all"> {
     const cat = (m?.category || "").toLowerCase();
     if (["gaming","social","custom"].includes(cat)) return cat as any;
-    if (["fitness","walking","running","cycling","hiking","swimming","strength","yoga","hiit","rowing","calories","exercise"].includes(cat)) return "fitness";
+    if (["fitness","walking","running","cycling","hiking","swimming","strength","yoga","hiit","crossfit","rowing","calories","exercise"].includes(cat)) return "fitness";
     const game = normalizeGame(m?.game);
     if (game && ["Dota 2","CS2","League of Legends","Valorant"].includes(game)) return "gaming";
     if (["dota","lol","cs"].includes(cat)) return "gaming";
@@ -420,7 +420,7 @@ export default function Explore() {
     for (const r of filtered) {
       const g = normalizeGame(r.game || "");
       if (g && ["Dota 2", "CS2", "Valorant", "League of Legends"].includes(g)) push(g, r);
-      else if (["fitness","walking","running","cycling","hiking","swimming","strength","yoga","hiit","rowing","calories","exercise"].includes((r.category ?? "").toLowerCase())) {
+      else if (["fitness","walking","running","cycling","hiking","swimming","strength","yoga","hiit","crossfit","rowing","calories","exercise"].includes((r.category ?? "").toLowerCase())) {
         const cat = (r.category ?? "").toLowerCase();
         if (cat === "running") push("Running", r);
         else if (cat === "hiking") push("Hiking", r);

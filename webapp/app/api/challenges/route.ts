@@ -20,7 +20,7 @@ type UiStatus = "Active" | "Finalized" | "Canceled";
 
 type Category = "gaming" | "fitness" | "social" | "custom"
   | "walking" | "running" | "cycling" | "hiking" | "swimming"
-  | "strength" | "yoga" | "hiit" | "rowing" | "calories" | "exercise"
+  | "strength" | "yoga" | "hiit" | "crossfit" | "rowing" | "calories" | "exercise"
   | "dota" | "lol" | "cs";
 
 export type ChallengeMeta = {
@@ -165,7 +165,7 @@ function normalizeStatus(s?: string): UiStatus {
 const VALID_CATEGORIES = new Set([
   "gaming", "fitness", "social", "custom",
   "walking", "running", "cycling", "hiking", "swimming",
-  "strength", "yoga", "hiit", "rowing", "calories", "exercise",
+  "strength", "yoga", "hiit", "crossfit", "rowing", "calories", "exercise",
   "dota", "lol", "cs",
 ]);
 

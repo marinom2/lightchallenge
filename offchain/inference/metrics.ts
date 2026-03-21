@@ -2,7 +2,7 @@ import { differenceInMinutes, parseISO, startOfDay, addDays, isBefore, isAfter, 
 
 export type Activity = {
   type: "run" | "walk" | "cycle" | "swim" | "steps" | "strength" | "hike"
-      | "yoga" | "hiit" | "crossfit" | "rowing" | "exercise_time" | "calories";
+      | "yoga" | "crossfit" | "rowing" | "exercise_time" | "calories";
   start: string; // ISO
   end: string;   // ISO
   distance_km?: number;
@@ -103,8 +103,8 @@ function metricValue(a: Activity, m: string): number | null {
     case "swimming_km": return a.type === "swim" ? (a.distance_km ?? 0) : 0;
     case "duration_min": return a.duration_min ?? (a.start && a.end ? differenceInMinutes(parseISO(a.end), parseISO(a.start)) : null);
     case "yoga_min": return a.type === "yoga" ? (a.duration_min ?? 0) : 0;
-    case "hiit_min": return a.type === "hiit" || a.type === "crossfit" ? (a.duration_min ?? 0) : 0;
-    case "crossfit_min": return a.type === "crossfit" || a.type === "hiit" ? (a.duration_min ?? 0) : 0;
+    case "hiit_min": return a.type === "crossfit" ? (a.duration_min ?? 0) : 0;
+    case "crossfit_min": return a.type === "crossfit" ? (a.duration_min ?? 0) : 0;
     case "active_minutes": return a.duration_min ?? 0;
     case "exercise_time": return a.exercise_minutes ?? a.duration_min ?? 0;
     case "avg_pace_min_per_km": return avgPaceMinPerKm(a.distance_km, a.duration_min);

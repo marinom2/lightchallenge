@@ -449,7 +449,7 @@ struct ChallengeDetail: Codable {
                 case "running":   return "distance_km"
                 case "walking":   return "steps"
                 case "yoga":      return "yoga_min"
-                case "hiit":      return "hiit_min"
+                case "hiit":      return "crossfit_min"
                 case "crossfit":  return "crossfit_min"
                 case "strength":  return "strength_sessions"
                 case "calories":  return "calories"

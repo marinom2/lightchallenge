@@ -2,12 +2,13 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useAccount, useBalance } from "wagmi";
+import { useAccount, useBalance, useWalletClient } from "wagmi";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 
 import ClientOnly from "./components/ClientOnly";
 import { Toasts, useToasts } from "@/lib/ui/toast";
+import { buildAuthHeaders } from "@/lib/authHeaders";
 
 import { InviteSheet } from "./components/InviteSheet";
 import SuccessSheet from "./components/SuccessSheet";
@@ -41,6 +42,7 @@ export default function CreateChallengePage() {
 function CreatePageInner() {
   const router = useRouter();
   const { address } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const { push } = useToasts();
 
   const {
@@ -138,10 +140,15 @@ function CreatePageInner() {
         push("Challenge ID is missing. Create the challenge first.");
         return;
       }
+      if (!walletClient) {
+        push("Connect wallet to send invites.");
+        return;
+      }
 
+      const authHeaders = await buildAuthHeaders(walletClient);
       const res = await fetch("/api/invites", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           challengeId: ui.challengeId,
           method,
@@ -159,7 +166,7 @@ function CreatePageInner() {
       push(`Invite queued: ${method} · ${value}`);
       setInviteOpen(false);
     },
-    [ui.challengeId, push]
+    [ui.challengeId, walletClient, push]
   );
 
   const cta = React.useMemo(() => {

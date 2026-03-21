@@ -54,7 +54,6 @@ enum FitnessTemplates {
         swimmingLapsTemplate,
         strengthWorkoutTemplate,
         yogaDurationTemplate,
-        hiitSessionsTemplate,
         crossfitSessionsTemplate,
         rowingDistanceTemplate,
         calorieBurnTemplate,
@@ -425,46 +424,12 @@ enum FitnessTemplates {
         }
     )
 
-    // MARK: - HIIT
-
-    private static let hiitSessionsTemplate = ChallengeTemplate(
-        id: "hiit_sessions",
-        name: "HIIT — Session Time",
-        hint: "Accumulate HIIT / CrossFit training time",
-        fitnessKind: "hiit",
-        kindId: .fitnessGeneral,
-        modelId: "fitness.hiit@1",
-        modelHash: ServerConfig.fitnessHiitHash,
-        fields: [
-            TemplateField(key: "durationMin", label: "Target Minutes", kind: .number(min: 10, max: nil, step: 10, defaultValue: 60)),
-        ],
-        paramsBuilder: { args in
-            [
-                "minDurationMin": args["durationMin"] ?? 60,
-                "types": "hiit,crossfit",
-            ]
-        },
-        ruleBuilder: { args, start, end in
-            let minutes = args["durationMin"] as? Double ?? 60.0
-            return [
-                "challengeType": "hiit",
-                "period": [
-                    "start": ISO8601DateFormatter().string(from: start),
-                    "end": ISO8601DateFormatter().string(from: end),
-                ],
-                "conditions": [
-                    ["metric": "hiit_min", "op": ">=", "value": minutes]
-                ],
-            ]
-        }
-    )
-
-    // MARK: - CrossFit
+    // MARK: - CrossFit / HIIT
 
     private static let crossfitSessionsTemplate = ChallengeTemplate(
         id: "crossfit_sessions",
-        name: "CrossFit — Session Time",
-        hint: "Accumulate CrossFit training time",
+        name: "CrossFit / HIIT — Session Time",
+        hint: "Accumulate CrossFit and HIIT training time",
         fitnessKind: "crossfit",
         kindId: .fitnessGeneral,
         modelId: "fitness.crossfit@1",

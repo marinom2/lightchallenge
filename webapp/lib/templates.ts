@@ -40,7 +40,7 @@ export type TemplateField =
     };
 
 /** Supported kinds across Fitness & Gaming */
-export type FitnessKind = "walking" | "running" | "cycling" | "hiking" | "swimming" | "strength" | "yoga" | "hiit" | "crossfit" | "rowing" | "calories" | "exercise";
+export type FitnessKind = "walking" | "running" | "cycling" | "hiking" | "swimming" | "strength" | "yoga" | "crossfit" | "rowing" | "calories" | "exercise";
 export type GameId = "dota" | "lol" | "cs";
 
 /** A template line item used by the renderer */
@@ -378,37 +378,11 @@ const FITNESS_YOGA_DURATION: Template = {
   }),
 };
 
-const FITNESS_HIIT_SESSIONS: Template = {
-  id: "hiit_sessions",
-  kind: "hiit",
-  name: "HIIT — Session Time",
-  hint: "Accumulate HIIT / CrossFit training time.",
-  modelId: "fitness.hiit@1",
-  fields: [{ kind: "number", key: "durationMin", label: "Target minutes", min: 10, step: 10, default: 60 }],
-  paramsBuilder: ({ state }) => ({
-    start_ts: ts(state.timeline.starts),
-    end_ts: ts(state.timeline.ends),
-    min_duration_min: Number(aivm(state).durationMin ?? 60),
-    rules: { metric: "hiit_min", threshold: Number(aivm(state).durationMin ?? 60) },
-  }),
-  ruleBuilder: ({ state }) => ({
-    challengeType: "hiit",
-    period: {
-      start: isoOrNow(state.timeline.starts),
-      end: isoOrNow(state.timeline.ends),
-      timezone: localTz(),
-    },
-    conditions: [
-      { metric: "hiit_min", op: ">=", value: Number(aivm(state).durationMin ?? 60) },
-    ],
-  }),
-};
-
 const FITNESS_CROSSFIT_SESSIONS: Template = {
   id: "crossfit_sessions",
   kind: "crossfit",
-  name: "CrossFit — Session Time",
-  hint: "Accumulate CrossFit training time.",
+  name: "CrossFit / HIIT — Session Time",
+  hint: "Accumulate CrossFit and HIIT training time.",
   modelId: "fitness.crossfit@1",
   fields: [{ kind: "number", key: "durationMin", label: "Target minutes", min: 10, step: 10, default: 60 }],
   paramsBuilder: ({ state }) => ({
@@ -562,7 +536,6 @@ const FITNESS: Template[] = [
   FITNESS_SWIMMING_DISTANCE_WINDOW,
   FITNESS_STRENGTH_WORKOUTS,
   FITNESS_YOGA_DURATION,
-  FITNESS_HIIT_SESSIONS,
   FITNESS_CROSSFIT_SESSIONS,
   FITNESS_ROWING_DISTANCE,
   FITNESS_CALORIE_BURN,

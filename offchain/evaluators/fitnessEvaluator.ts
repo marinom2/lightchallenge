@@ -45,7 +45,7 @@ const FITNESS_PROVIDERS = ["apple", "apple_health", "strava", "garmin", "fitbit"
 
 // ─── Activity type mapping ─────────────────────────────────────────────────
 
-const ACTIVITY_TYPES = new Set<string>(["run", "walk", "cycle", "swim", "steps", "strength", "hike", "yoga", "hiit", "crossfit", "rowing", "exercise_time", "calories"]);
+const ACTIVITY_TYPES = new Set<string>(["run", "walk", "cycle", "swim", "steps", "strength", "hike", "yoga", "crossfit", "rowing", "exercise_time", "calories"]);
 
 /**
  * Map provider-specific type strings to canonical Activity["type"].
@@ -62,9 +62,9 @@ function canonicalType(raw: string): Activity["type"] | null {
   if (t === "strength" || t === "weighttraining" || t === "weight_training"
       || t === "weights" || t === "strength_training" || t === "functional_training") return "strength";
   if (t === "yoga" || t === "pilates" || t === "flexibility") return "yoga";
-  if (t === "crossfit" || t === "crosstraining" || t === "cross_training") return "crossfit";
-  if (t === "hiit" || t === "highintensityintervaltraining" || t === "mixed_cardio" || t === "mixedcardio"
-      || t === "workout" || t === "circuit_training") return "hiit";
+  if (t === "crossfit" || t === "crosstraining" || t === "cross_training"
+      || t === "hiit" || t === "highintensityintervaltraining" || t === "mixed_cardio" || t === "mixedcardio"
+      || t === "workout" || t === "circuit_training") return "crossfit";
   if (t === "rowing" || t === "rowing_machine" || t === "indoor_rowing" || t === "indoorrowing") return "rowing";
   if (t === "exercise_time") return "exercise_time";
   if (t === "calories" || t === "active_energy" || t === "calorie_burn") return "calories";

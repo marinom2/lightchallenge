@@ -21,7 +21,7 @@ function mapTcxSport(sport: string): string {
   if (s.includes("walk")) return "walk";
   if (s.includes("strength") || s.includes("weight")) return "strength";
   if (s.includes("yoga")) return "yoga";
-  if (s.includes("hiit") || s.includes("cross")) return "hiit";
+  if (s.includes("hiit") || s.includes("cross")) return "crossfit";
   if (s.includes("row")) return "rowing";
   return "distance";
 }

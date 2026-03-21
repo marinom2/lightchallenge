@@ -28,7 +28,7 @@ function mapStravaType(t: string): string {
       || x === "mountainbikeride" || x === "gravelride") return "cycle";
   if (x.includes("swim")) return "swim";
   if (x === "yoga" || x === "pilates") return "yoga";
-  if (x === "crossfit" || x === "hiit" || x === "highintensityintervaltraining") return "hiit";
+  if (x === "crossfit" || x === "hiit" || x === "highintensityintervaltraining") return "crossfit";
   if (x === "rowing" || x === "virtualrowing") return "rowing";
   if (x === "weighttraining" || x === "workout"
       || x === "strength" || x === "weight_training") return "strength";
