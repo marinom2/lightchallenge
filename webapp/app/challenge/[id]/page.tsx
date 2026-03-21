@@ -922,6 +922,25 @@ export default function ChallengePage() {
       }
     }
 
+    // dailyTarget.conditions format (created by current challenge flow)
+    const dt = (data?.params as any)?.dailyTarget;
+    if (dt && typeof dt === "object") {
+      const cond = Array.isArray(dt.conditions) ? dt.conditions[0] : null;
+      if (cond && typeof cond.value === "number" && cond.value > 0) {
+        const m = typeof cond.metric === "string" ? cond.metric : "steps";
+        // Use daily threshold (matches iOS ring behavior)
+        return { metric: m, metricLabel: LABELS[m] ?? m, goalValue: cond.value };
+      }
+    }
+
+    // proof.params format (minSteps, days)
+    const pp = (data as any)?.proof?.params;
+    if (pp && typeof pp === "object") {
+      if (typeof pp.minSteps === "number" && pp.minSteps > 0) {
+        return { metric: "steps", metricLabel: "Steps", goalValue: pp.minSteps };
+      }
+    }
+
     // Legacy format: infer from known param patterns
     const p = data?.params as Record<string, unknown> | null;
     if (!p) return null;
@@ -943,7 +962,7 @@ export default function ChallengePage() {
       return { metric: "exercise_time", metricLabel: "Exercise (min)", goalValue: p.min_minutes as number };
 
     return null;
-  }, [data?.params]);
+  }, [data?.params, data]);
 
   // Effective progress: prefer API data, fall back to params-derived goal with 0 currentValue
   const effectiveProgress = React.useMemo(() => {

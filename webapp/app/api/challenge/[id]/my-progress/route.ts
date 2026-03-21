@@ -231,9 +231,10 @@ export async function GET(
     // ── 1. Fetch challenge params + timeline ────────────────────────────────
     const chalRes = await pool.query<{
       params: Record<string, unknown> | null;
+      proof: Record<string, unknown> | null;
       timeline: Record<string, unknown> | null;
     }>(
-      `SELECT params, timeline
+      `SELECT params, proof, timeline
        FROM public.challenges
        WHERE id = $1::bigint
        LIMIT 1`,
@@ -247,7 +248,7 @@ export async function GET(
       );
     }
 
-    const { params, timeline } = chalRes.rows[0];
+    const { params, proof, timeline } = chalRes.rows[0];
 
     // Extract metric + threshold from params.rules (simplified FitnessRules format)
     // or fall back to params-level metric/threshold for legacy challenges.
@@ -261,6 +262,30 @@ export async function GET(
       (typeof rules?.threshold === "number" ? rules.threshold : null) ??
       (typeof (params as any)?.threshold === "number" ? (params as any).threshold : null) ??
       0;
+
+    // dailyTarget.conditions format (created by current challenge flow)
+    if (!metric || !threshold) {
+      const dt = (params as any)?.dailyTarget;
+      if (dt && typeof dt === "object") {
+        const cond = Array.isArray(dt.conditions) ? dt.conditions[0] : null;
+        if (cond && typeof cond.value === "number" && cond.value > 0) {
+          metric = typeof cond.metric === "string" ? cond.metric : "steps";
+          // Use daily threshold (matches iOS ring behavior)
+          threshold = cond.value;
+        }
+      }
+    }
+
+    // proof.params format (minSteps, days, etc.)
+    if (!metric || !threshold) {
+      const pp = (proof as any)?.params;
+      if (pp && typeof pp === "object") {
+        if (typeof pp.minSteps === "number" && pp.minSteps > 0) {
+          metric = metric || "steps";
+          threshold = pp.minSteps;
+        }
+      }
+    }
 
     // Fallback inference for legacy challenges without explicit metric/rules
     if (!metric) {
