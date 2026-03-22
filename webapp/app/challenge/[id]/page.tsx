@@ -1464,8 +1464,12 @@ export default function ChallengePage() {
 
   async function claimAll() {
     if (busy !== null) return; // Prevent double-click race
+    // NOTE: Do NOT auto-finalize here — if proofs haven't been submitted
+    // on-chain yet, premature finalization creates a failed snapshot
+    // (success=false) that permanently breaks the challenge. The user
+    // should finalize explicitly via the "Settle" button, or the pipeline
+    // handles it after proof submission.
     if (needsSettlement) {
-      await finalize().catch(() => {});
       await refreshClaimables().catch(() => {});
     }
     if (!pc) return notify("No public client");

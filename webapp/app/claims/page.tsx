@@ -149,17 +149,10 @@ function useClaimExecution() {
     async (challengeId: string): Promise<{ success: boolean; txHash?: string; error?: string }> => {
       if (!pc || !address) return { success: false, error: "Wallet not connected" };
       const cid = BigInt(challengeId);
-      try {
-        await pc.simulateContract({
-          abi: ABI.ChallengePay as unknown as Abi, address: CP,
-          functionName: "finalize", args: [cid], account: address as `0x${string}`,
-        });
-        const fHash = await writeContractAsync({
-          abi: ABI.ChallengePay as unknown as Abi, address: CP,
-          functionName: "finalize", args: [cid],
-        });
-        await pc.waitForTransactionReceipt({ hash: fHash });
-      } catch { /* already finalized */ }
+      // NOTE: Do NOT call finalize() here — if proofs haven't been submitted
+      // on-chain yet, premature finalization creates a failed snapshot
+      // (success=false) that permanently breaks the challenge. Finalization
+      // should only happen via the explicit "Settle" action or the pipeline.
 
       const list = await findClaimables(cid);
       if (list.length === 0) return { success: false, error: "No claimable rewards found on-chain." };
