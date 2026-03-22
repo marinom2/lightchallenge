@@ -318,11 +318,17 @@ class ContractService: ObservableObject {
             "modelHash": meta.modelHash,
             "proof": [
                 "kind": "aivm",
+                "backend": "lightchain_poi",
                 "modelId": meta.modelId,
                 "modelHash": meta.modelHash,
                 "params": meta.aivmParams,
                 "paramsHash": meta.paramsHash,
                 "verifierUsed": ContractAddresses.poiVerifier,
+                "taskBinding": [
+                    "schemaVersion": 1,
+                    "requestId": NSNull(),
+                    "taskId": NSNull(),
+                ] as [String: Any],
             ] as [String: Any],
             "timeline": [
                 "joinClosesAt": ISO8601DateFormatter().string(from: meta.joinCloses),
@@ -334,7 +340,7 @@ class ContractService: ObservableObject {
                 "stake": params.stakeAmount,
                 "currency": ["type": "NATIVE", "symbol": "LCAI"],
             ] as [String: Any],
-            "params": meta.rule,
+            "params": meta.rule.merging(["templateId": meta.templateId]) { _, new in new },
         ]
 
         let jsonData = try JSONSerialization.data(withJSONObject: body)
@@ -427,6 +433,7 @@ struct CreateChallengeMeta {
     let description: String?
     let category: String
     let tags: [String]
+    let templateId: String
     let modelId: String
     let modelHash: String
     let aivmParams: [String: Any]

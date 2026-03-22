@@ -859,6 +859,7 @@ struct CreateChallengeView: View {
                 description: autoDescription.isEmpty ? nil : autoDescription,
                 category: fitnessKind,
                 tags: parsedTags + [fitnessKind],
+                templateId: template.id,
                 modelId: template.modelId,
                 modelHash: template.modelHash,
                 aivmParams: aivmParams,

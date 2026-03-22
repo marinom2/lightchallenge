@@ -10,6 +10,7 @@ import {
   buildMetadataUri,
   isRegistryWriterConfigured,
 } from "@/lib/registryWriter";
+import { makeBenchmarkHash } from "@/lib/challengeProofFlow";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
@@ -405,7 +406,7 @@ async function upsertChallenge(body: AnyBody) {
   const verifierUsed = asAddrOrNull(body.verifierUsed ?? prev?.verifierUsed);
   const txHash = asTxOrNull(body.txHash ?? prev?.txHash);
 
-  const proof = {
+  const proof: Record<string, any> = {
     ...(prev?.proof ?? {}),
     ...(body.proof ?? {}),
     ...(verifier ? { verifier } : {}),
@@ -413,6 +414,29 @@ async function upsertChallenge(body: AnyBody) {
     ...(modelKind ? { kind: modelKind } : {}),
     ...(modelId ? { modelId } : {}),
   };
+
+  // Normalize proof fields for dispatcher compatibility.
+  // iOS sends proof.kind="aivm" but the dispatcher expects proof.backend="lightchain_poi".
+  if (proof.kind === "aivm" && !proof.backend) {
+    proof.backend = "lightchain_poi";
+  }
+  // Compute benchmarkHash if missing (requires modelId + templateId).
+  if (proof.modelId && !proof.benchmarkHash) {
+    const templateId = (typeof params === "object" ? (params as any)?.templateId : null)
+      ?? (typeof body.params === "object" ? (body.params as any)?.templateId : null)
+      ?? proof.params?.templateId ?? null;
+    if (templateId) {
+      proof.benchmarkHash = makeBenchmarkHash({
+        templateId,
+        modelId: proof.modelId,
+      });
+    }
+  }
+  // Ensure taskBinding placeholder exists so the dispatcher sees the challenge
+  // as "not yet bound" rather than skipping it for missing structure.
+  if (proof.kind === "aivm" && !proof.taskBinding) {
+    proof.taskBinding = { schemaVersion: 1, requestId: null, taskId: null };
+  }
 
   const tags = enrichTags(
     uniq([...(prev?.tags ?? []), ...(body.tags ?? [])]),
