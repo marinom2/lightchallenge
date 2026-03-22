@@ -4300,159 +4300,145 @@ html[data-theme="light"] .orbit__core {
 }
 
 /* ── Progress hero (large metric + ring/bar + time) ────────────────────── */
-.cd-progress-hero {
-  padding: var(--lc-space-4) 0 var(--lc-space-2);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--lc-space-3);
-}
-.cd-progress-hero__numbers {
+/* ── Goal Hero — dominant progress indicator ──────────────────────────── */
+.cd-goal-hero {
+  padding: var(--lc-space-3) 0 var(--lc-space-1);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--lc-space-2);
+}
+
+/* 1. Primary metric — the most dominant element */
+.cd-goal-hero__primary {
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
   text-align: center;
 }
-.cd-progress-hero__pct-line {
+.cd-goal-hero__current {
+  font-size: clamp(2.25rem, 7vw, 3.5rem);
+  font-weight: 800;
+  color: var(--lc-text);
+  letter-spacing: -0.02em;
+}
+.cd-goal-hero__sep {
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  font-weight: var(--lc-weight-medium);
+  color: var(--lc-text-muted);
+}
+.cd-goal-hero__target {
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  font-weight: var(--lc-weight-medium);
+  color: var(--lc-text-muted);
+}
+.cd-goal-hero__unit {
+  font-size: var(--lc-text-small);
+  font-weight: var(--lc-weight-semibold);
+  color: var(--lc-text-muted);
+  text-transform: lowercase;
+}
+
+/* 2. Secondary — percentage + remaining inline */
+.cd-goal-hero__secondary {
   display: flex;
   align-items: baseline;
   gap: var(--lc-space-2);
   flex-wrap: wrap;
   justify-content: center;
-}
-.cd-progress-hero__pct {
-  font-size: clamp(1.5rem, 4vw, 2rem);
-  font-weight: var(--lc-weight-bold);
-  font-variant-numeric: tabular-nums;
-  color: var(--lc-text);
-  line-height: 1;
-}
-.cd-progress-hero__pct--failed {
-  color: var(--lc-danger);
-}
-.cd-progress-hero__pct--success {
-  color: var(--lc-success);
-}
-.cd-progress-hero__state {
-  font-size: var(--lc-text-small);
+  font-size: 0.9375rem;
   font-weight: var(--lc-weight-semibold);
+  color: var(--lc-text-secondary);
+}
+.cd-goal-hero__pct { color: var(--lc-text); }
+.cd-goal-hero__pct--failed { color: var(--lc-danger); }
+.cd-goal-hero__pct--success { color: var(--lc-success); }
+.cd-goal-hero__dot-sep {
+  color: var(--lc-text-muted);
+  opacity: 0.5;
+}
+.cd-goal-hero__remaining { color: var(--lc-text-muted); }
+.cd-goal-hero__remaining--positive { color: var(--lc-success); }
+.cd-goal-hero__remaining--failed { color: var(--lc-danger); }
+
+/* 3. Progress bar — strong, 10px, full-width, rounded */
+.cd-hero-bar {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--progress-track, color-mix(in oklab, var(--lc-border) 40%, transparent));
+  overflow: hidden;
+  width: 100%;
+  max-width: 360px;
+}
+@media (max-width: 520px) {
+  .cd-hero-bar { max-width: 100%; }
+}
+.cd-hero-bar__fill {
+  position: absolute;
+  inset: 0;
+  right: auto;
+  border-radius: 999px;
+  background: var(--progress-fill, var(--accent-2, #6366f1));
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--accent-2, #6366f1) 25%, transparent);
+  transition: width 700ms cubic-bezier(0.22, 1, 0.36, 1);
+  min-width: 0;
+}
+.cd-hero-bar__fill--success {
+  background: var(--lc-success, #22c55e);
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--lc-success, #22c55e) 25%, transparent);
+}
+.cd-hero-bar__fill--failed {
+  background: var(--lc-danger, #ef4444);
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--lc-danger, #ef4444) 25%, transparent);
+}
+
+/* 4. Performance signal — pace badge */
+.cd-goal-hero__pace {
+  font-size: 0.8125rem;
+  font-weight: var(--lc-weight-semibold);
+  letter-spacing: 0.01em;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+.cd-goal-hero__pace--great {
+  color: var(--lc-success);
+  background: color-mix(in oklab, var(--lc-success) 10%, transparent);
+}
+.cd-goal-hero__pace--good {
+  color: var(--lc-success);
+  background: color-mix(in oklab, var(--lc-success) 8%, transparent);
+}
+.cd-goal-hero__pace--behind {
+  color: var(--lc-warning, #f59e0b);
+  background: color-mix(in oklab, var(--lc-warning, #f59e0b) 10%, transparent);
+}
+.cd-goal-hero__pace--neutral {
+  color: var(--lc-text-muted);
+  background: color-mix(in oklab, var(--lc-text-muted) 8%, transparent);
+}
+
+/* 4b. Verdict — final state */
+.cd-goal-hero__verdict {
+  font-size: 0.8125rem;
+  font-weight: var(--lc-weight-bold);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.cd-progress-hero__state--failed {
-  color: var(--lc-danger);
-}
-.cd-progress-hero__state--success {
-  color: var(--lc-success);
-}
-.cd-progress-hero__metric {
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-}
-.cd-progress-hero__metric-current {
-  font-size: clamp(1.75rem, 5vw, 2.5rem);
-  font-weight: var(--lc-weight-bold);
-  color: var(--lc-text);
-}
-.cd-progress-hero__metric-sep {
-  font-size: clamp(1.25rem, 3vw, 1.5rem);
-  font-weight: var(--lc-weight-medium);
-  color: var(--lc-text-muted);
-}
-.cd-progress-hero__metric-goal {
-  font-size: clamp(1.25rem, 3vw, 1.5rem);
-  font-weight: var(--lc-weight-medium);
-  color: var(--lc-text-muted);
-}
-.cd-progress-hero__metric-unit {
-  font-size: var(--lc-text-small);
-  font-weight: var(--lc-weight-medium);
-  color: var(--lc-text-muted);
-  text-transform: lowercase;
-}
-.cd-progress-hero__bar {
-  position: relative;
-  height: 14px;
-  border-radius: 999px;
-  background: var(--progress-track);
-  box-shadow: inset 0 0 0 1px var(--progress-outline, color-mix(in oklab, var(--lc-border) 60%, transparent));
-  overflow: hidden;
-  width: 100%;
-  max-width: 280px;
-}
-@media (max-width: 520px) {
-  .cd-progress-hero__bar {
-    max-width: 100%;
-  }
-}
-.cd-progress-hero__fill {
-  position: absolute;
-  inset: 0;
-  right: auto;
-  border-radius: 999px;
-  background: var(--progress-fill);
-  box-shadow:
-    0 0 0 1px var(--progress-edge, color-mix(in oklab, var(--lc-border) 30%, transparent)),
-    0 6px 16px var(--progress-glow, color-mix(in oklab, var(--accent-2, #6366f1) 18%, transparent));
-  transition: width 600ms var(--lc-ease);
-}
-.cd-progress-hero__fill--success {
-  background: var(--lc-success, #22c55e);
-  box-shadow:
-    0 0 0 1px color-mix(in oklab, var(--lc-success, #22c55e) 30%, transparent),
-    0 6px 16px color-mix(in oklab, var(--lc-success, #22c55e) 18%, transparent);
-}
-.cd-progress-hero__fill--failed {
-  background: var(--lc-danger, #ef4444);
-  box-shadow:
-    0 0 0 1px color-mix(in oklab, var(--lc-danger, #ef4444) 30%, transparent),
-    0 6px 16px color-mix(in oklab, var(--lc-danger, #ef4444) 18%, transparent);
-}
-.cd-progress-hero__sheen {
-  position: absolute;
-  inset: 0;
-  right: auto;
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent, color-mix(in oklab, white 22%, transparent), transparent);
-  opacity: 0.55;
-  pointer-events: none;
-  transition: width 600ms var(--lc-ease);
-}
-.cd-progress-hero__time {
+.cd-goal-hero__verdict--failed { color: var(--lc-danger); }
+.cd-goal-hero__verdict--success { color: var(--lc-success); }
+
+/* 5. Time left */
+.cd-goal-hero__time {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   font-size: var(--lc-text-small);
   font-weight: var(--lc-weight-semibold);
   font-variant-numeric: tabular-nums;
   color: var(--lc-text-secondary);
 }
-.cd-progress-hero__time--ended {
+.cd-goal-hero__time--ended {
   color: var(--lc-text-muted);
-}
-.cd-progress-hero__time--failed {
-  color: var(--lc-danger);
-}
-.cd-progress-hero__diff {
-  font-size: var(--lc-text-small);
-  font-weight: var(--lc-weight-semibold);
-}
-.cd-progress-hero__diff--positive {
-  color: var(--lc-success);
-}
-.cd-progress-hero__diff--negative {
-  color: var(--lc-text-muted);
-}
-.cd-progress-hero__diff--failed {
-  color: var(--lc-danger);
-}
-.cd-progress-hero__goal-sentence {
-  font-size: var(--lc-text-small);
-  font-weight: var(--lc-weight-medium);
-  color: var(--lc-text-secondary);
-  text-align: center;
-  padding: var(--lc-space-1) 0 0;
 }
 
 /* ── Competition hero (leaderboard-first layout) ───────────────────────── */

@@ -10,7 +10,7 @@ import type { ActivityType } from "./ActivityFigure";
 const { Clock, ShieldCheck } = Lucide;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CountdownDisplay (local copy – avoids circular import from page)
+// CountdownDisplay
 // ─────────────────────────────────────────────────────────────────────────────
 function CountdownDisplay({ targetSec }: { targetSec: number }) {
   const [now, setNow] = React.useState(() => Math.floor(Date.now() / 1000));
@@ -37,7 +37,7 @@ function CountdownDisplay({ targetSec }: { targetSec: number }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// StatusPill
+// StatusPill — outcome-aware labels
 // ─────────────────────────────────────────────────────────────────────────────
 export function StatusPill({
   loading,
@@ -124,7 +124,6 @@ export function CompetitionHero({
 
   return (
     <div className="cd-competition-hero">
-      {/* Primary: Your rank */}
       {hasJoined && myRank ? (
         <div className="cd-competition-hero__rank-block">
           <div className="cd-competition-hero__position">
@@ -144,7 +143,6 @@ export function CompetitionHero({
               No score yet
             </div>
           )}
-          {/* Gap context */}
           {rankContext ? (
             <div className="cd-competition-hero__gaps">
               {rankContext.gapAhead != null ? (
@@ -177,16 +175,14 @@ export function CompetitionHero({
         </div>
       )}
 
-      {/* Time remaining */}
       {endSec && now < endSec ? (
-        <div className="cd-progress-hero__time">
-          <Clock size={12} style={{ opacity: 0.5 }} /> <CountdownDisplay targetSec={endSec} /> remaining
+        <div className="cd-goal-hero__time">
+          <Clock size={13} style={{ opacity: 0.45 }} /> <CountdownDisplay targetSec={endSec} /> remaining
         </div>
       ) : endSec && now >= endSec && !isCompleted ? (
-        <div className="cd-progress-hero__time cd-progress-hero__time--ended">Competition ended</div>
+        <div className="cd-goal-hero__time cd-goal-hero__time--ended">Competition ended</div>
       ) : null}
 
-      {/* Mini leaderboard: top 3 */}
       {leaderboard.length > 0 ? (
         <div className="cd-competition-hero__mini-board">
           {leaderboard.slice(0, 3).map((entry) => {
@@ -213,13 +209,43 @@ export function CompetitionHero({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GoalHero
+// Pace signal — "How am I doing vs expected?"
+// ─────────────────────────────────────────────────────────────────────────────
+function computePaceSignal(
+  currentValue: number,
+  goalValue: number,
+  startSec: number | undefined,
+  endSec: number | undefined,
+): { label: string; tone: "great" | "good" | "behind" | "neutral" } | null {
+  if (!startSec || !endSec || goalValue <= 0) return null;
+
+  const now = Math.floor(Date.now() / 1000);
+  if (now <= startSec) return null;
+  if (now >= endSec) return null;
+
+  const totalDuration = endSec - startSec;
+  const elapsed = now - startSec;
+  const fractionElapsed = Math.min(1, elapsed / totalDuration);
+  const expectedValue = goalValue * fractionElapsed;
+  const ratio = expectedValue > 0 ? currentValue / expectedValue : 0;
+
+  if (currentValue >= goalValue) return { label: "Goal reached", tone: "great" };
+  if (ratio >= 1.25) return { label: "Ahead of pace", tone: "great" };
+  if (ratio >= 0.85) return { label: "On track", tone: "good" };
+  if (ratio >= 0.5) return { label: "Slightly behind", tone: "behind" };
+  if (currentValue === 0) return { label: "Get started", tone: "neutral" };
+  return { label: "Behind pace", tone: "behind" };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GoalHero — primary metric dominant, progress bar strong, pace signal
 // ─────────────────────────────────────────────────────────────────────────────
 export function GoalHero({
   progress,
   progressPct,
   progressDiff,
   barClass,
+  startSec,
   endSec,
   isCompleted,
   isFailed,
@@ -229,67 +255,83 @@ export function GoalHero({
   progressPct: number | null;
   progressDiff: { positive: boolean; value: number } | null;
   barClass: string;
+  startSec?: number;
   endSec?: number;
   isCompleted: boolean;
   isFailed: boolean;
   isSuccess: boolean;
 }) {
   const now = Math.floor(Date.now() / 1000);
+  const pct = progressPct ?? 0;
+  const fillPct = Math.min(100, (progress.currentValue / progress.goalValue) * 100);
+  const pace = computePaceSignal(progress.currentValue, progress.goalValue, startSec, endSec);
+
+  const fillClass = isFailed
+    ? "cd-hero-bar__fill cd-hero-bar__fill--failed"
+    : isSuccess || pct >= 100
+      ? "cd-hero-bar__fill cd-hero-bar__fill--success"
+      : "cd-hero-bar__fill";
 
   return (
-    <div className="cd-progress-hero">
-      <div className="cd-progress-hero__numbers">
-        <div className="cd-progress-hero__metric">
-          <span className="cd-progress-hero__metric-current">{progress.currentValue.toLocaleString()}</span>
-          <span className="cd-progress-hero__metric-sep"> / </span>
-          <span className="cd-progress-hero__metric-goal">{progress.goalValue.toLocaleString()}</span>
-          <span className="cd-progress-hero__metric-unit"> {progress.metricLabel}</span>
-        </div>
+    <div className="cd-goal-hero">
+      {/* 1. PRIMARY METRIC — most dominant element */}
+      <div className="cd-goal-hero__primary">
+        <span className="cd-goal-hero__current">{progress.currentValue.toLocaleString()}</span>
+        <span className="cd-goal-hero__sep"> / </span>
+        <span className="cd-goal-hero__target">{progress.goalValue.toLocaleString()}</span>
+        <span className="cd-goal-hero__unit"> {progress.metricLabel}</span>
+      </div>
 
-        <div className="cd-progress-hero__pct-line">
-          <span
-            className={`cd-progress-hero__pct ${isFailed ? "cd-progress-hero__pct--failed" : (progressPct ?? 0) >= 100 ? "cd-progress-hero__pct--success" : ""}`}
-          >
-            {progressPct ?? 0}%
-          </span>
-          {progressDiff ? (
-            <span
-              className={`cd-progress-hero__diff ${progressDiff.positive ? "cd-progress-hero__diff--positive" : isFailed ? "cd-progress-hero__diff--failed" : "cd-progress-hero__diff--negative"}`}
-            >
+      {/* 2. SECONDARY — percentage + remaining */}
+      <div className="cd-goal-hero__secondary">
+        <span className={`cd-goal-hero__pct ${isFailed ? "cd-goal-hero__pct--failed" : pct >= 100 ? "cd-goal-hero__pct--success" : ""}`}>
+          {pct}% complete
+        </span>
+        {progressDiff ? (
+          <>
+            <span className="cd-goal-hero__dot-sep">&middot;</span>
+            <span className={`cd-goal-hero__remaining ${progressDiff.positive ? "cd-goal-hero__remaining--positive" : isFailed ? "cd-goal-hero__remaining--failed" : ""}`}>
               {progressDiff.positive
                 ? `+${progressDiff.value.toLocaleString()} above target`
                 : isFailed
                   ? `${progressDiff.value.toLocaleString()} ${progress.metricLabel} short`
                   : `${progressDiff.value.toLocaleString()} ${progress.metricLabel} to go`}
             </span>
-          ) : null}
+          </>
+        ) : null}
+      </div>
+
+      {/* 3. PROGRESS BAR — 10px, rounded, strong */}
+      <div className="cd-hero-bar">
+        <div className={fillClass} style={{ width: `${fillPct}%` }} />
+      </div>
+
+      {/* 4. PERFORMANCE SIGNAL — pace vs time */}
+      {!isFailed && !isSuccess && pace ? (
+        <div className={`cd-goal-hero__pace cd-goal-hero__pace--${pace.tone}`}>
+          {pace.label}
         </div>
+      ) : isFailed ? (
+        <div className="cd-goal-hero__verdict cd-goal-hero__verdict--failed">Challenge failed</div>
+      ) : isSuccess ? (
+        <div className="cd-goal-hero__verdict cd-goal-hero__verdict--success">Challenge completed</div>
+      ) : null}
 
-        {isFailed ? (
-          <div className="cd-progress-hero__state cd-progress-hero__state--failed">Challenge failed</div>
-        ) : isSuccess ? (
-          <div className="cd-progress-hero__state cd-progress-hero__state--success">Challenge completed</div>
-        ) : null}
-
-        {endSec && now < endSec ? (
-          <div className="cd-progress-hero__time">
-            <Clock size={12} style={{ opacity: 0.5 }} /> <CountdownDisplay targetSec={endSec} /> remaining
-          </div>
-        ) : endSec && now >= endSec && !isCompleted ? (
-          <div className="cd-progress-hero__time cd-progress-hero__time--ended">Challenge ended</div>
-        ) : null}
-      </div>
-
-      <div className="cd-progress-hero__bar">
-        <div className={barClass} style={{ width: `${Math.min(100, (progress.currentValue / progress.goalValue) * 100)}%` }} />
-        <div className="cd-progress-hero__sheen" style={{ width: `${Math.min(100, (progress.currentValue / progress.goalValue) * 100)}%` }} />
-      </div>
+      {/* 5. TIME LEFT */}
+      {endSec && now < endSec ? (
+        <div className="cd-goal-hero__time">
+          <Clock size={13} style={{ opacity: 0.45 }} />
+          <CountdownDisplay targetSec={endSec} /> remaining
+        </div>
+      ) : endSec && now >= endSec && !isCompleted ? (
+        <div className="cd-goal-hero__time cd-goal-hero__time--ended">Challenge ended</div>
+      ) : null}
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TimeHero
+// TimeHero — fallback when no metric goal exists
 // ─────────────────────────────────────────────────────────────────────────────
 export function TimeHero({
   startSec,
@@ -308,13 +350,13 @@ export function TimeHero({
   const pct = Math.min(100, (elapsed / total) * 100);
 
   return (
-    <div className="cd-progress-hero">
-      <div className="cd-progress-hero__bar">
-        <div className={barClass} style={{ width: `${finished ? 100 : pct}%` }} />
-        <div className="cd-progress-hero__sheen" style={{ width: `${finished ? 100 : pct}%` }} />
+    <div className="cd-goal-hero">
+      <div className="cd-hero-bar">
+        <div className="cd-hero-bar__fill" style={{ width: `${finished ? 100 : pct}%` }} />
       </div>
       {now < endSec ? (
-        <div className="cd-progress-hero__time">
+        <div className="cd-goal-hero__time">
+          <Clock size={13} style={{ opacity: 0.45 }} />
           Ends in <CountdownDisplay targetSec={endSec} />
         </div>
       ) : null}
@@ -323,7 +365,7 @@ export function TimeHero({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// QuickStats
+// QuickStats — de-emphasized metadata row
 // ─────────────────────────────────────────────────────────────────────────────
 export function QuickStats({
   treasuryWei,

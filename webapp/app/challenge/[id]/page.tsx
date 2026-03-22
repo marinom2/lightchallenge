@@ -1978,6 +1978,7 @@ const primaryAction = React.useMemo(() => {
                 progressPct={progressPct}
                 progressDiff={progressDiff}
                 barClass={progressBarClass}
+                startSec={startSec ?? undefined}
                 endSec={endSec ?? undefined}
                 isCompleted={isCompleted}
                 isFailed={isChallengeFailed}
