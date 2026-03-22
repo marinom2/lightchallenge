@@ -88,6 +88,10 @@ enum ABIEncoder {
         ])
     }
 
+    static func encodeGetSnapshot(challengeId: UInt64) -> Data {
+        encodeUint256Call(selector: FunctionSelectors.getSnapshot, id: challengeId)
+    }
+
     static func encodeEthAllowance(bucketId: UInt64, user: String) -> Data {
         encode(selector: FunctionSelectors.ethAllowanceOf, params: [
             .uint64(bucketId),

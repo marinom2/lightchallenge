@@ -178,7 +178,8 @@ struct ClaimsView: View {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
         do {
-            _ = try? await ContractService.shared.finalize(challengeId: cid)
+            // Note: do NOT call finalize() here — the backend handles finalization
+            // after submitting proofs. Premature finalize creates a failed snapshot.
 
             let txHash: String
             let elig = eligibility[challengeId]
@@ -307,6 +308,7 @@ private struct ClaimCard: View {
     private var primaryAction: ClaimsView.ClaimAction? {
         guard let elig = eligibility else { return nil }
         if elig.canClaimWinner { return .winner }
+        if elig.canClaimRefund { return .refund }
         if elig.canClaimTreasury { return .treasury }
         if elig.canClaimLoser { return .loser }
         return nil

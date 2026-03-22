@@ -605,7 +605,7 @@ struct ChallengeDetailView: View {
                             if isClaiming {
                                 ProgressView().tint(.white).controlSize(.small)
                             }
-                            Text(isClaiming ? "Claiming..." : "Claim Reward")
+                            Text(isClaiming ? "Claiming..." : claimButtonLabel)
                         }
                     }
                     .buttonStyle(LCGoldButton(isDisabled: isClaiming))
@@ -1182,6 +1182,15 @@ struct ChallengeDetailView: View {
         )
     }
 
+    private var claimButtonLabel: String {
+        guard let elig = claimEligibility else { return "Claim Reward" }
+        if elig.canClaimWinner { return "Claim Reward" }
+        if elig.canClaimRefund { return "Claim Refund" }
+        if elig.canClaimLoser { return "Claim Cashback" }
+        if elig.canClaimTreasury { return "Claim Reward" }
+        return "Claim Reward"
+    }
+
     private func executeClaim() async {
         guard let elig = claimEligibility, elig.hasAnyClaim,
               let cid = UInt64(challengeId) else {
@@ -1193,11 +1202,13 @@ struct ChallengeDetailView: View {
         claimError = nil
 
         do {
-            // Try to finalize first (no-op if already finalized)
-            _ = try? await ContractService.shared.finalize(challengeId: cid)
+            // Note: do NOT call finalize() here — the backend handles finalization
+            // after submitting proofs. Premature finalize creates a failed snapshot.
 
             if elig.canClaimWinner {
                 _ = try await ContractService.shared.claimWinner(challengeId: cid)
+            } else if elig.canClaimRefund {
+                _ = try await ContractService.shared.claimRefund(challengeId: cid)
             } else if elig.canClaimLoser {
                 _ = try await ContractService.shared.claimLoser(challengeId: cid)
             }

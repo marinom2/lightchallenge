@@ -100,6 +100,8 @@ enum FunctionSelectors {
     static let contribOf = Data([0xdf, 0x3b, 0x1a, 0x51])
     // isWinner(uint256,address)
     static let isWinner = Data([0xbd, 0xd4, 0x15, 0xaf])
+    // getSnapshot(uint256)
+    static let getSnapshot = Data([0x76, 0xf1, 0x0a, 0xd0])
 
     // Treasury
     // claimETH(uint256,uint256)

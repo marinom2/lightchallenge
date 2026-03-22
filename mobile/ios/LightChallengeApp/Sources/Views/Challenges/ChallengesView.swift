@@ -549,10 +549,13 @@ struct ChallengesView: View {
         claimingId = activity.challengeId
 
         do {
-            _ = try? await ContractService.shared.finalize(challengeId: cid)
+            // Note: do NOT call finalize() here — the backend handles finalization
+            // after submitting proofs. Premature finalize creates a failed snapshot.
 
             if elig.canClaimWinner {
                 _ = try await ContractService.shared.claimWinner(challengeId: cid)
+            } else if elig.canClaimRefund {
+                _ = try await ContractService.shared.claimRefund(challengeId: cid)
             } else if elig.canClaimLoser {
                 _ = try await ContractService.shared.claimLoser(challengeId: cid)
             }
@@ -1202,7 +1205,7 @@ struct ClaimHubView: View {
                             Image(systemName: "trophy.fill")
                                 .font(.system(size: 14))
                         }
-                        Text(claimingId == activity.challengeId ? "Claiming..." : "Claim Reward")
+                        Text(claimingId == activity.challengeId ? "Claiming..." : (elig.canClaimRefund ? "Claim Refund" : "Claim Reward"))
                             .font(.caption.weight(.bold))
                     }
                     .foregroundStyle(.white)

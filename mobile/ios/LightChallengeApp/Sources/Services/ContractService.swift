@@ -157,6 +157,17 @@ class ContractService: ObservableObject {
         return decodeUint256(result.prefix(32))
     }
 
+    /// Read snapshot for a challenge. Returns (set, success).
+    func getSnapshot(challengeId: UInt64) async throws -> (set: Bool, success: Bool) {
+        let calldata = ABIEncoder.encodeGetSnapshot(challengeId: challengeId)
+        let result = try await wallet.ethCall(to: ContractAddresses.challengePay, data: calldata)
+        // Snapshot struct: bool set (offset 0), bool success (offset 32), ...
+        guard result.count >= 64 else { return (false, false) }
+        let isSet = result[31] == 1
+        let isSuccess = result[63] == 1
+        return (isSet, isSuccess)
+    }
+
     /// Decode a 32-byte big-endian uint256 to decimal string.
     /// Uses UInt64 fast path when possible, falls back to manual big-number conversion.
     private func decodeUint256(_ bytes: Data) -> String {
@@ -202,21 +213,32 @@ class ContractService: ObservableObject {
     }
 
     /// Determine what the user can claim for a challenge.
+    /// Reads on-chain snapshot to distinguish winner/loser/refund correctly.
     func checkClaimEligibility(challengeId: UInt64, user: String) async -> ClaimEligibility {
         async let winner = isWinner(challengeId: challengeId, user: user)
         async let contrib = contribOf(challengeId: challengeId, user: user)
         async let allowance = ethAllowance(bucketId: challengeId, user: user)
+        async let snapshot = getSnapshot(challengeId: challengeId)
 
         let isWin = (try? await winner) ?? false
         let contribWei = (try? await contrib) ?? "0"
         let allowanceWei = (try? await allowance) ?? "0"
+        let snap = (try? await snapshot) ?? (set: false, success: false)
         let hasContrib = contribWei != "0"
         let hasAllowance = allowanceWei != "0"
 
+        // Claim logic:
+        // - snapshot.set && isWinner  → claimWinner
+        // - snapshot.set && !success  → claimRefund (challenge failed, everyone gets refund)
+        // - snapshot.set && !isWinner && success → claimLoser (losers get cashback)
+        // - !snapshot.set → no claims yet (finalize hasn't run)
+        let finalized = snap.set
+        let challengeSucceeded = snap.success
+
         return ClaimEligibility(
-            canClaimWinner: isWin && hasContrib,
-            canClaimLoser: !isWin && hasContrib,
-            canClaimRefund: hasContrib,  // Only valid if status=Canceled
+            canClaimWinner: finalized && isWin && hasContrib,
+            canClaimLoser: finalized && challengeSucceeded && !isWin && hasContrib,
+            canClaimRefund: finalized && !challengeSucceeded && !isWin && hasContrib,
             canClaimTreasury: hasAllowance,
             contribution: contribWei,
             allowance: allowanceWei
