@@ -10,7 +10,11 @@ import {
   buildMetadataUri,
   isRegistryWriterConfigured,
 } from "@/lib/registryWriter";
-import { makeBenchmarkHash } from "@/lib/challengeProofFlow";
+import {
+  makeBenchmarkHash,
+  buildCanonicalAivmParamsPayload,
+  makeParamsHash,
+} from "@/lib/challengeProofFlow";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
@@ -415,27 +419,68 @@ async function upsertChallenge(body: AnyBody) {
     ...(modelId ? { modelId } : {}),
   };
 
-  // Normalize proof fields for dispatcher compatibility.
-  // iOS sends proof.kind="aivm" but the dispatcher expects proof.backend="lightchain_poi".
+  // ── Normalize proof fields for cross-platform consistency ─────────────
+  // iOS and webapp send slightly different proof structures. The server
+  // normalizes to the canonical format so the dispatcher, evaluator, and
+  // AIVM worker all see the same data regardless of which client created
+  // the challenge.
+
+  // 1. Backend: iOS sends proof.kind="aivm" but dispatcher expects proof.backend
   if (proof.kind === "aivm" && !proof.backend) {
     proof.backend = "lightchain_poi";
   }
-  // Compute benchmarkHash if missing (requires modelId + templateId).
-  if (proof.modelId && !proof.benchmarkHash) {
-    const templateId = (typeof params === "object" ? (params as any)?.templateId : null)
-      ?? (typeof body.params === "object" ? (body.params as any)?.templateId : null)
-      ?? proof.params?.templateId ?? null;
-    if (templateId) {
-      proof.benchmarkHash = makeBenchmarkHash({
-        templateId,
-        modelId: proof.modelId,
-      });
-    }
-  }
-  // Ensure taskBinding placeholder exists so the dispatcher sees the challenge
-  // as "not yet bound" rather than skipping it for missing structure.
+
+  // 2. Ensure taskBinding placeholder exists
   if (proof.kind === "aivm" && !proof.taskBinding) {
     proof.taskBinding = { schemaVersion: 1, requestId: null, taskId: null };
+  }
+
+  // 3. Resolve templateId from wherever it lives
+  const templateId =
+    proof.params?.templateId ??
+    (typeof params === "object" ? (params as any)?.templateId : null) ??
+    (typeof body.params === "object" ? (body.params as any)?.templateId : null) ??
+    null;
+
+  // 4. Normalize proof.params to canonical format {templateId, form, intent, rule}
+  //    iOS sends bare form fields (e.g. {days:7, minSteps:8000}), webapp sends
+  //    the full canonical structure. Detect and upgrade if needed.
+  if (proof.kind === "aivm" && templateId && proof.params && !proof.params.form) {
+    // proof.params is the bare form — wrap it in canonical structure
+    const form = { ...proof.params };
+    delete form.templateId; // don't duplicate
+
+    // Reconstruct intent from category
+    const intent = category
+      ? { type: "FITNESS" as const, fitnessKind: category }
+      : null;
+
+    // Rule comes from top-level params (minus templateId)
+    const rule = typeof params === "object" && params
+      ? (() => {
+          const r = { ...(params as Record<string, any>) };
+          delete r.templateId;
+          return Object.keys(r).length > 0 ? r : null;
+        })()
+      : null;
+
+    proof.params = buildCanonicalAivmParamsPayload({
+      templateId,
+      form,
+      intent,
+      rule: rule as Record<string, unknown> | null ?? undefined,
+    });
+
+    // Recompute paramsHash with keccak256 canonical hash
+    proof.paramsHash = makeParamsHash(proof.params);
+  }
+
+  // 5. Compute benchmarkHash if missing
+  if (proof.modelId && !proof.benchmarkHash && templateId) {
+    proof.benchmarkHash = makeBenchmarkHash({
+      templateId,
+      modelId: proof.modelId,
+    });
   }
 
   const tags = enrichTags(
