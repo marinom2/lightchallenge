@@ -1805,7 +1805,10 @@ const primaryAction = React.useMemo(() => {
   // ────────────────────────────────────────────────────────────────────────────
   // currencyFromChain removed — internal detail not shown in product UI
   const maxParticipantsFromChain = decoded.maxParticipants ?? null;
-  const participantsCountFromChain = decoded.participantsCount ?? null;
+  // On-chain participantsCount includes the creator (auto-marked on staked create).
+  // Display only explicit joiners: subtract 1 for the creator.
+  const rawParticipants = decoded.participantsCount ?? null;
+  const participantsCountFromChain = rawParticipants != null ? Math.max(0, rawParticipants - 1) : null;
 
   // kind/outcome removed from UI — available in verification layer only
 

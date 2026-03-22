@@ -7,8 +7,9 @@
  * Supports two evaluation modes:
  *   - Threshold (default): dispatches as soon as the challenge subject has
  *     a passing verdict (existing behavior).
- *   - Competitive: waits until the proof deadline passes, then ranks all
+ *   - Competitive: waits until the challenge ends (endsAt), then ranks all
  *     participants by score, applies top-N ranking, and dispatches.
+ *     Must dispatch BEFORE proofDeadlineTs (submitProofFor reverts after).
  *
  * Competitive ranking flow:
  *   1. Challenge has proof.params.rule.mode === "competitive"
@@ -28,6 +29,7 @@ import {
   getVerdictsRankedByScore,
   applyCompetitiveRanking,
 } from "../db/verdicts";
+import { reconcileChallenge } from "../lib/reconcile";
 
 dotenv.config({
   path: path.resolve(process.cwd(), "webapp/.env.local"),
@@ -79,6 +81,15 @@ function getStartSec(timeline: Record<string, any>): number | null {
     parseIsoToSec(timeline?.startsAt) ??
     parseIsoToSec(timeline?.startTs) ??
     parseIsoToSec(timeline?.starts) ??
+    null
+  );
+}
+
+function getEndSec(timeline: Record<string, any>): number | null {
+  return (
+    parseIsoToSec(timeline?.endsAt) ??
+    parseIsoToSec(timeline?.endTs) ??
+    parseIsoToSec(timeline?.ends) ??
     null
   );
 }
@@ -172,20 +183,27 @@ function isReadyThreshold(row: ChallengeCandidate): boolean {
 }
 
 /**
- * Competitive challenges become ready AFTER the proof deadline passes
- * (all evidence is in). Must have at least one verdict with a score.
+ * Competitive challenges become ready AFTER the challenge ends (endsAt)
+ * but BEFORE the proof deadline. The gap between endsAt and proofDeadlineTs
+ * is the window for AIVM dispatch + proof submission.
+ *
+ * Timeline: startsAt → endsAt → [proof window] → proofDeadlineTs → finalize
+ * submitProofFor must happen BEFORE proofDeadlineTs (contract reverts after).
  */
 function isReadyCompetitive(row: ChallengeCandidate): boolean {
   const timeline = row.timeline ?? {};
   const proof = row.proof ?? {};
 
   const startSec = getStartSec(timeline);
+  const endSec = getEndSec(timeline);
   const proofDeadlineSec = getProofDeadlineSec(timeline);
 
-  if (!startSec || !proofDeadlineSec) return false;
+  if (!startSec || !endSec || !proofDeadlineSec) return false;
   if (nowSec() < startSec) return false;
-  // Competitive: wait until proof deadline has passed
-  if (nowSec() <= proofDeadlineSec) return false;
+  // Wait until challenge has ended (evidence collection complete)
+  if (nowSec() < endSec) return false;
+  // Must still be before proof deadline (submitProofFor reverts after)
+  if (nowSec() > proofDeadlineSec) return false;
 
   if (lower(row.status) !== "active") return false;
   if (!hasRequiredProofFields(proof)) return false;
@@ -362,6 +380,17 @@ async function runDispatcherOnce() {
 
     for (const row of thresholdReady) {
       const id = String(row.id);
+
+      // Reconcile evidence + verdicts before dispatching to AIVM
+      try {
+        const rc = await reconcileChallenge(id, pool);
+        if (rc.evidenceRefreshed > 0 || rc.verdictsUpdated > 0) {
+          console.log("[challengeDispatcher] reconciled challenge", id, rc);
+        }
+      } catch (rcErr: any) {
+        console.warn("[challengeDispatcher] reconcile failed for", id, rcErr?.message);
+      }
+
       const inserted = await ensureQueuedJob(id);
       console.log(`[challengeDispatcher] threshold ${inserted ? "queued" : "already queued"}`, id);
     }
@@ -373,6 +402,16 @@ async function runDispatcherOnce() {
     for (const row of competitiveReady) {
       const id = String(row.id);
       const topN = getTopN(row);
+
+      // Reconcile evidence + verdicts before ranking and dispatching
+      try {
+        const rc = await reconcileChallenge(id, pool);
+        if (rc.evidenceRefreshed > 0 || rc.verdictsUpdated > 0) {
+          console.log("[challengeDispatcher] reconciled competitive challenge", id, rc);
+        }
+      } catch (rcErr: any) {
+        console.warn("[challengeDispatcher] reconcile failed for competitive", id, rcErr?.message);
+      }
 
       // Apply ranking before dispatching
       const winners = await applyRanking(id, topN);

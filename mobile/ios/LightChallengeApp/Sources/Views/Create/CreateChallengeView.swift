@@ -865,6 +865,7 @@ struct CreateChallengeView: View {
                 aivmParams: aivmParams,
                 paramsHash: paramsHash,
                 rule: rule,
+                stakeHuman: stakeAmount,
                 joinCloses: joinCloses,
                 starts: starts,
                 ends: ends,

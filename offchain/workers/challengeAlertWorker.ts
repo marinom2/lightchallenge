@@ -56,10 +56,11 @@ function formatRemaining(seconds: number): string {
   return `${m}m`;
 }
 
-function formatLCAI(weiStr: string): string {
-  const wei = Number(weiStr || 0);
-  if (wei === 0) return "0 LCAI";
-  const lcai = wei / 1e18;
+function formatLCAI(stakeStr: string): string {
+  const n = Number(stakeStr || 0);
+  if (n === 0) return "0 LCAI";
+  // Detect wei (> 1e15) vs human-readable (e.g. "0.05")
+  const lcai = n > 1e15 ? n / 1e18 : n;
   if (lcai >= 1) return `${lcai.toFixed(2)} LCAI`;
   if (lcai >= 0.001) return `${lcai.toFixed(3)} LCAI`;
   return `${lcai.toFixed(6)} LCAI`;

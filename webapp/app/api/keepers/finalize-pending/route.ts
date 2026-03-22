@@ -108,24 +108,26 @@ export async function POST(req: NextRequest) {
   const pool = getPool();
   const nowSec = Math.floor(Date.now() / 1000);
 
-  // Find challenges needing finalization (same query as aivmIndexer.retryPendingFinalizations)
+  // Find challenges needing proof submission OR finalization.
+  // Includes: (a) proofs not yet submitted, (b) proofs submitted but finalize() pending.
   const pending = await pool.query<{ id: string }>(
     `
     select id::text
     from public.challenges
     where
-      proof->>'verificationStatus' = 'finalized'
-      and (proof->>'finalizationAttempted') is null
+      (
+        -- Case 1: AIVM finalized but proofs not yet submitted on-chain
+        (proof->>'verificationStatus' = 'finalized'
+         and (proof->>'proofsSubmitted') is null
+         and (proof->>'finalizationAttempted') is null)
+        OR
+        -- Case 2: proofs submitted but finalize() hasn't succeeded yet
+        (proof->>'proofsSubmitted' = 'true'
+         and (proof->>'finalizationAttempted') is null)
+      )
       and status not in ('Canceled')
-      and COALESCE(
-        CASE WHEN timeline->>'proofDeadline' ~ '^[0-9]+$'
-             THEN (timeline->>'proofDeadline')::bigint
-             ELSE EXTRACT(EPOCH FROM (timeline->>'proofDeadline')::timestamptz)::bigint
-        END, 0
-      ) <= $1
     limit 10
-    `,
-    [nowSec]
+    `
   );
 
   if (pending.rows.length === 0) {
@@ -251,45 +253,67 @@ async function processChallenge(
     return { challengeId, status: "skipped", error: "no passing verdicts" };
   }
 
-  // Submit proof for each participant
-  let lastSubmitTxHash: string | undefined;
+  // Skip proof submission if already done
+  const proofsAlreadySubmitted = !!proof?.proofsSubmitted;
+  let lastSubmitTxHash: string | undefined = proof?.submitProofTxHash;
   let finalizeTxHash: string | undefined;
 
-  for (const v of participants) {
-    const participantAddr = v.subject as Address;
-    if (!/^0x[0-9a-fA-F]{40}$/i.test(participantAddr)) continue;
+  if (!proofsAlreadySubmitted) {
+    // Submit proof for each participant
+    for (const v of participants) {
+      const participantAddr = v.subject as Address;
+      if (!/^0x[0-9a-fA-F]{40}$/i.test(participantAddr)) continue;
 
-    const proofFields: AivmPoiProofFields = {
-      requestId,
-      taskId: taskIdHex,
-      challengeId: BigInt(challengeId),
-      subject: participantAddr,
-      passed: true,
-      score: 0n,
-      evidenceHash: ensureBytes32(v.evidence_hash),
-      benchmarkHash: ensureBytes32(proof?.benchmarkHash),
-      metricHash: undefined,
-      evaluatedAt: toEpochSeconds(v.updated_at ?? new Date()),
-      modelDigest: ensureBytes32(model_hash),
-      paramsHash: ensureBytes32(proof?.paramsHash),
-    };
+      const proofFields: AivmPoiProofFields = {
+        requestId,
+        taskId: taskIdHex,
+        challengeId: BigInt(challengeId),
+        subject: participantAddr,
+        passed: true,
+        score: 0n,
+        evidenceHash: ensureBytes32(v.evidence_hash),
+        benchmarkHash: ensureBytes32(proof?.benchmarkHash),
+        metricHash: undefined,
+        evaluatedAt: toEpochSeconds(v.updated_at ?? new Date()),
+        modelDigest: ensureBytes32(model_hash),
+        paramsHash: ensureBytes32(proof?.paramsHash),
+      };
 
-    const encodedProof = encodeAivmPoiProofV1(proofFields);
+      const encodedProof = encodeAivmPoiProofV1(proofFields);
 
-    const submitTx = await walletClient.writeContract({
-      address: CHALLENGEPAY_ADDR,
-      abi: CHALLENGEPAY_ABI,
-      functionName: "submitProofFor",
-      args: [BigInt(challengeId), participantAddr, encodedProof],
-      account,
-      chain,
-    });
+      const submitTx = await walletClient.writeContract({
+        address: CHALLENGEPAY_ADDR,
+        abi: CHALLENGEPAY_ABI,
+        functionName: "submitProofFor",
+        args: [BigInt(challengeId), participantAddr, encodedProof],
+        account,
+        chain,
+      });
 
-    await publicClient.waitForTransactionReceipt({ hash: submitTx });
-    lastSubmitTxHash = submitTx;
+      await publicClient.waitForTransactionReceipt({ hash: submitTx });
+      lastSubmitTxHash = submitTx;
+    }
+
+    // Mark proofs submitted (so we don't re-submit on retry)
+    await pool.query(
+      `
+      update public.challenges
+      set
+        proof = jsonb_set(
+          jsonb_set(
+            coalesce(proof, '{}'::jsonb),
+            '{proofsSubmitted}', 'true'::jsonb, true
+          ),
+          '{submitProofTxHash}', to_jsonb($2::text), true
+        ),
+        updated_at = now()
+      where id = $1::bigint
+      `,
+      [challengeId, lastSubmitTxHash]
+    );
   }
 
-  // Attempt finalize (non-fatal if it fails)
+  // Attempt finalize (non-fatal if it fails — BeforeDeadline)
   try {
     const finalizeTx = await walletClient.writeContract({
       address: CHALLENGEPAY_ADDR,
@@ -301,38 +325,34 @@ async function processChallenge(
     });
     await publicClient.waitForTransactionReceipt({ hash: finalizeTx });
     finalizeTxHash = finalizeTx;
-  } catch {
-    // Non-fatal: may need more proofs or deadline not reached
-  }
 
-  // Mark as attempted in DB
-  await pool.query(
-    `
-    update public.challenges
-    set
-      proof = jsonb_set(
-        jsonb_set(
+    // Mark fully finalized
+    await pool.query(
+      `
+      update public.challenges
+      set
+        proof = jsonb_set(
           jsonb_set(
-            coalesce(proof, '{}'::jsonb),
-            '{finalizationAttempted}', 'true'::jsonb, true
+            jsonb_set(
+              coalesce(proof, '{}'::jsonb),
+              '{finalizationAttempted}', 'true'::jsonb, true
+            ),
+            '{finalizationSuccess}', 'true'::jsonb, true
           ),
-          '{finalizationSuccess}', 'true'::jsonb, true
+          '{finalizeTxHash}', to_jsonb($2::text), true
         ),
-        '{finalizationNote}',
-        to_jsonb($2::text), true
-      ),
-      updated_at = now()
-    where id = $1::bigint
-    `,
-    [
-      challengeId,
-      `keeper:submitProofFor:${lastSubmitTxHash} finalize:${finalizeTxHash ?? "pending"}`,
-    ]
-  );
+        updated_at = now()
+      where id = $1::bigint
+      `,
+      [challengeId, finalizeTxHash]
+    );
+  } catch {
+    // Non-fatal: BeforeDeadline or need more proofs — aivmIndexer retry will handle
+  }
 
   return {
     challengeId,
-    status: "finalized",
+    status: finalizeTxHash ? "finalized" : "proofs_submitted",
   };
 }
 

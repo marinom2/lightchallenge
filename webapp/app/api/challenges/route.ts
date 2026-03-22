@@ -4,7 +4,6 @@ import { isAddress } from "viem";
 import { verifyWallet, requireAuth, verifyByTxReceipt } from "@/lib/auth";
 import { ADDR } from "@/lib/contracts";
 import { sslConfig } from "../../../../offchain/db/sslConfig";
-import { upsertParticipant } from "../../../../offchain/db/participants";
 import {
   writeRegistryUri,
   buildMetadataUri,
@@ -493,6 +492,14 @@ async function upsertChallenge(body: AnyBody) {
   const timeline = mergeShallow(prev?.timeline, body.timeline) ?? null;
   const funds = mergeShallow(prev?.funds, body.funds) ?? null;
 
+  // Normalize funds.stake: convert wei strings to human-readable LCAI
+  if (funds?.stake) {
+    const n = Number(funds.stake);
+    if (!isNaN(n) && n > 1e15) {
+      funds.stake = String(n / 1e18);
+    }
+  }
+
   const options = {
     ...(prev?.options ?? {}),
     ...(body.options ?? {}),
@@ -678,23 +685,9 @@ export async function POST(req: NextRequest) {
     const item = await upsertChallenge(body);
     const id = String(body.id ?? item?.id ?? "");
 
-    // Auto-record the creator as a participant. createChallenge() on-chain marks
-    // the creator as a participant but does NOT emit a Joined event, so the DB
-    // record must be created here. Soft failure — does not block the response.
-    const subjectAddr = asAddrOrNull(body.subject);
-    if (id && id !== "0" && subjectAddr) {
-      try {
-        await upsertParticipant({
-          challengeId: BigInt(id),
-          subject: subjectAddr,
-          txHash: typeof body.txHash === "string" ? body.txHash : null,
-          joinedAt: new Date(),
-          source: "onchain_join",
-        });
-      } catch (e) {
-        console.warn("[challenges POST] auto-participant failed:", e);
-      }
-    }
+    // NOTE: Creator is NOT auto-recorded as a participant. The on-chain contract
+    // marks the creator in participantsCount (if staked), but off-chain we only
+    // count explicit joiners. The creator must join separately to be counted.
 
     // Attempt on-chain MetadataRegistry write (soft failure — does not block response)
     let registry: { registryStatus: string; registryTxHash?: string; registryError?: string } | undefined;

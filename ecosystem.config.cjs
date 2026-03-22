@@ -129,5 +129,22 @@ module.exports = {
         PROGRESS_SYNC_BATCH: "50",
       },
     },
+    {
+      // TESTNET ONLY: simulates Lightchain AIVM workers + validators.
+      // On production, remove AIVM_SIMULATOR_ENABLED — the worker exits immediately.
+      name: "aivm-simulator",
+      script: "npx",
+      args: "tsx offchain/workers/aivmTestnetSimulator.ts",
+      cwd: __dirname,
+      restart_delay: 10000,
+      max_restarts: 50,
+      autorestart: true,
+      watch: false,
+      env: {
+        NODE_ENV: "production",
+        AIVM_SIMULATOR_ENABLED: "true",
+        AIVM_SIMULATOR_POLL_MS: "10000",
+      },
+    },
   ],
 };

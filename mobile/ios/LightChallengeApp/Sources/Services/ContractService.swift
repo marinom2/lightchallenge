@@ -337,7 +337,7 @@ class ContractService: ObservableObject {
                 "proofDeadline": ISO8601DateFormatter().string(from: meta.proofDeadline),
             ] as [String: Any],
             "funds": [
-                "stake": params.stakeAmount,
+                "stake": meta.stakeHuman,
                 "currency": ["type": "NATIVE", "symbol": "LCAI"],
             ] as [String: Any],
             "params": meta.rule.merging(["templateId": meta.templateId]) { _, new in new },
@@ -439,6 +439,7 @@ struct CreateChallengeMeta {
     let aivmParams: [String: Any]
     let paramsHash: String
     let rule: [String: Any]
+    let stakeHuman: String  // human-readable e.g. "0.01" (not wei)
     let joinCloses: Date
     let starts: Date
     let ends: Date

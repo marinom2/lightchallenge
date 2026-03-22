@@ -250,7 +250,9 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
     const joinClosesTs = cv?.joinClosesTs ?? cv?.[8] ? String(cv.joinClosesTs ?? cv[8]) : undefined;
     const stakeWei = BigInt(cv?.stake ?? cv?.[7] ?? 0n);
     const poolWei = BigInt(cv?.pool ?? cv?.[12] ?? 0n);
-    const participantsCount = Number(cv?.participantsCount ?? cv?.[13] ?? 0);
+    // On-chain participantsCount includes the creator (auto-marked on staked create).
+    // Subtract 1 so the count reflects only explicit joiners.
+    const participantsCount = Math.max(0, Number(cv?.participantsCount ?? cv?.[13] ?? 0) - 1);
 
     const rawSnapshot: any = await client
       .readContract({

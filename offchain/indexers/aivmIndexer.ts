@@ -34,6 +34,7 @@ import {
   type AivmPoiProofFields,
 } from "../lib/aivmProof";
 import { safeBlockRange } from "../lib/reorgGuard";
+import { reconcileChallenge } from "../lib/reconcile";
 
 dotenv.config({
   path: path.resolve(process.cwd(), "webapp/.env.local"),
@@ -702,10 +703,44 @@ function isCompetitiveFinalization(challenge: ChallengeForFinalization): boolean
  * Sets proof.finalizationAttempted = true to prevent future retries.
  * Only called after submitProofFor succeeds.
  */
-async function markFinalizationAttempted(
+/**
+ * Mark that on-chain proofs have been submitted (submitProofFor succeeded).
+ * Does NOT set finalizationAttempted — the retry scan will still pick this up
+ * to call finalize() after the proof deadline passes.
+ */
+async function markProofsSubmitted(
   challengeId: string,
-  submitProofTxHash: string,
-  finalizeTxHash?: string
+  submitProofTxHash: string
+) {
+  await pool.query(
+    `
+    update public.challenges
+    set
+      proof = jsonb_set(
+        jsonb_set(
+          coalesce(proof, '{}'::jsonb),
+          '{proofsSubmitted}',
+          'true'::jsonb,
+          true
+        ),
+        '{submitProofTxHash}',
+        to_jsonb($2::text),
+        true
+      ),
+      updated_at = now()
+    where id = $1::bigint
+    `,
+    [challengeId, submitProofTxHash]
+  );
+}
+
+/**
+ * Mark challenge as fully finalized on-chain (finalize() succeeded).
+ * Sets finalizationAttempted=true so the retry scan stops picking it up.
+ */
+async function markFullyFinalized(
+  challengeId: string,
+  finalizeTxHash: string
 ) {
   await pool.query(
     `
@@ -723,17 +758,14 @@ async function markFinalizationAttempted(
           'true'::jsonb,
           true
         ),
-        '{finalizationNote}',
+        '{finalizeTxHash}',
         to_jsonb($2::text),
         true
       ),
       updated_at = now()
     where id = $1::bigint
     `,
-    [
-      challengeId,
-      `submitProofFor:${submitProofTxHash} finalize:${finalizeTxHash ?? "pending"}`,
-    ]
+    [challengeId, finalizeTxHash]
   );
 }
 
@@ -768,26 +800,19 @@ async function recordFinalizationError(challengeId: string, error: string) {
 async function retryPendingFinalizations(): Promise<void> {
   if (!FINALIZATION_ENABLED) return;
 
-  const nowSec = Math.floor(Date.now() / 1000);
-  const res = await pool.query<{ id: string }>(`
+  // ── Case 1: Proofs NOT yet submitted — need full pipeline ──────────────
+  const needProofs = await pool.query<{ id: string }>(`
     select id::text
     from public.challenges
     where
       proof->>'verificationStatus' = 'finalized'
+      and (proof->>'proofsSubmitted') is null
       and (proof->>'finalizationAttempted') is null
       and status not in ('Canceled')
-      -- Only retry after proof deadline has passed
-      and COALESCE(
-        CASE WHEN timeline->>'proofDeadline' ~ '^[0-9]+$'
-             THEN (timeline->>'proofDeadline')::bigint
-             ELSE EXTRACT(EPOCH FROM (timeline->>'proofDeadline')::timestamptz)::bigint
-        END, 0
-      ) <= ${nowSec}
     limit 10
   `);
 
-  for (const row of res.rows) {
-    // Prefer aivm_jobs.task_id, fall back to proof.taskBinding.taskId
+  for (const row of needProofs.rows) {
     const taskBinding = await pool.query<{ task_id: string }>(
       `
       select coalesce(
@@ -800,8 +825,35 @@ async function retryPendingFinalizations(): Promise<void> {
     const taskId = taskBinding.rows[0]?.task_id;
     if (!taskId) continue;
 
-    console.log("[aivmIndexer] retry scan: attempting finalization for challenge", row.id);
+    console.log("[aivmIndexer] retry scan: submitting proofs for challenge", row.id);
     await attemptFinalizationBridge(taskId);
+  }
+
+  // ── Case 2: Proofs submitted but finalize() hasn't succeeded yet ───────
+  // These challenges have proofs on-chain but finalize() failed previously
+  // (likely BeforeDeadline). Retry finalize() only — no proof re-submission.
+  const needFinalize = await pool.query<{ id: string }>(`
+    select id::text
+    from public.challenges
+    where
+      proof->>'proofsSubmitted' = 'true'
+      and (proof->>'finalizationAttempted') is null
+      and status not in ('Canceled')
+    limit 10
+  `);
+
+  if (needFinalize.rows.length > 0) {
+    const account = privateKeyToAccount(FINALIZE_PK);
+    const walletClient = createWalletClient({
+      account,
+      chain,
+      transport: http(RPC),
+    });
+
+    for (const row of needFinalize.rows) {
+      console.log("[aivmIndexer] retry scan: retrying finalize() for challenge", row.id);
+      await attemptFinalizeOnly(row.id, walletClient, account);
+    }
   }
 }
 
@@ -838,31 +890,31 @@ async function attemptFinalizationBridge(taskId: string): Promise<void> {
     return;
   }
 
-  // ── Timing guard: don't attempt finalize before proofDeadline has passed ──
-  if (timeline) {
-    const nowSec = Math.floor(Date.now() / 1000);
-    const deadlineRaw = timeline.proofDeadline ?? timeline.proofDeadlineTs;
-    if (deadlineRaw) {
-      const deadlineSec = typeof deadlineRaw === "number"
-        ? deadlineRaw
-        : typeof deadlineRaw === "string" && /^\d+$/.test(deadlineRaw)
-          ? Number(deadlineRaw)
-          : Math.floor(new Date(String(deadlineRaw)).getTime() / 1000);
-      if (deadlineSec > nowSec) {
-        console.log(
-          "[aivmIndexer] finalization: skipping — proofDeadline not reached",
-          { challengeId, deadlineSec, nowSec, delta: deadlineSec - nowSec }
-        );
-        return;
-      }
-    }
-  }
+  // NOTE: No timing guard here — submitProofFor must happen BEFORE the
+  // proof deadline (contract reverts with ProofWindowClosed after deadline).
+  // Only finalize() needs to wait for the deadline (BeforeDeadline revert).
 
   if (proof?.finalizationAttempted) {
     console.log(
-      "[aivmIndexer] finalization: already attempted for challenge",
+      "[aivmIndexer] finalization: already fully finalized for challenge",
       challengeId
     );
+    return;
+  }
+
+  // If proofs are already submitted, skip to finalize-only
+  if (proof?.proofsSubmitted) {
+    console.log(
+      "[aivmIndexer] finalization: proofs already submitted, attempting finalize only for challenge",
+      challengeId
+    );
+    const account = privateKeyToAccount(FINALIZE_PK);
+    const walletClient = createWalletClient({
+      account,
+      chain,
+      transport: http(RPC),
+    });
+    await attemptFinalizeOnly(challengeId, walletClient, account);
     return;
   }
 
@@ -887,6 +939,16 @@ async function attemptFinalizationBridge(taskId: string): Promise<void> {
     chain,
     transport: http(RPC),
   });
+
+  // ── Final reconciliation: refresh evidence + re-evaluate before submitting ──
+  try {
+    const rc = await reconcileChallenge(challengeId, pool);
+    if (rc.evidenceRefreshed > 0 || rc.verdictsUpdated > 0) {
+      console.log("[aivmIndexer] reconciled before proof submission", { challengeId, ...rc });
+    }
+  } catch (rcErr: any) {
+    console.warn("[aivmIndexer] reconcile failed (non-fatal)", challengeId, rcErr?.message);
+  }
 
   const competitive = isCompetitiveFinalization(challenge);
 
@@ -975,35 +1037,15 @@ async function attemptFinalizationBridge(taskId: string): Promise<void> {
       });
     }
 
-    // ── Attempt finalize ────────────────────────────────────────────────────
-    try {
-      const finalizeTx = await walletClient.writeContract({
-        address: CHALLENGEPAY_ADDR,
-        abi: CHALLENGEPAY_ABI,
-        functionName: "finalize",
-        args: [BigInt(challengeId)],
-        account,
-        chain,
-      });
-
-      await client.waitForTransactionReceipt({ hash: finalizeTx });
-      finalizeTxHash = finalizeTx;
-
-      console.log("[aivmIndexer] finalization: finalize mined", {
-        challengeId,
-        tx: finalizeTx,
-      });
-    } catch (finalizeErr: any) {
-      console.warn(
-        "[aivmIndexer] finalization: finalize call failed (non-fatal — BeforeDeadline or need more proofs)",
-        {
-          challengeId,
-          error: finalizeErr?.message?.slice(0, 200),
-        }
-      );
+    // Mark proofs as submitted — even if finalize() fails below, we won't
+    // re-submit proofs (contract would revert on duplicate anyway).
+    if (lastSubmitTxHash) {
+      await markProofsSubmitted(challengeId, lastSubmitTxHash);
+      console.log("[aivmIndexer] finalization: proofs submitted, marked in DB", { challengeId });
     }
 
-    await markFinalizationAttempted(challengeId, lastSubmitTxHash!, finalizeTxHash);
+    // ── Attempt finalize (may fail with BeforeDeadline — that's OK) ──────
+    await attemptFinalizeOnly(challengeId, walletClient, account);
   } catch (err: any) {
     const errMsg = err?.message ?? String(err);
     console.error("[aivmIndexer] finalization: proof submission failed — will retry next cycle", {
@@ -1012,6 +1054,45 @@ async function attemptFinalizationBridge(taskId: string): Promise<void> {
     });
 
     await recordFinalizationError(challengeId, errMsg);
+  }
+}
+
+/**
+ * Attempt to call finalize() on ChallengePay for a challenge whose proofs
+ * are already submitted on-chain. Non-fatal if it fails (BeforeDeadline,
+ * already finalized, etc.) — the retry scan will try again next cycle.
+ */
+async function attemptFinalizeOnly(
+  challengeId: string,
+  walletClient: any,
+  account: any
+): Promise<void> {
+  try {
+    const finalizeTx = await walletClient.writeContract({
+      address: CHALLENGEPAY_ADDR,
+      abi: CHALLENGEPAY_ABI,
+      functionName: "finalize",
+      args: [BigInt(challengeId)],
+      account,
+      chain,
+    });
+
+    await client.waitForTransactionReceipt({ hash: finalizeTx });
+
+    console.log("[aivmIndexer] finalization: finalize mined", {
+      challengeId,
+      tx: finalizeTx,
+    });
+
+    await markFullyFinalized(challengeId, finalizeTx);
+  } catch (finalizeErr: any) {
+    console.warn(
+      "[aivmIndexer] finalization: finalize() failed (non-fatal — will retry)",
+      {
+        challengeId,
+        error: finalizeErr?.message?.slice(0, 200),
+      }
+    );
   }
 }
 
