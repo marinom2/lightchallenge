@@ -29,6 +29,8 @@ import * as ticket from "./ticket.js";
 import * as closeTicket from "./closeTicket.js";
 import * as warn from "./warn.js";
 import * as mute from "./mute.js";
+import * as ask from "./ask.js";
+import * as explain from "./explain.js";
 
 export type Command = {
   data: SlashCommandBuilder | SlashCommandOptionsOnlyBuilder | SlashCommandSubcommandsOnlyBuilder;
@@ -54,4 +56,6 @@ export const commands: Command[] = [
   closeTicket as Command,
   warn as Command,
   mute as Command,
+  ask as Command,
+  explain as Command,
 ];

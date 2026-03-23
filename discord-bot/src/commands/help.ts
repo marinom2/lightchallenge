@@ -47,6 +47,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         ].join("\n"),
       },
       {
+        name: "AI Assistant",
+        value: [
+          "`/ask <question>` - Ask the AI anything about LightChallenge",
+          "`/explain <topic>` - Get a detailed explanation of a topic",
+          "`@LightChallenge <question>` - Mention the bot to ask a question",
+        ].join("\n"),
+      },
+      {
         name: "Info & Support",
         value: [
           "`/faq <topic>` - Get info about a topic",

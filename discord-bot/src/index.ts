@@ -36,6 +36,7 @@ import { handleInteraction } from "./interactions.js";
 import { handleAutoMod } from "./automod.js";
 import { handleGuildMemberAdd } from "./welcome.js";
 import { handleFaqKeywords } from "./faq.js";
+import { handleMentionAi } from "./mentionHandler.js";
 
 // ─── Env Validation ─────────────────────────────────────────────────────────
 
@@ -205,6 +206,18 @@ client.on(Events.MessageCreate, async (message) => {
     await handleAutoMod(message, client);
   } catch (err) {
     console.error("[discord-bot] AutoMod error:", err);
+  }
+
+  // @mention AI handler — check before FAQ keywords
+  try {
+    if (client.user && message.mentions.has(client.user.id)) {
+      await handleMentionAi(message, client);
+      return; // Don't also trigger FAQ keywords for mentions
+    }
+  } catch (err) {
+    if ((err as any)?.code !== 10008) {
+      console.error("[discord-bot] Mention AI error:", err);
+    }
   }
 
   // FAQ keyword triggers (only if the message wasn't deleted by automod)
