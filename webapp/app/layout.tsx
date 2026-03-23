@@ -10,6 +10,7 @@ import { ThemeProvider } from "./components/theme/ThemeProvider";
 import Navbar from "./components/Navbar";
 import { Toasts } from "@/lib/ui/toast";
 import YearNow from "./year-now";
+import AiChat from "./components/ui/AiChat";
 
 export const metadata: Metadata = {
   title: "LightChallenge — Create & Verify Challenges",
@@ -139,6 +140,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </main>
 
             <Toasts />
+            <AiChat />
           </ThemeProvider>
         </Providers>
       </body>
