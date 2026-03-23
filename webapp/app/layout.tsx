@@ -10,7 +10,8 @@ import { ThemeProvider } from "./components/theme/ThemeProvider";
 import Navbar from "./components/Navbar";
 import { Toasts } from "@/lib/ui/toast";
 import YearNow from "./year-now";
-import AiChat from "./components/ui/AiChat";
+// AI chat hidden until API key is funded — code stays, just not rendered
+// import AiChat from "./components/ui/AiChat";
 
 export const metadata: Metadata = {
   title: "LightChallenge — Create & Verify Challenges",
@@ -140,7 +141,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </main>
 
             <Toasts />
-            <AiChat />
+            {/* <AiChat /> — re-enable when ANTHROPIC_API_KEY is funded */}
           </ThemeProvider>
         </Providers>
       </body>

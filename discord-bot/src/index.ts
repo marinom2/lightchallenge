@@ -208,17 +208,17 @@ client.on(Events.MessageCreate, async (message) => {
     console.error("[discord-bot] AutoMod error:", err);
   }
 
-  // @mention AI handler — check before FAQ keywords
-  try {
-    if (client.user && message.mentions.has(client.user.id)) {
-      await handleMentionAi(message, client);
-      return; // Don't also trigger FAQ keywords for mentions
-    }
-  } catch (err) {
-    if ((err as any)?.code !== 10008) {
-      console.error("[discord-bot] Mention AI error:", err);
-    }
-  }
+  // @mention AI handler — disabled until ANTHROPIC_API_KEY is funded
+  // try {
+  //   if (client.user && message.mentions.has(client.user.id)) {
+  //     await handleMentionAi(message, client);
+  //     return;
+  //   }
+  // } catch (err) {
+  //   if ((err as any)?.code !== 10008) {
+  //     console.error("[discord-bot] Mention AI error:", err);
+  //   }
+  // }
 
   // FAQ keyword triggers (only if the message wasn't deleted by automod)
   try {
