@@ -44,32 +44,35 @@ type Competition = {
 type BracketMatch = {
   id: string;
   round: number;
-  position: number;
+  match_number: number;
+  bracket_type: string;
   participant_a: string | null;
   participant_b: string | null;
   score_a: number | null;
   score_b: number | null;
   winner: string | null;
-  status: "pending" | "in_progress" | "completed";
+  status: "pending" | "in_progress" | "completed" | "bye";
   scheduled_at: string | null;
   completed_at: string | null;
 };
 
 type StandingEntry = {
   rank: number;
-  participant: string;
+  wallet: string;
   wins: number;
   losses: number;
   draws: number;
   points: number;
-  matches_played: number;
+  score_for: number;
+  score_against: number;
 };
 
 type Registration = {
-  participant: string;
-  team_name?: string;
+  wallet: string;
+  team_id?: string;
   registered_at: string;
-  status: "confirmed" | "pending" | "waitlisted";
+  seed?: number;
+  checked_in?: boolean;
 };
 
 /* ── Helpers ───────────────────────────────────────────────────────────────── */
@@ -304,7 +307,25 @@ export default function CompetitionDetailPage() {
         const res = await fetch(`/api/v1/competitions/${id}/bracket`);
         if (res.ok) {
           const data = await res.json();
-          if (!stop) setBracket(Array.isArray(data?.matches) ? data.matches : Array.isArray(data) ? data : []);
+          // API returns { bracket: { winners: { 1: [...], 2: [...] }, losers: {...} } }
+          // Flatten into a single array
+          let flat: BracketMatch[] = [];
+          if (data?.bracket && typeof data.bracket === "object") {
+            for (const [bracketType, rounds] of Object.entries(data.bracket)) {
+              if (rounds && typeof rounds === "object") {
+                for (const matchArr of Object.values(rounds as Record<string, BracketMatch[]>)) {
+                  if (Array.isArray(matchArr)) {
+                    flat.push(...matchArr.map((m: any) => ({ ...m, bracket_type: m.bracket_type || bracketType })));
+                  }
+                }
+              }
+            }
+          } else if (Array.isArray(data?.matches)) {
+            flat = data.matches;
+          } else if (Array.isArray(data)) {
+            flat = data;
+          }
+          if (!stop) setBracket(flat);
         }
       } catch {}
     })();
@@ -356,7 +377,7 @@ export default function CompetitionDetailPage() {
       .sort((a, b) => a[0] - b[0])
       .map(([round, matches]) => ({
         round,
-        matches: matches.sort((a, b) => a.position - b.position),
+        matches: matches.sort((a, b) => a.match_number - b.match_number),
       }));
   }, [bracket]);
 
@@ -373,11 +394,11 @@ export default function CompetitionDetailPage() {
   /* User registration state */
   const addrLower = address?.toLowerCase();
   const myRegistration = useMemo(
-    () => registrations.find((r) => r.participant.toLowerCase() === addrLower),
+    () => registrations.find((r) => r.wallet?.toLowerCase() === addrLower),
     [registrations, addrLower],
   );
   const isRegistered = !!myRegistration;
-  const isCheckedIn = myRegistration?.status === "confirmed";
+  const isCheckedIn = myRegistration?.checked_in === true;
   const isOrgAdmin = !!(comp && address && comp.org_id && comp.org_id.toLowerCase() === addrLower);
 
   /* Action handlers */
@@ -478,7 +499,19 @@ export default function CompetitionDetailPage() {
       const bracketRes = await fetch(`/api/v1/competitions/${id}/bracket`);
       if (bracketRes.ok) {
         const data = await bracketRes.json();
-        setBracket(Array.isArray(data?.matches) ? data.matches : Array.isArray(data) ? data : []);
+        let flat: BracketMatch[] = [];
+        if (data?.bracket && typeof data.bracket === "object") {
+          for (const [bracketType, rounds] of Object.entries(data.bracket)) {
+            if (rounds && typeof rounds === "object") {
+              for (const matchArr of Object.values(rounds as Record<string, BracketMatch[]>)) {
+                if (Array.isArray(matchArr)) {
+                  flat.push(...matchArr.map((m: any) => ({ ...m, bracket_type: m.bracket_type || bracketType })));
+                }
+              }
+            }
+          }
+        }
+        setBracket(flat);
       }
     } catch (e: any) {
       setActionError(e?.message || String(e));
@@ -1079,7 +1112,7 @@ export default function CompetitionDetailPage() {
                 {/* Rows */}
                 {standings.map((entry, i) => (
                   <div
-                    key={entry.participant}
+                    key={entry.wallet}
                     className="d-grid items-center border-t gap-2"
                     style={{
                       gridTemplateColumns: "48px 1fr 80px 80px 80px 80px",
@@ -1097,7 +1130,7 @@ export default function CompetitionDetailPage() {
                       className="text-small color-primary"
                       style={{ fontFamily: "var(--lc-font-mono)" }}
                     >
-                      {truncAddr(entry.participant)}
+                      {truncAddr(entry.wallet)}
                     </span>
                     <span className="text-right text-small color-success">
                       {entry.wins}
