@@ -74,8 +74,8 @@ const POLL_MS = Number(process.env.AUTO_DISTRIBUTE_POLL_MS || 30000);
 const CHALLENGEPAY_ABI = parseAbi([
   "function autoDistribute(uint256 id, address[] calldata winners, address[] calldata losers) external",
   "function autoRefund(uint256 id, address[] calldata participants) external",
-  "function winner(uint256 id, address user) view returns (bool)",
-  "function contrib(uint256 id, address user) view returns (uint256)",
+  "function isWinner(uint256 id, address user) view returns (bool)",
+  "function contribOf(uint256 id, address user) view returns (uint256)",
 ]);
 
 // ── Setup ────────────────────────────────────────────────────────────────────
@@ -179,7 +179,7 @@ async function isWinnerOnChain(challengeId: string, wallet: string): Promise<boo
     return await publicClient.readContract({
       address: CHALLENGEPAY_ADDR,
       abi: CHALLENGEPAY_ABI,
-      functionName: "winner",
+      functionName: "isWinner",
       args: [BigInt(challengeId), wallet as Address],
     });
   } catch {
@@ -195,7 +195,7 @@ async function getContribOnChain(challengeId: string, wallet: string): Promise<b
     return await publicClient.readContract({
       address: CHALLENGEPAY_ADDR,
       abi: CHALLENGEPAY_ABI,
-      functionName: "contrib",
+      functionName: "contribOf",
       args: [BigInt(challengeId), wallet as Address],
     });
   } catch {
