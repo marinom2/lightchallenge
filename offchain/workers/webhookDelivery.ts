@@ -11,6 +11,8 @@
  *   WEBHOOK_POLL_MS       — poll interval (default 5000)
  *   WEBHOOK_MAX_ATTEMPTS  — max delivery attempts (default 5)
  *   WEBHOOK_TIMEOUT_MS    — HTTP timeout per delivery (default 10000)
+ *   DISCORD_BOT_ENABLED   — set to "true" to forward events to the Discord bot
+ *   DISCORD_BOT_WEBHOOK_PORT — Discord bot HTTP port (default 3200)
  */
 
 import dotenv from "dotenv";
@@ -158,7 +160,11 @@ export async function emitWebhookEvent(
     [orgId, event]
   );
 
-  if (hooks.length === 0) return 0;
+  if (hooks.length === 0) {
+    // Still forward to Discord even if no org webhooks matched
+    forwardToDiscordBot(event, payload);
+    return 0;
+  }
 
   // Create delivery records
   const values: any[] = [];
@@ -176,7 +182,29 @@ export async function emitWebhookEvent(
     values
   );
 
+  forwardToDiscordBot(event, payload);
+
   return hooks.length;
+}
+
+// ── Discord Bot Forwarding (fire-and-forget) ─────────────────────────────
+
+function forwardToDiscordBot(event: string, payload: Record<string, unknown>): void {
+  if (process.env.DISCORD_BOT_ENABLED !== "true") return;
+
+  // DISCORD_BOT_WEBHOOK_URL for remote deployments, falls back to localhost
+  const url = process.env.DISCORD_BOT_WEBHOOK_URL
+    || `http://localhost:${Number(process.env.DISCORD_BOT_WEBHOOK_PORT) || 3200}/`;
+  // Discord bot expects { type, competition_id, ...rest } at top level
+  const body = JSON.stringify({ type: event, ...payload });
+
+  fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+  }).catch((err) => {
+    console.warn(`[webhook] discord bot forward failed: ${err.message || err}`);
+  });
 }
 
 // ── Main Loop ────────────────────────────────────────────────────────────

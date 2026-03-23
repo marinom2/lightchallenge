@@ -8,9 +8,11 @@ import { useAuthFetch } from "@/lib/useAuthFetch";
 
 /* ── Types ─────────────────────────────────────────────────────────────────── */
 
-type CompType = "single" | "bracket" | "round_robin" | "circuit";
+type CompType = "single" | "bracket" | "round_robin" | "circuit" | "swiss";
 type Category = "gaming" | "fitness" | "custom";
 type DistributionType = "winner_takes_all" | "top_n" | "proportional" | "custom";
+type BracketFormat = "single_elim" | "double_elim";
+type SeriesFormat = "bo1" | "bo3" | "bo5";
 
 type FormState = {
   type: CompType | null;
@@ -28,6 +30,9 @@ type FormState = {
   rules: string;
   isPublic: boolean;
   requireCheckin: boolean;
+  bracketFormat: BracketFormat;
+  seriesFormat: SeriesFormat;
+  swissRounds: number;
 };
 
 const INITIAL_STATE: FormState = {
@@ -46,6 +51,9 @@ const INITIAL_STATE: FormState = {
   rules: "",
   isPublic: true,
   requireCheckin: false,
+  bracketFormat: "single_elim",
+  seriesFormat: "bo1",
+  swissRounds: 0,
 };
 
 const STEPS = [
@@ -97,6 +105,16 @@ const TYPE_OPTIONS: {
     emoji: "\uD83D\uDD04",
     playerRange: "3-32",
     color: "#22c55e",
+  },
+  {
+    type: "swiss",
+    title: "Swiss Tournament",
+    description: "Players are paired each round based on current standings. No eliminations -- everyone plays all rounds.",
+    bestFor: "Chess-style events, fair seeding, large fields",
+    icon: "05",
+    emoji: "\uD83C\uDFAF",
+    playerRange: "8-128",
+    color: "#14b8a6",
   },
   {
     type: "circuit",
@@ -283,6 +301,9 @@ export default function CreateCompetitionPage() {
           max_participants: form.maxParticipants,
           is_public: form.isPublic,
           require_checkin: form.requireCheckin,
+          ...(form.type === "bracket" ? { format: form.bracketFormat } : {}),
+          ...(form.type === "swiss" && form.swissRounds > 0 ? { rounds: form.swissRounds } : {}),
+          ...((form.type === "bracket" || form.type === "swiss") ? { series_format: form.seriesFormat } : {}),
         },
         rules: form.rules.trim() ? { text: form.rules.trim() } : undefined,
         registration_opens_at: form.registrationOpens ? new Date(form.registrationOpens).toISOString() : undefined,
@@ -719,6 +740,104 @@ export default function CreateCompetitionPage() {
                 </div>
               </div>
 
+              {/* Bracket format selector (bracket type only) */}
+              {form.type === "bracket" && (
+                <div className="p-5 rounded-lg border bg-raised">
+                  <div className="text-small font-medium color-secondary mb-3">
+                    Elimination Format
+                  </div>
+                  <div className="d-flex gap-2">
+                    {([
+                      { key: "single_elim" as BracketFormat, label: "Single Elimination", desc: "One loss and you're out" },
+                      { key: "double_elim" as BracketFormat, label: "Double Elimination", desc: "Losers get a second chance" },
+                    ]).map((opt) => {
+                      const selected = form.bracketFormat === opt.key;
+                      return (
+                        <button
+                          key={opt.key}
+                          onClick={() => update("bracketFormat", opt.key)}
+                          className="flex-1 p-3 rounded-md cursor-pointer text-left transition-fast"
+                          style={{
+                            border: selected ? "2px solid var(--lc-select-border)" : "1px solid var(--lc-border)",
+                            backgroundColor: selected ? "var(--lc-select)" : "var(--lc-bg-inset)",
+                            boxShadow: selected ? "var(--lc-shadow-sm)" : "none",
+                          }}
+                        >
+                          <div
+                            className="text-small font-medium"
+                            style={{ color: selected ? "var(--lc-select-text)" : "var(--lc-text)" }}
+                          >
+                            {opt.label}
+                          </div>
+                          <div className="text-caption color-muted" style={{ marginTop: 2 }}>
+                            {opt.desc}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Swiss rounds override (swiss type only) */}
+              {form.type === "swiss" && (
+                <div className="p-5 rounded-lg border bg-raised">
+                  <label style={labelStyle}>
+                    Number of Rounds
+                    <input
+                      type="number"
+                      value={form.swissRounds || ""}
+                      onChange={(e) => update("swissRounds", Math.max(0, parseInt(e.target.value) || 0))}
+                      min={0}
+                      max={20}
+                      placeholder="Auto (based on participants)"
+                      style={inputStyle}
+                    />
+                    <span className="text-caption color-muted">
+                      Leave at 0 for auto-calculated rounds (log2 of participants).
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              {/* Series format selector (bracket and swiss types) */}
+              {(form.type === "bracket" || form.type === "swiss") && (
+                <div className="p-5 rounded-lg border bg-raised">
+                  <div className="text-small font-medium color-secondary mb-3">
+                    Series Format
+                  </div>
+                  <div className="d-flex gap-2">
+                    {([
+                      { key: "bo1" as SeriesFormat, label: "Bo1" },
+                      { key: "bo3" as SeriesFormat, label: "Bo3" },
+                      { key: "bo5" as SeriesFormat, label: "Bo5" },
+                    ]).map((opt) => {
+                      const selected = form.seriesFormat === opt.key;
+                      return (
+                        <button
+                          key={opt.key}
+                          onClick={() => update("seriesFormat", opt.key)}
+                          className="rounded-md cursor-pointer text-center transition-fast font-medium"
+                          style={{
+                            padding: "8px 24px",
+                            border: selected ? "2px solid var(--lc-select-border)" : "1px solid var(--lc-border)",
+                            backgroundColor: selected ? "var(--lc-select)" : "var(--lc-bg-inset)",
+                            color: selected ? "var(--lc-select-text)" : "var(--lc-text)",
+                            boxShadow: selected ? "var(--lc-shadow-sm)" : "none",
+                            fontSize: "var(--lc-text-small)",
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <span className="text-caption color-muted d-block" style={{ marginTop: "var(--lc-space-2)" }}>
+                    Bo3/Bo5 require multiple games per match
+                  </span>
+                </div>
+              )}
+
               {/* Optional rules */}
               <details className="p-5 rounded-lg border bg-raised">
                 <summary className="cursor-pointer text-small font-medium color-secondary row-2" style={{ listStyle: "none" }}>
@@ -943,6 +1062,9 @@ export default function CreateCompetitionPage() {
                     { label: "Max Participants", value: String(form.maxParticipants) },
                     { label: "Visibility", value: form.isPublic ? "Public" : "Private" },
                     { label: "Check-in", value: form.requireCheckin ? "Required" : "Not required" },
+                    ...(form.type === "bracket" ? [{ label: "Format", value: form.bracketFormat === "double_elim" ? "Double Elimination" : "Single Elimination" }] : []),
+                    ...(form.type === "swiss" ? [{ label: "Swiss Rounds", value: form.swissRounds > 0 ? String(form.swissRounds) : "Auto" }] : []),
+                    ...((form.type === "bracket" || form.type === "swiss") ? [{ label: "Series", value: form.seriesFormat.toUpperCase() }] : []),
                     { label: "Registration Opens", value: form.registrationOpens ? new Date(form.registrationOpens).toLocaleString() : "--" },
                     { label: "Registration Closes", value: form.registrationCloses ? new Date(form.registrationCloses).toLocaleString() : "--" },
                     { label: "Starts", value: form.startsAt ? new Date(form.startsAt).toLocaleString() : "--" },

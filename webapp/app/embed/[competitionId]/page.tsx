@@ -22,6 +22,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import BracketViewer from "@/app/components/ui/BracketViewer";
 
 /* ── Theme palettes ────────────────────────────────────────────────────────── */
 
@@ -469,9 +470,21 @@ export default function EmbedCompetitionPage() {
           )}
         </div>
 
-        {/* Bracket view */}
+        {/* Bracket view — use the shared BracketViewer in compact mode */}
         {comp.type === "bracket" && matches.length > 0 && (
-          <BracketMiniView matches={matches} palette={palette} />
+          <BracketViewer
+            matches={matches.map((m) => ({
+              ...m,
+              match_number: m.match_number,
+              bracket_type: m.bracket_type,
+              participant_a: m.participant_a ?? null,
+              participant_b: m.participant_b ?? null,
+              score_a: m.score_a ?? null,
+              score_b: m.score_b ?? null,
+              winner: m.winner ?? null,
+            }))}
+            compact
+          />
         )}
 
         {/* League / standings view */}
@@ -566,160 +579,6 @@ export default function EmbedCompetitionPage() {
             View Full
           </a>
         </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Bracket Mini View ─────────────────────────────────────────────────────── */
-
-function BracketMiniView({
-  matches,
-  palette,
-}: {
-  matches: BracketMatch[];
-  palette: typeof DARK;
-}) {
-  // Group by round
-  const rounds = new Map<number, BracketMatch[]>();
-  for (const m of matches) {
-    if (m.bracket_type !== "winners") continue;
-    const arr = rounds.get(m.round) ?? [];
-    arr.push(m);
-    rounds.set(m.round, arr);
-  }
-
-  const sortedRounds = [...rounds.entries()].sort((a, b) => a[0] - b[0]);
-  const maxRounds = sortedRounds.length;
-
-  function roundLabel(round: number, total: number): string {
-    if (round === total) return "Final";
-    if (round === total - 1) return "Semis";
-    if (round === total - 2) return "Quarters";
-    return `Round ${round}`;
-  }
-
-  return (
-    <div
-      style={{
-        overflowX: "auto",
-        marginBottom: 4,
-        paddingBottom: 4,
-      }}
-    >
-      <div style={{ display: "flex", gap: 12, minWidth: "fit-content" }}>
-        {sortedRounds.map(([round, roundMatches]) => (
-          <div key={round} style={{ minWidth: 140 }}>
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: palette.textMuted,
-                marginBottom: 8,
-              }}
-            >
-              {roundLabel(round, maxRounds)}
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-                justifyContent: "center",
-                minHeight: 60,
-              }}
-            >
-              {roundMatches
-                .sort((a, b) => a.match_number - b.match_number)
-                .map((m) => (
-                  <MatchCard key={m.id} match={m} palette={palette} />
-                ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function MatchCard({
-  match: m,
-  palette,
-}: {
-  match: BracketMatch;
-  palette: typeof DARK;
-}) {
-  const isComplete = m.status === "completed";
-  const aIsWinner = isComplete && m.winner === m.participant_a;
-  const bIsWinner = isComplete && m.winner === m.participant_b;
-
-  const participantRow = (
-    name: string | null | undefined,
-    score: number | null | undefined,
-    isWinner: boolean
-  ): React.CSSProperties => ({
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "3px 6px",
-    fontSize: 11,
-    fontWeight: isWinner ? 700 : 400,
-    color: isWinner ? palette.text : palette.textSecondary,
-    background: isWinner ? palette.accentSoft : "transparent",
-    borderRadius: 3,
-  });
-
-  return (
-    <div
-      style={{
-        background: palette.bg,
-        border: `1px solid ${palette.border}`,
-        borderRadius: 6,
-        overflow: "hidden",
-      }}
-    >
-      <div style={participantRow(m.participant_a, m.score_a, aIsWinner)}>
-        <span
-          style={{
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            maxWidth: 90,
-          }}
-        >
-          {shortAddr(m.participant_a)}
-        </span>
-        {m.score_a != null && (
-          <span style={{ fontVariantNumeric: "tabular-nums", marginLeft: 8 }}>
-            {m.score_a}
-          </span>
-        )}
-      </div>
-      <div
-        style={{
-          height: 1,
-          background: palette.border,
-        }}
-      />
-      <div style={participantRow(m.participant_b, m.score_b, bIsWinner)}>
-        <span
-          style={{
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            maxWidth: 90,
-          }}
-        >
-          {shortAddr(m.participant_b)}
-        </span>
-        {m.score_b != null && (
-          <span style={{ fontVariantNumeric: "tabular-nums", marginLeft: 8 }}>
-            {m.score_b}
-          </span>
-        )}
       </div>
     </div>
   );

@@ -256,3 +256,36 @@ export async function advanceWinner(
 
   return res.rows[0] ?? null;
 }
+
+/**
+ * Advance a participant to a specific match slot.
+ * Generic version that supports cross-bracket advancement (e.g., losers bracket routing).
+ */
+export async function advanceToMatch(
+  competitionId: string,
+  targetRound: number,
+  targetMatchNumber: number,
+  targetBracketType: BracketType,
+  participant: string,
+  slot: "a" | "b",
+  db?: Pool | PoolClient
+): Promise<BracketMatchRow | null> {
+  const client = db ?? getPool();
+
+  const slotColumn = slot === "a" ? "participant_a" : "participant_b";
+
+  const res = await client.query<BracketMatchRow>(
+    `
+    UPDATE public.bracket_matches
+    SET ${slotColumn} = $1
+    WHERE competition_id = $2
+      AND round = $3
+      AND match_number = $4
+      AND bracket_type = $5
+    RETURNING *
+    `,
+    [participant, competitionId, targetRound, targetMatchNumber, targetBracketType]
+  );
+
+  return res.rows[0] ?? null;
+}

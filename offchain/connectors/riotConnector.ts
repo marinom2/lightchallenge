@@ -59,6 +59,46 @@ async function riotFetch<T>(url: string): Promise<T> {
 export const riotConnector: Connector = {
   provider: "riot",
 
+  async fetchSingleMatch(
+    matchId: string,
+    puuid: string
+  ): Promise<ConnectorResult | null> {
+    let match: MatchDto;
+    try {
+      match = await riotFetch<MatchDto>(
+        `https://${RIOT_REGION}.api.riotgames.com/lol/match/v5/matches/${matchId}`
+      );
+    } catch {
+      return null;
+    }
+
+    if (!match?.info?.participants) return null;
+
+    const participant = match.info.participants.find((p) => p.puuid === puuid);
+    if (!participant) return null;
+
+    const record = {
+      match_id: match.metadata.matchId,
+      game_creation: match.info.gameCreation,
+      game_duration: match.info.gameDuration,
+      game_mode: match.info.gameMode,
+      queue_id: match.info.queueId,
+      queue_type: queueIdToType(match.info.queueId),
+      champion: participant.championName,
+      win: participant.win,
+      kills: participant.kills,
+      deaths: participant.deaths,
+      assists: participant.assists,
+      position: participant.individualPosition,
+    };
+
+    return {
+      provider: "riot",
+      records: [record],
+      evidenceHash: stableHash([record]),
+    };
+  },
+
   async fetchEvidence(
     _subject: string,
     account: LinkedAccountRow,

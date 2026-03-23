@@ -59,6 +59,19 @@ export interface Connector {
     account: LinkedAccountRow,
     opts?: FetchEvidenceOpts
   ): Promise<ConnectorResult>;
+
+  /**
+   * Fetch a single match by its external ID and verify a player participated.
+   * Optional — only gaming connectors implement this.
+   *
+   * @param matchId   External match ID (OpenDota match_id, Riot matchId, FACEIT match_id).
+   * @param externalId  The player's platform ID (Steam64, PUUID, FACEIT player_id).
+   * @returns Single-record ConnectorResult, or null if match not found / player not in match.
+   */
+  fetchSingleMatch?(
+    matchId: string,
+    externalId: string
+  ): Promise<ConnectorResult | null>;
 }
 
 /** Helper: resolve opts to a concrete start/end Unix-second range. */

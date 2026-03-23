@@ -3,6 +3,8 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import BracketViewer from "@/app/components/ui/BracketViewer";
+import { type BracketMatch as BracketViewerMatch } from "@/lib/useLiveBracket";
 import Breadcrumb from "@/app/components/ui/Breadcrumb";
 import Badge from "@/app/components/ui/Badge";
 import Skeleton from "@/app/components/ui/Skeleton";
@@ -561,8 +563,31 @@ export default function CompetitionDetailPage() {
         </div>
 
         {/* Title */}
-        <h1 className="text-title font-bold color-primary leading-tight m-0">
+        <h1 className="text-title font-bold color-primary leading-tight m-0" style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {comp.title}
+          {comp.status === "active" && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: "var(--lc-text-caption, 11px)",
+                fontWeight: 600,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                color: "var(--lc-success)",
+                backgroundColor: "var(--lc-success-muted)",
+                border: "1px solid var(--lc-success)",
+                borderRadius: "var(--lc-radius-pill, 100px)",
+                padding: "2px 10px",
+                lineHeight: 1.4,
+                verticalAlign: "middle",
+              }}
+            >
+              <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "var(--lc-success)", animation: "pulse 2s infinite" }} />
+              Live
+            </span>
+          )}
         </h1>
 
         {/* Description */}
@@ -678,6 +703,48 @@ export default function CompetitionDetailPage() {
           icon={<CalendarIcon />}
         />
       </div>
+
+      {/* ── Tournament Navigation ─────────────────────────────────────────── */}
+      {(() => {
+        const isBracketType = comp.type === "bracket" || comp.type === ("swiss" as string);
+        const navLinks: { href: string; label: string; show: boolean; highlighted?: boolean }[] = [
+          { href: `/competitions/${id}/bracket`, label: "Bracket", show: isBracketType },
+          { href: `/competitions/${id}/live`, label: "Watch Live", show: comp.status === "active" },
+          { href: `/competitions/${id}/lobby`, label: "My Match", show: !!address },
+          { href: `/competitions/${id}/register`, label: "Register", show: comp.status === "registration" },
+        ];
+        const visibleLinks = navLinks.filter((l) => l.show);
+        if (visibleLinks.length === 0) return null;
+        return (
+          <nav
+            style={{ display: "flex", flexWrap: "wrap", gap: 8 }}
+            aria-label="Tournament pages"
+          >
+            {visibleLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  background: link.highlighted ? "var(--lc-accent-muted)" : "var(--lc-bg-raised)",
+                  border: "1px solid var(--lc-border)",
+                  borderRadius: "var(--lc-radius-pill, 100px)",
+                  padding: "8px 16px",
+                  color: link.highlighted ? "var(--lc-accent)" : "var(--lc-text-secondary)",
+                  fontSize: "var(--lc-text-small)",
+                  textDecoration: "none",
+                  fontWeight: 500,
+                  transition: "background 0.15s, color 0.15s",
+                }}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        );
+      })()}
 
       {/* ── Tabs ────────────────────────────────────────────────────────────── */}
       <Tabs tabs={tabs} activeId={activeTab} onTabChange={setActiveTab} />
@@ -827,6 +894,19 @@ export default function CompetitionDetailPage() {
                 ))}
               </div>
             </div>
+
+            {/* Bracket Viewer (for bracket/swiss type competitions) */}
+            {(comp.type === "bracket" || comp.type === ("swiss" as string)) && bracket.length > 0 && (
+              <div className="p-5 rounded-lg border bg-raised">
+                <h3 className="text-subhead font-semibold color-primary m-0 mb-4">
+                  Bracket
+                </h3>
+                <BracketViewer
+                  matches={bracket as unknown as BracketViewerMatch[]}
+                  highlightParticipant={address || undefined}
+                />
+              </div>
+            )}
           </div>
         )}
 

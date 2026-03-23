@@ -3,8 +3,18 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "../../../../../../../offchain/db/pool";
 import { emitWebhookEvent } from "../../../../../../../offchain/workers/webhookDelivery";
-
-function nextPow2(n: number): number { let p = 1; while (p < n) p *= 2; return p; }
+import { createMatches, type CreateMatchInput } from "../../../../../../../offchain/db/brackets";
+import {
+  generateSingleElimination,
+  generateDoubleElimination,
+  generateRoundRobin,
+  generateSwissRound1,
+  seedByRanking,
+  getNextMatch,
+  getLoserDestination,
+  type MatchSlot,
+} from "../../../../../../../offchain/engine/brackets";
+import { createSeries, createSeriesGames, type SeriesFormat } from "../../../../../../../offchain/db/series";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -25,106 +35,154 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (regs.length < 2)
       return NextResponse.json({ ok: false, error: "Need at least 2 participants" }, { status: 400 });
 
-    // For bracket types, generate bracket
+    const participants = regs.map((r: any) => r.wallet || r.team_id);
+    const format = (comp.settings as any)?.format ?? "single_elim";
+
     if (comp.type === "bracket") {
-      const participants = regs.map((r: any) => r.wallet || r.team_id);
-      const size = nextPow2(participants.length);
-      const totalRounds = Math.log2(size);
+      // Seed participants by ranking order
+      const seeded = seedByRanking(participants);
+      // Filter out empty strings (bye padding) for the generator — it handles byes internally
+      // Actually the generators expect the full participant list, not the seeded array
+      // Use the seeded order directly
 
-      // Pad with byes
-      while (participants.length < size) participants.push(null);
-
-      // Seed pairing: 1v8, 2v7, 3v6, 4v5
-      const paired: [string | null, string | null][] = [];
-      for (let i = 0; i < size / 2; i++) {
-        paired.push([participants[i], participants[size - 1 - i]]);
+      let slots: MatchSlot[];
+      if (format === "double_elim") {
+        slots = generateDoubleElimination(seeded);
+      } else {
+        slots = generateSingleElimination(seeded);
       }
 
-      // Insert all match slots
-      const matchValues: any[] = [];
-      const matchPlaceholders: string[] = [];
-      let idx = 1;
+      // Convert MatchSlots to DB rows
+      const matchInputs: CreateMatchInput[] = slots.map((s) => ({
+        competitionId: params.id,
+        round: s.round,
+        matchNumber: s.matchNumber,
+        bracketType: s.bracketType,
+        participantA: s.participantA || null,
+        participantB: s.participantB || null,
+        status: s.status,
+      }));
 
-      // Round 1 matches with participants
-      for (let m = 0; m < paired.length; m++) {
-        const [a, b] = paired[m];
-        const isBye = !a || !b;
-        matchPlaceholders.push(`($${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++})`);
-        matchValues.push(params.id, 1, m + 1, "winners", a, b, isBye ? "bye" : "pending");
-      }
+      await createMatches(matchInputs, pool);
 
-      // Empty slots for subsequent rounds
-      for (let r = 2; r <= totalRounds; r++) {
-        const matchesInRound = size / Math.pow(2, r);
-        for (let m = 0; m < matchesInRound; m++) {
-          matchPlaceholders.push(`($${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++})`);
-          matchValues.push(params.id, r, m + 1, "winners", null, null, "pending");
-        }
-      }
-
-      await pool.query(
-        `INSERT INTO public.bracket_matches (competition_id, round, match_number, bracket_type, participant_a, participant_b, status)
-         VALUES ${matchPlaceholders.join(", ")}`,
-        matchValues
-      );
-
-      // Auto-advance byes
+      // Auto-advance byes in winners bracket round 1
       const { rows: byes } = await pool.query(
-        `SELECT id, match_number, participant_a, participant_b FROM public.bracket_matches
-         WHERE competition_id = $1 AND round = 1 AND status = 'bye'`, [params.id]
+        `SELECT id, round, match_number, bracket_type, participant_a, participant_b
+         FROM public.bracket_matches
+         WHERE competition_id = $1 AND round = 1 AND status = 'bye' AND bracket_type = 'winners'`,
+        [params.id]
       );
+
+      const eliminationType: "single" | "double" = format === "double_elim" ? "double" : "single";
+
       for (const bye of byes) {
         const winner = bye.participant_a || bye.participant_b;
+        if (!winner) continue;
+
+        // Mark bye as completed with winner
         await pool.query(
-          `UPDATE public.bracket_matches SET winner = $2, status = 'bye', completed_at = now() WHERE id = $1`,
+          `UPDATE public.bracket_matches SET winner = $2, completed_at = now() WHERE id = $1`,
           [bye.id, winner]
         );
-        // Advance winner to next round
-        const nextMatch = Math.ceil(bye.match_number / 2);
-        const slot = bye.match_number % 2 === 1 ? "participant_a" : "participant_b";
-        await pool.query(
-          `UPDATE public.bracket_matches SET ${slot} = $3
-           WHERE competition_id = $1 AND round = 2 AND match_number = $2 AND bracket_type = 'winners'`,
-          [params.id, nextMatch, winner]
+
+        // Advance winner using engine logic
+        const dest = getNextMatch(
+          bye.bracket_type,
+          bye.round,
+          bye.match_number,
+          participants.length,
+          eliminationType
         );
+        if (dest) {
+          const slot = dest.slot === "a" ? "participant_a" : "participant_b";
+          await pool.query(
+            `UPDATE public.bracket_matches SET ${slot} = $4
+             WHERE competition_id = $1 AND round = $2 AND match_number = $3 AND bracket_type = $5`,
+            [params.id, dest.round, dest.matchNumber, winner, dest.bracketType]
+          );
+        }
+
+        // For double-elim, byes don't produce a loser (no one to route)
       }
 
     } else if (comp.type === "league") {
-      // Round-robin: generate all pairs
-      const participants = regs.map((r: any) => r.wallet || r.team_id);
-      const n = participants.length;
-      const matchValues: any[] = [];
-      const matchPlaceholders: string[] = [];
-      let idx = 1;
-      let round = 1;
+      const slots = generateRoundRobin(participants);
 
-      // Circle method for round-robin scheduling
-      const list = [...participants];
-      if (n % 2 !== 0) list.push(null); // add bye for odd
-      const half = list.length / 2;
-      const rounds = list.length - 1;
+      const matchInputs: CreateMatchInput[] = slots
+        .filter((s) => s.status !== "bye") // skip bye slots in round-robin
+        .map((s) => ({
+          competitionId: params.id,
+          round: s.round,
+          matchNumber: s.matchNumber,
+          bracketType: s.bracketType,
+          participantA: s.participantA,
+          participantB: s.participantB,
+          status: s.status,
+        }));
 
-      for (let r = 0; r < rounds; r++) {
-        let matchNum = 1;
-        for (let m = 0; m < half; m++) {
-          const a = list[m];
-          const b = list[list.length - 1 - m];
-          if (a && b) {
-            matchPlaceholders.push(`($${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++})`);
-            matchValues.push(params.id, r + 1, matchNum++, a, b, "pending");
+      await createMatches(matchInputs, pool);
+
+    } else if (comp.type === "swiss") {
+      // Swiss: generate only round 1 — subsequent rounds via /advance-round
+      const slots = generateSwissRound1(participants);
+
+      const matchInputs: CreateMatchInput[] = slots
+        .filter((s) => s.status !== "bye")
+        .map((s) => ({
+          competitionId: params.id,
+          round: s.round,
+          matchNumber: s.matchNumber,
+          bracketType: s.bracketType,
+          participantA: s.participantA,
+          participantB: s.participantB,
+          status: s.status,
+        }));
+
+      await createMatches(matchInputs, pool);
+
+      // Handle bye matches (odd participant count)
+      for (const s of slots) {
+        if (s.status === "bye" && s.participantA) {
+          const byeInputs: CreateMatchInput[] = [{
+            competitionId: params.id,
+            round: s.round,
+            matchNumber: s.matchNumber,
+            bracketType: s.bracketType,
+            participantA: s.participantA,
+            participantB: null,
+            status: "bye",
+          }];
+          const [byeMatch] = await createMatches(byeInputs, pool);
+          if (byeMatch) {
+            await pool.query(
+              `UPDATE public.bracket_matches SET winner = $2, completed_at = now() WHERE id = $1`,
+              [byeMatch.id, s.participantA]
+            );
           }
         }
-        // Rotate: fix first, rotate rest
-        const last = list.pop()!;
-        list.splice(1, 0, last);
       }
+    }
 
-      if (matchPlaceholders.length > 0) {
-        await pool.query(
-          `INSERT INTO public.bracket_matches (competition_id, round, match_number, participant_a, participant_b, status)
-           VALUES ${matchPlaceholders.join(", ")}`,
-          matchValues
-        );
+    // Create series for bracket matches if series format is configured (Bo3/Bo5/Bo7)
+    const seriesFormat = (comp.settings as any)?.series_format as SeriesFormat | undefined;
+    if (seriesFormat && seriesFormat !== "bo1" && (comp.type === "bracket" || comp.type === "swiss")) {
+      // Get all non-bye matches that have both participants (round 1)
+      const { rows: matchesForSeries } = await pool.query(
+        `SELECT id, participant_a, participant_b FROM public.bracket_matches
+         WHERE competition_id = $1 AND status = 'pending'
+           AND participant_a IS NOT NULL AND participant_b IS NOT NULL`,
+        [params.id]
+      );
+
+      for (const m of matchesForSeries) {
+        const series = await createSeries({
+          bracketMatchId: m.id,
+          competitionId: params.id,
+          format: seriesFormat,
+          participantA: m.participant_a,
+          participantB: m.participant_b,
+        }, pool);
+        await createSeriesGames(series.id, seriesFormat, pool);
       }
     }
 

@@ -1,7 +1,7 @@
 /**
  * brackets.ts — Pure logic module for tournament bracket generation and advancement.
  *
- * Supports single elimination, double elimination, and round-robin formats.
+ * Supports single elimination, double elimination, round-robin, and Swiss formats.
  * All functions are deterministic given the same input.
  * No database calls — this module operates entirely on in-memory data.
  */
@@ -561,4 +561,312 @@ export function getLoserDestination(
     bracketType: 'losers',
     slot: 'b',
   };
+}
+
+// ---------------------------------------------------------------------------
+// Swiss Format
+// ---------------------------------------------------------------------------
+
+export type SwissStanding = {
+  participant: string;
+  wins: number;
+  losses: number;
+  buchholz: number; // sum of opponents' wins (tiebreaker)
+  opponents: string[]; // previous opponents (for rematch avoidance)
+};
+
+/**
+ * Calculate the recommended number of Swiss rounds.
+ * Standard: ceil(log2(participants)) rounds.
+ */
+export function swissRoundCount(participantCount: number): number {
+  if (participantCount <= 1) return 0;
+  return Math.ceil(Math.log2(participantCount));
+}
+
+/**
+ * Generate the first round of a Swiss bracket.
+ * Pairs participants by seed (1v(N/2+1), 2v(N/2+2), etc.)
+ * If odd number, last participant gets a bye.
+ * Returns MatchSlot[] for round 1 only.
+ */
+export function generateSwissRound1(participants: string[]): MatchSlot[] {
+  if (participants.length < 2) {
+    throw new Error('Need at least 2 participants for Swiss');
+  }
+
+  const matches: MatchSlot[] = [];
+  const n = participants.length;
+  const half = Math.floor(n / 2);
+
+  for (let i = 0; i < half; i++) {
+    matches.push({
+      round: 1,
+      matchNumber: i + 1,
+      bracketType: 'winners',
+      participantA: participants[i],
+      participantB: participants[half + i],
+      status: 'pending',
+    });
+  }
+
+  // Odd participant gets a bye
+  if (n % 2 !== 0) {
+    matches.push({
+      round: 1,
+      matchNumber: half + 1,
+      bracketType: 'winners',
+      participantA: participants[n - 1],
+      participantB: null,
+      status: 'bye',
+    });
+  }
+
+  return matches;
+}
+
+/**
+ * Compute Swiss standings from match results.
+ * @param participants All participant IDs
+ * @param results Array of { participantA, participantB, winner } for all completed matches
+ * @returns Sorted standings with Buchholz tiebreaker
+ */
+export function computeSwissStandings(
+  participants: string[],
+  results: Array<{ participantA: string; participantB: string; winner: string }>
+): SwissStanding[] {
+  // Build per-participant records
+  const records = new Map<string, { wins: number; losses: number; opponents: string[] }>();
+  for (const p of participants) {
+    records.set(p, { wins: 0, losses: 0, opponents: [] });
+  }
+
+  for (const r of results) {
+    const recA = records.get(r.participantA);
+    const recB = records.get(r.participantB);
+    if (recA) {
+      recA.opponents.push(r.participantB);
+      if (r.winner === r.participantA) recA.wins++;
+      else recA.losses++;
+    }
+    if (recB) {
+      recB.opponents.push(r.participantA);
+      if (r.winner === r.participantB) recB.wins++;
+      else recB.losses++;
+    }
+  }
+
+  // Compute Buchholz (sum of each opponent's wins)
+  const standings: SwissStanding[] = participants.map((p) => {
+    const rec = records.get(p)!;
+    let buchholz = 0;
+    for (const opp of rec.opponents) {
+      const oppRec = records.get(opp);
+      if (oppRec) buchholz += oppRec.wins;
+    }
+    return {
+      participant: p,
+      wins: rec.wins,
+      losses: rec.losses,
+      buchholz,
+      opponents: [...rec.opponents],
+    };
+  });
+
+  // Sort: wins DESC, buchholz DESC, losses ASC
+  standings.sort((a, b) => {
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    if (b.buchholz !== a.buchholz) return b.buchholz - a.buchholz;
+    return a.losses - b.losses;
+  });
+
+  return standings;
+}
+
+/**
+ * Generate subsequent Swiss rounds based on current standings.
+ * Pairs participants with same W-L record, avoiding rematches.
+ * Uses "slide" pairing: within each score group, pair #1 with #(N/2+1), etc.
+ * Falls back to any unpaired if rematch avoidance is impossible.
+ *
+ * @param standings Current standings sorted by points desc, buchholz desc
+ * @param roundNumber The round to generate (2, 3, ...)
+ * @returns MatchSlot[] for this round
+ */
+export function generateSwissRound(
+  standings: SwissStanding[],
+  roundNumber: number
+): MatchSlot[] {
+  const matches: MatchSlot[] = [];
+  const paired = new Set<string>();
+
+  // Track which participants have had byes (0 losses but opponents list is short)
+  // A bye is detectable when a participant's total games (wins+losses) < roundNumber-1
+  const hadBye = new Set<string>();
+  for (const s of standings) {
+    if (s.wins + s.losses < roundNumber - 1) {
+      hadBye.add(s.participant);
+    }
+  }
+
+  // Group by W-L record
+  const groupKey = (s: SwissStanding) => `${s.wins}-${s.losses}`;
+  const groups: Map<string, SwissStanding[]> = new Map();
+  const groupOrder: string[] = [];
+
+  for (const s of standings) {
+    const key = groupKey(s);
+    if (!groups.has(key)) {
+      groups.set(key, []);
+      groupOrder.push(key);
+    }
+    groups.get(key)!.push(s);
+  }
+
+  // Float-down queue: unpaired participants that carry over to the next group
+  let floaters: SwissStanding[] = [];
+  let matchNumber = 1;
+
+  for (const key of groupOrder) {
+    const group = [...floaters, ...groups.get(key)!];
+    floaters = [];
+
+    // Filter out already-paired participants
+    const available = group.filter((s) => !paired.has(s.participant));
+
+    // Slide pairing within the group
+    const pairings = _swissSlidePair(available, paired);
+
+    for (const [a, b] of pairings) {
+      matches.push({
+        round: roundNumber,
+        matchNumber: matchNumber++,
+        bracketType: 'winners',
+        participantA: a.participant,
+        participantB: b.participant,
+        status: 'pending',
+      });
+      paired.add(a.participant);
+      paired.add(b.participant);
+    }
+
+    // Any unpaired from this group float down
+    for (const s of available) {
+      if (!paired.has(s.participant)) {
+        floaters.push(s);
+      }
+    }
+  }
+
+  // Handle remaining floaters: if exactly one, they get a bye
+  // (pick the lowest-ranked without a previous bye if possible)
+  if (floaters.length === 1) {
+    matches.push({
+      round: roundNumber,
+      matchNumber: matchNumber++,
+      bracketType: 'winners',
+      participantA: floaters[0].participant,
+      participantB: null,
+      status: 'bye',
+    });
+  } else if (floaters.length > 1) {
+    // Pair remaining floaters with each other (forced, ignore rematches)
+    for (let i = 0; i + 1 < floaters.length; i += 2) {
+      matches.push({
+        round: roundNumber,
+        matchNumber: matchNumber++,
+        bracketType: 'winners',
+        participantA: floaters[i].participant,
+        participantB: floaters[i + 1].participant,
+        status: 'pending',
+      });
+    }
+    // If still one left over, bye
+    if (floaters.length % 2 !== 0) {
+      matches.push({
+        round: roundNumber,
+        matchNumber: matchNumber++,
+        bracketType: 'winners',
+        participantA: floaters[floaters.length - 1].participant,
+        participantB: null,
+        status: 'bye',
+      });
+    }
+  }
+
+  // Bye assignment for odd total: if no bye was created above but total
+  // participants is odd, the lowest-ranked without a previous bye should
+  // have been the floater (handled by group logic above).
+
+  return matches;
+}
+
+// ---------------------------------------------------------------------------
+// Swiss internal helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Slide pairing within a score group, avoiding rematches where possible.
+ *
+ * Split the group in half. Pair top-of-first-half with top-of-second-half.
+ * If a pair already played, try swapping within the second half.
+ * Falls back to accepting the rematch if no swap resolves it.
+ */
+function _swissSlidePair(
+  group: SwissStanding[],
+  alreadyPaired: Set<string>
+): [SwissStanding, SwissStanding][] {
+  // Filter to only unpaired
+  const available = group.filter((s) => !alreadyPaired.has(s.participant));
+  if (available.length < 2) return [];
+
+  const half = Math.floor(available.length / 2);
+  const top = available.slice(0, half);
+  const bottom = available.slice(half);
+
+  const pairs: [SwissStanding, SwissStanding][] = [];
+  const usedBottom = new Set<number>();
+
+  for (let i = 0; i < top.length; i++) {
+    const a = top[i];
+    let bestIdx = -1;
+
+    // Try slide partner first (same index in bottom half)
+    if (i < bottom.length && !usedBottom.has(i)) {
+      const oppSet = new Set(a.opponents);
+      if (!oppSet.has(bottom[i].participant)) {
+        bestIdx = i;
+      }
+    }
+
+    // If slide partner is a rematch, try other bottom-half participants
+    if (bestIdx === -1) {
+      const oppSet = new Set(a.opponents);
+      for (let j = 0; j < bottom.length; j++) {
+        if (usedBottom.has(j)) continue;
+        if (!oppSet.has(bottom[j].participant)) {
+          bestIdx = j;
+          break;
+        }
+      }
+    }
+
+    // Fallback: accept rematch with slide partner or any available
+    if (bestIdx === -1) {
+      for (let j = 0; j < bottom.length; j++) {
+        if (!usedBottom.has(j)) {
+          bestIdx = j;
+          break;
+        }
+      }
+    }
+
+    if (bestIdx !== -1) {
+      pairs.push([a, bottom[bestIdx]]);
+      usedBottom.add(bestIdx);
+    }
+    // If no partner at all, this participant becomes a floater (handled by caller)
+  }
+
+  return pairs;
 }

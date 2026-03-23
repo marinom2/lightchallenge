@@ -60,8 +60,67 @@ async function fetchJson<T>(url: string): Promise<T> {
   return r.json() as Promise<T>;
 }
 
+type FullMatchDto = {
+  match_id: number;
+  radiant_win: boolean;
+  duration: number;
+  game_mode: number;
+  lobby_type: number;
+  start_time: number;
+  players: Array<{
+    account_id: number;
+    player_slot: number;
+    hero_id: number;
+    kills: number;
+    deaths: number;
+    assists: number;
+  }>;
+};
+
 export const opendotaConnector: Connector = {
   provider: "opendota",
+
+  async fetchSingleMatch(
+    matchId: string,
+    steam64: string
+  ): Promise<ConnectorResult | null> {
+    const steam32 = Number(steam64To32(steam64));
+
+    let match: FullMatchDto;
+    try {
+      match = await fetchJson<FullMatchDto>(`${OPENDOTA_BASE}/api/matches/${matchId}`);
+    } catch {
+      return null;
+    }
+
+    if (!match?.players) return null;
+
+    const player = match.players.find((p) => p.account_id === steam32);
+    if (!player) return null;
+
+    const isRadiant = isRadiantSlot(player.player_slot);
+    const won = isRadiant ? match.radiant_win === true : match.radiant_win === false;
+
+    const record = {
+      match_id: String(match.match_id),
+      start_time: match.start_time ?? 0,
+      duration: match.duration ?? 0,
+      game_mode: match.game_mode ?? -1,
+      lobby_type: match.lobby_type ?? -1,
+      hero_id: player.hero_id ?? 0,
+      kills: player.kills ?? 0,
+      deaths: player.deaths ?? 0,
+      assists: player.assists ?? 0,
+      result_for_player: won ? "win" : "loss",
+      ranked: match.lobby_type === 7,
+    };
+
+    return {
+      provider: "opendota",
+      records: [record],
+      evidenceHash: stableHash([record]),
+    };
+  },
 
   async fetchEvidence(
     _subject: string,

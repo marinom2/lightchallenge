@@ -150,8 +150,66 @@ async function fetchMatchHistory(
 
 // ─── Connector implementation ───────────────────────────────────────────
 
+/** Normalize a FACEIT match for a specific player. Shared by fetchSingleMatch and webhook handler. */
+export function normalizeFaceitMatch(
+  match: FaceitMatch,
+  playerId: string,
+  elo?: number
+): CS2MatchRecord {
+  const onFaction1 = match.teams.faction1.players.some(
+    (p) => p.player_id === playerId
+  );
+  const playerFaction = onFaction1 ? "faction1" : "faction2";
+  const result: "win" | "loss" = match.results.winner === playerFaction ? "win" : "loss";
+
+  return {
+    match_id: match.match_id,
+    platform: "faceit",
+    start_time: match.started_at,
+    end_time: match.finished_at,
+    game_mode: match.competition_type,
+    result_for_player: result,
+    elo,
+    player_team: onFaction1 ? match.teams.faction1.nickname : match.teams.faction2.nickname,
+    opponent_team: onFaction1 ? match.teams.faction2.nickname : match.teams.faction1.nickname,
+    score: `${match.results.score.faction1}-${match.results.score.faction2}`,
+  };
+}
+
 export const faceitConnector: Connector = {
   provider: "faceit",
+
+  async fetchSingleMatch(
+    matchId: string,
+    steam64: string
+  ): Promise<ConnectorResult | null> {
+    // Resolve Steam64 → FACEIT player
+    const player = await resolvePlayer(steam64);
+    if (!player) return null;
+
+    let match: FaceitMatch;
+    try {
+      match = await faceitGet<FaceitMatch>(`/matches/${matchId}`);
+    } catch {
+      return null;
+    }
+
+    // Check player is in this match
+    const inMatch =
+      match.teams.faction1.players.some((p) => p.player_id === player.player_id) ||
+      match.teams.faction2.players.some((p) => p.player_id === player.player_id);
+
+    if (!inMatch) return null;
+
+    const elo = player.games?.cs2?.faceit_elo;
+    const record = normalizeFaceitMatch(match, player.player_id, elo);
+
+    return {
+      provider: "faceit",
+      records: [record],
+      evidenceHash: stableHash([record]),
+    };
+  },
 
   async fetchEvidence(
     _subject: string,
@@ -176,27 +234,9 @@ export const faceitConnector: Connector = {
     const elo = player.games?.cs2?.faceit_elo;
 
     // Normalize matches to CS2MatchRecord
-    const records: CS2MatchRecord[] = matches.map((m) => {
-      // Determine which faction the player was on
-      const onFaction1 = m.teams.faction1.players.some(
-        (p) => p.player_id === player.player_id
-      );
-      const playerFaction = onFaction1 ? "faction1" : "faction2";
-      const result: "win" | "loss" = m.results.winner === playerFaction ? "win" : "loss";
-
-      return {
-        match_id: m.match_id,
-        platform: "faceit" as const,
-        start_time: m.started_at,
-        end_time: m.finished_at,
-        game_mode: m.competition_type,
-        result_for_player: result,
-        elo,
-        player_team: onFaction1 ? m.teams.faction1.nickname : m.teams.faction2.nickname,
-        opponent_team: onFaction1 ? m.teams.faction2.nickname : m.teams.faction1.nickname,
-        score: `${m.results.score.faction1}-${m.results.score.faction2}`,
-      };
-    });
+    const records: CS2MatchRecord[] = matches.map((m) =>
+      normalizeFaceitMatch(m, player.player_id, elo)
+    );
 
     return {
       provider: "faceit",

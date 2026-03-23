@@ -13,6 +13,13 @@ SET name = 'CrossFit / HIIT — Session Time',
 WHERE id = 'crossfit_sessions';
 
 -- Migrate any existing challenges that used kind='hiit' to kind='crossfit'
-UPDATE public.challenges
-SET category = 'crossfit'
-WHERE category = 'hiit';
+-- (category column may not exist on all schemas; skip safely)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'challenges' AND column_name = 'category'
+  ) THEN
+    EXECUTE $e$ UPDATE public.challenges SET category = 'crossfit' WHERE category = 'hiit' $e$;
+  END IF;
+END $$;
