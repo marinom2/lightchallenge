@@ -150,13 +150,13 @@ async function findCanceledUndistributed(): Promise<DistributableChallenge[]> {
  * Get all participant wallet addresses for a challenge.
  */
 async function getParticipantWallets(challengeId: string): Promise<string[]> {
-  const res = await pool.query<{ wallet: string }>(`
-    SELECT DISTINCT lower(p.wallet) as wallet
+  const res = await pool.query<{ subject: string }>(`
+    SELECT DISTINCT lower(p.subject) as subject
     FROM public.participants p
     WHERE p.challenge_id = $1::bigint
-      AND p.wallet IS NOT NULL
+      AND p.subject IS NOT NULL
   `, [challengeId]);
-  return res.rows.map(r => r.wallet);
+  return res.rows.map(r => r.subject);
 }
 
 /**
