@@ -146,5 +146,19 @@ module.exports = {
         AIVM_SIMULATOR_POLL_MS: "10000",
       },
     },
+    {
+      name: "auto-cancel",
+      script: "npx",
+      args: "tsx offchain/workers/autoCancelWorker.ts",
+      cwd: __dirname,
+      restart_delay: 10000,
+      max_restarts: 50,
+      autorestart: true,
+      watch: false,
+      env: {
+        NODE_ENV: "production",
+        AUTO_CANCEL_POLL_MS: "60000",
+      },
+    },
   ],
 };
