@@ -6,6 +6,9 @@
  * - Handles command and button/modal interactions
  * - Starts an internal HTTP webhook server for notifications from the main app
  * - Sets bot activity status based on active tournament count
+ * - Auto-moderation (spam, scam, rate-limit)
+ * - Welcome system for new members
+ * - FAQ keyword triggers
  */
 
 import dotenv from "dotenv";
@@ -30,6 +33,9 @@ import { commands } from "./commands/index.js";
 import { startWebhookServer } from "./notifications.js";
 import { ensureTables, closePool, getActiveCompetitionCount } from "./db.js";
 import { handleInteraction } from "./interactions.js";
+import { handleAutoMod } from "./automod.js";
+import { handleGuildMemberAdd } from "./welcome.js";
+import { handleFaqKeywords } from "./faq.js";
 
 // ─── Env Validation ─────────────────────────────────────────────────────────
 
@@ -185,6 +191,43 @@ client.on(Events.InteractionCreate, async (interaction) => {
     } else {
       await interaction.reply(reply);
     }
+  }
+});
+
+// ─── Message Handler (AutoMod + FAQ keywords) ──────────────────────────────
+
+client.on(Events.MessageCreate, async (message) => {
+  // Skip bot messages
+  if (message.author.bot) return;
+
+  // Run automod first
+  try {
+    await handleAutoMod(message, client);
+  } catch (err) {
+    console.error("[discord-bot] AutoMod error:", err);
+  }
+
+  // FAQ keyword triggers (only if the message wasn't deleted by automod)
+  try {
+    // Check if the message still exists (automod may have deleted it)
+    if (!message.deletable || message.channel) {
+      await handleFaqKeywords(message);
+    }
+  } catch (err) {
+    // Message may have been deleted by automod — this is expected
+    if ((err as any)?.code !== 10008) {
+      console.error("[discord-bot] FAQ keyword error:", err);
+    }
+  }
+});
+
+// ─── Welcome System ─────────────────────────────────────────────────────────
+
+client.on(Events.GuildMemberAdd, async (member) => {
+  try {
+    await handleGuildMemberAdd(member, client);
+  } catch (err) {
+    console.error("[discord-bot] Welcome error:", err);
   }
 });
 

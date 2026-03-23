@@ -20,7 +20,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const embed = new EmbedBuilder()
     .setTitle("LightChallenge Bot - Commands")
     .setDescription(
-      "Here are all available commands for managing tournaments.\n\n" +
+      "Here are all available commands for managing tournaments, fitness, and more.\n\n" +
       `[Open Web App](${APP_URL})`
     )
     .addFields(
@@ -41,16 +41,29 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         ].join("\n"),
       },
       {
-        name: "Admin",
+        name: "Fitness",
         value: [
-          "`/link-channel <competition_id> [channel]` - Link a channel to a competition",
-          "`/report <competition_id> <match_number> <winner> <score_a> <score_b>` - Report match result",
+          "`/workout <type> <duration> [notes]` - Log a workout",
         ].join("\n"),
       },
       {
-        name: "Other",
+        name: "Info & Support",
         value: [
+          "`/faq <topic>` - Get info about a topic",
+          "`/docs` - Full documentation index",
+          "`/ticket <subject>` - Create a support ticket",
+          "`/close-ticket` - Close current ticket thread",
           "`/help` - Show this help message",
+        ].join("\n"),
+      },
+      {
+        name: "Admin / Moderation",
+        value: [
+          "`/setup-server` - Create full channel & role structure",
+          "`/link-channel <competition_id> [channel]` - Link a channel to a competition",
+          "`/report <competition_id> <match> <winner> <scores>` - Report match result",
+          "`/warn <user> <reason>` - Warn a user",
+          "`/mute <user> <duration> [reason]` - Mute a user",
         ].join("\n"),
       }
     )

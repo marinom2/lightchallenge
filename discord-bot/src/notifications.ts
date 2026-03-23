@@ -31,6 +31,7 @@ import {
   shortAddr,
   progressBar,
 } from "./embeds.js";
+import { logToAdmin } from "./auditlog.js";
 
 // ─── Payload Types ──────────────────────────────────────────────────────────
 
@@ -207,6 +208,14 @@ async function handleNotification(client: Client, raw: FlatWebhookPayload): Prom
             await textChannel.send({ embeds: [bracketEmbed] });
           }
         }
+
+        // Audit log
+        await logToAdmin(client, guild.id, new EmbedBuilder()
+          .setTitle("Competition Started")
+          .setDescription(`**${competition.title}** has started.\nType: ${competition.type}`)
+          .setColor(0x5865f2)
+          .setTimestamp()
+        );
       } catch (err) {
         console.error(`[notifications] Failed to setup channel in guild ${guild.id}:`, err);
       }
@@ -376,6 +385,34 @@ async function handleNotification(client: Client, raw: FlatWebhookPayload): Prom
       }
     } catch (err) {
       console.error(`[notifications] Failed to send to channel ${link.channel_id}:`, err);
+    }
+  }
+
+  // Audit log for competition events
+  const auditGuildIds = new Set(links.map((l) => l.guild_id));
+  for (const guildId of auditGuildIds) {
+    if (payload.type === "match.completed") {
+      const m = payload.match;
+      await logToAdmin(client, guildId, new EmbedBuilder()
+        .setTitle("Match Completed")
+        .setDescription(
+          `**${competition.title}** — Match #${m.match_number}\n` +
+          `${shortAddr(m.participant_a)} ${m.score_a ?? 0} - ${m.score_b ?? 0} ${shortAddr(m.participant_b)}\n` +
+          `Winner: ${shortAddr(m.winner)}`
+        )
+        .setColor(0x57f287)
+        .setTimestamp()
+      );
+    } else if (payload.type === "competition.completed") {
+      await logToAdmin(client, guildId, new EmbedBuilder()
+        .setTitle("Competition Completed")
+        .setDescription(
+          `**${competition.title}** has concluded.` +
+          (payload.winner ? `\nWinner: ${shortAddr(payload.winner)}` : "")
+        )
+        .setColor(0xfee75c)
+        .setTimestamp()
+      );
     }
   }
 }

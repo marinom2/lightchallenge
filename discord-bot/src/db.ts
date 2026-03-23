@@ -224,6 +224,17 @@ export async function ensureTables(): Promise<void> {
       PRIMARY KEY (discord_user_id, guild_id)
     )
   `);
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS public.discord_server_setup (
+      guild_id        text        PRIMARY KEY,
+      setup_complete  boolean     NOT NULL DEFAULT false,
+      channel_map     jsonb       NOT NULL DEFAULT '{}',
+      category_map    jsonb       NOT NULL DEFAULT '{}',
+      role_map        jsonb       NOT NULL DEFAULT '{}',
+      updated_at      timestamptz NOT NULL DEFAULT now()
+    )
+  `);
 }
 
 /** Backwards-compatible alias. */
