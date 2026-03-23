@@ -82,7 +82,11 @@ type ApiOut = {
   timeline: TimelineRow[];
   kindKey?: string | null;
   form?: Record<string, string | number>;
+  autoDistributed?: boolean;
+  autoDistributedTx?: string | null;
 };
+
+import { getPool } from "../../../../../offchain/db/pool";
 
 const ZERO_ADDR = "0x0000000000000000000000000000000000000000" as const;
 const IPFS_GATEWAY = process.env.IPFS_GATEWAY || "https://ipfs.io/ipfs/";
@@ -599,6 +603,19 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
         }
       } catch {}
     }
+
+    // Check auto-distribution status from DB
+    try {
+      const dbPool = getPool();
+      const adRes = await dbPool.query<{ auto_distributed: boolean; auto_distributed_tx: string | null }>(
+        `SELECT auto_distributed, auto_distributed_tx FROM public.challenges WHERE id = $1::bigint`,
+        [id.toString()],
+      );
+      if (adRes.rows[0]) {
+        out.autoDistributed = adRes.rows[0].auto_distributed;
+        out.autoDistributedTx = adRes.rows[0].auto_distributed_tx;
+      }
+    } catch {}
 
     return NextResponse.json(out, {
       headers: { "Cache-Control": "public, max-age=5" },

@@ -83,6 +83,9 @@ export type ApiOut = {
 
   createdAt?: number;
   tags?: string[];
+
+  autoDistributed?: boolean;
+  autoDistributedTx?: string | null;
 };
 
 export type TabKey = "overview" | "technical" | "activity";

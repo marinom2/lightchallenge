@@ -1,6 +1,6 @@
 import { ethers, network } from "hardhat";
 
-const CHALLENGE_PAY = process.env.CP_ADDR || "0xBeA3b508a5Ce2E6C8462108f42c732Da7454c5cb";
+const CHALLENGE_PAY = process.env.CP_ADDR || "0x5d630768BC194B5B840E3e8494037dBEeB06Cf9B";
 
 async function main() {
   console.log(`Network: ${network.name} (chainId=${network.config.chainId})`);

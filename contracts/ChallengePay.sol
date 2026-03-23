@@ -22,6 +22,10 @@ interface ITreasury {
 
   function grantETH(uint256 bucketId, address to, uint256 amount) external;
   function grantERC20(uint256 bucketId, address token, address to, uint256 amount) external;
+
+  function claimETHTo(uint256 bucketId, address to, uint256 amount) external;
+  function claimERC20To(uint256 bucketId, address token, address to, uint256 amount) external;
+  function ethAllowanceOf(uint256 bucketId, address to) external view returns (uint256);
 }
 
 /**
@@ -400,6 +404,8 @@ contract ChallengePay is ReentrancyGuard {
   event WinnerClaimed(uint256 indexed id, address indexed user, uint256 amount);
   event LoserClaimed(uint256 indexed id, address indexed user, uint256 amount);
   event RefundClaimed(uint256 indexed id, address indexed user, uint256 amount);
+  event AutoDistributed(uint256 indexed id, uint256 winnersCount, uint256 losersCount);
+  event AutoRefunded(uint256 indexed id, uint256 count);
 
   // ────────────────────────────────────────────────────────────────────────────
   // Constructor
@@ -994,6 +1000,93 @@ contract ChallengePay is ReentrancyGuard {
   }
 
   // ────────────────────────────────────────────────────────────────────────────
+  // Auto-distribution (dispatcher/admin pushes funds to participants)
+  // ────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * @notice Push winner payouts and loser cashback in one tx after finalization.
+   * @dev Caller must be dispatcher or admin. Each participant is granted via
+   *      Treasury allowance then immediately pushed via claimETHTo/claimERC20To.
+   *      Manual claim functions remain as fallback if auto-distribute skips someone.
+   */
+  function autoDistribute(
+    uint256 id,
+    address[] calldata winners,
+    address[] calldata losers
+  ) external nonReentrant notPaused {
+    if (!dispatchers[msg.sender] && msg.sender != admin) revert NotAdmin();
+
+    Snapshot storage s = snapshots[id];
+    if (!s.set) revert NotEligible();
+
+    Challenge storage c = challenges[id];
+
+    uint256 wCount;
+    for (uint256 i = 0; i < winners.length; i++) {
+      address w = winners[i];
+      if (!c.winner[w]) continue;
+      uint256 principal = c.contrib[w];
+      if (principal == 0 || s.winnerClaimed[w]) continue;
+      s.winnerClaimed[w] = true;
+
+      uint256 amount = principal;
+      if (s.perCommittedBonusX > 0) {
+        amount = principal + (principal * s.perCommittedBonusX / 1e18);
+      }
+
+      _grantAndPush(id, w, amount, c.currency, c.token);
+      emit WinnerClaimed(id, w, amount);
+      wCount++;
+    }
+
+    uint256 lCount;
+    for (uint256 i = 0; i < losers.length; i++) {
+      address l = losers[i];
+      if (c.winner[l]) continue;
+      uint256 principal = c.contrib[l];
+      if (principal == 0 || s.loserClaimed[l]) continue;
+      s.loserClaimed[l] = true;
+
+      uint256 amount = (s.perCashbackX > 0) ? (principal * s.perCashbackX / 1e18) : 0;
+      if (amount > 0) {
+        _grantAndPush(id, l, amount, c.currency, c.token);
+      }
+      emit LoserClaimed(id, l, amount);
+      lCount++;
+    }
+
+    emit AutoDistributed(id, wCount, lCount);
+  }
+
+  /**
+   * @notice Push refunds to participants after challenge cancellation.
+   * @dev Caller must be dispatcher or admin.
+   */
+  function autoRefund(
+    uint256 id,
+    address[] calldata participants
+  ) external nonReentrant notPaused {
+    if (!dispatchers[msg.sender] && msg.sender != admin) revert NotAdmin();
+
+    Challenge storage c = challenges[id];
+    if (c.status != Status.Canceled) revert ChallengeNotFinalized();
+
+    uint256 count;
+    for (uint256 i = 0; i < participants.length; i++) {
+      address p = participants[i];
+      uint256 amount = c.contrib[p];
+      if (amount == 0 || refundClaimed[id][p]) continue;
+
+      refundClaimed[id][p] = true;
+      _grantAndPush(id, p, amount, c.currency, c.token);
+      emit RefundClaimed(id, p, amount);
+      count++;
+    }
+
+    emit AutoRefunded(id, count);
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
   // Internal helpers
   // ────────────────────────────────────────────────────────────────────────────
   function _markParticipant(Challenge storage c, address user) internal {
@@ -1015,6 +1108,21 @@ contract ChallengePay is ReentrancyGuard {
       ITreasury(treasury).grantETH(bucketId, to, amount);
     } else {
       ITreasury(treasury).grantERC20(bucketId, token, to, amount);
+    }
+  }
+
+  /**
+   * @dev Grant Treasury allowance then immediately push funds to recipient.
+   *      Used by autoDistribute/autoRefund to avoid requiring manual claims.
+   */
+  function _grantAndPush(uint256 bucketId, address to, uint256 amount, Currency currency, address token) internal {
+    if (amount == 0) return;
+    if (currency == Currency.NATIVE) {
+      ITreasury(treasury).grantETH(bucketId, to, amount);
+      ITreasury(treasury).claimETHTo(bucketId, to, amount);
+    } else {
+      ITreasury(treasury).grantERC20(bucketId, token, to, amount);
+      ITreasury(treasury).claimERC20To(bucketId, token, to, amount);
     }
   }
 }

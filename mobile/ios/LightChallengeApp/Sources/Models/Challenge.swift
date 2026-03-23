@@ -380,6 +380,10 @@ struct ChallengeDetail: Codable {
     // e.g. { "period": "weekly", "metric": "steps", "threshold": "10000" }
     let form: [String: FormValue]?
 
+    // Auto-distribution state from DB
+    let autoDistributed: Bool?
+    let autoDistributedTx: String?
+
     /// Patch missing fields from the fast DB meta endpoint.
     mutating func mergeFromMeta(_ meta: ChallengeMeta) {
         if title == nil || title?.isEmpty == true { title = meta.title }
@@ -511,7 +515,9 @@ struct ChallengeDetail: Codable {
             proofDeadline: meta.proofDeadline,
             joinClosesTs: nil,
             createdAt: meta.createdAt,
-            form: nil
+            form: nil,
+            autoDistributed: nil,
+            autoDistributedTx: nil
         )
     }
 
@@ -651,14 +657,22 @@ struct ParticipantStatus: Codable {
 struct MyChallenge: Codable, Identifiable {
     let challengeId: String
     let hasEvidence: Bool?
+    let evidenceSubmittedAt: String?
+    let evidenceProvider: String?
     let verdictPass: Bool?
     let verdictReasons: [String]?
     let verdictEvaluator: String?
     let verdictUpdatedAt: String?
+    /// AIVM verification pipeline stage
+    let aivmVerificationStatus: String?
     /// Participant row provenance: onchain_join | evidence_intake | unknown
     let source: String?
     /// On-chain challenge status: Active | Finalized | Canceled
     let challengeStatus: String?
+    /// Whether funds were auto-distributed for this challenge
+    let autoDistributed: Bool?
+    /// Tx hash of the auto-distribution transaction
+    let autoDistributedTx: String?
     /// Server-computed lifecycle state (from resolveLifecycle)
     let resolved: ResolvedStage?
 
@@ -680,6 +694,13 @@ struct MyChallenge: Codable, Identifiable {
     /// Timeline-aware status label. Prefers server-computed `resolved.label`
     /// when available, falls back to local derivation.
     func statusLabel(meta: ChallengeMeta?) -> String {
+        // Auto-distributed overrides claim-related labels
+        if autoDistributed == true {
+            if let pass = verdictPass {
+                return pass ? "Reward Sent" : "Cashback Sent"
+            }
+            return "Funds Sent"
+        }
         if let label = resolved?.label, !label.isEmpty {
             return label
         }
@@ -702,6 +723,7 @@ struct MyChallenge: Codable, Identifiable {
     }
 
     func statusColor(meta: ChallengeMeta?) -> String {
+        if autoDistributed == true { return "green" }
         if let stage = resolved?.stage {
             switch stage {
             case "ACTIVE": return "green"

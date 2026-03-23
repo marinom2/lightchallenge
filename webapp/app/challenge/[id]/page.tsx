@@ -15,7 +15,7 @@ import {
   useBlockNumber,
 } from "wagmi";
 
-import { ABI, ADDR } from "@/lib/contracts";
+import { ABI, ADDR, EXPLORER_URL } from "@/lib/contracts";
 import { txUrl } from "@/lib/explorer";
 import { buildAuthHeaders } from "@/lib/authHeaders";
 import { useToasts } from "@/lib/ui/toast";
@@ -1619,6 +1619,25 @@ const primaryAction = React.useMemo(() => {
   // ────────────────────────────────────────────────────────────────────────────
   // Local fallback (keeps page working even if resolver signature changes)
   // ────────────────────────────────────────────────────────────────────────────
+
+  // 0) Auto-distributed — funds already pushed to wallet
+  if (data?.autoDistributed && (effectiveStatus === "Finalized" || effectiveStatus === "Canceled")) {
+    return {
+      kind: "info" as const,
+      title: "Funds distributed",
+      desc: effectiveStatus === "Canceled"
+        ? "Your stake has been automatically refunded to your wallet."
+        : "Your payout has been automatically sent to your wallet.",
+      cta: "View Funds",
+      icon: CheckCircle2,
+      disabled: false,
+      onClick: () => { window.location.href = "/funds"; },
+      secondaryLabel: data?.autoDistributedTx ? "View Tx" : undefined,
+      onSecondary: data?.autoDistributedTx
+        ? () => { window.open(`${EXPLORER_URL}/tx/${data.autoDistributedTx}`, "_blank"); }
+        : undefined,
+    };
+  }
 
   // 1) Claims always win (if something is claimable, that's the action)
   if (shouldShowClaims) {

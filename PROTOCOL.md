@@ -457,7 +457,7 @@ Lightchain native workers perform `commitInference`, `revealInference`, and `sub
 
 | Contract | Address |
 |---|---|
-| ChallengePay | `0xBeA3b508a5Ce2E6C8462108f42c732Da7454c5cb` |
+| ChallengePay | `0x5d630768BC194B5B840E3e8494037dBEeB06Cf9B` |
 | EventChallengeRouter | `0x4c523C1eBdcD8FAAA27808f01F3Ec00B98Fb0f2D` |
 | ChallengeTaskRegistry | `0x0e079C693Bd177Fa31baab70EfCD5b9D625c355E` |
 | ChallengePayAivmPoiVerifier | `0x44c750aA01Ec2465CB3E7354EF1c16cc83D45123` |

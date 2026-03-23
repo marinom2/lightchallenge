@@ -59,6 +59,8 @@ export async function GET(req: NextRequest) {
         chainOutcome: row.chain_outcome,
         hasClaim: row.has_claim,
         claimedTotalWei: row.claimed_total_wei,
+        autoDistributed: row.auto_distributed,
+        autoDistributedTx: row.auto_distributed_tx,
       };
       const lc = resolveLifecycle(input, now);
       return {

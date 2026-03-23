@@ -44,9 +44,14 @@ struct ChallengesView: View {
         deduplicatedActivities.filter { a in a.hasEvidence != true && a.verdictPass == nil }.count
     }
 
-    private var claimableCount: Int {
+    private var rewardsCount: Int {
         deduplicatedActivities.filter { a in
-            a.isOnChain && a.verdictPass != nil && (eligibility[a.challengeId]?.hasAnyClaim == true)
+            // Auto-distributed (already received)
+            if a.autoDistributed == true { return true }
+            // Payout processing
+            if a.verdictPass != nil && a.challengeStatus?.lowercased() == "finalized" { return true }
+            // Legacy claimable
+            return a.isOnChain && a.verdictPass != nil && (eligibility[a.challengeId]?.hasAnyClaim == true)
         }.count
     }
 
@@ -126,7 +131,14 @@ struct ChallengesView: View {
                     )
                 case .claim:
                     ClaimHubView(
-                        activities: deduplicatedActivities.filter { $0.isOnChain && $0.verdictPass != nil && eligibility[$0.challengeId]?.hasAnyClaim == true },
+                        activities: deduplicatedActivities.filter { a in
+                            // Auto-distributed (already received)
+                            if a.autoDistributed == true { return true }
+                            // Payout processing (passed/finalized, waiting for auto-distribute worker)
+                            if a.verdictPass != nil && a.challengeStatus?.lowercased() == "finalized" { return true }
+                            // Legacy claimable
+                            return a.isOnChain && a.verdictPass != nil && eligibility[a.challengeId]?.hasAnyClaim == true
+                        },
                         challengeMetas: challengeMetas,
                         eligibility: eligibility,
                         claimingId: $claimingId,
@@ -201,13 +213,13 @@ struct ChallengesView: View {
                         navigationPath.append(ChallengeHub.myChallenges)
                     }
 
-                    // Claim
+                    // Rewards
                     actionCard(
-                        title: "Claim",
-                        subtitle: claimableCount > 0 ? "\(claimableCount) rewards" : "No rewards yet",
+                        title: "Rewards",
+                        subtitle: rewardsCount > 0 ? "\(rewardsCount) rewards" : "No rewards yet",
                         icon: "trophy.fill",
                         gradient: [Color(hex: 0xEAB308), Color(hex: 0xCA8A04)],
-                        badge: claimableCount > 0 ? "\(claimableCount)" : nil
+                        badge: rewardsCount > 0 ? "\(rewardsCount)" : nil
                     ) {
                         navigationPath.append(ChallengeHub.claim)
                     }
@@ -295,7 +307,7 @@ struct ChallengesView: View {
             summaryStatPill(value: "\(deduplicatedActivities.count)", label: "Total", icon: "flame.fill", color: LC.accent)
             summaryStatPill(value: "\(evidenceCount)", label: "Proof Due", icon: "exclamationmark.circle.fill", color: LC.warning)
             summaryStatPill(value: "\(passedCount)", label: "Passed", icon: "checkmark.circle.fill", color: LC.success)
-            summaryStatPill(value: "\(claimableCount)", label: "Claimable", icon: "trophy.fill", color: LC.accent)
+            summaryStatPill(value: "\(rewardsCount)", label: "Rewards", icon: "trophy.fill", color: LC.accent)
         }
         .padding(.horizontal, LC.space16)
     }
@@ -677,7 +689,7 @@ struct EvidenceHubView: View {
                         .lineLimit(1)
 
                     if isSubmitted {
-                        Text("Evidence already submitted")
+                        Text("Evidence submitted")
                             .font(.caption2.weight(.medium))
                             .foregroundStyle(LC.success)
                     } else if let end = meta?.endsDate {
@@ -697,7 +709,52 @@ struct EvidenceHubView: View {
                 }
             }
 
-            if !isSubmitted {
+            if isSubmitted {
+                // Proof details — clean Apple-style summary
+                VStack(spacing: LC.space8) {
+                    Divider()
+
+                    // Source + time
+                    HStack(spacing: 0) {
+                        if let provider = activity.evidenceProvider, !provider.isEmpty {
+                            Label(provider == "apple_health" ? "Apple Health" : provider.capitalized, systemImage: provider == "apple_health" ? "heart.fill" : "doc.text.fill")
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(LC.textSecondary(scheme))
+                        }
+
+                        Spacer()
+
+                        if let submittedAt = activity.evidenceSubmittedAt, !submittedAt.isEmpty {
+                            Text(relativeTime(submittedAt))
+                                .font(.caption2)
+                                .foregroundStyle(LC.textTertiary(scheme))
+                        }
+                    }
+
+                    // Verification progress
+                    evidenceProgressView(activity)
+
+                    // Verdict result (if available)
+                    if let pass = activity.verdictPass {
+                        HStack(spacing: LC.space6) {
+                            Image(systemName: pass ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .font(.system(size: 13))
+                                .foregroundStyle(pass ? LC.success : LC.danger)
+                            Text(pass ? "Challenge Passed" : "Challenge Failed")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(pass ? LC.success : LC.danger)
+                            Spacer()
+                        }
+
+                        if let reasons = activity.verdictReasons, !reasons.isEmpty {
+                            Text(reasons.joined(separator: " · "))
+                                .font(.caption2)
+                                .foregroundStyle(LC.textSecondary(scheme))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+            } else {
                 // Submit button — only for pending
                 Button {
                     selectedProof = ProofTarget(
@@ -731,6 +788,47 @@ struct EvidenceHubView: View {
             RoundedRectangle(cornerRadius: LC.radiusLG, style: .continuous)
                 .stroke(LC.cardBorder(scheme), lineWidth: 1)
         )
+    }
+
+    /// Apple-style verification progress (Submitted → Verified → Complete)
+    private func evidenceProgressView(_ activity: MyChallenge) -> some View {
+        let steps = ["Submitted", "Verified", "Complete"]
+        let currentStep: Int = {
+            if activity.verdictPass != nil { return 3 }
+            let status = (activity.aivmVerificationStatus ?? "").lowercased()
+            switch status {
+            case "done", "finalized", "revealed": return 2
+            case "committed": return 1
+            default: return activity.hasEvidence == true ? 1 : 0
+            }
+        }()
+
+        return HStack(spacing: LC.space4) {
+            ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
+                VStack(spacing: LC.space4) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(index < currentStep ? LC.accent : Color(.systemFill))
+                        .frame(height: 3)
+                    Text(step)
+                        .font(.system(size: 9, weight: index < currentStep ? .semibold : .regular))
+                        .foregroundStyle(index < currentStep ? LC.accent : LC.textTertiary(scheme))
+                }
+            }
+        }
+    }
+
+    private func relativeTime(_ isoString: String) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        var date = formatter.date(from: isoString)
+        if date == nil {
+            formatter.formatOptions = [.withInternetDateTime]
+            date = formatter.date(from: isoString)
+        }
+        guard let date else { return "" }
+        let relative = RelativeDateTimeFormatter()
+        relative.unitsStyle = .abbreviated
+        return relative.localizedString(for: date, relativeTo: Date())
     }
 
     private var emptyState: some View {
@@ -788,10 +886,14 @@ struct MyChallengesListView: View {
         Set(needsActionUnsorted.map(\.id))
     }
 
-    /// Needs Action: no evidence submitted yet, OR has a claimable reward.
+    /// Needs Action: no evidence submitted yet, OR has a claimable reward (not auto-distributed).
     /// Sorted by due date (earliest deadline first).
     private var needsActionUnsorted: [MyChallenge] {
         filtered.filter { a in
+            // Auto-distributed challenges never need manual action
+            if a.autoDistributed == true { return false }
+            // Payout processing — no manual action needed
+            if a.verdictPass != nil && a.challengeStatus?.lowercased() == "finalized" { return false }
             if a.hasEvidence != true && a.verdictPass == nil { return true }
             if a.verdictPass != nil && eligibility[a.challengeId]?.hasAnyClaim == true { return true }
             return false
@@ -1061,15 +1163,28 @@ struct ClaimHubView: View {
     let eligibility: [String: ContractService.ClaimEligibility]
     @Binding var claimingId: String?
     var onClaim: (MyChallenge, ContractService.ClaimEligibility) async -> Void
-    @State private var expandedSections: Set<String> = ["winner", "cashback"]
+    @State private var expandedSections: Set<String> = ["distributed", "processing"]
     @Environment(\.colorScheme) private var scheme
 
-    private var winners: [MyChallenge] {
-        activities.filter { $0.verdictPass == true }
+    /// Challenges where funds were already auto-distributed to wallet.
+    private var distributed: [MyChallenge] {
+        activities.filter { $0.autoDistributed == true }
     }
 
-    private var cashback: [MyChallenge] {
-        activities.filter { $0.verdictPass != true }
+    /// Challenges awaiting auto-distribution (finalized, verdict exists, not yet distributed).
+    private var processing: [MyChallenge] {
+        activities.filter { a in
+            a.autoDistributed != true && a.verdictPass != nil && a.challengeStatus?.lowercased() == "finalized"
+        }
+    }
+
+    /// Challenges that still need a manual claim (legacy edge case).
+    private var claimable: [MyChallenge] {
+        activities.filter { a in
+            a.autoDistributed != true
+            && !(a.verdictPass != nil && a.challengeStatus?.lowercased() == "finalized")
+            && eligibility[a.challengeId]?.hasAnyClaim == true
+        }
     }
 
     var body: some View {
@@ -1078,24 +1193,27 @@ struct ClaimHubView: View {
                 emptyState
             } else {
                 VStack(spacing: 0) {
-                    if !winners.isEmpty {
-                        claimSection("winner", title: "Winner Rewards", icon: "trophy.fill", color: LC.success, items: winners)
+                    if !distributed.isEmpty {
+                        rewardSection("distributed", title: "Received", icon: "checkmark.circle.fill", color: LC.success, items: distributed)
                     }
-                    if !cashback.isEmpty {
-                        claimSection("cashback", title: "Cashback", icon: "arrow.uturn.backward.circle.fill", color: LC.warning, items: cashback)
+                    if !processing.isEmpty {
+                        rewardSection("processing", title: "Payout Processing", icon: "arrow.triangle.2.circlepath", color: LC.accent, items: processing)
+                    }
+                    if !claimable.isEmpty {
+                        rewardSection("claimable", title: "Ready to Claim", icon: "trophy.fill", color: LC.warning, items: claimable)
                     }
                 }
                 .padding(.bottom, LC.space32)
             }
         }
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("Claim Rewards")
+        .navigationTitle("Rewards")
         .navigationBarTitleDisplayMode(.large)
     }
 
     // MARK: - Collapsible Section
 
-    private func claimSection(_ key: String, title: String, icon: String, color: Color, items: [MyChallenge]) -> some View {
+    private func rewardSection(_ key: String, title: String, icon: String, color: Color, items: [MyChallenge]) -> some View {
         let isExpanded = expandedSections.contains(key)
 
         return VStack(spacing: 0) {
@@ -1140,7 +1258,7 @@ struct ClaimHubView: View {
             if isExpanded {
                 LazyVStack(spacing: LC.space8) {
                     ForEach(items) { activity in
-                        claimRow(activity)
+                        rewardRow(activity)
                     }
                 }
                 .padding(.horizontal, LC.space16)
@@ -1150,14 +1268,16 @@ struct ClaimHubView: View {
         }
     }
 
-    private func claimRow(_ activity: MyChallenge) -> some View {
+    private func rewardRow(_ activity: MyChallenge) -> some View {
         let meta = challengeMetas[activity.challengeId]
         let elig = eligibility[activity.challengeId]
+        let isDistributed = activity.autoDistributed == true
+        let isProcessing = !isDistributed && activity.verdictPass != nil && activity.challengeStatus?.lowercased() == "finalized"
 
         return VStack(alignment: .leading, spacing: LC.space12) {
             NavigationLink(value: activity.challengeId) {
                 HStack(spacing: LC.space12) {
-                    Image(systemName: "trophy.fill")
+                    Image(systemName: isDistributed ? "checkmark.circle.fill" : isProcessing ? "arrow.triangle.2.circlepath" : "trophy.fill")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(width: 44, height: 44)
@@ -1165,7 +1285,11 @@ struct ClaimHubView: View {
                             RoundedRectangle(cornerRadius: LC.radiusSM, style: .continuous)
                                 .fill(
                                     LinearGradient(
-                                        colors: [Color(hex: 0xEAB308), Color(hex: 0xCA8A04)],
+                                        colors: isDistributed
+                                            ? [LC.success, Color(hex: 0x16A34A)]
+                                            : isProcessing
+                                            ? [LC.accent, Color(hex: 0x1D4ED8)]
+                                            : [Color(hex: 0xEAB308), Color(hex: 0xCA8A04)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )
@@ -1178,7 +1302,17 @@ struct ClaimHubView: View {
                             .foregroundStyle(LC.textPrimary(scheme))
                             .lineLimit(1)
 
-                        if activity.verdictPass == true {
+                        if isDistributed {
+                            LCStatusBadge(
+                                text: activity.verdictPass == true ? "Reward Sent" : "Cashback Sent",
+                                color: LC.success
+                            )
+                        } else if isProcessing {
+                            LCStatusBadge(
+                                text: activity.verdictPass == true ? "Reward Processing" : "Cashback Processing",
+                                color: LC.accent
+                            )
+                        } else if activity.verdictPass == true {
                             LCStatusBadge(text: "Winner", color: LC.success)
                         } else {
                             LCStatusBadge(text: "Cashback", color: LC.warning)
@@ -1194,7 +1328,42 @@ struct ClaimHubView: View {
             }
             .buttonStyle(.plain)
 
-            if let elig {
+            if isDistributed {
+                // Show "sent to wallet" confirmation with optional tx link
+                HStack(spacing: LC.space8) {
+                    Image(systemName: "wallet.pass.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(LC.success)
+                    Text("Funds sent to your wallet")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(LC.textSecondary(scheme))
+
+                    Spacer()
+
+                    if let tx = activity.autoDistributedTx, !tx.isEmpty {
+                        Link(destination: URL(string: "https://testnet-explorer.lightchain.ai/tx/\(tx)")!) {
+                            HStack(spacing: LC.space4) {
+                                Text("View Tx")
+                                    .font(.caption2.weight(.bold))
+                                Image(systemName: "arrow.up.right.square")
+                                    .font(.system(size: 10))
+                            }
+                            .foregroundStyle(LC.accent)
+                        }
+                    }
+                }
+                .padding(.horizontal, LC.space4)
+            } else if isProcessing {
+                // Payout is being processed automatically
+                HStack(spacing: LC.space8) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Payout will be sent to your wallet automatically")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(LC.textSecondary(scheme))
+                }
+                .padding(.horizontal, LC.space4)
+            } else if let elig {
                 Button {
                     Task { await onClaim(activity, elig) }
                 } label: {
@@ -1238,7 +1407,7 @@ struct ClaimHubView: View {
                 .foregroundStyle(LC.textTertiary(scheme))
             Text("No Rewards Yet")
                 .font(.headline)
-            Text("Complete challenges to earn claimable rewards.")
+            Text("Complete challenges to earn rewards.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

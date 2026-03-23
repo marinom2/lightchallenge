@@ -2045,6 +2045,15 @@ html[data-theme="light"] .explore-card:hover {
   cursor: not-allowed;
 }
 
+.mc-auto-dist-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--lc-text-caption);
+  font-weight: var(--lc-weight-semibold);
+  color: var(--lc-success);
+}
+
 .mc-action-btn {
   display: inline-flex;
   align-items: center;

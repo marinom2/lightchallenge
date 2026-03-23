@@ -160,5 +160,19 @@ module.exports = {
         AUTO_CANCEL_POLL_MS: "60000",
       },
     },
+    {
+      name: "auto-distribute",
+      script: "npx",
+      args: "tsx offchain/workers/autoDistributeWorker.ts",
+      cwd: __dirname,
+      restart_delay: 10000,
+      max_restarts: 50,
+      autorestart: true,
+      watch: false,
+      env: {
+        NODE_ENV: "production",
+        AUTO_DISTRIBUTE_POLL_MS: "30000",
+      },
+    },
   ],
 };

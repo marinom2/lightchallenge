@@ -8,7 +8,7 @@
     "abiFile": "MetadataRegistry.abi.json"
   },
   "ChallengePay": {
-    "address": "0xBeA3b508a5Ce2E6C8462108f42c732Da7454c5cb",
+    "address": "0x5d630768BC194B5B840E3e8494037dBEeB06Cf9B",
     "abiFile": "ChallengePay.abi.json"
   },
   "ChallengeTaskRegistry": {

@@ -460,7 +460,7 @@ cd webapp && npm run dev
 
 | Contract | Address |
 |---|---|
-| `ChallengePay` (V1) | `0xBeA3b508a5Ce2E6C8462108f42c732Da7454c5cb` |
+| `ChallengePay` (V1) | `0x5d630768BC194B5B840E3e8494037dBEeB06Cf9B` |
 | `EventChallengeRouter` | `0x4c523C1eBdcD8FAAA27808f01F3Ec00B98Fb0f2D` |
 | `Treasury` | `0xe84c197614d4fAAE1CdA8d6067fFe43befD9e961` |
 | `MetadataRegistry` | `0xe9bAA8c04cd77d06A736fc987cC13348DfF0bfAb` |
@@ -492,7 +492,7 @@ cd webapp && npm run dev
 |---|---|---|
 | ChallengePay admin | `0x8176735dE44c6a6e64C9153F2448B15F2F53cB31` | `ADMIN_PRIVATE_KEY` wallet; accepted via `acceptAdmin()` |
 | Treasury DEFAULT_ADMIN | `0x8176735dE44c6a6e64C9153F2448B15F2F53cB31` | Same admin wallet |
-| Treasury OPERATOR_ROLE | `0xBeA3b508a5Ce2E6C8462108f42c732Da7454c5cb` | ChallengePay V1 contract |
+| Treasury OPERATOR_ROLE | `0x5d630768BC194B5B840E3e8494037dBEeB06Cf9B` | ChallengePay V1 contract |
 | Deployer / Protocol | `0x95A4CE3c93dBcDb9b3CdFb4CCAE6EFBDb4cCA217` | `PRIVATE_KEY` wallet |
 | EventChallengeRouter owner | `0x95A4CE3c93dBcDb9b3CdFb4CCAE6EFBDb4cCA217` | Deployer (set at construction) |
 

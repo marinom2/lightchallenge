@@ -15,7 +15,7 @@ import { sslConfig } from "../../offchain/db/sslConfig";
 dotenv.config({ path: path.resolve(process.cwd(), "webapp/.env.local") });
 
 const RPC      = process.env.NEXT_PUBLIC_RPC_URL || "https://light-testnet-rpc.lightchain.ai";
-const CP_ADDR  = (process.env.NEXT_PUBLIC_CHALLENGEPAY_ADDR || "0xBeA3b508a5Ce2E6C8462108f42c732Da7454c5cb");
+const CP_ADDR  = (process.env.NEXT_PUBLIC_CHALLENGEPAY_ADDR || "0x5d630768BC194B5B840E3e8494037dBEeB06Cf9B");
 const VERIFIER = (process.env.CHALLENGEPAY_AIVM_POI_VERIFIER_ADDRESS || "0x44c750aA01Ec2465CB3E7354EF1c16cc83D45123");
 
 const ID_A = BigInt(process.argv[2] || "42");

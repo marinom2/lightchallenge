@@ -45,6 +45,8 @@ type ParticipantStatus = {
   verdict_updated_at: string | null;
   aivm_verification_status: string | null;
   challenge_status: string | null;
+  auto_distributed?: boolean;
+  auto_distributed_tx?: string | null;
   title?: string;
   modelHash?: string;
   endsAt?: number | null;
@@ -62,7 +64,7 @@ type FilterKey = "all" | "proof" | "claim" | "active" | "won";
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: "all", label: "All" },
   { key: "proof", label: "Needs Proof" },
-  { key: "claim", label: "Claimable" },
+  { key: "claim", label: "Rewards" },
   { key: "active", label: "Active" },
   { key: "won", label: "Won" },
 ];
@@ -74,7 +76,7 @@ function matchesFilter(lc: ResolvedLifecycle, filter: FilterKey): boolean {
     case "proof":
       return lc.shouldAppearInNeedsProof;
     case "claim":
-      return lc.shouldAppearInClaimable;
+      return lc.shouldAppearInClaimable || lc.autoDistributed;
     case "active":
       return lc.shouldAppearInActive;
     case "won":
@@ -149,6 +151,8 @@ function toLifecycleInput(
     claimEligible,
     hasClaim: row.has_claim,
     claimedTotalWei: row.claimed_total_wei,
+    autoDistributed: row.auto_distributed,
+    autoDistributedTx: row.auto_distributed_tx,
   };
 }
 
@@ -625,29 +629,49 @@ function ChallengeCard({
             {lc.label}
           </span>
           <div className="mc-card__action-area">
-            {lc.canClaim && (
-              <button
-                className="mc-claim-btn"
-                onClick={() => onClaim(row.challenge_id, displayTitle)}
-                disabled={isClaiming}
-              >
-                {isClaiming ? (
-                  <span className="mc-btn-loading">
-                    <span className="mc-spinner" />
-                    Claiming...
-                  </span>
-                ) : (
-                  "Claim Reward"
+            {lc.autoDistributed ? (
+              <>
+                <span className="mc-auto-dist-label">
+                  ✓ Funds sent to wallet
+                </span>
+                {lc.autoDistributedTx && (
+                  <a
+                    href={`${EXPLORER_URL}/tx/${lc.autoDistributedTx}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mc-card__details-link"
+                  >
+                    View tx &rarr;
+                  </a>
                 )}
-              </button>
-            )}
-            {lc.canSubmitProof && (
-              <Link
-                href={`/proofs/${row.challenge_id}`}
-                className="mc-action-btn mc-action-btn--proof"
-              >
-                Submit Proof &rarr;
-              </Link>
+              </>
+            ) : (
+              <>
+                {lc.canClaim && (
+                  <button
+                    className="mc-claim-btn"
+                    onClick={() => onClaim(row.challenge_id, displayTitle)}
+                    disabled={isClaiming}
+                  >
+                    {isClaiming ? (
+                      <span className="mc-btn-loading">
+                        <span className="mc-spinner" />
+                        Claiming...
+                      </span>
+                    ) : (
+                      "Claim Reward"
+                    )}
+                  </button>
+                )}
+                {lc.canSubmitProof && (
+                  <Link
+                    href={`/proofs/${row.challenge_id}`}
+                    className="mc-action-btn mc-action-btn--proof"
+                  >
+                    Submit Proof &rarr;
+                  </Link>
+                )}
+              </>
             )}
             <Link
               href={`/challenge/${row.challenge_id}`}

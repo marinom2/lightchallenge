@@ -97,6 +97,10 @@ export type LifecycleInput = {
   // Persisted claim state (from public.claims via API)
   hasClaim?: boolean;              // true = at least one claim row persisted
   claimedTotalWei?: string | null; // total claimed wei — may be "0" for zero-value claim records
+
+  // Auto-distribution state (from challenges table)
+  autoDistributed?: boolean;       // true = funds were auto-pushed to wallet
+  autoDistributedTx?: string | null;
 };
 
 /** The resolved lifecycle output consumed by all pages. */
@@ -135,6 +139,10 @@ export type ResolvedLifecycle = {
   // Proof deadline info (for urgency display)
   proofTimeLeft?: string | null;
   proofDeadlinePassed: boolean;
+
+  // Auto-distribution passthrough
+  autoDistributed: boolean;
+  autoDistributedTx?: string | null;
 };
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -211,6 +219,28 @@ export function resolveLifecycle(input: LifecycleInput, now?: number): ResolvedL
   const proofDeadlinePassed = !!(input.proofDeadline && input.proofDeadline <= t);
 
   // ───────────────────────────────────────────────────────────────────────
+  // RULE 0.5: AUTO-DISTRIBUTED overrides claim flow.
+  // When the worker has pushed funds to the participant's wallet, the
+  // challenge is done — no manual claim action required.
+  // ───────────────────────────────────────────────────────────────────────
+  if (input.autoDistributed) {
+    const isWinner = input.verdict_pass === true;
+    return makeResult("CLAIMED", {
+      label: isWinner ? "Reward Sent" : (cs === "canceled" || cs === "rejected") ? "Refund Sent" : "Cashback Sent",
+      description: isWinner
+        ? "Reward automatically sent to your wallet."
+        : (cs === "canceled" || cs === "rejected")
+          ? "Refund automatically sent to your wallet."
+          : "Cashback automatically sent to your wallet.",
+      badgeVariant: "ok",
+      accent: "ok",
+      proofDeadlinePassed,
+      autoDistributed: true,
+      autoDistributedTx: input.autoDistributedTx,
+    });
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
   // RULE A: Chain outcome wins for finalized challenges.
   //
   // chainOutcome from the Finalized event is authoritative for reward state:
@@ -281,30 +311,31 @@ export function resolveLifecycle(input: LifecycleInput, now?: number): ResolvedL
       });
     }
     // CLAIMABLE: live on-chain simulation confirms reward available
+    // Auto-distribution is the default — show "processing" instead of manual claim
     if (input.claimEligible === true) {
-      return makeResult("CLAIMABLE", {
-        label: "Reward Ready",
-        description: "On-chain reward confirmed — claim now.",
-        badgeVariant: "claim",
-        accent: "claim",
-        canClaim: true,
+      return makeResult("REWARD_EARNED", {
+        label: "Payout Processing",
+        description: "Reward confirmed — funds will be sent to your wallet automatically.",
+        badgeVariant: "ok",
+        accent: "ok",
+        canClaim: false,
         proofDeadlinePassed,
       });
     }
-    // claimEligible === false, no persisted claim → on-chain says nothing to claim
+    // claimEligible === false, no persisted claim → auto-distribution pending
     if (input.claimEligible === false) {
-      return makeResult("ENDED", {
-        label: "No payout",
-        description: "No reward available on-chain for this challenge.",
-        badgeVariant: "soft",
-        accent: "bad",
+      return makeResult("REWARD_EARNED", {
+        label: "Payout Processing",
+        description: "Reward confirmed — funds will be sent to your wallet automatically.",
+        badgeVariant: "ok",
+        accent: "ok",
         proofDeadlinePassed,
       });
     }
-    // claimEligible === null/undefined → not yet simulated
+    // claimEligible === null/undefined → not yet simulated, auto-distribution pending
     return makeResult("REWARD_EARNED", {
-      label: "Reward Earned",
-      description: "Verifying on-chain reward status...",
+      label: "Payout Processing",
+      description: "Reward confirmed — funds will be sent to your wallet automatically.",
       badgeVariant: "ok",
       accent: "ok",
       proofDeadlinePassed,
@@ -384,7 +415,7 @@ export function resolveLifecycle(input: LifecycleInput, now?: number): ResolvedL
   if (input.verdict_pass === true && challengeHasEnded(input, t)) {
     return makeResult("PASSED", {
       label: "Passed",
-      description: "Evaluation passed — waiting for on-chain finalization.",
+      description: "Evaluation passed — payout will be sent to your wallet automatically.",
       badgeVariant: "ok",
       accent: "ok",
       proofDeadlinePassed,
@@ -501,6 +532,8 @@ type PartialResult = {
   canClaim?: boolean;
   proofTimeLeft?: string | null;
   proofDeadlinePassed?: boolean;
+  autoDistributed?: boolean;
+  autoDistributedTx?: string | null;
 };
 
 function makeResult(stage: LifecycleStage, p: PartialResult): ResolvedLifecycle {
@@ -534,6 +567,9 @@ function makeResult(stage: LifecycleStage, p: PartialResult): ResolvedLifecycle 
 
     proofTimeLeft: p.proofTimeLeft ?? null,
     proofDeadlinePassed: p.proofDeadlinePassed ?? false,
+
+    autoDistributed: p.autoDistributed ?? false,
+    autoDistributedTx: p.autoDistributedTx ?? null,
   };
 }
 
@@ -577,6 +613,9 @@ export function toValidatorGroup(lc: ResolvedLifecycle): ValidatorGroup {
 export type ClaimSection = "claimable" | "pending" | "lost" | "won" | null;
 
 export function toClaimSection(lc: ResolvedLifecycle): ClaimSection {
+  // Auto-distributed always goes to "won" (received)
+  if (lc.autoDistributed) return "won";
+
   switch (lc.stage) {
     case "CLAIMABLE":
     case "REWARD_EARNED":

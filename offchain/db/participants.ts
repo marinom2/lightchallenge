@@ -72,6 +72,10 @@ export type ParticipantWithStatus = {
   ends_at_unix: number | null;
   /** Proof deadline (unix seconds) extracted from timeline JSONB. */
   proof_deadline_unix: number | null;
+  /** Whether funds were auto-distributed for this challenge. */
+  auto_distributed: boolean;
+  /** Tx hash of the auto-distribution transaction. */
+  auto_distributed_tx: string | null;
 };
 
 // ─── Queries ────────────────────────────────────────────────────────────────
@@ -159,7 +163,9 @@ export async function getChallengesForSubject(
       (cl.total_claims > 0)               AS has_claim,
       cl.total_wei                         AS claimed_total_wei,
       extract(epoch from (c.timeline->>'endsAt')::timestamptz)::bigint     AS ends_at_unix,
-      extract(epoch from (c.timeline->>'proofDeadline')::timestamptz)::bigint AS proof_deadline_unix
+      extract(epoch from (c.timeline->>'proofDeadline')::timestamptz)::bigint AS proof_deadline_unix,
+      coalesce(c.auto_distributed, false)   AS auto_distributed,
+      c.auto_distributed_tx                  AS auto_distributed_tx
     FROM   public.participants p
     LEFT   JOIN LATERAL (
                   SELECT id, created_at, provider
@@ -222,7 +228,9 @@ export async function getParticipantStatus(
       (cl.total_claims > 0)               AS has_claim,
       cl.total_wei                         AS claimed_total_wei,
       extract(epoch from (c.timeline->>'endsAt')::timestamptz)::bigint     AS ends_at_unix,
-      extract(epoch from (c.timeline->>'proofDeadline')::timestamptz)::bigint AS proof_deadline_unix
+      extract(epoch from (c.timeline->>'proofDeadline')::timestamptz)::bigint AS proof_deadline_unix,
+      coalesce(c.auto_distributed, false)   AS auto_distributed,
+      c.auto_distributed_tx                  AS auto_distributed_tx
     FROM   public.participants p
     LEFT   JOIN LATERAL (
                   SELECT id, created_at, provider

@@ -37,7 +37,8 @@ const DEFAULT_NAV: NavItem[] = [
   { label: "Explore", href: "/explore" },
   { label: "Create", href: "/challenges/create" },
   { label: "My Challenges", href: "/me/challenges" },
-  { label: "Claims", href: "/claims" },
+  { label: "Rewards", href: "/claims" },
+  { label: "My Funds", href: "/funds" },
   { label: "Achievements", href: "/me/achievements" },
 ];
 

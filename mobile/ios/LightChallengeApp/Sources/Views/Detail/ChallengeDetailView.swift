@@ -595,8 +595,23 @@ struct ChallengeDetailView: View {
 
     private func completedCard(_ detail: ChallengeDetail) -> some View {
         VStack(spacing: LC.space12) {
-            // Claim action
-            if let elig = claimEligibility {
+            // Auto-distributed — funds already pushed
+            if detail.autoDistributed == true {
+                HStack(spacing: LC.space8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(LC.success)
+                    Text("Payout sent to wallet")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(LC.success)
+                }
+                if let tx = detail.autoDistributedTx {
+                    Link("View transaction", destination: URL(string: "\(LightChain.explorerURL)/tx/\(tx)")!)
+                        .font(.caption2)
+                        .foregroundStyle(LC.accent)
+                }
+            }
+            // Manual claim fallback
+            else if let elig = claimEligibility {
                 if elig.hasAnyClaim && !claimSuccess {
                     Button {
                         Task { await executeClaim() }
@@ -645,8 +660,23 @@ struct ChallengeDetailView: View {
 
     private var failedCard: some View {
         VStack(spacing: LC.space12) {
-            // Stake recovery — uses system button style
-            if let elig = claimEligibility, (elig.canClaimLoser || elig.canClaimTreasury) && !claimSuccess {
+            // Auto-distributed — cashback already pushed
+            if detail?.autoDistributed == true {
+                HStack(spacing: LC.space8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(LC.success)
+                    Text("Cashback sent to wallet")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(LC.success)
+                }
+                if let tx = detail?.autoDistributedTx {
+                    Link("View transaction", destination: URL(string: "\(LightChain.explorerURL)/tx/\(tx)")!)
+                        .font(.caption2)
+                        .foregroundStyle(LC.accent)
+                }
+            }
+            // Manual claim fallback — stake recovery
+            else if let elig = claimEligibility, (elig.canClaimLoser || elig.canClaimTreasury) && !claimSuccess {
                 Button {
                     Task { await executeClaim() }
                 } label: {

@@ -88,7 +88,7 @@ npx tsx offchain/indexers/aivmIndexer.ts
 
 | Contract | Address |
 |----------|---------|
-| ChallengePay | `0xBeA3b508a5Ce2E6C8462108f42c732Da7454c5cb` |
+| ChallengePay | `0x5d630768BC194B5B840E3e8494037dBEeB06Cf9B` |
 | EventChallengeRouter | `0x4c523C1eBdcD8FAAA27808f01F3Ec00B98Fb0f2D` |
 | Treasury | `0xe84c197614d4fAAE1CdA8d6067fFe43befD9e961` |
 | MetadataRegistry | `0xe9bAA8c04cd77d06A736fc987cC13348DfF0bfAb` |

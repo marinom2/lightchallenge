@@ -65,6 +65,8 @@ type RewardRow = {
   aivm_verification_status?: string | null;
   joined_at?: string | null;
   chain_outcome?: number | null;
+  auto_distributed?: boolean;
+  auto_distributed_tx?: string | null;
   title?: string;
   description?: string;
 };
@@ -93,6 +95,8 @@ function toInput(r: RewardRow): LifecycleInput {
     verdict_pass: r.verdict_pass,
     aivm_verification_status: r.aivm_verification_status,
     chainOutcome: r.chain_outcome ?? null,
+    autoDistributed: r.auto_distributed,
+    autoDistributedTx: r.auto_distributed_tx,
   };
 }
 
@@ -374,7 +378,7 @@ function RewardBoard({ address }: { address: string }) {
         {metricBtn("claimable", claimable.length, "Claimable", "Ready now", true)}
         {metricBtn("pending", pending.length, "Pending", "Awaiting finalization")}
         {metricBtn("lost", lost.length, "Lost", "Did not pass")}
-        {metricBtn("won", won.length, "Claimed", `${claimable.length + won.length} won all time`)}
+        {metricBtn("won", won.length, "Received", `${claimable.length + won.length} total rewards`)}
       </div>
 
       {activeSection && (
@@ -419,11 +423,11 @@ function RewardBoard({ address }: { address: string }) {
         />
       )}
 
-      {/* Previously claimed */}
+      {/* Received / previously claimed */}
       {showSection("won") && won.length > 0 && (
         <RewardSection
-          title="Previously claimed"
-          subtitle="Rewards already collected"
+          title="Received"
+          subtitle="Rewards already sent to your wallet or claimed"
           items={won}
           section="won"
           onClaim={handleClaim}
@@ -520,21 +524,41 @@ function RewardSection({
                 <div className="flex items-center gap-2 shrink-0">
                   <span className={`chip ${badgeClass}`}>{lc.label}</span>
 
-                  {section === "claimable" && (
-                    <button
-                      className="next-step-cta cta-claim text-xs"
-                      onClick={() => onClaim(row.challenge_id)}
-                      disabled={isClaiming}
-                      aria-busy={isClaiming ? "true" : "false"}
-                    >
-                      {isClaiming ? "Claiming…" : "Claim Reward"}
-                    </button>
-                  )}
+                  {lc.autoDistributed ? (
+                    <>
+                      {lc.autoDistributedTx && (
+                        <a
+                          href={`${EXPLORER_URL}/tx/${lc.autoDistributedTx}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-ghost btn-sm text-xs"
+                        >
+                          View tx →
+                        </a>
+                      )}
+                      <Link href={`/challenge/${row.challenge_id}`} className="btn btn-ghost btn-sm text-xs">
+                        Details →
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      {section === "claimable" && (
+                        <button
+                          className="next-step-cta cta-claim text-xs"
+                          onClick={() => onClaim(row.challenge_id)}
+                          disabled={isClaiming}
+                          aria-busy={isClaiming ? "true" : "false"}
+                        >
+                          {isClaiming ? "Claiming…" : "Claim Reward"}
+                        </button>
+                      )}
 
-                  {(section === "pending" || section === "lost" || section === "won") && (
-                    <Link href={`/challenge/${row.challenge_id}`} className="btn btn-ghost btn-sm text-xs">
-                      View →
-                    </Link>
+                      {(section === "pending" || section === "lost" || section === "won") && (
+                        <Link href={`/challenge/${row.challenge_id}`} className="btn btn-ghost btn-sm text-xs">
+                          View →
+                        </Link>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -594,13 +618,13 @@ export default function ClaimsPage() {
 
   return (
     <div className="stack-6">
-      <Breadcrumb items={[{ label: "Claims" }]} />
+      <Breadcrumb items={[{ label: "Rewards" }]} />
 
       {/* Page header */}
       <div className="page-header">
-        <h1 className="page-header__title">Claim Rewards</h1>
+        <h1 className="page-header__title">Rewards</h1>
         <p className="page-header__sub mt-1">
-          Your reward board — claimable winnings, pending finalization, and history.
+          Your reward board — auto-distributed payouts, claimable winnings, and history.
         </p>
       </div>
 

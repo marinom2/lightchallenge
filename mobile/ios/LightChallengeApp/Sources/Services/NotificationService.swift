@@ -477,6 +477,8 @@ struct AppNotification: Identifiable, Codable, Equatable {
         case "achievement_earned": return "Achievement unlocked"
         case "dispute_filed": return "Dispute opened"
         case "dispute_resolved": return "Dispute resolved"
+        case "funds_received": return "Funds received"
+        case "refund_received": return "Refund received"
         default: return title
         }
     }
@@ -506,6 +508,10 @@ struct AppNotification: Identifiable, Codable, Equatable {
             return body ?? "Time is almost up. Give it everything you've got."
         case "proof_window_open":
             return body ?? "The challenge has ended. Results are being processed."
+        case "funds_received":
+            return body ?? "Your challenge payout has been sent to your wallet."
+        case "refund_received":
+            return body ?? "Your stake has been refunded to your wallet."
         default:
             return body
         }
@@ -524,6 +530,8 @@ struct AppNotification: Identifiable, Codable, Equatable {
         case "challenge_starting": return "Starting soon"
         case "challenge_joined": return "Joined"
         case "proof_window_open": return "Processing results"
+        case "funds_received": return "Funds sent"
+        case "refund_received": return "Refunded"
         default: return nil
         }
     }
