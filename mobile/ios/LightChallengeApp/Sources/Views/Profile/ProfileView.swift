@@ -97,6 +97,24 @@ struct ProfileView: View {
                         }
                     }
 
+                    NavigationLink {
+                        AIChatView()
+                    } label: {
+                        HStack(spacing: LC.space12) {
+                            Image(systemName: "sparkles")
+                                .foregroundStyle(LC.accent)
+                                .frame(width: 28)
+
+                            VStack(alignment: .leading, spacing: LC.space2) {
+                                Text("AI Assistant")
+                                    .font(.subheadline)
+                                Text("Ask questions about LightChallenge")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                    }
+
                     notificationRow
                 } header: {
                     Label("Notifications", systemImage: "bell.fill")

@@ -11,14 +11,52 @@ struct MainTabView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     @State private var pushDetailNotification: AppNotification?
+    @State private var showingChat = false
 
     var body: some View {
-        Group {
-            if sizeClass == .regular {
-                iPadLayout
-            } else {
-                iPhoneLayout
+        ZStack(alignment: .bottomTrailing) {
+            Group {
+                if sizeClass == .regular {
+                    iPadLayout
+                } else {
+                    iPhoneLayout
+                }
             }
+
+            // Floating AI chat button
+            Button {
+                showingChat = true
+            } label: {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 52, height: 52)
+                    .background(
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [LC.accent, LC.gradBlue],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .shadow(color: LC.accent.opacity(0.3), radius: 8, y: 4)
+                    )
+            }
+            .padding(.trailing, LC.space16)
+            .padding(.bottom, sizeClass == .regular ? LC.space16 : 80)
+        }
+        .sheet(isPresented: $showingChat) {
+            NavigationStack {
+                AIChatView()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("Done") { showingChat = false }
+                                .foregroundStyle(LC.accent)
+                        }
+                    }
+            }
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: $pushDetailNotification) { notification in
             ActivityDetailSheet(notification: notification) {
