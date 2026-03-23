@@ -11,6 +11,7 @@
     "postinstall": "node ./scripts/sync-abis.mjs || true"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "@neondatabase/serverless": "^1.0.2",
     "@rainbow-me/rainbowkit": "^2.2.8",
     "@react-three/drei": "^9.74.8",
