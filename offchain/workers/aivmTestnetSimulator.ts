@@ -14,6 +14,8 @@
 import path from "path";
 import dotenv from "dotenv";
 import { ethers } from "ethers";
+import { Pool } from "pg";
+import { sslConfig } from "../db/sslConfig";
 
 dotenv.config({
   path: path.resolve(process.cwd(), "webapp/.env.local"),
@@ -47,6 +49,40 @@ if (!pk) {
 if (!AIVM_ADDR) {
   console.error("[aivmSimulator] Missing AIVM_INFERENCE_V2_ADDRESS");
   process.exit(1);
+}
+
+// ─── DB pool (for challengeId lookup) ────────────────────────────────────────
+
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  console.error("[aivmSimulator] Missing DATABASE_URL");
+  process.exit(1);
+}
+
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: sslConfig(),
+  max: 3,
+});
+
+/**
+ * Look up the challengeId for a given AIVM requestId.
+ * The canonical result string must contain the challengeId, not the requestId,
+ * to match what the on-chain ChallengePayAivmPoiVerifier expects.
+ */
+async function getChallengeIdForRequest(requestId: number): Promise<string | null> {
+  const res = await pool.query<{ challenge_id: string }>(
+    `SELECT challenge_id::text
+     FROM public.aivm_jobs
+     WHERE (proof_data->'taskBinding'->>'requestId')::text = $1
+        OR challenge_id IN (
+          SELECT c.id FROM public.challenges c
+          WHERE c.proof->'taskBinding'->>'requestId' = $1
+        )
+     LIMIT 1`,
+    [String(requestId)]
+  );
+  return res.rows[0]?.challenge_id ?? null;
 }
 
 // ─── ABIs ────────────────────────────────────────────────────────────────────
@@ -131,13 +167,16 @@ async function processRequest(
 
   const signerAddress = await signer.getAddress();
 
-  // Build canonical result
-  // We use requestId as a simple identifier; the content is not critical for
-  // testnet simulation — the aivmIndexer reads events, not response bodies.
-  const canonicalResult = JSON.stringify({
-    requestId: requestId.toString(),
-    verified: true,
-  });
+  // Build canonical result — MUST match the format expected by
+  // ChallengePayAivmPoiVerifier._buildCanonicalResultString():
+  //   {"challengeId":"N","verified":true}
+  const challengeId = await getChallengeIdForRequest(requestId);
+  if (!challengeId) {
+    log(`requestId=${requestId}: no challengeId found in DB — skipping`);
+    return false;
+  }
+
+  const canonicalResult = `{"challengeId":"${challengeId}","verified":true}`;
   const responseHash = ethers.keccak256(
     ethers.toUtf8Bytes(canonicalResult)
   ) as `0x${string}`;
@@ -284,6 +323,7 @@ async function runLoop(): Promise<void> {
 function onSignal(signal: string): void {
   log(`Received ${signal}, shutting down gracefully...`);
   shutdownRequested = true;
+  pool.end().catch(() => {});
 }
 
 process.on("SIGTERM", () => onSignal("SIGTERM"));
