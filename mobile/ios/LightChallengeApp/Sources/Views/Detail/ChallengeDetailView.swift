@@ -610,29 +610,25 @@ struct ChallengeDetailView: View {
                         .foregroundStyle(LC.accent)
                 }
             }
-            // Manual claim fallback
-            else if let elig = claimEligibility {
-                if elig.hasAnyClaim && !claimSuccess {
-                    Button {
-                        Task { await executeClaim() }
-                    } label: {
-                        HStack(spacing: LC.space8) {
-                            if isClaiming {
-                                ProgressView().tint(.white).controlSize(.small)
-                            }
-                            Text(isClaiming ? "Claiming..." : claimButtonLabel)
-                        }
-                    }
-                    .buttonStyle(LCGoldButton(isDisabled: isClaiming))
-                    .disabled(isClaiming)
-                } else if claimSuccess {
-                    HStack(spacing: LC.space8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(LC.success)
-                        Text("Reward claimed")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(LC.success)
-                    }
+            // Payout processing — auto-distribute will push funds
+            else if !claimSuccess {
+                HStack(spacing: LC.space8) {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(LC.accent)
+                    Text("Payout will be sent to your wallet automatically")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(LC.textSecondary(scheme))
+                }
+            }
+
+            if claimSuccess {
+                HStack(spacing: LC.space8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(LC.success)
+                    Text("Reward claimed")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(LC.success)
                 }
             }
 
@@ -641,13 +637,6 @@ struct ChallengeDetailView: View {
                     .font(.caption)
                     .foregroundStyle(LC.danger)
             }
-
-            Button {
-                showingShareCard = true
-            } label: {
-                Label("Share", systemImage: "square.and.arrow.up")
-            }
-            .buttonStyle(LCSecondaryButton())
 
             // Verification trust layer
             VerificationBadge(timeline: detail.timeline) {
@@ -675,21 +664,19 @@ struct ChallengeDetailView: View {
                         .foregroundStyle(LC.accent)
                 }
             }
-            // Manual claim fallback — stake recovery
-            else if let elig = claimEligibility, (elig.canClaimLoser || elig.canClaimTreasury) && !claimSuccess {
-                Button {
-                    Task { await executeClaim() }
-                } label: {
-                    HStack(spacing: LC.space8) {
-                        if isClaiming {
-                            ProgressView().tint(LC.textPrimary(scheme)).controlSize(.small)
-                        }
-                        Text(isClaiming ? "Claiming..." : "Get Stake Back")
-                    }
+            // Payout processing — auto-distribute will push cashback
+            else if !claimSuccess {
+                HStack(spacing: LC.space8) {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(LC.accent)
+                    Text("Cashback will be sent to your wallet automatically")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(LC.textSecondary(scheme))
                 }
-                .buttonStyle(LCGoldButton(isDisabled: isClaiming))
-                .disabled(isClaiming)
-            } else if claimSuccess {
+            }
+
+            if claimSuccess {
                 HStack(spacing: LC.space8) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(LC.success)
